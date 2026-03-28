@@ -1,0 +1,259 @@
+Quiero que hagas una mejora incremental sobre la app actual “Silent Closer Copilot”.
+
+IMPORTANTE:
+NO quiero que rehagas la app desde cero.
+NO quiero que cambies la estructura base.
+NO quiero que reinventes la interfaz.
+NO quiero una nueva arquitectura visual.
+NO quiero que conviertas esto en una app más compleja.
+
+La base actual me gusta:
+- la estética
+- la pantalla principal
+- la jerarquía visual
+- el look minimalista
+- la idea de SIGNAL / SAY NOW / AVOID
+
+Quiero conservar todo eso.
+
+Tu misión es mejorar lo que ya existe, no reemplazarlo.
+
+=====================================
+LO QUE QUIERO MANTENER
+=====================================
+
+Mantén la estructura general actual:
+- SIGNAL arriba
+- SAY NOW como pieza principal grande
+- AVOID abajo
+- estética oscura
+- minimalismo
+- sensación de herramienta táctica de segunda pantalla
+
+No cambies eso salvo ajustes pequeños de calidad.
+
+=====================================
+PROBLEMA REAL A CORREGIR
+=====================================
+
+La app funciona bien visualmente, pero el motor aún da respuestas demasiado genéricas o poco útiles en algunos casos.
+
+Ejemplo malo:
+- “explora sus preocupaciones sobre Dresden”
+- “no ignores sus sentimientos negativos”
+
+Eso no ayuda lo suficiente en una llamada real.
+
+Quiero que el motor sea:
+- más específico
+- más táctico
+- más comercial
+- más útil bajo presión
+- menos genérico
+- menos tipo coach
+- menos abstracto
+
+=====================================
+MEJORA 1 — HACER MEJOR SIGNAL / SAY NOW / AVOID
+=====================================
+
+Quiero mejorar la calidad de los 3 campos actuales sin cambiar su papel en pantalla.
+
+1. SIGNAL
+Debe nombrar la señal dominante real del momento.
+Más específico, menos genérico.
+
+Ejemplos mejores:
+- objeción reputacional
+- rechazo a la ciudad
+- duda de liquidez
+- miedo a equivocarse
+- objeción falsa
+- desconfianza
+- compara, no compra
+- interés real
+
+2. SAY NOW
+Debe ser la siguiente mejor jugada, concreta y útil.
+
+No quiero frases blandas como:
+- explora sus preocupaciones
+- profundiza más
+- valida emociones
+- escucha mejor
+
+Sí quiero cosas como:
+- pregunta si teme demanda, imagen o reventa
+- separa percepción de rentabilidad
+- pide el dato exacto que le frena
+- aterriza la duda a alquiler o salida
+- devuelve la objeción en pregunta
+
+3. AVOID
+Debe advertirme del error táctico concreto.
+
+Ejemplos buenos:
+- no defiendas Dresden todavía
+- no respondas con datos ya
+- no cierres aún
+- no discutas ideología
+- no argumentes en largo
+
+=====================================
+MEJORA 2 — AÑADIR UN BLOQUE OPCIONAL DE REFUERZO
+=====================================
+
+Quiero añadir una capa opcional de detalle, pero SIN romper la simplicidad de la app.
+
+No quiero que salga siempre visible.
+No quiero que robe protagonismo a SAY NOW.
+No quiero un panel grande.
+No quiero un dashboard.
+
+Quiero algo discreto y opcional, tipo:
+- botón o enlace pequeño: “Ver detalle”
+- botón o enlace pequeño: “Más contexto”
+- botón o enlace pequeño: “Refuerzo”
+
+Cuando se abra, debe mostrar una pequeña ampliación táctica para ayudarme si necesito más claridad.
+
+=====================================
+QUÉ DEBE INCLUIR ESE DETALLE OPCIONAL
+=====================================
+
+Quiero una versión pequeña y útil, no larga.
+
+Campos recomendados:
+
+1. LECTURA
+Una frase corta que explique qué está leyendo el motor.
+Ejemplo:
+- No rechaza solo el piso; rechaza la ciudad como activo.
+- Parece objeción de ciudad, pero seguramente teme demanda o salida.
+- Está usando imagen de zona para expresar inseguridad de inversión.
+
+2. ARGUMENTO
+Una línea de refuerzo sobre cómo orientar la conversación.
+Ejemplo:
+- Lleva la crítica de ciudad a criterio de inversión.
+- Separa percepción política de demanda real.
+- Convierte la opinión general en una duda concreta y medible.
+
+3. PREGUNTA SUGERIDA
+Una pregunta algo más desarrollada, por si el SAY NOW se me queda corto.
+Ejemplo:
+- Cuando dices que Dresden te parece mala ciudad, ¿te preocupa más la demanda de alquiler, la reventa o la imagen general?
+- ¿Lo que te frena es la ciudad como tal o esta operación concreta?
+
+4. RIESGO
+Una línea muy corta sobre el error táctico.
+Ejemplo:
+- Si te pones a defender la ciudad demasiado pronto, se cerrará más.
+- Si respondes con datos antes de concretar, sonarás reactivo.
+
+5. APOYO
+Una línea breve para reforzar lo que conviene hacer.
+Ejemplo:
+- Usa demanda, salida y liquidez; no ideología.
+- Si tienes datos reales, úsalos solo después de concretar la objeción.
+- No cites referencias si no las tienes verificadas.
+
+=====================================
+REGLA IMPORTANTE SOBRE EL DETALLE
+=====================================
+
+Ese panel no debe:
+- inventar referencias
+- inventar estudios
+- inventar estadísticas
+- inventar fuentes
+- inventar datos concretos no dados por el sistema
+
+Puede sugerir tipos de argumento.
+Puede sugerir por dónde entrar.
+Puede sugerir qué tipo de dato usar.
+Pero no debe fingir conocimiento factual no verificado.
+
+=====================================
+REGLA DE UX
+=====================================
+
+La capa principal sigue siendo la protagonista:
+1. SAY NOW
+2. SIGNAL
+3. AVOID
+
+El detalle es solo apoyo.
+Debe estar:
+- colapsado por defecto
+- visualmente discreto
+- fácil de abrir
+- fácil de cerrar
+- integrado sin ensuciar la pantalla
+
+Puede ser:
+- un drawer pequeño
+- un panel expandible
+- una bandeja compacta
+- un cuadro secundario discreto
+
+Elige la solución más limpia sin romper la estética actual.
+
+=====================================
+REGLA DE IMPLEMENTACIÓN
+=====================================
+
+No rehagas nada de cero.
+Haz cambios mínimos y quirúrgicos.
+
+Quiero una mejora incremental:
+- conservar la UI base
+- mejorar el cerebro
+- añadir la capa opcional de refuerzo
+- mantener la filosofía minimalista
+
+=====================================
+FORMATO DE SALIDA NUEVO DEL MOTOR
+=====================================
+
+Mantén los campos principales actuales y añade detalle opcional:
+
+{
+  "signal": "texto corto",
+  "say_now": "frase táctica corta",
+  "avoid": "advertencia corta",
+  "detail": {
+    "reading": "lectura breve",
+    "argument": "línea de enfoque",
+    "question": "pregunta sugerida",
+    "risk": "riesgo táctico",
+    "support": "apoyo opcional"
+  }
+}
+
+Reglas:
+- todo breve
+- nada de párrafos
+- nada de texto extra
+- nada de explicaciones largas
+- detail puede venir vacío o con textos cortos
+- la interfaz principal no debe saturarse por esto
+
+=====================================
+OBJETIVO FINAL
+=====================================
+
+Quiero que la app siga viéndose prácticamente igual, pero que:
+- piense mejor,
+- sea menos genérica,
+- me ayude más en casos concretos,
+- y además me dé una pequeña capa opcional de refuerzo por si necesito más claridad o más munición táctica.
+
+No quiero una nueva app.
+Quiero una versión mejor de la app actual.
+
+Cuando termines:
+1. conserva la base visual
+2. mejora el motor
+3. añade el detalle opcional
+4. explícamelo brevemente

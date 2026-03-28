@@ -78,6 +78,24 @@ components:
           description: Optional session context to guide the tactical analysis
       required:
         - text
+    AnalyzeDetail:
+      type: object
+      properties:
+        reading:
+          type: string
+          description: What the engine is detecting beneath the surface (1 sentence)
+        argument:
+          type: string
+          description: How to frame or orient the conversation (1 line)
+        question:
+          type: string
+          description: A suggested follow-up question if SAY NOW is not enough
+        risk:
+          type: string
+          description: The specific tactical error to avoid (1 line)
+        support:
+          type: string
+          description: A brief supporting note on what to do (1 line)
     AnalyzeResponse:
       type: object
       properties:
@@ -90,6 +108,8 @@ components:
         avoid:
           type: string
           description: What to avoid doing right now (2-6 words)
+        detail:
+          $ref: "#/components/schemas/AnalyzeDetail"
       required:
         - signal
         - say_now
