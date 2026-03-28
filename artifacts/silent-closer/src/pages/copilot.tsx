@@ -161,7 +161,7 @@ export default function CopilotPage() {
       )}
 
       {/* CONTROLS — Bottom */}
-      <div className="absolute bottom-0 left-0 right-0 p-6 flex flex-col items-center bg-gradient-to-t from-black via-black/80 to-transparent pt-12">
+      <div className="absolute bottom-0 left-0 right-0 p-6 flex flex-col items-center bg-black pt-8 border-t border-white/5">
 
         {/* Simulate input */}
         {mode === "simulate" && (
@@ -180,7 +180,7 @@ export default function CopilotPage() {
               }}
               placeholder="Pega aquí un fragmento de la conversación y pulsa Analizar..."
               rows={2}
-              className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-white/20 transition-all font-mono resize-none"
+              className="flex-1 bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-zinc-500 transition-all font-mono resize-none"
               autoFocus
             />
             <button
