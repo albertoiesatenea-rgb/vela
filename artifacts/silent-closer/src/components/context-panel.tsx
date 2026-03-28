@@ -264,9 +264,12 @@ export function SessionBar({
 
   return (
     <div className="border-b border-white/5 bg-black shrink-0">
-      <button
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => setExpanded((v) => !v)}
-        className="w-full flex items-center justify-between px-5 py-2.5 hover:bg-white/[0.02] transition-colors"
+        onKeyDown={(e) => e.key === "Enter" && setExpanded((v) => !v)}
+        className="w-full flex items-center justify-between px-5 py-2.5 hover:bg-white/[0.02] transition-colors cursor-pointer"
       >
         <div className="flex items-center gap-2 min-w-0">
           <div className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
@@ -295,7 +298,7 @@ export function SessionBar({
             <ChevronDown className="w-3 h-3 text-zinc-700" />
           )}
         </div>
-      </button>
+      </div>
 
       {expanded && sessionContext && (
         <div className="px-5 pb-3">
