@@ -1,0 +1,8 @@
+packages:
+  "framer-motion": "For smooth, non-jarring crossfade animations when tactical advice updates on screen"
+  "clsx": "Utility for constructing className strings conditionally"
+  "tailwind-merge": "Utility to merge tailwind classes safely"
+images: []
+notes:
+  - "The app uses Web Speech API for real-time transcription if available in the browser."
+  - "The API integration assumes the presence of /api/copilot/analyze endpoint which returns the expected JSON structure."

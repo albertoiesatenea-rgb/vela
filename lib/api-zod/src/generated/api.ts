@@ -14,3 +14,18 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * Analyzes conversation fragment and returns tactical coaching output
+ * @summary Analyze conversation text
+ */
+
+export const AnalyzeConversationBody = zod.object({
+  text: zod.string().min(1).describe("Conversation fragment to analyze"),
+});
+
+export const AnalyzeConversationResponse = zod.object({
+  signal: zod.string().describe("Short signal label (2-5 words)"),
+  say_now: zod.string().describe("Tactical action to take (4-12 words)"),
+  avoid: zod.string().describe("What to avoid doing right now (2-6 words)"),
+});

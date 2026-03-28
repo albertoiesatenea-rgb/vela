@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: copilot
+    description: Silent Closer Copilot tactical analysis
 paths:
   /healthz:
     get:
@@ -24,6 +26,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /copilot/analyze:
+    post:
+      operationId: analyzeConversation
+      tags: [copilot]
+      summary: Analyze conversation text
+      description: Analyzes conversation fragment and returns tactical coaching output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnalyzeRequest"
+      responses:
+        "200":
+          description: Tactical analysis result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyzeResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +66,35 @@ components:
           type: string
       required:
         - status
-
+    AnalyzeRequest:
+      type: object
+      properties:
+        text:
+          type: string
+          description: Conversation fragment to analyze
+          minLength: 1
+      required:
+        - text
+    AnalyzeResponse:
+      type: object
+      properties:
+        signal:
+          type: string
+          description: Short signal label (2-5 words)
+        say_now:
+          type: string
+          description: Tactical action to take (4-12 words)
+        avoid:
+          type: string
+          description: What to avoid doing right now (2-6 words)
+      required:
+        - signal
+        - say_now
+        - avoid
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error

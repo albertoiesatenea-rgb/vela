@@ -8,3 +8,24 @@
 export interface HealthStatus {
   status: string;
 }
+
+export interface AnalyzeRequest {
+  /**
+   * Conversation fragment to analyze
+   * @minLength 1
+   */
+  text: string;
+}
+
+export interface AnalyzeResponse {
+  /** Short signal label (2-5 words) */
+  signal: string;
+  /** Tactical action to take (4-12 words) */
+  say_now: string;
+  /** What to avoid doing right now (2-6 words) */
+  avoid: string;
+}
+
+export interface ErrorResponse {
+  error: string;
+}
