@@ -14,28 +14,33 @@ interface UseSpeechProps {
 
 export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 8000 }: UseSpeechProps) {
   const [isListening, setIsListening] = useState(false);
-  const [isSupported, setIsSupported] = useState(true);
+  const [isSupported, setIsSupported] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [interimText, setInterimText] = useState("");
 
   const recognitionRef = useRef<any>(null);
   const transcriptBuffer = useRef<string>("");
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  // Use a ref for "should be listening" to avoid stale closure issues
+  const shouldListenRef = useRef(false);
+  const onAnalyzeReadyRef = useRef(onAnalyzeReady);
+  onAnalyzeReadyRef.current = onAnalyzeReady;
 
-  // Initialize Speech Recognition
+  // Initialize Speech Recognition once on mount
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    
+
     if (!SpeechRecognition) {
       setIsSupported(false);
-      setError("Speech recognition is not supported in this browser. Use Simulate mode.");
       return;
     }
+
+    setIsSupported(true);
 
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = "es-ES"; // Default to Spanish as requested in the prompt, but can be configured
+    recognition.lang = "es-ES";
 
     recognition.onstart = () => {
       setIsListening(true);
@@ -44,7 +49,6 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 8000 }: UseSpee
 
     recognition.onresult = (event: any) => {
       let currentInterim = "";
-      
       for (let i = event.resultIndex; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
           transcriptBuffer.current += event.results[i][0].transcript + " ";
@@ -56,76 +60,97 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 8000 }: UseSpee
     };
 
     recognition.onerror = (event: any) => {
-      console.error("Speech recognition error", event.error);
-      if (event.error !== "no-speech") {
-        setError(`Mic error: ${event.error}`);
+      const errType = event.error;
+      if (errType === "not-allowed" || errType === "service-not-allowed") {
+        setError("Permiso de micrófono denegado. Abre la app en una pestaña separada y acepta el permiso.");
+        shouldListenRef.current = false;
+        setIsListening(false);
+      } else if (errType === "no-speech") {
+        // Ignore — no speech is fine, keep listening
+      } else if (errType === "aborted") {
+        // Ignore — aborted is expected when we stop manually
+      } else {
+        setError(`Error: ${errType}`);
+        shouldListenRef.current = false;
         setIsListening(false);
       }
     };
 
     recognition.onend = () => {
-      // Auto-restart if we are supposed to be listening (continuous listening resilience)
-      if (isListening) {
-        try {
-          recognition.start();
-        } catch (e) {
-          // Ignore restart errors
-        }
-      } else {
-        setIsListening(false);
+      setIsListening(false);
+      setInterimText("");
+      // Auto-restart only if we still intend to listen and no error blocked us
+      if (shouldListenRef.current) {
+        setTimeout(() => {
+          if (shouldListenRef.current) {
+            try {
+              recognition.start();
+            } catch {
+              // Recognition might already be starting — ignore
+            }
+          }
+        }, 300);
       }
     };
 
     recognitionRef.current = recognition;
 
     return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
+      shouldListenRef.current = false;
+      try {
+        recognition.stop();
+      } catch {
+        // ignore
       }
     };
-  }, [isListening]);
+  }, []);
 
   // Periodic Analysis Trigger
   useEffect(() => {
     if (isListening) {
       intervalRef.current = setInterval(() => {
         const textToAnalyze = transcriptBuffer.current.trim();
-        if (textToAnalyze.length > 5) { // Only analyze if there's meaningful text
-          onAnalyzeReady(textToAnalyze);
-          transcriptBuffer.current = ""; // Clear buffer after sending
-          setInterimText(""); // Clear interim too
+        if (textToAnalyze.length > 10) {
+          onAnalyzeReadyRef.current(textToAnalyze);
+          transcriptBuffer.current = "";
+          setInterimText("");
         }
       }, analysisIntervalMs);
     } else {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
     }
-
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
     };
-  }, [isListening, onAnalyzeReady, analysisIntervalMs]);
+  }, [isListening, analysisIntervalMs]);
 
   const startListening = useCallback(() => {
+    if (!recognitionRef.current) return;
     setError(null);
     transcriptBuffer.current = "";
+    shouldListenRef.current = true;
     try {
-      if (recognitionRef.current) {
-        recognitionRef.current.start();
-        setIsListening(true);
-      }
-    } catch (err) {
-      console.error("Failed to start recognition", err);
+      recognitionRef.current.start();
+    } catch {
+      // Might already be running — that's fine
     }
   }, []);
 
   const stopListening = useCallback(() => {
+    shouldListenRef.current = false;
     setIsListening(false);
     if (recognitionRef.current) {
-      recognitionRef.current.stop();
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        // ignore
+      }
     }
   }, []);
 
@@ -135,6 +160,6 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 8000 }: UseSpee
     error,
     interimText,
     startListening,
-    stopListening
+    stopListening,
   };
 }
