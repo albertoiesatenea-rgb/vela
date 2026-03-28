@@ -15,6 +15,8 @@ export interface AnalyzeRequest {
    * @minLength 1
    */
   text: string;
+  /** Optional session context to guide the tactical analysis */
+  context?: string;
 }
 
 export interface AnalyzeResponse {

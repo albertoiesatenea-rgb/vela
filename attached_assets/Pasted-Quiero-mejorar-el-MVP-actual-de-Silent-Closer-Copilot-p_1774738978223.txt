@@ -1,0 +1,116 @@
+Quiero mejorar el MVP actual de “Silent Closer Copilot” para que el asistente acepte distintos tipos de contexto y no esté limitado solo a llamadas comerciales inmobiliarias.
+
+IMPORTANTE:
+Quiero mantener la app minimalista, rápida y limpia.
+No quiero convertir esto en un formulario pesado ni en un CRM.
+Quiero que siga siendo una herramienta de segunda pantalla, silenciosa y táctica.
+
+OBJETIVO DE ESTA ITERACIÓN
+Quiero que antes de empezar una sesión el usuario pueda darle al asistente más contexto de forma flexible, tanto para conversaciones generales como para casos comerciales más específicos.
+
+QUIERO DOS FORMAS DE INTRODUCIR CONTEXTO
+
+1. MODO RÁPIDO
+Un modo simple donde el usuario pueda escribir en lenguaje natural la situación.
+
+Ejemplo:
+- “Quiero convencer a mi madre para que me deje ir a un cumpleaños”
+- “Voy a hablar con un cliente escéptico que cree que el precio del inmueble es alto”
+- “Quiero cerrar una reserva con un cliente que ya vio el inmueble pero tiene miedo a equivocarse”
+
+En este modo quiero un cuadro de texto simple donde el usuario explique:
+- con quién va a hablar
+- qué quiere conseguir
+- qué cree que puede pasar
+- cualquier información útil
+
+La app debe usar ese texto como contexto inicial para mejorar las recomendaciones en vivo.
+
+2. MODO GUIADO
+Un modo estructurado con plantillas según tipo de conversación.
+
+Quiero un selector de tipo de conversación con opciones como:
+- conversación general
+- conversación personal
+- negociación
+- venta
+- videollamada comercial
+- venta inmobiliaria
+- gestión de objeciones
+
+Según el tipo seleccionado, quiero que aparezcan campos específicos.
+
+PLANTILLA GENERAL
+Campos:
+- Con quién hablo
+- Qué quiero conseguir
+- Qué me preocupa
+- Información útil adicional
+
+PLANTILLA VENTA INMOBILIARIA
+Campos:
+- Nombre del cliente
+- Inmueble
+- Características clave del inmueble
+- Zona / ciudad
+- Precio o rango
+- Objetivo de la llamada
+- Posibles objeciones
+- Perfil del cliente
+- Información relevante adicional
+
+Ejemplos de posibles objeciones:
+- precio alto
+- desconfianza
+- miedo a equivocarse
+- no conoce la zona
+- no quiere perder liquidez
+- quiere comparar con otras opciones
+
+COMPORTAMIENTO ESPERADO
+La app debe usar este contexto inicial para orientar mejor su análisis durante la sesión.
+
+Quiero que el contexto influya en:
+- la lectura de la situación
+- la detección de objeciones
+- la recomendación táctica
+- el resumen corto de estado
+
+INTERFAZ
+Quiero que esto se implemente de forma muy limpia.
+
+Diseño deseado:
+- un bloque inicial de “Configurar contexto”
+- opción de elegir entre:
+  - Modo rápido
+  - Modo guiado
+- el contexto debe poder colapsarse una vez iniciada la sesión
+- no quiero una interfaz pesada ni llena de campos a la vez
+- el usuario debe sentir que el sistema sigue siendo simple
+
+LÓGICA
+La app debe tratar el contexto como parte de la sesión activa.
+Cuando se pulse “Finalizar llamada” o “Finalizar sesión”, ese contexto debe limpiarse para no contaminar la siguiente.
+
+PRIORIZACIÓN
+La parte central de la app debe seguir siendo la recomendación táctica en vivo:
+- SIGNAL
+- SAY NOW
+- AVOID
+
+El contexto nunca debe robar protagonismo a la recomendación principal.
+
+ENTREGABLES QUE QUIERO
+1. Modo rápido funcional
+2. Modo guiado funcional
+3. Selector de tipo de conversación
+4. Plantilla general
+5. Plantilla venta inmobiliaria
+6. Uso del contexto en la lógica del asistente
+7. Contexto colapsable durante la sesión
+8. Mantenimiento de la estética minimalista
+
+REGLA FINAL
+Si dudas entre añadir más campos o mantenerlo simple, elige siempre mantenerlo simple.
+Quiero flexibilidad, pero sin perder minimalismo.
+Implementa esta mejora sobre el MVP actual.

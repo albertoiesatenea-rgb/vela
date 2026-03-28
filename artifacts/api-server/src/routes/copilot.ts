@@ -7,7 +7,7 @@ import { openai } from "@workspace/integrations-openai-ai-server";
 
 const router: IRouter = Router();
 
-const SYSTEM_PROMPT = `Eres un copiloto táctico de ventas. Tu misión es analizar fragmentos de conversación comercial y devolver una señal táctica mínima.
+const BASE_SYSTEM_PROMPT = `Eres un copiloto táctico silencioso. Analizas fragmentos de conversación y devuelves una señal táctica mínima en JSON.
 
 REGLAS ABSOLUTAS:
 - Solo responde en JSON válido con exactamente tres campos: signal, say_now, avoid
@@ -19,21 +19,37 @@ REGLAS ABSOLUTAS:
 - NUNCA das múltiples opciones
 - Si hay poca información: signal="información insuficiente", say_now="haz una pregunta aclaratoria", avoid="no asumas la objeción"
 
-DETECTA estas señales de ventas:
+DETECTA estas señales:
 - objeción de precio / coste
 - objeción falsa (excusa) vs objeción real
-- desconfianza en el producto o en ti
+- desconfianza
 - interés real camuflado
-- momento de cierre (señales de compra)
+- momento de cierre
 - cierre prematuro (aún no está listo)
 - comparación con competencia
 - necesita más información
-- stall / evasión del prospect
-- urgencia o deadline del prospect
-- decisor no presente
+- evasión / stall
+- urgencia o deadline
+- decisor ausente
+- miedo a equivocarse
+- resistencia emocional
+- señal de avance
 
 Responde SIEMPRE con JSON puro sin markdown, sin explicaciones:
 {"signal":"...","say_now":"...","avoid":"..."}`;
+
+function buildSystemPrompt(context?: string): string {
+  if (!context || !context.trim()) {
+    return BASE_SYSTEM_PROMPT;
+  }
+
+  return `${BASE_SYSTEM_PROMPT}
+
+CONTEXTO DE SESIÓN ACTIVA:
+${context.trim()}
+
+Usa este contexto para ajustar tu análisis: detecta objeciones específicas del contexto, adapta el tono táctico, y prioriza lo que es relevante para esta situación concreta. El contexto no cambia las reglas de formato — sigue respondiendo en JSON táctico corto.`;
+}
 
 router.post("/copilot/analyze", async (req, res) => {
   const parseResult = AnalyzeConversationBody.safeParse(req.body);
@@ -42,14 +58,14 @@ router.post("/copilot/analyze", async (req, res) => {
     return;
   }
 
-  const { text } = parseResult.data;
+  const { text, context } = parseResult.data;
 
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       max_tokens: 200,
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: buildSystemPrompt(context) },
         {
           role: "user",
           content: `Conversación:\n${text}\n\nResponde con JSON táctico:`,

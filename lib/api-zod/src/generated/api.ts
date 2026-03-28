@@ -22,6 +22,10 @@ export const HealthCheckResponse = zod.object({
 
 export const AnalyzeConversationBody = zod.object({
   text: zod.string().min(1).describe("Conversation fragment to analyze"),
+  context: zod
+    .string()
+    .optional()
+    .describe("Optional session context to guide the tactical analysis"),
 });
 
 export const AnalyzeConversationResponse = zod.object({

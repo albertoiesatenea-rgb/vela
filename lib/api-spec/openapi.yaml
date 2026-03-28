@@ -73,6 +73,9 @@ components:
           type: string
           description: Conversation fragment to analyze
           minLength: 1
+        context:
+          type: string
+          description: Optional session context to guide the tactical analysis
       required:
         - text
     AnalyzeResponse:
