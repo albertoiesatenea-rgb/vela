@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Mic, MicOff, Keyboard, Play, Loader2, AlertCircle, ExternalLink } from "lucide-react";
+import { Mic, MicOff, Keyboard, Loader2, AlertCircle, ExternalLink } from "lucide-react";
 import { useAnalyzeConversation } from "@workspace/api-client-react";
 import { useSpeech } from "@/hooks/use-speech";
 import { TacticalDisplay } from "@/components/tactical-display";
@@ -162,7 +162,7 @@ export default function CopilotPage() {
         {mode === "simulate" && (
           <form
             onSubmit={handleSimulateSubmit}
-            className="w-full max-w-2xl flex gap-2"
+            className="w-full max-w-2xl flex items-stretch gap-2"
           >
             <textarea
               value={simulateText}
@@ -181,10 +181,11 @@ export default function CopilotPage() {
             <button
               type="submit"
               disabled={!simulateText.trim() || isPending}
-              className="bg-white text-black px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-zinc-200 active:scale-95 disabled:opacity-40 transition-all flex items-center gap-2 self-end"
+              className="bg-white text-black px-5 rounded-xl font-mono text-xs font-semibold tracking-widest uppercase hover:bg-zinc-200 active:scale-95 disabled:opacity-40 transition-all flex items-center justify-center gap-2 min-w-[90px]"
             >
-              {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-              Analizar
+              {isPending
+                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                : "Analizar"}
             </button>
           </form>
         )}
