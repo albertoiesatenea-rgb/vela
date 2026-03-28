@@ -20,11 +20,35 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 8000 }: UseSpee
 
   const recognitionRef = useRef<any>(null);
   const transcriptBuffer = useRef<string>("");
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  // Use a ref for "should be listening" to avoid stale closure issues
+
+  // Intent ref — set by user action only, never by recognition bounces
   const shouldListenRef = useRef(false);
+
+  // Stable callback ref
   const onAnalyzeReadyRef = useRef(onAnalyzeReady);
   onAnalyzeReadyRef.current = onAnalyzeReady;
+
+  // Interval ref — managed by startListening / stopListening, not by isListening state
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const startInterval = useCallback(() => {
+    if (intervalRef.current) return; // already running
+    intervalRef.current = setInterval(() => {
+      const text = transcriptBuffer.current.trim();
+      if (text.length > 10) {
+        onAnalyzeReadyRef.current(text);
+        transcriptBuffer.current = "";
+        setInterimText("");
+      }
+    }, analysisIntervalMs);
+  }, [analysisIntervalMs]);
+
+  const stopInterval = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }, []);
 
   // Initialize Speech Recognition once on mount
   useEffect(() => {
@@ -65,10 +89,8 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 8000 }: UseSpee
         setError("Permiso de micrófono denegado. Abre la app en una pestaña separada y acepta el permiso.");
         shouldListenRef.current = false;
         setIsListening(false);
-      } else if (errType === "no-speech") {
-        // Ignore — no speech is fine, keep listening
-      } else if (errType === "aborted") {
-        // Ignore — aborted is expected when we stop manually
+      } else if (errType === "no-speech" || errType === "aborted") {
+        // Non-fatal — recognition will fire onend and we'll restart
       } else {
         setError(`Error: ${errType}`);
         shouldListenRef.current = false;
@@ -77,19 +99,21 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 8000 }: UseSpee
     };
 
     recognition.onend = () => {
+      // Only update UI state — don't touch the interval
       setIsListening(false);
       setInterimText("");
-      // Auto-restart only if we still intend to listen and no error blocked us
+
+      // Auto-restart if user still wants to listen
       if (shouldListenRef.current) {
         setTimeout(() => {
           if (shouldListenRef.current) {
             try {
               recognition.start();
             } catch {
-              // Recognition might already be starting — ignore
+              // Already starting — ignore
             }
           }
-        }, 300);
+        }, 250);
       }
     };
 
@@ -97,62 +121,32 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 8000 }: UseSpee
 
     return () => {
       shouldListenRef.current = false;
-      try {
-        recognition.stop();
-      } catch {
-        // ignore
-      }
+      try { recognition.stop(); } catch { /* ignore */ }
     };
   }, []);
-
-  // Periodic Analysis Trigger
-  useEffect(() => {
-    if (isListening) {
-      intervalRef.current = setInterval(() => {
-        const textToAnalyze = transcriptBuffer.current.trim();
-        if (textToAnalyze.length > 10) {
-          onAnalyzeReadyRef.current(textToAnalyze);
-          transcriptBuffer.current = "";
-          setInterimText("");
-        }
-      }, analysisIntervalMs);
-    } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    }
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
-  }, [isListening, analysisIntervalMs]);
 
   const startListening = useCallback(() => {
     if (!recognitionRef.current) return;
     setError(null);
     transcriptBuffer.current = "";
     shouldListenRef.current = true;
+    startInterval();
     try {
       recognitionRef.current.start();
     } catch {
-      // Might already be running — that's fine
+      // Might already be running
     }
-  }, []);
+  }, [startInterval]);
 
   const stopListening = useCallback(() => {
     shouldListenRef.current = false;
+    stopInterval();
     setIsListening(false);
+    setInterimText("");
     if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch {
-        // ignore
-      }
+      try { recognitionRef.current.stop(); } catch { /* ignore */ }
     }
-  }, []);
+  }, [stopInterval]);
 
   return {
     isSupported,
