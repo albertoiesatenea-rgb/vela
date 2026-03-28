@@ -1,0 +1,129 @@
+Quiero rediseñar la pantalla inicial de contexto de “Silent Closer Copilot” para que se vea más premium, más táctica y mucho más compacta.
+
+PROBLEMA ACTUAL
+Ahora mismo el cuadro de texto ocupa demasiado espacio vertical y la pantalla se siente más como un formulario o bloc de notas que como una herramienta táctica de segunda pantalla.
+La experiencia actual obliga visualmente a “rellenar algo largo”, cuando la intención real del producto es:
+- configurar rápido,
+- arrancar,
+- y pasar cuanto antes al modo de escucha/copiloto.
+
+OBJETIVO DE ESTA ITERACIÓN
+Quiero que la pantalla inicial:
+- siga siendo minimalista,
+- siga permitiendo introducir contexto,
+- pero ocupe mucho menos,
+- respire mejor,
+- se vea más elegante,
+- y transmita sensación de herramienta táctica, no de editor de texto.
+
+CAMBIOS QUE QUIERO
+
+1. REDUCIR MUCHO LA ALTURA DEL ÁREA DE TEXTO
+- el textarea del modo rápido no debe ocupar casi toda la pantalla
+- debe tener una altura compacta, suficiente para unas pocas líneas
+- idealmente algo como una caja de contexto breve, no una libreta gigante
+- si el usuario escribe mucho, el campo puede crecer ligeramente o permitir scroll interno, pero no dominar toda la vista
+
+2. MEJORAR LA JERARQUÍA VISUAL
+Quiero que esta pantalla se lea así:
+- título del producto
+- subtítulo corto
+- selector entre “Modo rápido” y “Modo guiado”
+- bloque compacto de contexto
+- CTA principal “Iniciar sesión” o “Iniciar llamada”
+
+La llamada a la acción debe sentirse más protagonista que el campo de texto.
+
+3. HACER QUE EL MODO RÁPIDO SE SIENTA MÁS INTELIGENTE
+En vez de parecer un textarea vacío enorme, quiero:
+- una caja compacta
+- placeholder claro
+- ejemplo discreto, no dominante
+- y si encaja, pequeños chips o ayudas rápidas debajo, como:
+  - “cliente escéptico”
+  - “objeción de precio”
+  - “quiero cerrar hoy”
+  - “desconfía”
+  - “comparando opciones”
+
+Estos chips no deben recargar la interfaz. Solo ayudar a arrancar rápido.
+
+4. DISEÑO MÁS TÁCTICO Y MENOS “FORMULARIO”
+La pantalla debe parecer una preparación rápida de misión.
+Quiero una sensación más cercana a:
+- copiloto
+- radar
+- briefing rápido
+y menos a:
+- formulario largo
+- editor
+- onboarding pesado
+
+5. MANTENER EL ESTILO ACTUAL
+Quiero conservar:
+- fondo oscuro
+- estética limpia
+- look premium/minimalista
+- tipografía sobria
+- poco ruido visual
+
+Pero mejorar:
+- proporciones
+- spacing
+- equilibrio de masas
+- sensación de producto serio
+
+6. AJUSTES CONCRETOS DE LAYOUT
+Quiero que pruebes una de estas dos soluciones, eligiendo la que quede mejor:
+
+OPCIÓN A:
+- contenido centrado
+- bloque de contexto compacto en ancho medio
+- textarea de poca altura
+- CTA muy visible debajo
+
+OPCIÓN B:
+- layout dividido en dos zonas suaves:
+  - izquierda: título, descripción, selector de modo
+  - derecha o centro: bloque de contexto compacto + CTA
+
+Elige la opción que mejor mantenga el minimalismo.
+
+7. MODO GUIADO
+No quiero que el modo guiado se vea pesado tampoco.
+Haz que aparezca limpio, progresivo y compacto.
+Si hay varios campos, usa revelado progresivo o grupos simples.
+No conviertas la pantalla en un formulario empresarial.
+
+8. CTA PRINCIPAL
+El botón de iniciar debe verse muy bien.
+Debe sentirse como el verdadero siguiente paso.
+El usuario debe pensar:
+“meto contexto rápido y arranco”.
+
+9. REGLA DE ORO
+Si dudas entre:
+- dar más espacio al texto
+o
+- hacer la pantalla más limpia y rápida,
+elige siempre hacerla más limpia y rápida.
+
+CRITERIOS DE CALIDAD
+La nueva pantalla debe:
+- caber visualmente mejor en una sola vista
+- necesitar menos scroll o ninguna
+- sentirse más rápida
+- verse más premium
+- seguir permitiendo contexto útil
+- mantener la personalidad minimalista del producto
+
+ENTREGABLES
+Quiero que rediseñes esta pantalla inicial y me dejes:
+1. una versión visualmente más compacta
+2. textarea mucho menos dominante
+3. mejor jerarquía visual
+4. CTA más protagonista
+5. experiencia más táctica y menos “editor de texto”
+
+No añadas funciones extra innecesarias.
+Concéntrate solo en mejorar esta pantalla.
