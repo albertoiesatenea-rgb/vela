@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { ChevronDown, ChevronUp, Zap, SlidersHorizontal, User, Users, Target, Briefcase, ShieldOff, FileText, Swords, Navigation, Headphones, Shuffle, Package, Building, Lightbulb, MessageSquare } from "lucide-react";
+import { ChevronDown, ChevronUp, Zap, SlidersHorizontal, User, Users, Target, Briefcase, ShieldOff, FileText, Swords, Navigation, Headphones, Shuffle, X, Package, Building, Lightbulb, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ArenaRole } from "@/pages/arena";
 
@@ -652,17 +652,29 @@ export function ContextSetup({
                 rows={3}
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 pr-12 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors font-mono resize-none leading-relaxed"
               />
-              {/* Random context button — only in Arena */}
-              {appMode === "arena" && (
-                <button
-                  onClick={handleRandomContext}
-                  onMouseDown={e => e.preventDefault()}
-                  title={lang === "es" ? "Contexto aleatorio" : "Random context"}
-                  className="absolute top-2.5 right-2.5 p-1.5 rounded-lg text-zinc-500 hover:text-white hover:bg-white/8 transition-all"
-                >
-                  <Shuffle className="w-3.5 h-3.5" />
-                </button>
-              )}
+              {/* Shuffle (Arena only) + Clear (whenever there's text) */}
+              <div className="absolute top-2 right-2 flex flex-col gap-0.5">
+                {appMode === "arena" && (
+                  <button
+                    onClick={handleRandomContext}
+                    onMouseDown={e => e.preventDefault()}
+                    title={lang === "es" ? "Contexto aleatorio" : "Random context"}
+                    className="p-1.5 rounded-lg text-zinc-500 hover:text-white hover:bg-white/8 transition-all"
+                  >
+                    <Shuffle className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {quickText && (
+                  <button
+                    onClick={() => { setQuickText(""); setIsRandomCtx(false); quickRef.current?.focus(); }}
+                    onMouseDown={e => e.preventDefault()}
+                    title={lang === "es" ? "Borrar texto" : "Clear text"}
+                    className="p-1.5 rounded-lg text-zinc-600 hover:text-white hover:bg-white/8 transition-all"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* ── Arena-only: profile chips ──────────────────────────── */}
