@@ -7,6 +7,7 @@ import { ContextSetup, SessionBar, WizardIcon } from "@/components/context-panel
 import { Arena } from "@/pages/arena";
 import type { ArenaRole } from "@/pages/arena";
 import { cn } from "@/lib/utils";
+import { buildCopilotAuditLog, triggerAuditLogDownload } from "@/lib/audit-log";
 
 // ── Overlay brand header used in end-of-call screens ────────────────────────
 function WizardOverlayHeader() {
@@ -78,7 +79,7 @@ const T = {
     COPIED: "¡Copiado!",
     NO_MEMORY: "No hay datos suficientes de la llamada para generar un análisis completo.",
     DOWNLOAD_TRAINING: "Descargar datos de entrenamiento ↓",
-    DOWNLOAD_AUDIT: "Descargar log de sesión (.md) ↓",
+    DOWNLOAD_AUDIT: "Descargar audit log (.md) ↓",
   },
   en: {
     LISTEN: "LISTEN", TYPE: "TYPE", ANALYZING: "Analyzing",
@@ -118,7 +119,7 @@ const T = {
     COPIED: "Copied!",
     NO_MEMORY: "Not enough call data to generate a complete analysis.",
     DOWNLOAD_TRAINING: "Download training data ↓",
-    DOWNLOAD_AUDIT: "Download session log (.md) ↓",
+    DOWNLOAD_AUDIT: "Download audit log (.md) ↓",
   },
 };
 
@@ -948,136 +949,23 @@ export default function CopilotPage() {
     URL.revokeObjectURL(url);
   };
 
-  const exportSessionAuditLog = (): string => {
-    const inputModesUsed = [...new Set(turnLog.map(t => t.source_mode))];
-    const inputModeStr = inputModesUsed.length === 0 ? "none"
-      : inputModesUsed.length > 1 ? "mixed"
-      : inputModesUsed[0];
-    const finalMemory = turnLog.length > 0 ? turnLog[turnLog.length - 1].memory_after : tacticalState.callMemory;
-    const lines: string[] = [];
-
-    lines.push("# CLOSER WIZARD SESSION LOG");
-    lines.push("");
-    lines.push("## SESSION_META");
-    lines.push(`session_id: ${sessionId || "unknown"}`);
-    lines.push(`exported_at: ${new Date().toISOString()}`);
-    lines.push(`app_version: 1.0.0`);
-    lines.push(`model: gpt-4o-mini`);
-    lines.push(`lang: ${lang}`);
-    lines.push(`input_mode_used: ${inputModeStr}`);
-    lines.push(`speaker_mode_default: ${speakerMode}`);
-    lines.push(`context_label: ${contextLabel || "null"}`);
-    lines.push(`declared_outcome: ${callOutcome ?? "null"}`);
-    lines.push(`full_report_included: ${!!callSummary?.fullReport}`);
-    lines.push(`turns_total: ${turnLog.length}`);
-    lines.push("");
-
-    lines.push("## SESSION_CONTEXT");
-    lines.push(sessionContext ?? "(sin contexto)");
-    lines.push("");
-
-    lines.push("## TURN_LOG");
-    turnLog.forEach((turn) => {
-      lines.push("");
-      lines.push(`### TURN ${turn.turn_index + 1}`);
-      lines.push(`timestamp: ${turn.timestamp}`);
-      lines.push(`source_mode: ${turn.source_mode}`);
-      lines.push(`speaker_mode: ${turn.speaker_mode}`);
-      lines.push(`raw_fragment: ${turn.raw_fragment}`);
-      lines.push(`normalized_fragment: ${turn.normalized_fragment}`);
-      lines.push(`inferred_speaker: ${turn.inferred_speaker}`);
-      lines.push("");
-      lines.push("memory_before:");
-      if (turn.memory_before.length === 0) {
-        lines.push("- null");
-      } else {
-        turn.memory_before.forEach(l => lines.push(`- ${l}`));
-      }
-      lines.push("");
-      if (turn.system_output) {
-        const o = turn.system_output;
-        lines.push("system_output:");
-        lines.push(`  signal: ${o.signal || "null"}`);
-        lines.push(`  say_now: ${o.say_now}`);
-        lines.push(`  avoid: ${o.avoid ?? "null"}`);
-        lines.push(`  reading: ${o.detail.reading || "null"}`);
-        lines.push(`  mission: ${o.detail.mission || "null"}`);
-        lines.push(`  next_move: ${o.detail.next_move || "null"}`);
-        lines.push(`  support: ${o.detail.support || "null"}`);
-        lines.push(`  journey_past: ${o.journey.past}`);
-        lines.push(`  journey_now: ${o.journey.now}`);
-        lines.push(`  journey_next: ${o.journey.next}`);
-        lines.push(`  momentum: ${o.momentum}`);
-      } else {
-        lines.push("system_output: null");
-      }
-      lines.push("");
-      lines.push("memory_after:");
-      if (turn.memory_after.length === 0) {
-        lines.push("- null");
-      } else {
-        turn.memory_after.forEach(l => lines.push(`- ${l}`));
-      }
-      lines.push(`response_status: ${turn.response_status}`);
-      lines.push(`parse_error: ${turn.parse_error ?? "null"}`);
-      lines.push(`notes: ${turn.notes ?? "null"}`);
-    });
-
-    lines.push("");
-    lines.push("## READABLE_TRANSCRIPT");
-    if (turnLog.length === 0) {
-      lines.push("(no turns recorded)");
-    } else {
-      turnLog.forEach(turn => lines.push(`[${turn.turn_index + 1}] ${turn.normalized_fragment}`));
-    }
-    lines.push("");
-
-    lines.push("## SESSION_SUMMARY");
-    lines.push(`declared_outcome: ${callOutcome ?? "null"}`);
-    lines.push(`final_score: ${callSummary?.score != null ? callSummary.score.toFixed(1) : "null"}`);
-    lines.push(`final_global_state: ${callSummary?.globalState ?? "null"}`);
-    lines.push(`final_result_label: ${callSummary?.resultLabel ?? "null"}`);
-    lines.push("");
-    lines.push("strengths:");
-    if (callSummary?.strengths.length) {
-      callSummary.strengths.forEach(s => lines.push(`- ${s}`));
-    } else {
-      lines.push("- null");
-    }
-    lines.push("");
-    lines.push("improvements:");
-    if (callSummary?.improvements.length) {
-      callSummary.improvements.forEach(s => lines.push(`- ${s}`));
-    } else {
-      lines.push("- null");
-    }
-    lines.push("");
-    lines.push("final_call_memory:");
-    if (finalMemory.length) {
-      finalMemory.forEach(l => lines.push(`- ${l}`));
-    } else {
-      lines.push("- null");
-    }
-    if (callSummary?.fullReport) {
-      lines.push("");
-      lines.push("full_report:");
-      lines.push(callSummary.fullReport);
-    }
-
-    return lines.join("\n");
-  };
-
   const handleDownloadAuditLog = () => {
-    const text = exportSessionAuditLog();
-    const blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    const sid = sessionId || "session";
-    const ts = new Date().toISOString().replace(/[:.]/g, "-").substring(0, 19);
-    a.download = `closer-wizard-${sid}-${ts}.md`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const finalMemory = turnLog.length > 0
+      ? turnLog[turnLog.length - 1].memory_after
+      : tacticalState.callMemory;
+    const log = buildCopilotAuditLog({
+      sessionId: sessionId || null,
+      lang,
+      sessionContext,
+      contextLabel: contextLabel || null,
+      speakerMode,
+      inputModeUsed: "auto",
+      callOutcome,
+      callSummary: callSummary ?? null,
+      turnLog,
+      finalMemory,
+    });
+    triggerAuditLogDownload(log, sessionId || null);
   };
 
   const OUTCOME_OPTS: { key: CallOutcome; label: string }[] = [

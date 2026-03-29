@@ -1,0 +1,307 @@
+Quiero rediseñar de forma seria y definitiva el sistema de exportación de logs de Closer Wizard para que TODOS los logs descargables, tanto de COPILOTO como de ARENA, sirvan directamente como input de mi GPT “Closer Wizard Auditor”.
+
+OBJETIVO REAL
+No quiero logs decorativos.
+No quiero resúmenes vagos.
+Quiero logs forenses, auditables y completos.
+
+Cada log debe permitir reconstruir con precisión:
+- qué contexto había
+- qué dijo el usuario
+- qué dijo la IA
+- qué razonó la herramienta
+- qué estado táctico detectó
+- qué recomendó exactamente
+- qué cambió turno a turno
+- cómo terminó la sesión
+- por qué terminó así
+
+El objetivo final es:
+descargar log → subirlo al Closer Wizard Auditor → recibir diagnóstico brutal + patch para Replit → mejorar el producto → repetir el ciclo hasta convertirlo en una máquina de cerrar de verdad.
+
+DECISIÓN DE PRODUCTO
+A partir de ahora debe existir un único estándar de exportación audit-ready para ambos modos:
+- COPILOTO
+- ARENA
+
+No quiero dos formatos incoherentes.
+Quiero un formato base común con campos compartidos y secciones específicas por modo.
+
+NOMBRE DE LA NUEVA EXPORTACIÓN
+Crear una exportación principal llamada algo como:
+- exportAuditLog(...)
+o
+- exportSessionAuditLog(...)
+
+La exportación antigua, si existe, puede quedarse como legacy, pero la principal debe ser la audit-ready.
+
+FORMATO
+Usar formato markdown estructurado, muy legible por humanos y muy fácil de parsear por un GPT.
+NO quiero un JSON gigantesco crudo como archivo final.
+Sí puedes construir primero un objeto interno tipado y luego renderizarlo a markdown.
+
+ESTRUCTURA GENERAL OBLIGATORIA DEL LOG
+
+# CLOSER WIZARD AUDIT LOG
+
+## SESSION_META
+Siempre incluir:
+- app_mode: copilot | arena
+- session_id
+- exported_at
+- app_version
+- model
+- lang
+- ui_mode si aplica
+- source_mode si aplica
+- speaker_mode_default si aplica
+- role_in_arena si aplica
+- context_label si existe
+- session_status final
+
+## SESSION_CONTEXT
+Incluir siempre:
+- contexto literal escrito por el usuario
+- si hay setup avanzado, incluir también sus campos estructurados
+- objetivo declarado si existe
+- objeciones conocidas si existen
+- datos relevantes si existen
+
+## SESSION_CONFIG
+Campos de configuración efectivos de la sesión.
+Ejemplos:
+- Copiloto:
+  - input_mode: listen | simulate | mixed
+  - speaker_mode_default: auto | cliente | yo
+- Arena:
+  - arena_role: seller | client
+  - arena_variant si existe
+  - arena_state_model usado
+No omitir esta sección.
+
+## TURN_LOG
+Esta es la sección más importante.
+Debe haber un bloque por cada turno o iteración real de la sesión.
+
+Cada bloque TURN debe incluir SIEMPRE, aunque algo sea null:
+
+- turn_index
+- timestamp
+- mode: copilot | arena
+- source_mode: listen | simulate | chat | system
+- speaker_mode: auto | cliente | yo | seller | client | ai
+- raw_input
+- normalized_input
+- inferred_speaker
+- memory_before
+- model_request_summary
+- model_output_raw
+- response_status
+- parse_error
+- notes
+
+REGLA CLAVE
+No quiero solo “lo que se mostró”.
+Quiero también lo que razonó la herramienta de forma estructurada y trazable.
+
+CAMPOS ESPECÍFICOS OBLIGATORIOS PARA COPILOTO
+Cuando el modo sea COPILOTO, cada turno debe incluir además:
+
+### COPILOT_ANALYSIS
+- signal
+- say_now
+- avoid
+- reading
+- mission
+- next_move
+- support
+- journey_past
+- journey_now
+- journey_next
+- momentum
+- memory_after
+
+Además incluir:
+- why_this_turn_exists: breve explicación técnica de qué disparó ese análisis
+  - manual_submit
+  - auto_listen_batch
+  - retry
+  - etc.
+
+Si hubo truncamiento, parseo parcial o fallback, dejarlo reflejado.
+No ocultar problemas técnicos.
+
+CAMPOS ESPECÍFICOS OBLIGATORIOS PARA ARENA
+Cuando el modo sea ARENA, cada turno debe incluir además:
+
+### ARENA_TURN
+- arena_role_of_user: seller | client
+- ai_role_this_turn: client | seller
+- user_message
+- ai_message
+- conversation_state_before
+- conversation_state_after
+- terminal_state_detected: yes | no
+- terminal_state_type: closed | next_step | lost | broken | manual_stop | null
+- terminal_state_source: ai_detected | user_declared | null
+- tension_or_momentum_if_available
+- hidden_reasoning_summary
+
+REGLA IMPORTANTE PARA ARENA
+No hace falta exponer cadena privada de razonamiento larga.
+Pero sí hace falta guardar un resumen útil y explícito de por qué la herramienta respondió así.
+Ejemplos válidos:
+- “el cliente seguía escéptico por falta de prueba”
+- “la IA vendedor intentó cierre prematuro”
+- “se detectó pérdida de control por presión excesiva”
+Eso debe ir en hidden_reasoning_summary o campo equivalente.
+
+NO quiero razonamiento opaco.
+Quiero trazabilidad útil.
+
+## READABLE_TRANSCRIPT
+Añadir una transcripción legible y corrida al final, separada del TURN_LOG.
+Ejemplo:
+[1] [YO]: ...
+[2] [CLIENTE]: ...
+[3] [IA CLIENTE]: ...
+[4] [IA VENDEDOR]: ...
+
+La transcripción es secundaria.
+La pieza principal sigue siendo TURN_LOG.
+
+## SESSION_SUMMARY
+Siempre incluir:
+- final_outcome
+- final_outcome_source: user | ai | system | mixed
+- final_score si existe
+- final_global_state si existe
+- final_result_label si existe
+- final_momentum_or_state
+- total_turns
+- total_user_turns
+- total_ai_turns
+- session_end_reason
+- strongest_moment
+- weakest_moment
+- unresolved_objections
+- missed_closing_window
+- final_call_memory si existe
+- strengths si existen
+- improvements si existen
+- full_report si existe
+
+## AUDIT_HINTS
+Añadir una sección final pensada específicamente para Closer Wizard Auditor.
+
+Debe incluir:
+- likely_primary_failure: system | seller | timing | technical | context_setup | none
+- suspected_prompt_issue: yes | no
+- suspected_ui_issue: yes | no
+- suspected_support_gap: yes | no
+- suspected_close_timing_issue: yes | no
+- suspected_repetition_issue: yes | no
+- audit_notes: lista breve de hallazgos preliminares
+
+IMPORTANTE:
+Estos audit_hints no sustituyen el análisis del Auditor.
+Solo le ahorran trabajo y le dan más señal.
+
+REGLAS OBLIGATORIAS DE CALIDAD
+
+1. NO OMITIR CAMPOS
+Si no existe un dato, escribir null.
+No quiero campos que desaparecen según el caso.
+
+2. CONSERVAR TEXTO ORIGINAL
+Guardar siempre raw_input literal.
+Y además normalized_input si el sistema modificó formato, prefijos o estructura.
+
+3. GUARDAR EL ANTES Y EL DESPUÉS
+Siempre que exista estado o memoria:
+- memory_before
+- memory_after
+- conversation_state_before
+- conversation_state_after
+
+4. LOG DE ERRORES
+Si hubo:
+- parse_error
+- JSON parcial
+- retry
+- fallback
+- speaker inference dudosa
+- respuesta truncada
+debe quedar reflejado en el log.
+
+5. NO MAQUILLAR
+Si la herramienta falló, el log debe mostrarlo.
+No quiero exportaciones “bonitas”.
+Quiero exportaciones útiles para mejorar el sistema.
+
+6. TRAZABILIDAD DE FIN DE SESIÓN
+Debe quedar clarísimo:
+- quién cerró la sesión
+- si fue cierre real o supuesto
+- si hubo override manual
+- si la IA detectó mal el final
+- si el usuario corrigió el resultado
+
+7. COMPATIBILIDAD CON AUDITOR
+El archivo debe poder subirse tal cual al GPT Auditor sin tener que explicarle nada extra.
+
+TIPADOS TYPESCRIPT
+Crear o actualizar tipados claros para:
+- AuditLog
+- SessionMeta
+- SessionContext
+- SessionConfig
+- AuditTurn
+- CopilotTurnData
+- ArenaTurnData
+- SessionSummary
+- AuditHints
+
+RENDERIZADO DEL LOG
+Implementar una función robusta tipo:
+- buildAuditLogObject(session)
+- renderAuditLogMarkdown(auditLog)
+
+No mezclar demasiada lógica de negocio dentro del renderer.
+Primero construir objeto, luego renderizar.
+
+DESCARGA
+Asegúrate de que tanto en COPILOTO como en ARENA el botón de exportar descargue este nuevo formato audit-ready.
+
+Si hace falta:
+- mantener botón actual
+- pero que apunte a la nueva exportación principal
+
+CRITERIOS DE ACEPTACIÓN
+Esto solo estará bien hecho si:
+- puedo descargar logs auditables en Copiloto y Arena
+- el log deja ver no solo qué pasó, sino qué detectó y decidió la herramienta
+- el log permite reconstruir turnos, estado, memoria y resultado final
+- el Auditor puede usarlo directamente para sacar patch de prompt o task de Replit
+- la exportación no parece un resumen superficial
+- la implementación es limpia y extensible
+
+NO QUIERO EN ESTA TAREA
+- rehacer toda la app
+- meter base de datos
+- meter autenticación
+- meter features visuales nuevas
+- meter teoría
+- meter texto decorativo
+
+QUIERO
+- una implementación limpia
+- un estándar serio de logs
+- máxima utilidad para iteración de producto
+
+AL FINAL DE LA TAREA
+Explícame brevemente:
+1. qué archivos has creado o tocado
+2. cómo has unificado la exportación entre Copiloto y Arena
+3. qué campos nuevos capturan el “razonamiento útil” de la herramienta
+4. qué parte del log será más valiosa para el Auditor

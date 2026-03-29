@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Loader2 } from "lucide-react";
 import { WizardIcon } from "@/components/context-panel";
 import { cn } from "@/lib/utils";
+import { buildArenaAuditLog, triggerAuditLogDownload } from "@/lib/audit-log";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export type ArenaRole = "seller" | "client";
@@ -91,7 +92,7 @@ const T = {
     ROLE_USED: "Tu rol",
     ROLE_SELLER: "Vendedor",
     ROLE_CLIENT: "Cliente",
-    EXPORT: "Exportar log (.txt) ↓",
+    EXPORT: "Descargar audit log (.md) ↓",
     CLOSE: "Cerrar y volver",
     EXIT: "← Salir",
     STATE_FAVORABLE: "Favorable",
@@ -152,7 +153,7 @@ const T = {
     ROLE_USED: "Your role",
     ROLE_SELLER: "Seller",
     ROLE_CLIENT: "Client",
-    EXPORT: "Export log (.txt) ↓",
+    EXPORT: "Download audit log (.md) ↓",
     CLOSE: "Close and exit",
     EXIT: "← Exit",
     STATE_FAVORABLE: "Favorable",
@@ -573,56 +574,22 @@ export function Arena({
 
   const handleExportLog = () => {
     if (!summary) return;
-    const isEs = lang === "es";
-    const roleName = role === "seller" ? (isEs ? "Vendedor" : "Seller") : (isEs ? "Cliente" : "Client");
-    const aiName = role === "seller" ? (isEs ? "CLIENTE" : "CLIENT") : (isEs ? "VENDEDOR" : "SELLER");
-    const outcomeName = getOutcomeLabel(summary.outcome, T[lang]);
-
-    const lines: string[] = [
-      `CLOSER WIZARD — ARENA SESSION LOG`,
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-      `${isEs ? "Modo" : "Mode"}: ARENA`,
-      `${isEs ? "Tu rol" : "Your role"}: ${roleName}`,
-      `${isEs ? "Resultado" : "Outcome"}: ${outcomeName}`,
-      `${isEs ? "Idioma" : "Lang"}: ${lang.toUpperCase()}`,
-      `${isEs ? "Inicio" : "Start"}: ${summary.createdAt}`,
-      `${isEs ? "Fin" : "End"}: ${summary.closedAt}`,
-      ``,
-      `${isEs ? "CONTEXTO" : "CONTEXT"}`,
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-      summary.context || (isEs ? "(sin contexto)" : "(no context)"),
-      ``,
-      `${isEs ? "CONVERSACIÓN" : "CONVERSATION"}`,
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-    ];
-
-    allTurns.forEach((turn, i) => {
-      const label = turn.speaker === "user" ? (isEs ? "TÚ" : "YOU") : aiName;
-      lines.push(`[${i + 1}] [${label}]: ${turn.message}`);
+    const log = buildArenaAuditLog({
+      sessionId: arenaSessionId,
+      lang,
+      role,
+      context: summary.context,
+      outcome: summary.outcome,
+      outcomeSource: exitNote ? "user" : "ai",
+      totalTurns: summary.totalTurns,
+      userTurns: summary.userTurns,
+      createdAt: summary.createdAt,
+      closedAt: summary.closedAt,
+      allMessages: allTurns,
+      exitNote: exitNote ?? null,
+      debrief: summary.debrief ?? null,
     });
-
-    lines.push(``);
-    lines.push(`${isEs ? "RESUMEN" : "SUMMARY"}`);
-    lines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-    lines.push(`${isEs ? "Resultado" : "Outcome"}: ${outcomeName}`);
-    lines.push(`${isEs ? "Turnos totales" : "Total turns"}: ${summary.totalTurns}`);
-    lines.push(`${isEs ? "Tus turnos" : "Your turns"}: ${summary.userTurns}`);
-
-    if (exitNote?.text) {
-      lines.push(``);
-      lines.push(`${isEs ? "MOTIVO DE SALIDA" : "EXIT REASON"}`);
-      lines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-      lines.push(exitNote.text);
-    }
-
-    const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    const ts = new Date().toISOString().replace(/[:.]/g, "-").substring(0, 19);
-    a.download = `closer-wizard-arena-${ts}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+    triggerAuditLogDownload(log, arenaSessionId);
   };
 
   // ── Summary screen ──────────────────────────────────────────────────────────
