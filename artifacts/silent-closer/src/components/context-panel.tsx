@@ -41,7 +41,7 @@ const CP = {
     START:     "Iniciar copiloto →",
     PLACEHOLDER: "Ej: quiero vender un piso en Dresden a un inversor muy analítico que duda de la ciudad",
     ARENA_PH_SELLER: "Ej: quiero vender un piso en Dresden a un inversor muy analítico que duda de la ciudad",
-    ARENA_PH_CLIENT: "Ej: soy el inversor analítico que duda de la ciudad — me intentan vender un piso en Dresden",
+    ARENA_PH_CLIENT: "Ej: soy un inversor analítico al que quieren venderle un piso en Dresden",
     SESSION:   "Sesión",
     END:       "Finalizar",
     SUBTITLE:  "Inteligencia táctica conversacional",
