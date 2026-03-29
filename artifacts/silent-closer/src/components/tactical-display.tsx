@@ -48,7 +48,7 @@ export function TacticalDisplay({ signal, sayNow, avoid, detail, callMemory, isP
   const hasMemory = memoryLines.length > 0;
 
   return (
-    <div className="h-full w-full flex flex-col">
+    <div className="h-full w-full flex flex-col overflow-y-auto">
 
       {/* ── SEÑAL ──────────────────────────────────── */}
       <div className="flex flex-col items-center justify-center gap-2 py-5 shrink-0">
@@ -71,7 +71,7 @@ export function TacticalDisplay({ signal, sayNow, avoid, detail, callMemory, isP
       </div>
 
       {/* ── DI AHORA ────────────────────────────────── */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 min-h-0">
+      <div className="flex-1 flex flex-col items-center justify-center px-6 min-h-[120px]">
         <span className="text-[10px] font-mono tracking-[0.3em] text-zinc-300 uppercase mb-6">DI AHORA</span>
         <AnimatePresence mode="wait">
           <motion.p
