@@ -2,19 +2,17 @@ import { useState } from "react";
 import { ChevronDown, ChevronUp, Zap, SlidersHorizontal, User, Users, Target, Briefcase, ShieldOff, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// ── Closer Wizard mark: minimal wizard hat silhouette ────────────────────────
-// Two filled shapes, no strokes:
-//   1. Cone — tip offset right + left side gently curved inward:
-//      the asymmetry + curve is what makes it read "wizard hat" not "traffic cone"
-//   2. Brim — wide ellipse, overlaps cone base for a seamless join
+// ── Closer Wizard mark: wizard hat with diagonal notch ───────────────────────
+// Three elements:
+//   1. Cone with fill-rule="evenodd" cutout — the notch slice reads as a hat fold
+//   2. Flat rounded-rect brim, clearly separated from cone by a visible gap
 function WizardIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 20 20" fill="currentColor" className={className} aria-hidden>
-      {/* Cone — slender (narrow base vs wide brim is what reads "wizard hat"),
-           tip leans slightly right, left side curves gently inward */}
-      <path d="M11.5 1.5 Q8 7 6.5 14 L13.5 14 Z" />
-      {/* Brim — significantly wider than cone base (≈2.5× ratio) */}
-      <ellipse cx="10" cy="14.5" rx="9" ry="2.3" />
+      {/* Cone + diagonal notch cut — evenodd punches the inner triangle through */}
+      <path fillRule="evenodd" d="M10 2 L4 13 L16 13 Z M12 9 L15.5 13 L12 13 Z" />
+      {/* Brim — flat pill, gap separates it from cone base */}
+      <rect x="1.5" y="14.5" width="17" height="2.8" rx="1.4" />
     </svg>
   );
 }
