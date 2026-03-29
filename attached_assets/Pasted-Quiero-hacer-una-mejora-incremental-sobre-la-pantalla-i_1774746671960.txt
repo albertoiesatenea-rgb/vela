@@ -1,0 +1,129 @@
+Quiero hacer una mejora incremental sobre la pantalla inicial actual de “Silent Closer” sin rehacer la app desde cero.
+
+IMPORTANTE:
+- no quiero una nueva interfaz
+- no quiero más complejidad
+- no quiero más elementos
+- quiero simplificar y pulir
+
+La base visual actual me gusta, pero hay dos cosas que no me convencen:
+1. la mezcla de inglés y español
+2. los chips actuales, que me parecen redundantes y poco útiles en esta pantalla
+
+==================================================
+PARTE 1 — IDIOMA Y COHERENCIA DE MARCA
+==================================================
+
+Quiero mantener el nombre de marca:
+SILENT CLOSER
+
+Pero no quiero mezclar inglés y español en el resto del copy.
+
+Quiero que:
+- la marca siga en inglés
+- pero el subtítulo y el texto funcional estén en español
+
+OBJETIVO
+Que la pantalla se sienta más coherente, más seria y más clara.
+
+PROPUESTA
+Mantén:
+SILENT CLOSER
+
+Y cambia el resto a algo en español, por ejemplo:
+
+- Inteligencia táctica conversacional
+- Copiloto táctico para conversaciones en vivo
+
+Y como texto funcional:
+- Define el contexto
+o
+- Prepara la llamada
+
+Elige la combinación que mejor encaje visualmente y que suene más premium y más clara.
+
+IMPORTANTE:
+No quiero mezcla rara de idiomas.
+Solo la marca en inglés; el resto, en español.
+
+==================================================
+PARTE 2 — ELIMINAR O REPENSAR LOS CHIPS
+==================================================
+
+Los chips actuales no me convencen.
+
+Problema:
+- llamada / videollamada / presencial / chat
+- cerrar / tratar objeciones / generar confianza / negociar / seguimiento
+
+Ahora mismo me parecen redundantes porque todo eso ya se puede expresar en el campo de contexto.
+
+Además, en esta pantalla principal:
+- añaden ruido visual
+- obligan a tomar decisiones extra
+- hacen que la experiencia se sienta más “formulario”
+- y restan elegancia
+
+OBJETIVO
+Quiero que valores si lo mejor es quitarlos del todo.
+
+Mi impresión actual es que, en esta pantalla principal, aportan poco valor real.
+
+REGLA DE DECISIÓN
+Si los chips no añaden una capa realmente útil y distinta del contexto libre, prefiero eliminarlos por completo.
+
+No quiero mantener elementos decorativos o redundantes.
+
+Si crees que se pueden aprovechar, solo tendría sentido si:
+- añaden un valor real
+- no repiten el contexto
+- y no ensucian la pantalla
+
+Pero mi preferencia actual es:
+ELIMINAR LOS CHIPS DE LA PANTALLA INICIAL
+
+Si quieres conservar esa idea, muévela a un bloque secundario tipo:
+- opciones avanzadas
+- ajustes de sesión
+- más opciones
+
+pero no en la vista principal.
+
+==================================================
+PARTE 3 — NUEVA JERARQUÍA DE LA PANTALLA
+==================================================
+
+Quiero que la pantalla inicial quede más limpia y más fuerte.
+
+Jerarquía ideal:
+1. SILENT CLOSER
+2. subtítulo en español
+3. texto funcional breve
+4. campo de contexto
+5. CTA principal
+6. continuar sin contexto
+
+Nada más.
+
+El objetivo es que la pantalla se sienta:
+- más premium
+- más clara
+- más producto
+- menos demo
+- menos formulario
+
+==================================================
+REGLA FINAL
+==================================================
+
+Si dudas entre:
+- añadir más cosas
+o
+- dejar la pantalla más limpia y más fuerte
+
+elige siempre dejarla más limpia y más fuerte.
+
+Cuando termines, explícame brevemente:
+- qué copy dejaste
+- si eliminaste los chips o los moviste
+- y por qué ahora la pantalla debería sentirse mejor

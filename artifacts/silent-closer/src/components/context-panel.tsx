@@ -23,9 +23,6 @@ const CONVERSATION_TYPES: { value: ConversationType; label: string }[] = [
   { value: "objeciones", label: "Objeciones" },
 ];
 
-const INTERACTION_TYPES = ["llamada", "videollamada", "presencial", "chat"];
-const MAIN_OBJECTIVES = ["cerrar", "tratar objeciones", "generar confianza", "negociar", "seguimiento"];
-
 function buildContextFromGuided(
   type: ConversationType,
   fields: Record<string, string>
@@ -37,13 +34,6 @@ function buildContextFromGuided(
     if (value.trim()) parts.push(`${key}: ${value.trim()}`);
   }
   return parts.join("\n");
-}
-
-function buildMetaPrefix(interactionType: string, mainObjective: string): string {
-  const parts: string[] = [];
-  if (interactionType) parts.push(`Tipo: ${interactionType}`);
-  if (mainObjective) parts.push(`Objetivo: ${mainObjective}`);
-  return parts.length ? parts.join(" | ") + "\n" : "";
 }
 
 function Field({
@@ -151,14 +141,6 @@ export function ContextSetup({
 }) {
   const [mode, setMode] = useState<ContextMode>("quick");
   const [quickText, setQuickText] = useState("");
-  const [interactionType, setInteractionType] = useState("");
-  const [mainObjective, setMainObjective] = useState("");
-
-  const handleStart = (text: string) => {
-    const meta = buildMetaPrefix(interactionType, mainObjective);
-    const context = meta + text.trim();
-    onContextReady(context);
-  };
 
   return (
     <div className="fixed inset-0 bg-black flex flex-col items-center justify-center px-6">
@@ -170,7 +152,7 @@ export function ContextSetup({
             Silent Closer
           </h1>
           <p className="text-[11px] font-mono text-zinc-500 tracking-[0.2em] uppercase">
-            Tactical conversation intelligence
+            Inteligencia táctica conversacional
           </p>
         </div>
 
@@ -180,7 +162,7 @@ export function ContextSetup({
         {/* Functional section */}
         <div className="flex flex-col gap-5">
           <p className="text-[10px] font-mono tracking-[0.25em] uppercase text-zinc-400">
-            Set the context
+            Prepara la llamada
           </p>
 
           {/* Mode toggle */}
@@ -223,52 +205,8 @@ export function ContextSetup({
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors font-mono resize-none leading-relaxed"
               />
 
-              {/* Metadata chips */}
-              <div className="flex flex-col gap-2.5">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-zinc-500 shrink-0 w-14">Tipo</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {INTERACTION_TYPES.map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => setInteractionType(interactionType === t ? "" : t)}
-                        className={cn(
-                          "px-2.5 py-1 rounded-full text-[11px] font-mono transition-all border",
-                          interactionType === t
-                            ? "bg-white/10 border-white/30 text-white"
-                            : "border-zinc-700 text-zinc-300 hover:border-zinc-500 hover:text-white"
-                        )}
-                      >
-                        {t}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-zinc-500 shrink-0 w-14">Objetivo</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {MAIN_OBJECTIVES.map((o) => (
-                      <button
-                        key={o}
-                        type="button"
-                        onClick={() => setMainObjective(mainObjective === o ? "" : o)}
-                        className={cn(
-                          "px-2.5 py-1 rounded-full text-[11px] font-mono transition-all border",
-                          mainObjective === o
-                            ? "bg-white/10 border-white/30 text-white"
-                            : "border-zinc-700 text-zinc-300 hover:border-zinc-500 hover:text-white"
-                        )}
-                      >
-                        {o}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
               <button
-                onClick={() => handleStart(quickText)}
+                onClick={() => onContextReady(quickText)}
                 className="w-full bg-white text-black text-sm font-mono font-bold py-3.5 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all"
               >
                 Comenzar sesión →
