@@ -420,7 +420,7 @@ function inferSpeaker(
 }
 
 export default function CopilotPage() {
-  const [inputMode, setInputMode] = useState<InputMode>("simulate");
+  const [inputMode, setInputMode] = useState<InputMode>("listen");
   const [speakerMode, setSpeakerMode] = useState<SpeakerMode>("auto");
   const [simulateText, setSimulateText] = useState("");
   const [sessionContext, setSessionContext] = useState<string | null>(loadSession);
