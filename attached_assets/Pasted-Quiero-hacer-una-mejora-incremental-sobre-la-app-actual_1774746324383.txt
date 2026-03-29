@@ -1,0 +1,197 @@
+Quiero hacer una mejora incremental sobre la app actual “Silent Closer” sin rehacerla desde cero.
+
+IMPORTANTE:
+- NO quiero una nueva app
+- NO quiero cambiar la filosofía visual
+- NO quiero una interfaz más pesada
+- NO quiero perder el minimalismo
+- solo quiero reforzar dos cosas:
+  1. imagen de marca / autoridad
+  2. sentido real de los chips
+
+La base actual me gusta:
+- fondo oscuro
+- look minimalista
+- jerarquía general
+- sensación de copiloto táctico
+- modo rápido / guiado
+- CTA principal
+- estructura general de la pantalla inicial
+
+Quiero conservar todo eso.
+
+==================================================
+PARTE 1 — REFUERZO DE MARCA Y AUTORIDAD
+==================================================
+
+Ahora mismo la app funciona bien visualmente, pero le falta más sensación de producto serio.
+
+No quiero que parezca:
+- una demo
+- una herramienta improvisada
+- un experimento
+- algo demasiado “gameboy” o juguete
+
+Quiero que, si alguien entra, sienta que está delante de un producto tecnológico serio, sobrio, premium y con autoridad.
+
+IMPORTANTE:
+Quiero mantener el nombre:
+SILENT CLOSER
+
+No quiero cambiar el naming.
+Me gusta ese nombre y quiero que gane más protagonismo.
+
+OBJETIVO
+Quiero que el encabezado se reorganice para que:
+- SILENT CLOSER tenga más fuerza visual
+- se sienta como la marca / producto principal
+- el subtítulo refuerce autoridad
+- el texto funcional de la pantalla quede en un segundo o tercer nivel
+
+RECOMENDACIÓN DE JERARQUÍA
+Quiero algo así:
+
+SILENT CLOSER
+Tactical conversation intelligence
+
+Prepare the call
+o
+Prepare the session
+o
+Set the context
+
+Es decir:
+- SILENT CLOSER debe ser lo primero que se recuerde
+- el subtítulo debe darle autoridad y posicionamiento
+- el texto funcional no debe comerse a la marca
+
+IMPORTANTE:
+No quiero branding exagerado.
+No quiero logos grandes.
+No quiero efectos raros.
+No quiero recursos visuales innecesarios.
+
+Solo quiero una jerarquía más seria y más propia de producto real.
+
+==================================================
+PARTE 2 — REVISIÓN DE LOS CHIPS
+==================================================
+
+Creo que los chips actuales no están del todo bien planteados.
+
+PROBLEMA
+Si los chips repiten cosas que el usuario ya va a escribir en el contexto libre, aportan poco valor.
+En ese caso solo:
+- duplican información
+- ensucian la pantalla
+- y hacen que parezca más demo que producto serio
+
+Por tanto, no quiero mantener chips que simplemente repitan contenido narrativo como:
+- cliente escéptico
+- objeción de precio
+- miedo a comprometerse
+- comparando opciones
+si todo eso ya se puede poner en el campo de contexto.
+
+Quiero que los chips tengan una función más útil y más estructural.
+
+OBJETIVO
+Quiero que los chips sirvan para parametrizar la sesión rápidamente, no para repetir el contenido del contexto.
+
+RECOMENDACIÓN
+Reconvierte los chips para que sirvan como metadatos rápidos de la conversación.
+
+Quiero dos grupos pequeños de chips:
+
+1. TIPO DE INTERACCIÓN
+Ejemplos:
+- llamada
+- videollamada
+- presencial
+- chat
+
+2. OBJETIVO PRINCIPAL
+Ejemplos:
+- generar confianza
+- tratar objeciones
+- cerrar
+- seguimiento
+- negociar
+- aclarar dudas
+
+Estos chips sí aportan valor porque:
+- no duplican el contexto narrativo
+- ayudan a configurar rápidamente la sesión
+- pueden ayudar al motor a interpretar mejor
+- mantienen la pantalla limpia
+- tienen sentido como “briefing rápido”
+
+IMPORTANTE:
+No quiero demasiados chips.
+No quiero 10 categorías.
+No quiero ruido visual.
+Quiero una selección pequeña, útil y elegante.
+
+Si ves que incluso así no aportan suficiente valor y empeoran la limpieza visual, prefiero que los elimines del todo antes que dejarlos de forma decorativa.
+
+REGLA DE DECISIÓN
+Entre estas dos opciones:
+A) chips útiles como metadatos de sesión
+B) eliminarlos por completo
+
+elige la que mejor deje la pantalla:
+- más clara
+- más seria
+- más premium
+- más útil
+
+Pero NO mantengas los chips solo por rellenar.
+
+==================================================
+PARTE 3 — ENFOQUE DEL PRODUCTO
+==================================================
+
+Quiero que la pantalla inicial y el copy transmitan mejor qué es el producto.
+
+Aunque el caso de uso principal sea ventas y objeciones, no quiero que la pantalla inicial lo encierre demasiado en inmobiliaria.
+
+La app debe sentirse como:
+- un copiloto táctico de conversación en vivo
+- una herramienta para ayudar a una persona a leer mejor la situación
+- detectar frenos
+- y elegir la siguiente mejor jugada
+
+No quiero que la pantalla inicial parezca un formulario especializado solo para una industria.
+Quiero que se sienta más universal y más producto.
+
+==================================================
+LO QUE QUIERO QUE HAGAS
+==================================================
+
+1. Refuerza la jerarquía visual del encabezado para que SILENT CLOSER tenga más protagonismo.
+2. Añade un subtítulo corto y serio que refuerce autoridad.
+3. Reduce el protagonismo del texto funcional tipo “Prepare the call” para que no mande más que la marca.
+4. Revisa por completo el papel de los chips:
+   - si aportan valor como metadatos rápidos, reconviértelos
+   - si no, elimínalos
+5. Mantén el resto de la pantalla lo más parecido posible.
+6. No rehagas la app.
+7. No recargues la interfaz.
+
+==================================================
+REGLA FINAL
+==================================================
+
+Si dudas entre:
+- añadir adornos
+o
+- reforzar claridad y autoridad
+
+elige siempre claridad y autoridad.
+
+Quiero una mejora sutil, seria y premium.
+
+Cuando termines, explícame brevemente:
+- qué cambiaste en el encabezado
+- qué decisión tomaste con los chips
+- y por qué ahora la pantalla debería sentirse más producto y menos demo

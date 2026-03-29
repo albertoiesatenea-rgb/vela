@@ -23,15 +23,8 @@ const CONVERSATION_TYPES: { value: ConversationType; label: string }[] = [
   { value: "objeciones", label: "Objeciones" },
 ];
 
-const QUICK_CHIPS = [
-  "cliente escéptico",
-  "objeción de precio",
-  "miedo a equivocarse",
-  "comparando opciones",
-  "quiero cerrar hoy",
-  "no me cree",
-  "objeción reputacional",
-];
+const INTERACTION_TYPES = ["llamada", "videollamada", "presencial", "chat"];
+const MAIN_OBJECTIVES = ["cerrar", "tratar objeciones", "generar confianza", "negociar", "seguimiento"];
 
 function buildContextFromGuided(
   type: ConversationType,
@@ -44,6 +37,13 @@ function buildContextFromGuided(
     if (value.trim()) parts.push(`${key}: ${value.trim()}`);
   }
   return parts.join("\n");
+}
+
+function buildMetaPrefix(interactionType: string, mainObjective: string): string {
+  const parts: string[] = [];
+  if (interactionType) parts.push(`Tipo: ${interactionType}`);
+  if (mainObjective) parts.push(`Objetivo: ${mainObjective}`);
+  return parts.length ? parts.join(" | ") + "\n" : "";
 }
 
 function Field({
@@ -151,107 +151,148 @@ export function ContextSetup({
 }) {
   const [mode, setMode] = useState<ContextMode>("quick");
   const [quickText, setQuickText] = useState("");
+  const [interactionType, setInteractionType] = useState("");
+  const [mainObjective, setMainObjective] = useState("");
 
-  const appendChip = (chip: string) => {
-    setQuickText((prev) =>
-      prev.trim() ? `${prev.trimEnd()}, ${chip}` : chip
-    );
+  const handleStart = (text: string) => {
+    const meta = buildMetaPrefix(interactionType, mainObjective);
+    const context = meta + text.trim();
+    onContextReady(context);
   };
 
   return (
     <div className="fixed inset-0 bg-black flex flex-col items-center justify-center px-6">
-      {/* Outer card — max width centrado */}
-      <div className="w-full max-w-lg flex flex-col gap-7">
+      <div className="w-full max-w-lg flex flex-col gap-6">
 
-        {/* Header */}
-        <div>
-          <p className="text-[10px] font-mono tracking-[0.3em] uppercase text-zinc-600">
+        {/* Brand header */}
+        <div className="flex flex-col gap-1">
+          <h1 className="text-3xl font-mono font-bold text-white tracking-[0.12em] uppercase">
             Silent Closer
-          </p>
-          <h1 className="text-xl font-mono font-semibold text-white mt-1 tracking-tight">
-            Prepara la sesión
           </h1>
+          <p className="text-[11px] font-mono text-zinc-500 tracking-[0.2em] uppercase">
+            Tactical conversation intelligence
+          </p>
         </div>
 
-        {/* Mode toggle */}
-        <div className="flex items-center bg-zinc-950 p-1 rounded-full border border-zinc-800 w-fit">
-          <button
-            onClick={() => setMode("quick")}
-            className={cn(
-              "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono transition-all",
-              mode === "quick"
-                ? "bg-white text-black"
-                : "text-zinc-300 hover:text-white"
-            )}
-          >
-            <Zap className="w-3 h-3" />
-            Rápido
-          </button>
-          <button
-            onClick={() => setMode("guided")}
-            className={cn(
-              "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono transition-all",
-              mode === "guided"
-                ? "bg-white text-black"
-                : "text-zinc-300 hover:text-white"
-            )}
-          >
-            <AlignLeft className="w-3 h-3" />
-            Guiado
-          </button>
-        </div>
+        {/* Divider */}
+        <div className="border-t border-white/8" />
 
-        {/* Content block */}
-        {mode === "quick" ? (
-          <div className="flex flex-col gap-3">
-            <textarea
-              value={quickText}
-              onChange={(e) => setQuickText(e.target.value)}
-              placeholder="Ej: cliente escéptico, objeción de precio. Quiero cerrar hoy."
-              rows={2}
-              autoFocus
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors font-mono resize-none leading-relaxed"
-            />
+        {/* Functional section */}
+        <div className="flex flex-col gap-5">
+          <p className="text-[10px] font-mono tracking-[0.25em] uppercase text-zinc-400">
+            Set the context
+          </p>
 
-            {/* Quick chips */}
-            <div className="flex flex-wrap gap-1.5">
-              {QUICK_CHIPS.map((chip) => (
-                <button
-                  key={chip}
-                  type="button"
-                  onClick={() => appendChip(chip)}
-                  className="px-2.5 py-1 rounded-full text-[11px] font-mono text-zinc-200 border border-zinc-700 hover:border-zinc-500 hover:text-zinc-100 transition-all"
-                >
-                  {chip}
-                </button>
-              ))}
+          {/* Mode toggle */}
+          <div className="flex items-center bg-zinc-950 p-1 rounded-full border border-zinc-800 w-fit">
+            <button
+              onClick={() => setMode("quick")}
+              className={cn(
+                "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono transition-all",
+                mode === "quick"
+                  ? "bg-white text-black"
+                  : "text-zinc-300 hover:text-white"
+              )}
+            >
+              <Zap className="w-3 h-3" />
+              Rápido
+            </button>
+            <button
+              onClick={() => setMode("guided")}
+              className={cn(
+                "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono transition-all",
+                mode === "guided"
+                  ? "bg-white text-black"
+                  : "text-zinc-300 hover:text-white"
+              )}
+            >
+              <AlignLeft className="w-3 h-3" />
+              Guiado
+            </button>
+          </div>
+
+          {/* Content block */}
+          {mode === "quick" ? (
+            <div className="flex flex-col gap-4">
+              <textarea
+                value={quickText}
+                onChange={(e) => setQuickText(e.target.value)}
+                placeholder="Quién es, qué quieres conseguir, qué te preocupa…"
+                rows={2}
+                autoFocus
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors font-mono resize-none leading-relaxed"
+              />
+
+              {/* Metadata chips */}
+              <div className="flex flex-col gap-2.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-zinc-500 shrink-0 w-14">Tipo</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {INTERACTION_TYPES.map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setInteractionType(interactionType === t ? "" : t)}
+                        className={cn(
+                          "px-2.5 py-1 rounded-full text-[11px] font-mono transition-all border",
+                          interactionType === t
+                            ? "bg-white/10 border-white/30 text-white"
+                            : "border-zinc-700 text-zinc-300 hover:border-zinc-500 hover:text-white"
+                        )}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-zinc-500 shrink-0 w-14">Objetivo</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {MAIN_OBJECTIVES.map((o) => (
+                      <button
+                        key={o}
+                        type="button"
+                        onClick={() => setMainObjective(mainObjective === o ? "" : o)}
+                        className={cn(
+                          "px-2.5 py-1 rounded-full text-[11px] font-mono transition-all border",
+                          mainObjective === o
+                            ? "bg-white/10 border-white/30 text-white"
+                            : "border-zinc-700 text-zinc-300 hover:border-zinc-500 hover:text-white"
+                        )}
+                      >
+                        {o}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => handleStart(quickText)}
+                className="w-full bg-white text-black text-sm font-mono font-bold py-3.5 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all"
+              >
+                Comenzar sesión →
+              </button>
+
+              <button
+                onClick={() => onContextReady("")}
+                className="w-full text-center text-[11px] font-mono text-zinc-300 hover:text-white transition-colors py-1"
+              >
+                Continuar sin contexto
+              </button>
             </div>
-
-            <button
-              onClick={() => onContextReady(quickText)}
-              className="w-full bg-white text-black text-sm font-mono font-bold py-3.5 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all mt-1"
-            >
-              Comenzar sesión →
-            </button>
-
-            <button
-              onClick={() => onContextReady("")}
-              className="w-full text-center text-[11px] font-mono text-zinc-300 hover:text-white transition-colors py-1"
-            >
-              Continuar sin contexto
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-3">
-            <GuidedForm onSubmit={onContextReady} />
-            <button
-              onClick={() => onContextReady("")}
-              className="w-full text-center text-[11px] font-mono text-zinc-300 hover:text-white transition-colors py-1"
-            >
-              Continuar sin contexto
-            </button>
-          </div>
-        )}
+          ) : (
+            <div className="flex flex-col gap-3">
+              <GuidedForm onSubmit={onContextReady} />
+              <button
+                onClick={() => onContextReady("")}
+                className="w-full text-center text-[11px] font-mono text-zinc-300 hover:text-white transition-colors py-1"
+              >
+                Continuar sin contexto
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
