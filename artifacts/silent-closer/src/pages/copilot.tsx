@@ -322,8 +322,8 @@ export default function CopilotPage() {
         </div>
       )}
 
-      {/* ── Main HUD ─────────────────────────────── */}
-      <div className="flex-1 min-h-[180px] relative">
+      {/* ── Main HUD — fixed height, never shrinks ────── */}
+      <div className="shrink-0 relative" style={{ height: "min(55vh, 380px)" }}>
         <TacticalDisplay
           signal={tacticalState.signal}
           sayNow={tacticalState.sayNow}
@@ -374,67 +374,58 @@ export default function CopilotPage() {
         )}
       </div>
 
-      {/* ── Panel toggle row — only when panels available ─ */}
-      {(hasDetail || hasMemory) && (
-        <div className="shrink-0 border-t border-white/5">
-          <div className="flex items-center justify-center gap-6 py-2">
-            {hasDetail && (
-              <button
-                onClick={() => setDetailOpen(v => !v)}
-                className="flex items-center gap-1.5 text-[10px] font-mono tracking-widest uppercase transition-colors hover:text-white"
-                style={{ color: detailOpen ? "rgb(228 228 231)" : "rgb(113 113 122)" }}
-              >
-                {detailOpen ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
-                Detalle
-              </button>
-            )}
-            {hasMemory && (
-              <button
-                onClick={() => setMemoryOpen(v => !v)}
-                className="flex items-center gap-1.5 text-[10px] font-mono tracking-widest uppercase transition-colors hover:text-white"
-                style={{ color: memoryOpen ? "rgb(228 228 231)" : "rgb(113 113 122)" }}
-              >
-                {memoryOpen ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
-                Memoria
-              </button>
-            )}
-          </div>
-        </div>
-      )}
+      {/* ── Panel zone — scrollable, between HUD and controls ── */}
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col border-t border-white/5">
 
-      {/* ── Persistent panels — real space, stacked, no overlay ── */}
-      <AnimatePresence>
-        {panelVisible && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.22, ease: "easeOut" }}
-            className="shrink-0 overflow-hidden"
-          >
-            <div className="max-h-[44vh] overflow-y-auto divide-y divide-white/5">
-              {/* Detail panel */}
-              {detailOpen && hasDetail && (
-                <div>
-                  {bothOpen && (
-                    <p className="px-5 pt-3 pb-0 text-[9px] font-mono tracking-[0.22em] uppercase text-zinc-600">Detalle</p>
-                  )}
-                  <DetailPanel detail={tacticalState.detail!} />
-                </div>
+        {/* Toggle row — sticky at top of panel zone */}
+        {(hasDetail || hasMemory) && (
+          <div className="shrink-0 sticky top-0 bg-black z-10 border-b border-white/5">
+            <div className="flex items-center justify-center gap-6 py-2">
+              {hasDetail && (
+                <button
+                  onClick={() => setDetailOpen(v => !v)}
+                  className="flex items-center gap-1.5 text-[10px] font-mono tracking-widest uppercase transition-colors hover:text-white"
+                  style={{ color: detailOpen ? "rgb(228 228 231)" : "rgb(113 113 122)" }}
+                >
+                  {detailOpen ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
+                  Detalle
+                </button>
               )}
-              {/* Memory panel */}
-              {memoryOpen && hasMemory && (
-                <div>
-                  {bothOpen && (
-                    <p className="px-5 pt-3 pb-0 text-[9px] font-mono tracking-[0.22em] uppercase text-zinc-600">Memoria</p>
-                  )}
-                  <MemoryPanel lines={memoryLines} />
-                </div>
+              {hasMemory && (
+                <button
+                  onClick={() => setMemoryOpen(v => !v)}
+                  className="flex items-center gap-1.5 text-[10px] font-mono tracking-widest uppercase transition-colors hover:text-white"
+                  style={{ color: memoryOpen ? "rgb(228 228 231)" : "rgb(113 113 122)" }}
+                >
+                  {memoryOpen ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
+                  Memoria
+                </button>
               )}
             </div>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
+
+        {/* Panel content — scrolls within zone */}
+        <div className="divide-y divide-white/5">
+          {detailOpen && hasDetail && (
+            <div>
+              {bothOpen && (
+                <p className="px-5 pt-3 pb-0 text-[9px] font-mono tracking-[0.22em] uppercase text-zinc-600">Detalle</p>
+              )}
+              <DetailPanel detail={tacticalState.detail!} />
+            </div>
+          )}
+          {memoryOpen && hasMemory && (
+            <div>
+              {bothOpen && (
+                <p className="px-5 pt-3 pb-0 text-[9px] font-mono tracking-[0.22em] uppercase text-zinc-600">Memoria</p>
+              )}
+              <MemoryPanel lines={memoryLines} />
+            </div>
+          )}
+        </div>
+
+      </div>
 
       {/* ── Controls — bottom bar ─────────────────── */}
       <div className="shrink-0 border-t border-white/5 bg-black px-6 py-4 flex flex-col items-center gap-3">
