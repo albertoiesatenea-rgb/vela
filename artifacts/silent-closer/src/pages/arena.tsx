@@ -545,7 +545,8 @@ export function Arena({
   useEffect(() => {
     if (role !== "client" || isStarting || isSending || isEnding) return;
     const handler = (e: KeyboardEvent) => {
-      if (document.activeElement === textareaRef.current) return;
+      // Block shortcut only if textarea is focused AND has content (cursor navigation)
+      if (document.activeElement === textareaRef.current && input.trim() !== "") return;
       if (exitStep !== null) return;
       if (e.key === "ArrowDown") {
         e.preventDefault();
@@ -557,7 +558,7 @@ export function Arena({
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [role, isStarting, isSending, isEnding, exitStep, lang, sendMessage]);
+  }, [role, isStarting, isSending, isEnding, exitStep, lang, input, sendMessage]);
 
   const handleSend = useCallback(() => {
     void sendMessage(input);
