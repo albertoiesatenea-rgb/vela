@@ -71,63 +71,58 @@ function DetailField({ fieldKey, value }: { fieldKey: FieldKey; value?: string }
   if (!value) return null;
   const cfg = FIELD_CONFIG[fieldKey];
   const isGuion = fieldKey === "GUION";
+  const isLong = fieldKey === "GUION" || fieldKey === "PREGUNTA";
   return (
-    <div className={cn("pl-3 border-l-2 flex flex-col gap-1", cfg.border)}>
-      <span className={cn("text-[9px] font-mono tracking-[0.2em] uppercase", cfg.label)}>{fieldKey}</span>
-      <p className={cn("font-mono leading-relaxed", cfg.size, cfg.content, isGuion && "italic")}>{value}</p>
+    <div className={cn("pl-2.5 border-l-2 flex flex-col gap-0.5", cfg.border)}>
+      <span className={cn("text-[8px] font-mono tracking-[0.2em] uppercase", cfg.label)}>{fieldKey}</span>
+      <p className={cn(
+        "font-mono leading-tight text-[11px]",
+        cfg.content,
+        isGuion && "italic",
+        isLong ? "line-clamp-2" : "line-clamp-1"
+      )}>{value}</p>
     </div>
   );
 }
 
-// ── Persistent detail panel
+// ── Compact detail panel — fits in 176px
 function DetailPanel({ detail }: { detail: Detail }) {
   return (
-    <div className="px-5 py-4 space-y-0">
-      {/* Row 1: LECTURA + ARGUMENTO side by side */}
-      {(detail.reading || detail.argument) && (
-        <div className="grid grid-cols-2 gap-x-5 gap-y-0 pb-4">
-          {detail.reading   && <DetailField fieldKey="LECTURA"   value={detail.reading} />}
-          {detail.argument  && <DetailField fieldKey="ARGUMENTO" value={detail.argument} />}
-        </div>
-      )}
-      {/* Row 2: GUION full width */}
+    <div className="px-4 py-2 grid grid-cols-2 gap-x-4 gap-y-2">
+      {detail.reading   && <DetailField fieldKey="LECTURA"   value={detail.reading} />}
+      {detail.argument  && <DetailField fieldKey="ARGUMENTO" value={detail.argument} />}
       {detail.talk_track && (
-        <div className="pb-4">
+        <div className="col-span-2">
           <DetailField fieldKey="GUION" value={detail.talk_track} />
         </div>
       )}
-      {/* Row 3: PREGUNTA full width */}
       {detail.question && (
-        <div className="pb-4">
+        <div className="col-span-2">
           <DetailField fieldKey="PREGUNTA" value={detail.question} />
         </div>
       )}
-      {/* Row 4: RIESGO + APOYO side by side */}
-      {(detail.risk || detail.support) && (
-        <div className="grid grid-cols-2 gap-x-5">
-          {detail.risk    && <DetailField fieldKey="RIESGO" value={detail.risk} />}
-          {detail.support && <DetailField fieldKey="APOYO"  value={detail.support} />}
-        </div>
-      )}
+      {detail.risk    && <DetailField fieldKey="RIESGO" value={detail.risk} />}
+      {detail.support && <DetailField fieldKey="APOYO"  value={detail.support} />}
     </div>
   );
 }
 
-// ── Persistent memory panel
+// ── Compact memory panel — fits in 176px
 function MemoryPanel({ lines }: { lines: string[] }) {
+  const visible = lines.slice(-6);
   return (
-    <ul className="px-5 py-4 space-y-3">
-      {lines.map((line, i) => {
+    <ul className="px-4 py-2 space-y-1.5">
+      {visible.map((line, i) => {
         const text = line.replace(/^[-–—]\s*/, "");
-        const isLast = i === lines.length - 1;
+        const isLast = i === visible.length - 1;
         return (
-          <li key={i} className="flex items-start gap-3">
+          <li key={i} className="flex items-start gap-2.5">
             <span className={cn(
-              "shrink-0 mt-[3px] w-1 h-1 rounded-full",
+              "shrink-0 mt-[5px] w-1 h-1 rounded-full",
               isLast ? "bg-zinc-300" : "bg-zinc-600"
             )} />
             <span className={cn(
-              "text-[11px] font-mono leading-snug",
+              "text-[11px] font-mono leading-tight line-clamp-1",
               isLast ? "text-zinc-200" : "text-zinc-500"
             )}>{text}</span>
           </li>
@@ -260,14 +255,22 @@ export default function CopilotPage() {
     return <ContextSetup onContextReady={handleContextReady} />;
   }
 
-  // Derived panel data
+  // Derived panel data — panels are mutually exclusive
   const hasDetail = tacticalState.detail && Object.values(tacticalState.detail).some(Boolean);
   const memoryLines = tacticalState.callMemory
     ? tacticalState.callMemory.split(/\\n|\n/).filter(Boolean)
     : [];
   const hasMemory = memoryLines.length > 0;
-  const bothOpen = detailOpen && memoryOpen && hasDetail && hasMemory;
   const panelVisible = (detailOpen && hasDetail) || (memoryOpen && hasMemory);
+
+  const handleToggleDetail = () => {
+    setDetailOpen(v => !v);
+    setMemoryOpen(false);
+  };
+  const handleToggleMemory = () => {
+    setMemoryOpen(v => !v);
+    setDetailOpen(false);
+  };
 
   // Active session layout
   return (
@@ -322,8 +325,8 @@ export default function CopilotPage() {
         </div>
       )}
 
-      {/* ── Main HUD — fixed height, never shrinks ────── */}
-      <div className="shrink-0 relative" style={{ height: "min(55vh, 380px)" }}>
+      {/* ── Main HUD — flexible, shrinks to give panel room ── */}
+      <div className="flex-1 min-h-[220px] relative">
         <TacticalDisplay
           signal={tacticalState.signal}
           sayNow={tacticalState.sayNow}
@@ -374,58 +377,48 @@ export default function CopilotPage() {
         )}
       </div>
 
-      {/* ── Panel zone — scrollable, between HUD and controls ── */}
-      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col border-t border-white/5">
+      {/* ── Panel zone — fixed height, no scroll, no overlap ── */}
+      {(hasDetail || hasMemory) && (
+        <div className="shrink-0 border-t border-white/5">
 
-        {/* Toggle row — sticky at top of panel zone */}
-        {(hasDetail || hasMemory) && (
-          <div className="shrink-0 sticky top-0 bg-black z-10 border-b border-white/5">
-            <div className="flex items-center justify-center gap-6 py-2">
-              {hasDetail && (
-                <button
-                  onClick={() => setDetailOpen(v => !v)}
-                  className="flex items-center gap-1.5 text-[10px] font-mono tracking-widest uppercase transition-colors hover:text-white"
-                  style={{ color: detailOpen ? "rgb(228 228 231)" : "rgb(113 113 122)" }}
-                >
-                  {detailOpen ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
-                  Detalle
-                </button>
-              )}
-              {hasMemory && (
-                <button
-                  onClick={() => setMemoryOpen(v => !v)}
-                  className="flex items-center gap-1.5 text-[10px] font-mono tracking-widest uppercase transition-colors hover:text-white"
-                  style={{ color: memoryOpen ? "rgb(228 228 231)" : "rgb(113 113 122)" }}
-                >
-                  {memoryOpen ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
-                  Memoria
-                </button>
-              )}
-            </div>
+          {/* Toggle row — always visible */}
+          <div className="flex items-center justify-center gap-6 py-2">
+            {hasDetail && (
+              <button
+                onClick={handleToggleDetail}
+                className="flex items-center gap-1.5 text-[10px] font-mono tracking-widest uppercase transition-colors hover:text-white"
+                style={{ color: detailOpen ? "rgb(228 228 231)" : "rgb(113 113 122)" }}
+              >
+                {detailOpen ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
+                Detalle
+              </button>
+            )}
+            {hasMemory && (
+              <button
+                onClick={handleToggleMemory}
+                className="flex items-center gap-1.5 text-[10px] font-mono tracking-widest uppercase transition-colors hover:text-white"
+                style={{ color: memoryOpen ? "rgb(228 228 231)" : "rgb(113 113 122)" }}
+              >
+                {memoryOpen ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
+                Memoria
+              </button>
+            )}
           </div>
-        )}
 
-        {/* Panel content — scrolls within zone */}
-        <div className="divide-y divide-white/5">
-          {detailOpen && hasDetail && (
-            <div>
-              {bothOpen && (
-                <p className="px-5 pt-3 pb-0 text-[9px] font-mono tracking-[0.22em] uppercase text-zinc-600">Detalle</p>
-              )}
-              <DetailPanel detail={tacticalState.detail!} />
-            </div>
-          )}
-          {memoryOpen && hasMemory && (
-            <div>
-              {bothOpen && (
-                <p className="px-5 pt-3 pb-0 text-[9px] font-mono tracking-[0.22em] uppercase text-zinc-600">Memoria</p>
-              )}
-              <MemoryPanel lines={memoryLines} />
-            </div>
-          )}
+          {/* Panel content — fixed max-height, no scroll */}
+          <div
+            className="overflow-hidden border-t border-white/5"
+            style={{
+              maxHeight: panelVisible ? "176px" : "0px",
+              transition: "max-height 0.2s ease",
+            }}
+          >
+            {detailOpen && hasDetail && <DetailPanel detail={tacticalState.detail!} />}
+            {memoryOpen && hasMemory && <MemoryPanel lines={memoryLines} />}
+          </div>
+
         </div>
-
-      </div>
+      )}
 
       {/* ── Controls — bottom bar ─────────────────── */}
       <div className="shrink-0 border-t border-white/5 bg-black px-6 py-4 flex flex-col items-center gap-3">

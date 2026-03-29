@@ -119,7 +119,7 @@ DETAIL — Objeto con 6 campos breves. Frases cortas, sin párrafos, sin coach. 
   - talk_track: mini guion usable de verdad en llamada real (2-3 frases max)
   - question: pregunta potente para profundizar o recuperar control
   - risk: error táctico y su consecuencia probable (1 línea)
-  - support: tipo de argumento o palanca útil — NUNCA inventes datos, fuentes ni estadísticas. Solo sugiere el tipo.
+  - support: si el CONTEXTO DE SESIÓN contiene datos concretos (estadísticas, rankings, precios, comparativas, ejemplos reales), ÚSALOS aquí. Ejemplo: "Dresden 2ª mayor revalorización en los últimos 5 años según datos de sesión." Si no hay datos en el contexto, sugiere el tipo de argumento o palanca. NUNCA inventes datos que no estén en el contexto.
 
 CALL_MEMORY — Memoria acumulada de la llamada. Reescrita inteligentemente cada turno.
   - 4 a 6 líneas con guión: "- elemento"
@@ -150,7 +150,8 @@ CONTEXTO DE SESIÓN ACTIVA
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ${context.trim()}
 
-Usa este contexto para orientar el análisis: quién habla, qué objetivo tiene Persona A, posibles objeciones probables y tipo de conversación. El contexto ajusta la interpretación pero no cambia las reglas de formato ni las reglas tácticas.`;
+Usa este contexto para orientar el análisis: quién habla, qué objetivo tiene Persona A, posibles objeciones probables y tipo de conversación. El contexto ajusta la interpretación pero no cambia las reglas de formato ni las reglas tácticas.
+IMPORTANTE: Si el contexto contiene datos concretos (estadísticas, rankings, cifras, ejemplos de casos reales), extráelos y úsalos en el campo "support" cuando sean relevantes para la conversación.`;
 }
 
 router.post("/copilot/analyze", async (req, res) => {
