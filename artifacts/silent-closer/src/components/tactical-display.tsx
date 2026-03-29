@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -15,17 +16,18 @@ const fade = {
   exit:    { opacity: 0, filter: "blur(4px)", y: -8, transition: { duration: 0.25, ease: "easeIn" } },
 };
 
-const fadeIn = {
-  initial: { opacity: 0, y: 5 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut", delay: 0.2 } },
-  exit:    { opacity: 0, transition: { duration: 0.15 } },
-};
-
 export function TacticalDisplay({ sayNow, reading, avoid, isPending, isListening }: TacticalDisplayProps) {
+  const [readingOpen, setReadingOpen] = useState(false);
+
+  // Reset when a new command arrives
+  useEffect(() => { setReadingOpen(false); }, [sayNow]);
+
+  const canToggle = !!(reading && sayNow);
+
   return (
     <div className="h-full w-full flex flex-col">
 
-      {/* ── DI AHORA ────────────────────────────────── */}
+      {/* ── DI AHORA — clickable to reveal/hide reading ── */}
       <div className="flex-1 flex flex-col items-center justify-center px-8 gap-5">
         <AnimatePresence mode="wait">
           <motion.p
@@ -34,30 +36,30 @@ export function TacticalDisplay({ sayNow, reading, avoid, isPending, isListening
             initial="initial"
             animate="animate"
             exit="exit"
+            onClick={() => canToggle && setReadingOpen(p => !p)}
             className={cn(
-              "text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-center leading-tight",
-              sayNow ? "text-white" : "text-zinc-700 font-normal text-3xl sm:text-4xl"
+              "text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-center leading-tight select-none",
+              sayNow ? "text-white" : "text-zinc-700 font-normal text-3xl sm:text-4xl",
+              canToggle && "cursor-pointer active:opacity-80 transition-opacity",
             )}
           >
             {sayNow || (isListening ? "Escuchando" : "—")}
           </motion.p>
         </AnimatePresence>
 
-        {/* ── NOTA TÁCTICA — lectura situacional bajo el comando ── */}
-        <AnimatePresence mode="wait">
-          {reading && sayNow && (
-            <motion.p
-              key={reading}
-              variants={fadeIn}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              className="text-[13px] font-mono text-zinc-400 text-center leading-relaxed max-w-lg"
-            >
-              {reading}
-            </motion.p>
-          )}
-        </AnimatePresence>
+        {/* ── NOTA TÁCTICA — visible solo al hacer click en el comando ── */}
+        <div
+          className="overflow-hidden w-full flex justify-center"
+          style={{
+            maxHeight: readingOpen && reading ? "120px" : "0px",
+            opacity: readingOpen && reading ? 1 : 0,
+            transition: "max-height 0.28s ease, opacity 0.22s ease",
+          }}
+        >
+          <p className="text-[13px] font-mono text-zinc-400 text-center leading-relaxed max-w-lg px-4">
+            {reading}
+          </p>
+        </div>
       </div>
 
       {/* ── EVITA — solo si hay algo crítico ────────── */}

@@ -143,31 +143,31 @@ function ConversationTimeline({ journey, memoryLines }: { journey: Journey; memo
           </div>
         )}
 
-        {/* STATE 1 — 3 nodes in a row, constrained width so they stay close */}
+        {/* STATE 1 — 3 nodes, full horizontal width */}
         {view === 1 && (
-          <div className="flex items-start justify-center gap-0 pt-6 pb-3 px-4">
-            {/* ANTES */}
-            <div className="flex flex-col items-center gap-2 w-[120px] shrink-0">
+          <div className="flex items-start pt-6 pb-3 px-6 gap-0">
+            {/* ANTES — flex-1 */}
+            <div className="flex-1 flex flex-col items-center gap-2 min-w-0">
               <div className="w-2 h-2 rounded-full bg-zinc-600 group-hover:bg-zinc-500 transition-colors mt-0.5" />
-              <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider text-center leading-tight">
+              <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider text-center leading-tight">
                 {journey.past}
               </span>
             </div>
             {/* Left connector */}
-            <div className="h-px w-5 bg-zinc-700 mt-[6px] shrink-0" />
-            {/* AHORA */}
-            <div className="flex flex-col items-center gap-2 w-[200px] shrink-0 px-1">
+            <div className="h-px w-6 bg-zinc-600 mt-[5px] shrink-0" />
+            {/* AHORA — slightly wider flex share */}
+            <div className="flex-[1.4] flex flex-col items-center gap-2 min-w-0 px-1">
               <div className="w-3 h-3 rounded-full bg-white group-hover:bg-zinc-100 transition-colors" />
               <span className="text-[13px] font-mono text-white uppercase tracking-wide text-center leading-tight font-semibold">
                 {journey.now}
               </span>
             </div>
             {/* Right connector */}
-            <div className="h-px w-5 bg-zinc-700 mt-[6px] shrink-0" />
-            {/* DESPUÉS */}
-            <div className="flex flex-col items-center gap-2 w-[120px] shrink-0">
-              <div className="w-2 h-2 rounded-full border border-zinc-500 bg-transparent mt-0.5" />
-              <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider text-center leading-tight">
+            <div className="h-px w-6 bg-zinc-600 mt-[5px] shrink-0" />
+            {/* DESPUÉS — flex-1, same as ANTES but readable */}
+            <div className="flex-1 flex flex-col items-center gap-2 min-w-0">
+              <div className="w-2 h-2 rounded-full border border-zinc-400 bg-transparent mt-0.5" />
+              <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider text-center leading-tight">
                 {journey.next}
               </span>
             </div>
