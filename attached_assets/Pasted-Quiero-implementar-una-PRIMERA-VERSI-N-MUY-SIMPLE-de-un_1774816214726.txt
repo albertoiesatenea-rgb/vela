@@ -1,0 +1,225 @@
+Quiero implementar una PRIMERA VERSIÓN MUY SIMPLE de un nuevo modo llamado ARENA dentro de Closer Wizard.
+
+IMPORTANTE:
+No quiero la visión grande completa todavía.
+No quiero dificultad, hints, escenario aleatorio, audio, perfil emocional/analítico ni gamificación en esta fase.
+Quiero una v1 mínima, limpia y estructuralmente correcta.
+
+OBJETIVO DE ESTA FASE
+Separar del modo Copiloto un nuevo modo llamado ARENA para simular conversaciones por chat de texto.
+
+ARENA V1 debe permitir dos casos:
+
+1. YO SOY VENDEDOR
+- el usuario escribe como vendedor
+- la IA responde como cliente
+
+2. YO SOY CLIENTE
+- el usuario escribe como cliente
+- la IA responde como vendedor
+
+Nada más por ahora.
+No meter todavía lógica extra de dificultad, pistas o escenarios aleatorios.
+
+CONTEXTO DEL PROYECTO
+La app actual ya tiene:
+- React + Vite + TypeScript
+- Node.js + Express
+- setup rápido / avanzado
+- modo Copiloto
+- rutas de Copiloto ya funcionando
+No romper nada de lo que ya existe.
+
+DECISIÓN DE PRODUCTO
+Añadir en la pantalla de setup un selector principal:
+- COPILOTO
+- ARENA
+
+Si el usuario elige COPILOTO, todo sigue funcionando exactamente igual que ahora.
+
+Si el usuario elige ARENA:
+- se sigue usando el setup actual
+- el CTA principal cambia a “Entrar en Arena”
+- aparece una configuración mínima adicional
+
+CONFIGURACIÓN MÍNIMA DE ARENA
+Añadir solo un selector extra:
+- Rol en Arena:
+  - Yo soy vendedor
+  - Yo soy cliente
+
+No añadir más controles en esta fase.
+
+REUTILIZACIÓN DEL SETUP
+Arena debe poder usar el mismo contexto que ya escribe el usuario en setup:
+- modo rápido: una frase o bloque libre
+- modo avanzado: campos existentes si ya están implementados
+
+No quiero duplicar pantallas ni rehacer todo el setup.
+Solo reutilizar la base actual.
+
+PANTALLA DE ARENA V1
+Crear una nueva pantalla simple, limpia y coherente con la estética actual de Closer Wizard.
+
+Requisitos de UI:
+- mantener fondo negro, estilo minimal y tipografía monoespaciada
+- barra superior con:
+  - CLOSER WIZARD
+  - ARENA
+  - contexto breve o label si existe
+  - rol actual
+  - botón salir
+- zona central:
+  - historial de conversación tipo chat minimal
+  - mensajes claramente diferenciados entre usuario e IA
+  - NO estilo WhatsApp casual
+  - debe sentirse serio y táctico
+- zona inferior:
+  - textarea grande
+  - botón enviar
+  - botón terminar sesión
+
+No añadir microdetalles decorativos innecesarios.
+
+COMPORTAMIENTO DE ARENA V1
+
+MODO 1: YO SOY VENDEDOR
+- el usuario escribe como vendedor
+- la IA responde siempre como cliente
+- la IA debe comportarse de forma coherente con el contexto dado en setup
+- si el contexto es pobre, la IA debe hacer una simulación razonable pero no inventar un universo excesivo
+- la IA puede objetar, dudar, pedir claridad, comparar o tensar, pero sin sistema complejo de dificultad todavía
+
+MODO 2: YO SOY CLIENTE
+- el usuario escribe como cliente
+- la IA responde siempre como vendedor
+- este modo sirve para testear la herramienta conversacional
+- en esta v1 no hace falta mostrar debug táctico todavía
+- solo hace falta que la IA responda como vendedor de forma coherente con el contexto
+
+MUY IMPORTANTE
+No mezclar Arena con la lógica visual de Copiloto.
+Arena no debe mostrar:
+- say_now gigante
+- avoid
+- detail
+- journey
+porque eso pertenece al flujo de copiloto, no al flujo de chat.
+
+Arena es conversación.
+Copiloto es asistencia táctica.
+No mezclar ambas UX en esta fase.
+
+BACKEND
+Crear rutas nuevas para Arena.
+No reutilizar forzadamente las rutas de Copiloto si eso ensucia la arquitectura.
+
+Añadir al menos:
+- POST /api/arena/start
+- POST /api/arena/turn
+- POST /api/arena/finish
+
+COMPORTAMIENTO DE RUTAS
+
+POST /api/arena/start
+Input:
+- mode: seller | client
+- lang
+- context
+- optional structured setup data si ya existe
+Output:
+- arenaSessionId
+- openingMessage o primer estado de sesión si aplica
+
+POST /api/arena/turn
+Input:
+- arenaSessionId
+- role
+- userMessage
+Output:
+- aiMessage
+- updated session state
+
+POST /api/arena/finish
+Input:
+- arenaSessionId
+Output:
+- conversación completa
+- resumen simple de la sesión
+- log exportable
+
+GESTIÓN DE ESTADO
+Para esta v1, usar la solución más simple posible:
+- sesión en memoria por arenaSessionId
+No meter base de datos.
+
+TIPADOS TYPESCRIPT
+Crear tipados claros para:
+- ArenaRole = "seller" | "client"
+- ArenaSession
+- ArenaTurn
+- ArenaStartRequest
+- ArenaTurnRequest
+- ArenaFinishResponse
+
+LOG DE ARENA
+Añadir una exportación simple de log de Arena.
+Debe incluir:
+- modo Arena
+- contexto inicial
+- conversación completa
+- timestamps o índices de turno
+- resultado de cierre manual si aplica
+
+FINAL DE SESIÓN
+Cuando el usuario pulse “Terminar sesión”:
+- cerrar la sesión
+- mostrar una vista final simple
+- permitir exportar el log
+
+No quiero aún scoring sofisticado.
+No quiero aún debrief complejo.
+Como mucho, un resumen corto tipo:
+- número de turnos
+- rol usado
+- contexto
+- exportar log
+
+REGLAS DE IMPLEMENTACIÓN
+- no romper Copiloto
+- no rehacer la app entera
+- no meter audio
+- no meter dificultad
+- no meter perfil de cliente
+- no meter hints
+- no meter escenarios aleatorios
+- no meter scoring complejo
+- no meter debug táctico todavía
+- no meter base de datos
+- no meter autenticación
+
+CRITERIO DE CALIDAD
+Esto estará bien hecho solo si:
+- puedo elegir COPILOTO o ARENA desde setup
+- Arena reutiliza el contexto actual
+- puedo elegir si soy vendedor o cliente
+- entro en una pantalla de chat limpia y separada
+- escribo y la IA me responde según el rol
+- puedo terminar la sesión
+- puedo exportar el log
+- Copiloto sigue funcionando exactamente como antes
+- la implementación se ve limpia y no como un parche improvisado
+
+ENTREGABLES
+1. selector Copiloto / Arena en setup
+2. selector de rol dentro de Arena
+3. nueva pantalla de Arena por chat
+4. nuevas rutas backend de Arena
+5. tipados TypeScript
+6. log exportable de Arena
+7. mantener Copiloto intacto
+
+Además, al final explícame brevemente:
+- qué archivos has creado o tocado
+- cómo fluye Arena v1
+- qué has dejado fuera a propósito para una fase 2

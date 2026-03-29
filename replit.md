@@ -27,6 +27,7 @@ A single-screen, ultraminimalist sales call assistant for use on a second screen
 - **SIMULAR mode**: Paste conversation text manually, click Analizar to get tactical advice.
 - **Tactical engine**: POST /api/copilot/analyze → { signal, say_now, avoid }
 - **UI**: Pure black background, large centered text, SEÑAL / DI AHORA / EVITA layout, smooth Framer Motion transitions.
+- **Arena mode**: Separate chat-based conversation simulator. User picks "Yo soy vendedor" or "Yo soy cliente", AI plays the opposite role. Routes: POST /api/arena/start, /api/arena/turn, /api/arena/finish. In-memory sessions. Exportable log (.txt). Completely separate UX from Copilot mode.
 
 ### Known limitations (first MVP)
 - Mic mode requires Chrome/Edge (Web Speech API)

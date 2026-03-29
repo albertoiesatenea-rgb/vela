@@ -4,6 +4,8 @@ import { useAnalyzeConversation } from "@workspace/api-client-react";
 import { useSpeech } from "@/hooks/use-speech";
 import { TacticalDisplay } from "@/components/tactical-display";
 import { ContextSetup, SessionBar, WizardIcon } from "@/components/context-panel";
+import { Arena } from "@/pages/arena";
+import type { ArenaRole } from "@/pages/arena";
 import { cn } from "@/lib/utils";
 
 // ── Overlay brand header used in end-of-call screens ────────────────────────
@@ -447,6 +449,7 @@ export default function CopilotPage() {
   const [speakerMode, setSpeakerMode] = useState<SpeakerMode>("auto");
   const [simulateText, setSimulateText] = useState("");
   const [sessionContext, setSessionContext] = useState<string | null>(loadSession);
+  const [arenaRole, setArenaRole] = useState<ArenaRole | null>(null);
   const [tacticalState, setTacticalState] = useState<TacticalState>(EMPTY_STATE);
   const [contextLabel, setContextLabel] = useState<string>(loadLabel);
 
@@ -659,11 +662,30 @@ export default function CopilotPage() {
       .catch(() => {});
   };
 
+  const handleArenaReady = (context: string, role: ArenaRole) => {
+    setSessionContext(context);
+    setArenaRole(role);
+    setContextLabel("");
+    saveLabel("");
+    // Generate short label for the top bar
+    void fetch("/api/copilot/context-label", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ context, lang: langRef.current }),
+    })
+      .then(r => r.json())
+      .then(({ label }: { label: string }) => {
+        if (label) { setContextLabel(label); saveLabel(label); }
+      })
+      .catch(() => {});
+  };
+
   const handleActuallyClearSession = () => {
     setEndStep("none");
     setCallOutcome(null);
     setCallSummary(null);
     setSessionContext(null);
+    setArenaRole(null);
     setTacticalState(EMPTY_STATE);
     setContextLabel("");
     saveLabel("");
@@ -770,7 +792,26 @@ export default function CopilotPage() {
 
   // Setup screen
   if (sessionContext === null) {
-    return <ContextSetup onContextReady={handleContextReady} lang={lang} onLangChange={(l) => { setLang(l); saveLang(l); }} />;
+    return (
+      <ContextSetup
+        onContextReady={handleContextReady}
+        onArenaReady={handleArenaReady}
+        lang={lang}
+        onLangChange={(l) => { setLang(l); saveLang(l); }}
+      />
+    );
+  }
+
+  if (arenaRole !== null) {
+    return (
+      <Arena
+        context={sessionContext}
+        contextLabel={contextLabel}
+        role={arenaRole}
+        lang={lang}
+        onExit={handleActuallyClearSession}
+      />
+    );
   }
 
   // Derived panel data

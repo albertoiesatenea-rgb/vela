@@ -1,6 +1,9 @@
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Zap, SlidersHorizontal, User, Users, Target, Briefcase, ShieldOff, FileText } from "lucide-react";
+import { ChevronDown, ChevronUp, Zap, SlidersHorizontal, User, Users, Target, Briefcase, ShieldOff, FileText, Swords } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { ArenaRole } from "@/pages/arena";
+
+type AppMode = "copilot" | "arena";
 
 // ── Closer Wizard mark: cone + crossing lines + flat brim ────────────────────
 // SVG mask approach: white cone polygon masked by two black diagonal lines that
@@ -63,6 +66,13 @@ const CP = {
     ADV_LABELS: [
       "Tu rol", "Con quién", "Objetivo", "Qué mueves", "Posibles frenos", "Notas",
     ] as string[],
+    MODE_COPILOT: "Copiloto",
+    MODE_ARENA: "Arena",
+    START_ARENA: "Entrar en Arena →",
+    ARENA_ROLE_LABEL: "Tu rol en Arena",
+    ARENA_SELLER: "Yo soy el vendedor",
+    ARENA_CLIENT: "Yo soy el cliente",
+    ARENA_HINT: "La IA jugará el otro rol",
   },
   en: {
     DEFINE:    "Set the context",
@@ -95,6 +105,13 @@ const CP = {
     ADV_LABELS: [
       "Your role", "Who you're talking to", "Goal", "What you're moving", "Possible objections", "Notes",
     ] as string[],
+    MODE_COPILOT: "Copilot",
+    MODE_ARENA: "Arena",
+    START_ARENA: "Enter Arena →",
+    ARENA_ROLE_LABEL: "Your role in Arena",
+    ARENA_SELLER: "I am the seller",
+    ARENA_CLIENT: "I am the client",
+    ARENA_HINT: "The AI will play the other role",
   },
 };
 
@@ -111,7 +128,7 @@ const ADV_TOTAL = 6;
 
 const ADV_STEP_ICONS = [User, Users, Target, Briefcase, ShieldOff, FileText];
 
-function AdvancedForm({ onSubmit, lang }: { onSubmit: (context: string) => void; lang: Lang }) {
+function AdvancedForm({ onSubmit, lang, ctaLabel }: { onSubmit: (context: string) => void; lang: Lang; ctaLabel?: string }) {
   const t = CP[lang];
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<string[]>(Array(ADV_TOTAL).fill(""));
@@ -194,7 +211,7 @@ function AdvancedForm({ onSubmit, lang }: { onSubmit: (context: string) => void;
           onClick={goStart}
           className="w-full bg-white text-black text-xs font-mono font-semibold py-3 rounded-xl hover:bg-zinc-100 transition-all active:scale-[0.98]"
         >
-          {t.ADV_START}
+          {ctaLabel ?? t.ADV_START}
         </button>
       </div>
     </div>
@@ -204,24 +221,38 @@ function AdvancedForm({ onSubmit, lang }: { onSubmit: (context: string) => void;
 // ── ContextSetup — full-screen setup view ────────────────────────────────────
 export function ContextSetup({
   onContextReady,
+  onArenaReady,
   lang,
   onLangChange,
 }: {
   onContextReady: (ctx: string) => void;
+  onArenaReady: (ctx: string, role: ArenaRole) => void;
   lang: Lang;
   onLangChange: (l: Lang) => void;
 }) {
   const t = CP[lang];
-  const [mode, setMode] = useState<ContextMode>("quick");
+  const [contextMode, setContextMode] = useState<ContextMode>("quick");
+  const [appMode, setAppMode] = useState<AppMode>("copilot");
+  const [arenaRole, setArenaRole] = useState<ArenaRole>("seller");
   const [quickText, setQuickText] = useState("");
 
+  const handleSubmit = (ctx: string) => {
+    if (!ctx.trim()) return;
+    if (appMode === "arena") {
+      onArenaReady(ctx, arenaRole);
+    } else {
+      onContextReady(ctx);
+    }
+  };
+
+  const ctaLabel = appMode === "arena" ? t.START_ARENA : t.START;
+
   return (
-    <div className="fixed inset-0 bg-black flex flex-col items-center justify-center px-6">
+    <div className="fixed inset-0 bg-black flex flex-col items-center justify-center px-6 overflow-y-auto py-8">
       <div className="w-full max-w-lg flex flex-col gap-6">
 
         {/* Brand header */}
         <div className="flex items-start justify-between">
-          {/* Logo lockup — SVG mark + wordmark */}
           <div className="flex items-center gap-4">
             <WizardIcon className="w-11 h-11 text-white shrink-0" />
             <div className="flex flex-col gap-1.5">
@@ -253,29 +284,61 @@ export function ContextSetup({
         {/* Divider */}
         <div className="border-t border-white/8" />
 
+        {/* ── App mode selector ──────────────────────────────────────────── */}
+        <div className="flex flex-col gap-2">
+          <p className="text-[10px] font-mono tracking-[0.25em] uppercase text-zinc-400">
+            {lang === "es" ? "Modo" : "Mode"}
+          </p>
+          <div className="flex items-center bg-zinc-950 p-1 rounded-full border border-zinc-800 w-fit">
+            <button
+              onClick={() => setAppMode("copilot")}
+              className={cn(
+                "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono transition-all",
+                appMode === "copilot" ? "bg-white text-black" : "text-zinc-300 hover:text-white"
+              )}
+            >
+              <Zap className="w-3 h-3" />
+              {t.MODE_COPILOT}
+            </button>
+            <button
+              onClick={() => setAppMode("arena")}
+              className={cn(
+                "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono transition-all",
+                appMode === "arena" ? "bg-white text-black" : "text-zinc-300 hover:text-white"
+              )}
+            >
+              <Swords className="w-3 h-3" />
+              {t.MODE_ARENA}
+            </button>
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="border-t border-white/8" />
+
         {/* Functional section */}
         <div className="flex flex-col gap-5">
           <p className="text-[10px] font-mono tracking-[0.25em] uppercase text-zinc-400">
             {t.DEFINE}
           </p>
 
-          {/* Mode toggle */}
+          {/* Context mode toggle (Quick / Advanced) */}
           <div className="flex items-center bg-zinc-950 p-1 rounded-full border border-zinc-800 w-fit">
             <button
-              onClick={() => setMode("quick")}
+              onClick={() => setContextMode("quick")}
               className={cn(
                 "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono transition-all",
-                mode === "quick" ? "bg-white text-black" : "text-zinc-300 hover:text-white"
+                contextMode === "quick" ? "bg-white text-black" : "text-zinc-300 hover:text-white"
               )}
             >
               <Zap className="w-3 h-3" />
               {t.QUICK}
             </button>
             <button
-              onClick={() => setMode("advanced")}
+              onClick={() => setContextMode("advanced")}
               className={cn(
                 "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono transition-all",
-                mode === "advanced" ? "bg-white text-black" : "text-zinc-300 hover:text-white"
+                contextMode === "advanced" ? "bg-white text-black" : "text-zinc-300 hover:text-white"
               )}
             >
               <SlidersHorizontal className="w-3 h-3" />
@@ -284,7 +347,7 @@ export function ContextSetup({
           </div>
 
           {/* Content */}
-          {mode === "quick" ? (
+          {contextMode === "quick" ? (
             <div className="flex flex-col gap-3">
               <textarea
                 value={quickText}
@@ -292,7 +355,7 @@ export function ContextSetup({
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
-                    if (quickText.trim()) onContextReady(quickText);
+                    if (quickText.trim()) handleSubmit(quickText);
                   }
                 }}
                 placeholder={t.PLACEHOLDER}
@@ -300,15 +363,86 @@ export function ContextSetup({
                 autoFocus
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors font-mono resize-none leading-relaxed"
               />
+
+              {/* Arena role selector — only visible in Arena mode */}
+              {appMode === "arena" && (
+                <div className="flex flex-col gap-2 border border-zinc-800 rounded-xl p-4 bg-zinc-950">
+                  <p className="text-[9px] font-mono tracking-[0.25em] uppercase text-zinc-400">
+                    {t.ARENA_ROLE_LABEL}
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setArenaRole("seller")}
+                      className={cn(
+                        "flex-1 py-2 px-3 rounded-lg text-xs font-mono transition-all border",
+                        arenaRole === "seller"
+                          ? "bg-white text-black border-white"
+                          : "text-zinc-300 border-zinc-700 hover:border-zinc-500 hover:text-white"
+                      )}
+                    >
+                      {t.ARENA_SELLER}
+                    </button>
+                    <button
+                      onClick={() => setArenaRole("client")}
+                      className={cn(
+                        "flex-1 py-2 px-3 rounded-lg text-xs font-mono transition-all border",
+                        arenaRole === "client"
+                          ? "bg-white text-black border-white"
+                          : "text-zinc-300 border-zinc-700 hover:border-zinc-500 hover:text-white"
+                      )}
+                    >
+                      {t.ARENA_CLIENT}
+                    </button>
+                  </div>
+                  <p className="text-[9px] font-mono text-zinc-600">{t.ARENA_HINT}</p>
+                </div>
+              )}
+
               <button
-                onClick={() => onContextReady(quickText)}
-                className="w-full bg-white text-black text-sm font-mono font-bold py-3.5 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all"
+                onClick={() => handleSubmit(quickText)}
+                disabled={!quickText.trim()}
+                className="w-full bg-white text-black text-sm font-mono font-bold py-3.5 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all disabled:opacity-40 disabled:pointer-events-none"
               >
-                {t.START}
+                {ctaLabel}
               </button>
             </div>
           ) : (
-            <AdvancedForm onSubmit={onContextReady} lang={lang} />
+            <div className="flex flex-col gap-3">
+              {/* Arena role selector in advanced mode too */}
+              {appMode === "arena" && (
+                <div className="flex flex-col gap-2 border border-zinc-800 rounded-xl p-4 bg-zinc-950">
+                  <p className="text-[9px] font-mono tracking-[0.25em] uppercase text-zinc-400">
+                    {t.ARENA_ROLE_LABEL}
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setArenaRole("seller")}
+                      className={cn(
+                        "flex-1 py-2 px-3 rounded-lg text-xs font-mono transition-all border",
+                        arenaRole === "seller"
+                          ? "bg-white text-black border-white"
+                          : "text-zinc-300 border-zinc-700 hover:border-zinc-500 hover:text-white"
+                      )}
+                    >
+                      {t.ARENA_SELLER}
+                    </button>
+                    <button
+                      onClick={() => setArenaRole("client")}
+                      className={cn(
+                        "flex-1 py-2 px-3 rounded-lg text-xs font-mono transition-all border",
+                        arenaRole === "client"
+                          ? "bg-white text-black border-white"
+                          : "text-zinc-300 border-zinc-700 hover:border-zinc-500 hover:text-white"
+                      )}
+                    >
+                      {t.ARENA_CLIENT}
+                    </button>
+                  </div>
+                  <p className="text-[9px] font-mono text-zinc-600">{t.ARENA_HINT}</p>
+                </div>
+              )}
+              <AdvancedForm onSubmit={handleSubmit} lang={lang} ctaLabel={ctaLabel} />
+            </div>
           )}
         </div>
 
