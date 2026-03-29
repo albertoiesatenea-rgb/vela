@@ -1,0 +1,438 @@
+Quiero hacer una mejora importante sobre el cierre de sesión, el feedback final y el flujo de entrada a conversación de Closer Wizard, sin rehacer la app desde cero.
+
+IMPORTANTE:
+- NO quiero romper la UI actual
+- NO quiero cambiar la estética base
+- NO quiero meter más fricción
+- quiero mejorar:
+  1. la lógica del scoring
+  2. el formato del full report
+  3. el contenido del summary corto
+  4. el modo por defecto al entrar en conversación
+  5. el comportamiento del botón superior cuando todavía no ha habido conversación real
+
+==================================================
+OBJETIVO GENERAL
+==================================================
+
+Quiero que el producto sea más justo, más útil y más rápido de usar.
+
+Ahora mismo veo tres problemas claros:
+
+1. El scoring penaliza demasiado llamadas breves pero eficaces.
+Una llamada corta, limpia y con cierre o siguiente paso claro no debería quedarse en notas tipo 7.4 si realmente ha ido muy bien.
+
+2. El full report sale como un bloque largo de texto, poco legible y poco elegante.
+Necesita estructura.
+
+3. Al entrar en la pantalla de conversación, el modo por defecto sigue siendo ESCRIBIR y no ESCUCHAR.
+Quiero que el modo por defecto sea ESCUCHAR, porque es el uso principal y así necesito menos clics.
+
+4. Hay un problema de flujo importante:
+si entro en la pantalla de conversación pero todavía no he escrito nada, no he escuchado nada y no ha ocurrido ninguna conversación real, el botón superior no debería comportarse como “Finalizar” ni llevarme al flujo de cierre con score, resultado o full report.
+En ese caso no estoy terminando una llamada: simplemente quiero volver al inicio o salir de la sesión vacía.
+
+==================================================
+PARTE 1 — HACER EL SCORING MÁS JUSTO
+==================================================
+
+PROBLEMA REAL
+
+Ahora mismo una llamada breve, directa y eficaz puede recibir una nota demasiado baja aunque:
+- logre cierre
+- logre siguiente paso claro
+- mantenga buena dirección
+- evite errores graves
+
+Eso no refleja bien la realidad comercial.
+
+OBJETIVO
+
+Quiero que el scoring valore mucho más:
+- resultado conseguido
+- eficiencia
+- claridad
+- cierre logrado o siguiente paso sólido
+- ausencia de errores graves
+- buena dirección táctica
+
+REGLA NUEVA
+
+Si la llamada termina en:
+- Closed deal
+o
+- Next step agreed con compromiso claro
+y no hubo errores tácticos importantes,
+el score no debería quedarse artificialmente bajo.
+
+En esos casos, el score base debería tender a ser alto.
+
+Referencia orientativa:
+- llamada muy buena con cierre o siguiente paso claro: 8.5 a 9.5
+- llamada sólida pero con mejoras evidentes: 7.5 a 8.4
+- llamada trabajable pero irregular: 6 a 7.4
+- llamada floja o mal dirigida: por debajo de 6
+
+No quiero una escala blanda sin criterio.
+Quiero una escala justa para ventas reales.
+
+==================================================
+PARTE 2 — DIFERENCIAR RESULTADO Y EJECUCIÓN
+==================================================
+
+Quiero que el sistema piense mejor la puntuación final separando al menos mentalmente dos dimensiones:
+
+1. RESULTADO
+- se cerró
+- se logró siguiente paso
+- se abrió camino real
+- o no se consiguió avance
+
+2. EJECUCIÓN
+- claridad
+- control
+- gestión de objeciones
+- calidad táctica
+- precisión del cierre
+
+No hace falta mostrar estas dos notas al usuario si no quieres,
+pero sí quiero que la lógica del score final tenga en cuenta ambas.
+
+REGLA
+Una llamada corta y eficaz no debe ser penalizada solo por ser corta.
+Si consigue el objetivo de forma limpia, eso es una fortaleza, no una debilidad.
+
+==================================================
+PARTE 3 — EL FULL REPORT NO DEBE SER UN PÁRRAFO LARGO
+==================================================
+
+PROBLEMA REAL
+
+El full report actual aparece como un bloque largo de texto, difícil de leer y poco elegante.
+
+OBJETIVO
+
+Quiero que el full report tenga estructura clara y escaneable.
+
+FORMATO DESEADO
+
+Quiero que el full report se organice en secciones como estas:
+
+CLOSER WIZARD REPORT
+
+Resultado: ...
+Score: ...
+Estado: ...
+
+Resumen ejecutivo:
+[2-4 frases máximo]
+
+Lo que se hizo bien:
+- ...
+- ...
+- ...
+
+Lo que se puede mejorar:
+- ...
+- ...
+- ...
+
+Objeciones o riesgos detectados:
+- ...
+- ...
+
+Control de la conversación:
+[1-3 frases]
+
+Cierre / siguiente paso:
+[1-3 frases]
+
+Recomendación para la próxima llamada:
+[1-3 frases]
+
+IMPORTANTE
+- no quiero un bloque corrido
+- no quiero un ensayo
+- quiero algo legible, elegante y útil para copiar o revisar
+
+==================================================
+PARTE 4 — EL RESUMEN CORTO TAMBIÉN DEBE MEJORAR
+==================================================
+
+El summary corto actual está bastante bien, pero quiero que:
+- no castigue demasiado llamadas buenas y breves
+- strengths / improvements sean más tácticos y más precisos
+- incluya información portable y útil
+
+Quiero que el summary copiable incluya SIEMPRE:
+
+Resultado: [resultado]
+Score: [x.x/10]
+Estado: [state]
+
+Puntos fuertes:
+- ...
+- ...
+- ...
+
+Puntos a mejorar:
+- ...
+- ...
+- ...
+
+No quiero perder score y estado cuando lo copie a:
+- notas
+- otra IA
+- histórico personal
+
+==================================================
+PARTE 5 — EL FULL REPORT DEBE SER OPCIONAL DE VERDAD
+==================================================
+
+Quiero que el flujo natural sea:
+
+1. terminar llamada
+2. ver resumen corto
+3. poder cerrar fácilmente
+4. y solo si quiero, generar el reporte completo
+
+No quiero que full report se sienta como el siguiente paso obligatorio.
+
+OBJETIVO
+La pantalla final debe estar pensada para:
+- revisar rápido
+- copiar
+- cerrar
+
+Y que “Generate full report” sea solo una opción adicional para profundizar.
+
+==================================================
+PARTE 6 — HACER “CLOSE SESSION” MÁS NATURAL Y MÁS CÓMODO
+==================================================
+
+Quiero que cerrar la sesión:
+- sea fácil
+- sea visible
+- sea un final natural del flujo
+
+No quiero tener que hacer demasiados pasos para salir.
+
+Puedes mejorar:
+- tamaño
+- padding
+- jerarquía visual
+- posición
+- claridad del botón
+
+Sin romper la estética minimalista.
+
+==================================================
+PARTE 7 — EL FULL REPORT TAMBIÉN DEBE INCLUIR RESULTADO / SCORE / STATE
+==================================================
+
+Cuando el usuario genere el full report, quiero que el reporte completo incluya al principio una cabecera clara con:
+
+- Resultado
+- Score
+- State
+
+No quiero que el full report arranque directamente con párrafos largos y se pierda esa info.
+
+==================================================
+PARTE 8 — PRIORIZACIÓN DE BOTONES EN LA PANTALLA FINAL
+==================================================
+
+Quiero que en la pantalla final la jerarquía de acciones esté mejor pensada.
+
+Opciones válidas de prioridad:
+- Copy summary
+- Close session
+- Generate full report
+
+o
+- Close session
+- Copy summary
+- Generate full report
+
+Elige la mejor UX, pero con esta idea:
+- full report no debe ser el camino principal
+- cerrar no debe estar escondido
+- copiar resumen debe ser muy fácil
+
+==================================================
+PARTE 9 — MODO POR DEFECTO EN CONVERSACIÓN: ESCUCHAR, NO ESCRIBIR
+==================================================
+
+Esto es muy importante.
+
+Ahora mismo, al entrar en la pantalla de conversación, sigue apareciendo por defecto el modo ESCRIBIR.
+No quiero eso.
+
+Quiero que el modo por defecto sea:
+
+ESCUCHAR
+
+OBJETIVO
+El uso principal de la herramienta es escuchar en vivo, así que quiero reducir clics y fricción.
+
+COMPORTAMIENTO DESEADO
+
+1. Al iniciar una sesión o entrar en la pantalla de conversación:
+- ESCUCHAR debe aparecer seleccionado por defecto
+- ESCRIBIR debe quedar como opción secundaria
+
+2. Si el usuario luego cambia manualmente a ESCRIBIR, perfecto.
+Pero el estado inicial debe ser ESCUCHAR.
+
+3. Si existe algún estado persistente que esté forzando ESCRIBIR por defecto, revísalo y corrígelo.
+
+4. Quiero que todo el flujo esté optimizado para que el usuario pueda entrar y empezar a escuchar con el mínimo número de clics posible.
+
+==================================================
+PARTE 10 — DIFERENCIAR SESIÓN VACÍA DE CONVERSACIÓN REAL
+==================================================
+
+Esto es muy importante y ahora mismo está mal resuelto.
+
+PROBLEMA REAL
+
+Si entro en la pantalla de conversación pero:
+- no he escrito nada
+- no he pegado ningún fragmento
+- no he iniciado escucha real
+- no hay contenido analizado
+- no existe conversación real todavía
+
+el botón superior no debería comportarse como “Finalizar” ni llevarme al flujo de cierre con:
+- resultado
+- score
+- strengths
+- improvements
+- full report
+
+Eso no tiene sentido, porque no estoy terminando una llamada real.
+Simplemente he entrado en una sesión vacía y quiero volver atrás.
+
+OBJETIVO
+
+Quiero que la app distinga claramente entre:
+
+A. SESIÓN VACÍA / SIN CONVERSACIÓN REAL
+B. SESIÓN CON CONVERSACIÓN REAL / YA EMPEZADA
+
+==================================================
+PARTE 11 — COMPORTAMIENTO DEL BOTÓN SUPERIOR SEGÚN EL ESTADO
+==================================================
+
+Quiero este comportamiento:
+
+CASO A — SESIÓN VACÍA
+Si todavía no ha habido conversación real, el botón superior NO debe llamarse “Finalizar” ni abrir el flujo de cierre.
+
+En ese caso:
+- debe llamarse algo como:
+  - Inicio
+  - Volver al inicio
+  - Salir
+  - Back
+- y su comportamiento debe ser volver a la pantalla inicial o salir de esa sesión vacía
+- sin score
+- sin resultado
+- sin reporte
+- sin journey de evaluación final
+
+CASO B — SESIÓN CONVERSACIONAL REAL
+Solo si ya ha habido conversación real:
+- texto escrito o pegado analizado
+- o escucha iniciada con contenido real
+- o análisis generado
+entonces sí tiene sentido:
+- Finalizar
+- flujo de cierre
+- resultado
+- score
+- summary
+- full report opcional
+
+==================================================
+PARTE 12 — DEFINIR BIEN CUÁNDO UNA SESIÓN CUENTA COMO “REAL”
+==================================================
+
+Quiero que definas internamente una condición clara para considerar que ya existe una conversación real.
+
+Ejemplos de señales válidas:
+- se analizó al menos un fragmento real
+- se recibió texto con contenido útil
+- hubo escucha y se procesó algo real
+- se generó al menos una lectura táctica basada en contenido real
+
+Ejemplos que NO deberían activar cierre real:
+- simplemente entrar a la pantalla
+- cambiar entre escuchar / escribir
+- tocar botones sin analizar nada
+- contexto inicial sin conversación posterior
+- sesión vacía sin fragmentos
+
+OBJETIVO
+Solo mostrar el flujo de cierre y feedback cuando haya material real que evaluar.
+
+==================================================
+PARTE 13 — UX DEL ESTADO VACÍO
+==================================================
+
+Cuando la sesión esté vacía:
+- el botón superior debe ser claro
+- la UX debe sentirse natural
+- no quiero que el usuario piense que está “terminando una llamada” que nunca ocurrió
+
+Si encaja, incluso puedes hacer que visualmente la sesión vacía se sienta más como:
+- pre-conversación
+- modo listo para empezar
+y no como llamada en curso ya evaluable
+
+==================================================
+PARTE 14 — REGLA DE TONO DEL FEEDBACK
+==================================================
+
+Quiero un tono:
+- honesto
+- táctico
+- útil
+- sin coach barato
+- sin inflar artificialmente
+- pero tampoco injustamente duro
+
+Si la llamada ha ido muy bien, el sistema debe reconocerlo.
+No quiero una IA que siempre encuentre defectos por sistema y baje la nota porque sí.
+
+==================================================
+OBJETIVO FINAL
+==================================================
+
+Quiero que:
+1. el score sea más justo con llamadas breves y eficaces
+2. el resultado tenga más peso real
+3. el full report sea mucho más legible y estructurado
+4. el feedback sea más táctico y más útil
+5. el summary corto sea portable y completo
+6. cerrar la sesión sea fácil y natural
+7. el modo por defecto al entrar en conversación sea ESCUCHAR
+8. una sesión vacía NO active el flujo de finalización ni feedback
+9. el botón superior cambie de comportamiento según si hubo o no conversación real
+
+No rehagas la app.
+Solo mejora la lógica de scoring, el formato del feedback final, el estado por defecto del modo de conversación y la distinción entre sesión vacía y conversación real.
+
+==================================================
+ENTREGABLE
+==================================================
+
+Cuando termines, dime brevemente:
+1. cómo has ajustado el scoring
+2. qué peso das ahora al resultado de la llamada
+3. cómo has reestructurado el full report
+4. qué incluye ahora Copy summary
+5. cómo has hecho más fácil cerrar la sesión
+6. cómo has dejado ESCUCHAR como modo por defecto real al entrar en conversación
+7. cómo distingues ahora entre sesión vacía y conversación real
+8. y cómo cambia el botón superior en cada caso

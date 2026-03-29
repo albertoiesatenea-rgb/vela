@@ -392,22 +392,56 @@ Return EXACTLY this JSON, no markdown, no extra text:
   "full_report": ${wantsFullReport ? '"detailed report text here"' : "null"}
 }
 
-SCORING (0-10):
-10: Perfect close, full control, objections resolved
-8-9: Strong call, clear advance, good tactical work
-6-7: Decent call, some progress, key weaknesses
-4-5: Mixed results, significant gaps
-2-3: Poor direction, major errors, control lost
-0-1: Complete failure or very limited data
+SCORING (0-10) — FAIR, RESULT-WEIGHTED SCALE:
+The achieved outcome carries the most weight. Short, efficient calls are NOT penalized for brevity.
 
-SCORE FACTORS: clarity of advance, objection management, conversation control, ability to concretize, tactical direction quality, whether a next step or close was achieved, errors avoided.
+RANGES:
+8.5–9.5: Real close or solid next step achieved, good execution, no major errors
+7.5–8.4: Clear advance, good tactical direction, with some room for improvement
+6.0–7.4: Workable call, partial or uneven progress, visible tactical weaknesses
+4.0–5.9: Weak result, relevant errors, inconsistent control
+0–3.9: Failed call or no real advance
 
-GLOBAL STATE: use 1-2 English words (strong / good / workable / weak / blocked / lost / open / advancing)
+SCORE FACTORS (in order of weight):
+1. Outcome achieved: close, solid next step, real advance (highest weight)
+2. Tactical execution: objection management, control, concreteness, direction quality
+3. Absence of major errors: significant tactical errors lower the score
+4. Efficiency: a short, direct call that achieves its goal is a strength, not a weakness
 
-STRENGTHS: 2-3 specific, concrete, actionable observations. No generic praise.
+KEY RULE: if the outcome is "closed" or "next_step" and there were no major tactical errors, the BASE score must be at least 8.0. Execution determines whether it lands at 8.x or 9.x.
+
+GLOBAL STATE: use 1-2 English words (strong / solid / advancing / workable / weak / blocked / lost / open)
+
+STRENGTHS: 2-3 specific, concrete, tactical observations. No generic praise.
 IMPROVEMENTS: 2-3 specific, concrete, honest tactical observations. No vague comments.
 
-${wantsFullReport ? `FULL REPORT: Write a detailed 300-500 word tactical analysis including: call summary, detected objections, how they were handled, user strengths, user weaknesses/errors, missed opportunities, conversation control level, close/advance quality, concrete suggestions for next call. Be honest, tactical, direct.` : "FULL REPORT: null (not requested)."}
+${wantsFullReport ? `FULL REPORT: Write the analysis using EXACTLY this format and section headers (no markdown, no bullet symbols except dashes):
+
+Resumen ejecutivo:
+[2-4 sentences describing the call, context, and result]
+
+Lo que se hizo bien:
+- [specific tactical observation]
+- [specific tactical observation]
+- [specific tactical observation]
+
+Lo que se puede mejorar:
+- [specific tactical observation]
+- [specific tactical observation]
+
+Objeciones o riesgos detectados:
+- [objection detected and how it was handled, or: No significant objections detected]
+
+Control de la conversación:
+[1-3 sentences on who controlled the conversation and tactical direction quality]
+
+Cierre / siguiente paso:
+[1-3 sentences on close quality or next step achieved]
+
+Recomendación para la próxima llamada:
+[1-3 concrete, actionable sentences]
+
+TONE: honest, tactical, useful. No cheap coaching. No artificial inflation.` : "FULL REPORT: null (not requested)."}
 
 IMPORTANT: Be honest and tactical. No motivational fluff. No generic phrases. Real sales analysis.`
     : `Eres un analista experto de llamadas de venta. Evalúa una llamada completada basándote en su memoria táctica y el resultado reportado.
@@ -422,22 +456,56 @@ Devuelve EXACTAMENTE este JSON, sin markdown, sin texto extra:
   "full_report": ${wantsFullReport ? '"texto del reporte detallado aquí"' : "null"}
 }
 
-PUNTUACIÓN (0-10):
-10: Cierre perfecto, control total, objeciones resueltas
-8-9: Llamada fuerte, avance claro, buen trabajo táctico
-6-7: Llamada decente, algo de progreso, debilidades clave
-4-5: Resultados mixtos, brechas significativas
-2-3: Mala dirección, errores graves, control perdido
-0-1: Fracaso total o datos muy limitados
+PUNTUACIÓN (0-10) — ESCALA JUSTA ORIENTADA A RESULTADO:
+El resultado conseguido tiene el mayor peso. Las llamadas cortas y eficaces NO se penalizan por ser breves.
 
-FACTORES DEL SCORE: claridad del avance, gestión de objeciones, control de conversación, capacidad de concretar, calidad de dirección táctica, si se consiguió siguiente paso o cierre, errores evitados.
+RANGOS:
+8.5–9.5: Cierre real o siguiente paso sólido conseguido, buena ejecución, sin errores graves
+7.5–8.4: Avance claro, buena dirección táctica, con alguna mejora posible
+6.0–7.4: Llamada trabajable, progreso parcial o irregular, debilidades tácticas evidentes
+4.0–5.9: Resultado débil, errores relevantes, control irregular
+0–3.9: Llamada fallida o sin avance real
 
-ESTADO GLOBAL: usa 1-2 palabras en español (fuerte / buena / trabajable / floja / bloqueada / perdida / abierta / avanzando)
+FACTORES DEL SCORE (en orden de peso):
+1. Resultado conseguido: cierre, siguiente paso sólido, avance real (peso máximo)
+2. Ejecución táctica: gestión de objeciones, control, concreción, calidad de la dirección
+3. Ausencia de errores graves: errores tácticos importantes bajan el score
+4. Eficiencia: una llamada corta y directa que consigue su objetivo suma, no resta
 
-PUNTOS FUERTES: 2-3 observaciones específicas, concretas, accionables. Sin elogios genéricos.
+REGLA CLAVE: si el resultado fue "closed" o "next_step" y no hubo errores tácticos importantes, el score BASE debe ser mínimo 8.0. La ejecución decide si es 8.x o 9.x.
+
+ESTADO GLOBAL: usa 1-2 palabras en español (fuerte / sólida / avanzando / trabajable / floja / bloqueada / perdida / abierta)
+
+PUNTOS FUERTES: 2-3 observaciones tácticas específicas, concretas, accionables. Sin elogios genéricos.
 PUNTOS A MEJORAR: 2-3 observaciones tácticas específicas, concretas, honestas. Sin comentarios vagos.
 
-${wantsFullReport ? `REPORTE COMPLETO: Escribe un análisis táctico detallado de 300-500 palabras que incluya: resumen de la llamada, objeciones detectadas, cómo se gestionaron, puntos fuertes del usuario, debilidades/errores del usuario, oportunidades perdidas, nivel de control de la conversación, calidad del cierre o avance, sugerencias concretas para la próxima llamada. Sé honesto, táctico y directo.` : "REPORTE COMPLETO: null (no solicitado)."}
+${wantsFullReport ? `REPORTE COMPLETO: Escribe el análisis usando EXACTAMENTE este formato con estas secciones (sin markdown, sin símbolos de viñeta excepto guiones):
+
+Resumen ejecutivo:
+[2-4 frases describiendo la llamada, el contexto y el resultado]
+
+Lo que se hizo bien:
+- [observación táctica concreta]
+- [observación táctica concreta]
+- [observación táctica concreta]
+
+Lo que se puede mejorar:
+- [observación táctica concreta]
+- [observación táctica concreta]
+
+Objeciones o riesgos detectados:
+- [objeción detectada y cómo se gestionó, o: Sin objeciones significativas detectadas]
+
+Control de la conversación:
+[1-3 frases sobre quién controló la conversación y qué nivel de dirección táctica hubo]
+
+Cierre / siguiente paso:
+[1-3 frases sobre la calidad del cierre o el siguiente paso conseguido]
+
+Recomendación para la próxima llamada:
+[1-3 frases concretas y accionables]
+
+TONO: honesto, táctico, útil. Sin coach barato. Sin inflar artificialmente.` : "REPORTE COMPLETO: null (no solicitado)."}
 
 IMPORTANTE: Sé honesto y táctico. Sin motivación barata. Sin frases genéricas. Análisis de venta real.`;
 
@@ -446,7 +514,7 @@ IMPORTANTE: Sé honesto y táctico. Sin motivación barata. Sin frases genérica
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      max_tokens: wantsFullReport ? 1200 : 400,
+      max_tokens: wantsFullReport ? 1600 : 400,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userMessage },

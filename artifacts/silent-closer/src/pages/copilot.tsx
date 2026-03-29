@@ -54,6 +54,7 @@ const T = {
     OPEN_TAB: "Abrir en pestaña separada",
     NO_SPEECH: "Tu navegador no soporta reconocimiento de voz.\nUsa Chrome o Edge.",
     OR_TYPE: "O usa el modo Escribir para probar la IA ahora",
+    EXIT: "← Salir",
     // End-of-call flow
     OUTCOME_Q: "¿Cómo terminó la llamada?",
     OUTCOME_CLOSED: "Cerrada",
@@ -92,6 +93,7 @@ const T = {
     OPEN_TAB: "Open in separate tab",
     NO_SPEECH: "Your browser does not support speech recognition.\nUse Chrome or Edge.",
     OR_TYPE: "Or use Type mode to test the AI now",
+    EXIT: "← Exit",
     // End-of-call flow
     OUTCOME_Q: "How did the call end?",
     OUTCOME_CLOSED: "Closed",
@@ -453,6 +455,8 @@ export default function CopilotPage() {
   langRef.current = lang;
 
   const sessionActive = sessionContext !== null;
+  // True only once at least one analysis has run (call_memory gets populated)
+  const hasRealConversation = tacticalState.callMemory.length > 0;
   const speakerModeRef = useRef(speakerMode);
   speakerModeRef.current = speakerMode;
 
@@ -572,13 +576,18 @@ export default function CopilotPage() {
     setDetailOpen(false);
     stopListening();
     setIsSessionListening(false);
-    setInputMode("simulate");
+    setInputMode("listen");
     setSpeakerMode("auto");
   };
 
   const handleClearSession = () => {
     stopListening();
     setIsSessionListening(false);
+    // If no real conversation happened, just exit — no scoring, no outcome picker
+    if (!hasRealConversation) {
+      handleActuallyClearSession();
+      return;
+    }
     setEndStep("outcome");
   };
 
@@ -908,7 +917,7 @@ export default function CopilotPage() {
       )}
 
       {/* Compact session bar */}
-      <SessionBar sessionContext={sessionContext} contextLabel={contextLabel} onClearSession={handleClearSession} lang={lang} momentum={tacticalState.momentum} />
+      <SessionBar sessionContext={sessionContext} contextLabel={contextLabel} onClearSession={handleClearSession} lang={lang} momentum={tacticalState.momentum} endLabel={!hasRealConversation ? T[lang].EXIT : undefined} />
 
       {/* Status pill — top right */}
       <div className="absolute top-10 right-5 flex items-center gap-3 z-10">

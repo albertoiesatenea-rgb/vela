@@ -325,12 +325,14 @@ export function SessionBar({
   onClearSession,
   lang = "es",
   momentum,
+  endLabel,
 }: {
   sessionContext: string;
   contextLabel?: string;
   onClearSession: () => void;
   lang?: Lang;
   momentum?: Momentum;
+  endLabel?: string;
 }) {
   const t = CP[lang];
   const [expanded, setExpanded] = useState(false);
@@ -383,7 +385,7 @@ export function SessionBar({
             onClick={(e) => { e.stopPropagation(); onClearSession(); }}
             className="text-[10px] font-mono text-zinc-400 hover:text-red-400 px-3 py-2 rounded-lg hover:bg-red-950/25 transition-all"
           >
-            {t.END}
+            {endLabel ?? t.END}
           </button>
           {expanded
             ? <ChevronUp className="w-3 h-3 text-zinc-600" />
