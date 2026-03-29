@@ -167,11 +167,11 @@ function AdvancedForm({ onSubmit, lang, ctaLabel }: { onSubmit: (context: string
             >
               <Icon className={cn(
                 "w-3 h-3 transition-colors",
-                isCurrent ? "text-white" : isFilled ? "text-zinc-300" : "text-zinc-500"
+                isCurrent ? "text-white" : isFilled ? "text-zinc-200" : "text-zinc-400"
               )} />
               <span className={cn(
                 "text-[7px] font-mono tracking-wider uppercase w-full text-center transition-colors truncate",
-                isCurrent ? "text-white" : isFilled ? "text-zinc-400" : "text-zinc-500"
+                isCurrent ? "text-white" : isFilled ? "text-zinc-300" : "text-zinc-400"
               )}>
                 {label}
               </span>
@@ -197,23 +197,13 @@ function AdvancedForm({ onSubmit, lang, ctaLabel }: { onSubmit: (context: string
         />
       </div>
 
-      {/* Nav — Siguiente (subtle) + always-available Iniciar */}
-      <div className="flex flex-col gap-2">
-        {!isLast && (
-          <button
-            onClick={goNext}
-            className="text-[11px] font-mono text-zinc-500 hover:text-zinc-200 transition-colors py-1.5 text-center"
-          >
-            {t.ADV_NEXT}
-          </button>
-        )}
-        <button
-          onClick={goStart}
-          className="w-full bg-white text-black text-xs font-mono font-semibold py-3 rounded-xl hover:bg-zinc-100 transition-all active:scale-[0.98]"
-        >
-          {ctaLabel ?? t.ADV_START}
-        </button>
-      </div>
+      {/* Nav — only the launch CTA; step navigation via icon clicks or Enter */}
+      <button
+        onClick={goStart}
+        className="w-full bg-white text-black text-xs font-mono font-semibold py-3 rounded-xl hover:bg-zinc-100 transition-all active:scale-[0.98]"
+      >
+        {ctaLabel ?? t.ADV_START}
+      </button>
     </div>
   );
 }
@@ -391,7 +381,7 @@ export function ContextSetup({
         {contextMode === "quick" && (
           <button
             onClick={() => handleSubmit(quickText)}
-            disabled={!quickText.trim()}
+            disabled={appMode === "arena" && !quickText.trim()}
             className="w-full bg-white text-black text-sm font-mono font-bold py-3.5 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all disabled:opacity-40 disabled:pointer-events-none"
           >
             {ctaLabel}
