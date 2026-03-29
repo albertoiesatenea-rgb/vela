@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 interface TacticalDisplayProps {
   sayNow: string;
-  hint?: string;
+  reading?: string;
   avoid?: string;
   isPending?: boolean;
   isListening?: boolean;
@@ -15,18 +15,18 @@ const fade = {
   exit:    { opacity: 0, filter: "blur(4px)", y: -8, transition: { duration: 0.25, ease: "easeIn" } },
 };
 
-const fadeSlow = {
-  initial: { opacity: 0, y: 6 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut", delay: 0.15 } },
-  exit:    { opacity: 0, y: -4, transition: { duration: 0.2 } },
+const fadeIn = {
+  initial: { opacity: 0, y: 5 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut", delay: 0.2 } },
+  exit:    { opacity: 0, transition: { duration: 0.15 } },
 };
 
-export function TacticalDisplay({ sayNow, hint, avoid, isPending, isListening }: TacticalDisplayProps) {
+export function TacticalDisplay({ sayNow, reading, avoid, isPending, isListening }: TacticalDisplayProps) {
   return (
     <div className="h-full w-full flex flex-col">
 
       {/* ── DI AHORA ────────────────────────────────── */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 gap-4">
+      <div className="flex-1 flex flex-col items-center justify-center px-8 gap-5">
         <AnimatePresence mode="wait">
           <motion.p
             key={sayNow || "empty-say"}
@@ -43,18 +43,18 @@ export function TacticalDisplay({ sayNow, hint, avoid, isPending, isListening }:
           </motion.p>
         </AnimatePresence>
 
-        {/* ── HINT — nota táctica debajo del comando ── */}
+        {/* ── NOTA TÁCTICA — lectura situacional bajo el comando ── */}
         <AnimatePresence mode="wait">
-          {hint && sayNow && (
+          {reading && sayNow && (
             <motion.p
-              key={hint}
-              variants={fadeSlow}
+              key={reading}
+              variants={fadeIn}
               initial="initial"
               animate="animate"
               exit="exit"
-              className="text-[13px] font-mono text-zinc-400 text-center leading-relaxed max-w-md"
+              className="text-[13px] font-mono text-zinc-400 text-center leading-relaxed max-w-lg"
             >
-              {hint}
+              {reading}
             </motion.p>
           )}
         </AnimatePresence>

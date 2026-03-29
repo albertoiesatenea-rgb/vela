@@ -380,7 +380,7 @@ export default function CopilotPage() {
         <div className="flex-1 relative">
         <TacticalDisplay
           sayNow={tacticalState.sayNow}
-          hint={tacticalState.hint}
+          reading={tacticalState.detail?.reading}
           avoid={tacticalState.avoid}
           isPending={isPending}
           isListening={isListening}

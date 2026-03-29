@@ -116,7 +116,9 @@ SAY_NOW — 4-12 palabras. La siguiente jugada táctica concreta. Imperativo, es
 
   REGLA CRÍTICA — TRADUCIR A CRITERIO: Cuando haya objeción general sobre ciudad, producto, opción o propuesta, SAY_NOW debe aterrizar esa crítica en criterios de decisión concretos, no explorar la vaguedad. EVITA "qué no te gusta" o "qué te preocupa". PREFIERE: "detecta si compara por seguridad o liquidez", "separa imagen de ciudad de lógica de inversión", "baja la objeción a alquiler o reventa", "confirma si el problema es precio o salida", "pide el criterio exacto que le frena".
 
-HINT — 1 frase corta, max 15 palabras. El objetivo táctico detrás del say_now: responde a "¿por qué hago esto ahora?". No es una instrucción adicional — es el razonamiento del coach para el vendedor. Tono directo, natural. Ej: "Antes de defender el precio, identifica qué valora de España." / "Si no concretas el freno ahora, perderás credibilidad al cerrar." / "El criterio de compra aún no está claro — primero escúchalo." / "No hay señal de cierre aún — necesita más seguridad antes de decidir."
+HINT — OBLIGATORIO. Siempre rellena este campo. 1 frase, máx 15 palabras. El razonamiento táctico detrás del say_now: ¿por qué esta jugada ahora? No repite el say_now — explica el objetivo que hay detrás. Primera persona implícita, tono directo.
+  BIEN: "Antes de defender el precio, necesitas saber qué valora de España." / "Si cierras sin resolver el freno, perderás credibilidad." / "El criterio no está articulado todavía — concretarlo antes de defender nada." / "Primero escucha su lógica de inversión, luego posiciona el activo."
+  MAL: "Pregunta sobre el mercado." / "Es importante hacer esto." / repetir el say_now.
 
 AVOID — 2-7 palabras. Solo cuando haya un error táctico real y probable en este momento.
   BIEN: "no defiendas la propuesta aún", "no respondas con datos ya", "no cierres antes de tiempo", "no cambies de frente", "no debatas la alternativa"
@@ -202,8 +204,8 @@ router.post("/copilot/analyze", async (req, res) => {
     const rawContent = completion.choices[0]?.message?.content ?? "";
 
     let parsed: {
-      signal: string;
       say_now: string;
+      hint?: string;
       avoid?: string;
       detail?: {
         reading?: string;
