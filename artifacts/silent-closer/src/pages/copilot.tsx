@@ -55,13 +55,26 @@ function saveHistory(h: string[]) {
   try { localStorage.setItem(HISTORY_KEY, JSON.stringify(h)); } catch { /* ignore */ }
 }
 
-// ── Detail field label → value row
-function DetailField({ label, value, wide }: { label: string; value?: string; wide?: boolean }) {
+// ── Color config per detail field
+const FIELD_CONFIG = {
+  LECTURA:    { label: "text-zinc-400",    content: "text-zinc-300",   border: "border-zinc-600",    size: "text-xs" },
+  ARGUMENTO:  { label: "text-blue-400",    content: "text-blue-100",   border: "border-blue-600",    size: "text-xs" },
+  GUION:      { label: "text-zinc-300",    content: "text-white",      border: "border-zinc-400",    size: "text-[13px]" },
+  PREGUNTA:   { label: "text-amber-400",   content: "text-amber-100",  border: "border-amber-600",   size: "text-[13px]" },
+  RIESGO:     { label: "text-red-400",     content: "text-red-200",    border: "border-red-700",     size: "text-xs" },
+  APOYO:      { label: "text-emerald-400", content: "text-emerald-100",border: "border-emerald-700", size: "text-xs" },
+} as const;
+
+type FieldKey = keyof typeof FIELD_CONFIG;
+
+function DetailField({ fieldKey, value }: { fieldKey: FieldKey; value?: string }) {
   if (!value) return null;
+  const cfg = FIELD_CONFIG[fieldKey];
+  const isGuion = fieldKey === "GUION";
   return (
-    <div className={cn("flex flex-col gap-1", wide && "col-span-2")}>
-      <span className="text-[9px] font-mono tracking-[0.22em] uppercase text-zinc-500">{label}</span>
-      <p className={cn("text-xs font-mono text-zinc-200 leading-relaxed", label === "GUION" && "italic")}>{value}</p>
+    <div className={cn("pl-3 border-l-2 flex flex-col gap-1", cfg.border)}>
+      <span className={cn("text-[9px] font-mono tracking-[0.2em] uppercase", cfg.label)}>{fieldKey}</span>
+      <p className={cn("font-mono leading-relaxed", cfg.size, cfg.content, isGuion && "italic")}>{value}</p>
     </div>
   );
 }
@@ -69,13 +82,33 @@ function DetailField({ label, value, wide }: { label: string; value?: string; wi
 // ── Persistent detail panel
 function DetailPanel({ detail }: { detail: Detail }) {
   return (
-    <div className="grid grid-cols-2 gap-x-5 gap-y-3 px-5 py-4">
-      <DetailField label="LECTURA" value={detail.reading} />
-      <DetailField label="ARGUMENTO" value={detail.argument} />
-      <DetailField label="GUION" value={detail.talk_track} wide />
-      <DetailField label="PREGUNTA" value={detail.question} wide />
-      <DetailField label="RIESGO" value={detail.risk} />
-      <DetailField label="APOYO" value={detail.support} />
+    <div className="px-5 py-4 space-y-0">
+      {/* Row 1: LECTURA + ARGUMENTO side by side */}
+      {(detail.reading || detail.argument) && (
+        <div className="grid grid-cols-2 gap-x-5 gap-y-0 pb-4">
+          {detail.reading   && <DetailField fieldKey="LECTURA"   value={detail.reading} />}
+          {detail.argument  && <DetailField fieldKey="ARGUMENTO" value={detail.argument} />}
+        </div>
+      )}
+      {/* Row 2: GUION full width */}
+      {detail.talk_track && (
+        <div className="pb-4">
+          <DetailField fieldKey="GUION" value={detail.talk_track} />
+        </div>
+      )}
+      {/* Row 3: PREGUNTA full width */}
+      {detail.question && (
+        <div className="pb-4">
+          <DetailField fieldKey="PREGUNTA" value={detail.question} />
+        </div>
+      )}
+      {/* Row 4: RIESGO + APOYO side by side */}
+      {(detail.risk || detail.support) && (
+        <div className="grid grid-cols-2 gap-x-5">
+          {detail.risk    && <DetailField fieldKey="RIESGO" value={detail.risk} />}
+          {detail.support && <DetailField fieldKey="APOYO"  value={detail.support} />}
+        </div>
+      )}
     </div>
   );
 }
@@ -83,13 +116,23 @@ function DetailPanel({ detail }: { detail: Detail }) {
 // ── Persistent memory panel
 function MemoryPanel({ lines }: { lines: string[] }) {
   return (
-    <ul className="px-5 py-4 space-y-2">
-      {lines.map((line, i) => (
-        <li key={i} className="flex items-start gap-2 text-[11px] font-mono text-zinc-300 leading-snug">
-          <span className="text-zinc-600 shrink-0 mt-0.5">—</span>
-          <span>{line.replace(/^[-–—]\s*/, "")}</span>
-        </li>
-      ))}
+    <ul className="px-5 py-4 space-y-3">
+      {lines.map((line, i) => {
+        const text = line.replace(/^[-–—]\s*/, "");
+        const isLast = i === lines.length - 1;
+        return (
+          <li key={i} className="flex items-start gap-3">
+            <span className={cn(
+              "shrink-0 mt-[3px] w-1 h-1 rounded-full",
+              isLast ? "bg-zinc-300" : "bg-zinc-600"
+            )} />
+            <span className={cn(
+              "text-[11px] font-mono leading-snug",
+              isLast ? "text-zinc-200" : "text-zinc-500"
+            )}>{text}</span>
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -280,7 +323,7 @@ export default function CopilotPage() {
       )}
 
       {/* ── Main HUD ─────────────────────────────── */}
-      <div className="flex-1 min-h-0 relative">
+      <div className="flex-1 min-h-[180px] relative">
         <TacticalDisplay
           signal={tacticalState.signal}
           sayNow={tacticalState.sayNow}
@@ -359,7 +402,7 @@ export default function CopilotPage() {
         </div>
       )}
 
-      {/* ── Persistent panels — real space, not overlay ── */}
+      {/* ── Persistent panels — real space, stacked, no overlay ── */}
       <AnimatePresence>
         {panelVisible && (
           <motion.div
@@ -367,29 +410,23 @@ export default function CopilotPage() {
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.22, ease: "easeOut" }}
-            className="shrink-0 border-t border-white/8 overflow-hidden"
+            className="shrink-0 overflow-hidden"
           >
-            <div
-              className={cn(
-                "max-h-[42vh] overflow-y-auto",
-                bothOpen && "flex divide-x divide-white/5"
-              )}
-            >
+            <div className="max-h-[44vh] overflow-y-auto divide-y divide-white/5">
               {/* Detail panel */}
               {detailOpen && hasDetail && (
-                <div className={cn(bothOpen ? "w-1/2" : "w-full")}>
+                <div>
                   {bothOpen && (
-                    <p className="px-5 pt-3 pb-1 text-[9px] font-mono tracking-[0.22em] uppercase text-zinc-600">Detalle</p>
+                    <p className="px-5 pt-3 pb-0 text-[9px] font-mono tracking-[0.22em] uppercase text-zinc-600">Detalle</p>
                   )}
                   <DetailPanel detail={tacticalState.detail!} />
                 </div>
               )}
-
               {/* Memory panel */}
               {memoryOpen && hasMemory && (
-                <div className={cn(bothOpen ? "w-1/2" : "w-full")}>
+                <div>
                   {bothOpen && (
-                    <p className="px-5 pt-3 pb-1 text-[9px] font-mono tracking-[0.22em] uppercase text-zinc-600">Memoria</p>
+                    <p className="px-5 pt-3 pb-0 text-[9px] font-mono tracking-[0.22em] uppercase text-zinc-600">Memoria</p>
                   )}
                   <MemoryPanel lines={memoryLines} />
                 </div>

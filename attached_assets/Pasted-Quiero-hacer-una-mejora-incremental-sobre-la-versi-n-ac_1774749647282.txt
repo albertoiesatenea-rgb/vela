@@ -1,0 +1,236 @@
+Quiero hacer una mejora incremental sobre la versión actual de “Silent Closer”.
+
+IMPORTANTE:
+- NO quiero rehacer la app
+- NO quiero cambiar la filosofía visual base
+- NO quiero una nueva interfaz completa
+- quiero mantener el look actual
+- pero ahora hay un problema claro de legibilidad y de comportamiento de los paneles
+
+La base ya está bien.
+El problema ahora es:
+1. DETALLE y MEMORIA se solapan visualmente con la zona principal
+2. el contenido del detalle cuesta leerlo rápido
+3. no se distinguen bien los bloques
+4. si abro DETALLE o MEMORIA, quiero poder dejarlos abiertos y seguir trabajando con normalidad
+
+==================================================
+OBJETIVO DE ESTA ITERACIÓN
+==================================================
+
+Quiero mejorar:
+- la legibilidad
+- la jerarquía visual
+- la distinción entre bloques
+- y el comportamiento persistente de DETALLE y MEMORIA
+
+Sin rehacer la app.
+Sin romper el minimalismo.
+Sin convertirlo en un dashboard pesado.
+
+==================================================
+PARTE 1 — DETALLE Y MEMORIA DEBEN SER PERSISTENTES Y NO MOLESTAR
+==================================================
+
+PROBLEMA ACTUAL
+Cuando abro DETALLE o MEMORIA:
+- visualmente interfieren con la zona principal
+- cuesta seguir trabajando
+- no tengo la sensación de que puedan quedarse abiertos de forma limpia
+
+OBJETIVO
+Quiero que DETALLE y MEMORIA funcionen como paneles persistentes y utilizables.
+
+COMPORTAMIENTO DESEADO
+
+1. Si abro DETALLE, debe quedarse abierto hasta que yo lo cierre.
+No debe cerrarse solo al analizar, cambiar de modo o seguir usando la app.
+
+2. Si abro MEMORIA, debe quedarse abierta hasta que yo la cierre.
+No debe desaparecer sola.
+
+3. Debo poder tener:
+- DETALLE abierto
+- MEMORIA abierta
+- o ambos abiertos a la vez
+
+4. Aunque estén abiertos, quiero seguir pudiendo:
+- ver SIGNAL / SAY NOW / AVOID
+- usar el input
+- pulsar ANALIZAR
+- cambiar AUTO / CLIENTE / YO
+- usar ESCUCHAR / ESCRIBIR
+sin fricción.
+
+5. Los paneles no deben montarse encima de la parte principal de forma caótica.
+No quiero overlays raros ni solapes incómodos.
+
+SOLUCIÓN DESEADA
+Haz que DETALLE y MEMORIA se comporten como paneles persistentes debajo del área principal, bien separados y con altura razonable.
+
+Si ambos están abiertos:
+- deben apilarse bien
+- o convivir de forma limpia
+- pero no taparse ni desordenarse
+
+==================================================
+PARTE 2 — MEJORAR MUCHO LA LEGIBILIDAD DEL DETALLE
+==================================================
+
+PROBLEMA ACTUAL
+El contenido del detalle existe, pero cuesta leerlo rápido.
+Los bloques se mezclan demasiado.
+Bajo presión real no se escanea bien.
+
+OBJETIVO
+Quiero que DETALLE se pueda leer en 1–2 segundos por bloques.
+
+CAMPOS ACTUALES DEL DETALLE
+- LECTURA
+- ARGUMENTO / ENFOQUE
+- GUIÓN
+- PREGUNTA
+- RIESGO
+- APOYO
+
+Quiero que cada bloque:
+- se distinga muy claramente
+- tenga suficiente espacio
+- se lea fácil
+- no se mezcle con los demás
+- no parezca un párrafo corrido
+
+MEJORAS VISUALES QUE QUIERO
+
+1. ETIQUETAS MÁS CLARAS
+LECTURA, ARGUMENTO, GUIÓN, PREGUNTA, RIESGO y APOYO deben destacarse mejor como categorías.
+
+2. MÁS ESPACIO ENTRE BLOQUES
+Quiero más separación vertical y horizontal.
+No quiero sensación de texto apelotonado.
+
+3. MEJOR ALINEACIÓN
+Cada bloque debe tener estructura clara:
+- etiqueta arriba
+- contenido debajo
+- anchura razonable
+- line-height cómodo
+
+4. MEJOR CONTRASTE
+El contenido debe leerse mejor sobre fondo oscuro.
+No quiero gris demasiado apagado si dificulta la lectura.
+
+==================================================
+PARTE 3 — COLORES O CÓDIGOS VISUALES SUAVES
+==================================================
+
+Sí quiero usar color, pero con criterio.
+No quiero que parezca una web chillona.
+Quiero seguir con una estética premium, sobria y táctica.
+
+PROPUESTA
+Usa colores suaves o estilos distintos para ayudar a distinguir cada tipo de bloque.
+
+Ejemplo de lógica:
+- LECTURA → gris claro / neutro
+- ARGUMENTO / ENFOQUE → azul suave o acento frío
+- GUIÓN → blanco principal o un tono que lo haga destacar
+- PREGUNTA → tono distinto pero limpio, quizá marfil o azul claro
+- RIESGO → rojo suave / ámbar
+- APOYO → verde suave o tono secundario de apoyo
+
+No hace falta usar exactamente esos colores.
+Lo importante es:
+- que cada bloque se distinga visualmente
+- que no se rompa la estética
+- que se lea mejor
+- que no parezca un arcoíris
+
+Si ves mejor usar:
+- color
+- borde lateral
+- fondo sutil
+- pequeña línea/acento
+elige la opción más elegante y legible.
+
+==================================================
+PARTE 4 — GUIÓN Y PREGUNTA DEBEN LEERSE COMO BLOQUES IMPORTANTES
+==================================================
+
+Quiero que GUIÓN y PREGUNTA sean especialmente fáciles de leer, porque son de las partes más útiles en tiempo real.
+
+Haz que:
+- GUIÓN destaque más que una simple línea secundaria
+- PREGUNTA se lea como algo accionable
+- no queden enterrados entre bloques menos importantes
+
+No hace falta agrandarlos muchísimo, pero sí darles mejor jerarquía.
+
+==================================================
+PARTE 5 — MEMORIA MÁS LEGIBLE
+==================================================
+
+La MEMORIA o resumen acumulado de llamada también debe ser más fácil de escanear.
+
+Quiero que:
+- cada línea vaya separada
+- no parezca log técnico
+- no parezca una frase larga corrida
+- tenga buena legibilidad y ritmo visual
+
+Ejemplo de formato deseado:
+- Introducción completada
+- Propuesta presentada
+- Interés inicial confirmado
+- Objeción dominante: reputación de Dresden
+- Momento actual: explorando freno real
+- Objetivo: bajar la duda a criterios de inversión
+
+Si hace falta:
+- usa bullets sutiles
+- o líneas separadas
+- o pequeñas tarjetas muy discretas
+
+Pero no quiero bloque corrido difícil de leer.
+
+==================================================
+PARTE 6 — REGLA DE DISEÑO
+==================================================
+
+Todo esto debe seguir viéndose:
+- sobrio
+- premium
+- táctico
+- limpio
+- profesional
+
+No quiero:
+- colores chillones
+- sombras exageradas
+- cajas pesadas
+- dashboard empresarial recargado
+- elementos grandes que rompan el look actual
+
+Quiero una mejora de legibilidad e interacción, no una reinvención estética.
+
+==================================================
+OBJETIVO FINAL
+==================================================
+
+Quiero que:
+1. pueda dejar DETALLE abierto
+2. pueda dejar MEMORIA abierta
+3. pueda seguir trabajando sin que molesten
+4. pueda leer bien cada bloque
+5. distinga mejor qué es lectura, qué es argumento, qué es guión, qué es pregunta, qué es riesgo y qué es apoyo
+6. todo siga sintiéndose como un producto elegante y minimalista
+
+No rehagas la app.
+No toques lo que ya funciona.
+Solo arregla de verdad la legibilidad y la persistencia de estos paneles.
+
+Cuando termines, explícamelo brevemente:
+- cómo hiciste persistentes DETALLE y MEMORIA
+- cómo evitaste solapes
+- qué hiciste para mejorar la legibilidad
+- y qué sistema visual usaste para distinguir los bloques
