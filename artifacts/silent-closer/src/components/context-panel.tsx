@@ -218,12 +218,12 @@ export function ContextSetup({
         {/* Brand header */}
         <div className="flex items-start justify-between">
           {/* Logo lockup — character image + wordmark */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-0">
             {/* Wizard character — larger so the figure has real presence */}
             <img
               src="/wizard-logo.png"
               alt="Closer Wizard"
-              className="w-24 h-24 shrink-0 select-none -ml-2"
+              className="w-24 h-24 shrink-0 select-none -ml-3 -mr-4"
               style={{ clipPath: "inset(0 18% 18% 0)" }}
               draggable={false}
             />
