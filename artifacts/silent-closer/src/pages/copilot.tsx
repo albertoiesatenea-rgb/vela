@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { Mic, MicOff, Keyboard, Loader2, AlertCircle, ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
 import { useAnalyzeConversation } from "@workspace/api-client-react";
 import { useSpeech } from "@/hooks/use-speech";
@@ -22,15 +23,22 @@ interface Detail {
   support?: string;
 }
 
+interface Journey {
+  past: string;
+  now: string;
+  next: string;
+}
+
 interface TacticalState {
   signal: string;
   sayNow: string;
   avoid?: string;
   detail: Detail | null;
+  journey: Journey | null;
   callMemory: string;
 }
 
-const EMPTY_STATE: TacticalState = { signal: "", sayNow: "", avoid: undefined, detail: null, callMemory: "" };
+const EMPTY_STATE: TacticalState = { signal: "", sayNow: "", avoid: undefined, detail: null, journey: null, callMemory: "" };
 
 const SESSION_KEY = "sc_session_context";
 const LABEL_KEY   = "sc_context_label";
@@ -91,11 +99,11 @@ function DetailPanel({ detail }: { detail: Detail }) {
   );
 }
 
-// ── Memory panel — scannable bullets
-function MemoryPanel({ lines }: { lines: string[] }) {
-  const visible = lines.slice(-6);
+// ── Memory bullets — scannable list for expanded journey view
+function MemoryBullets({ lines }: { lines: string[] }) {
+  const visible = lines.slice(-8);
   return (
-    <ul className="px-5 py-3.5 space-y-2.5">
+    <ul className="px-5 py-3 space-y-2">
       {visible.map((line, i) => {
         const text = line.replace(/^[-–—]\s*/, "");
         const isLast = i === visible.length - 1;
@@ -116,6 +124,67 @@ function MemoryPanel({ lines }: { lines: string[] }) {
   );
 }
 
+// ── Conversation timeline — 3 connected nodes embedded in HUD
+function ConversationTimeline({ journey, memoryLines }: { journey: Journey; memoryLines: string[] }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="shrink-0">
+      {/* Compact 3-node row */}
+      <button
+        onClick={() => setExpanded(p => !p)}
+        className="w-full flex items-start justify-center gap-0 pt-3 pb-2 px-4 group"
+        title={expanded ? "Cerrar historial" : "Ver historial completo"}
+      >
+        {/* ANTES node */}
+        <div className="flex flex-col items-center gap-1.5 w-24">
+          <div className="w-2 h-2 rounded-full bg-zinc-600 group-hover:bg-zinc-500 transition-colors" />
+          <span className="text-[9px] font-mono text-zinc-500 uppercase tracking-wider text-center leading-tight line-clamp-2">
+            {journey.past}
+          </span>
+        </div>
+
+        {/* Left connector */}
+        <div className="h-px w-6 bg-zinc-700 mt-[4px] shrink-0" />
+
+        {/* AHORA node — bright */}
+        <div className="flex flex-col items-center gap-1.5 w-28">
+          <div className="w-2.5 h-2.5 rounded-full bg-white" />
+          <span className="text-[9px] font-mono text-zinc-100 uppercase tracking-wider text-center leading-tight font-medium line-clamp-2">
+            {journey.now}
+          </span>
+        </div>
+
+        {/* Right connector */}
+        <div className="h-px w-6 bg-zinc-700 mt-[4px] shrink-0" />
+
+        {/* DESPUÉS node — dashed future */}
+        <div className="flex flex-col items-center gap-1.5 w-24">
+          <div className="w-2 h-2 rounded-full border border-zinc-500 bg-transparent" />
+          <span className="text-[9px] font-mono text-zinc-500 uppercase tracking-wider text-center leading-tight line-clamp-2">
+            {journey.next}
+          </span>
+        </div>
+      </button>
+
+      {/* Expanded — full memory bullets */}
+      <AnimatePresence>
+        {expanded && memoryLines.length > 0 && (
+          <motion.div
+            key="memory-expanded"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto", transition: { duration: 0.22 } }}
+            exit={{ opacity: 0, height: 0, transition: { duration: 0.16 } }}
+            className="overflow-hidden border-t border-white/5"
+          >
+            <MemoryBullets lines={memoryLines} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export default function CopilotPage() {
   const [inputMode, setInputMode] = useState<InputMode>("simulate");
   const [speakerMode, setSpeakerMode] = useState<SpeakerMode>("auto");
@@ -124,9 +193,8 @@ export default function CopilotPage() {
   const [tacticalState, setTacticalState] = useState<TacticalState>(EMPTY_STATE);
   const [contextLabel, setContextLabel] = useState<string>(loadLabel);
 
-  // Panel state — independent toggles, can both be open simultaneously
+  // Panel state
   const [detailOpen, setDetailOpen] = useState(false);
-  const [memoryOpen, setMemoryOpen] = useState(false);
 
   const sessionActive = sessionContext !== null;
   const speakerModeRef = useRef(speakerMode);
@@ -161,6 +229,7 @@ export default function CopilotPage() {
               sayNow: res.say_now,
               avoid: res.avoid || undefined,
               detail: res.detail ?? null,
+              journey: res.journey ?? null,
               callMemory: res.call_memory ?? "",
             });
           },
@@ -195,7 +264,6 @@ export default function CopilotPage() {
     setContextLabel("");
     saveLabel("");
     setDetailOpen(false);
-    setMemoryOpen(false);
     // Generate short context label in background
     void fetch("/api/copilot/context-label", {
       method: "POST",
@@ -216,7 +284,6 @@ export default function CopilotPage() {
     setContextLabel("");
     saveLabel("");
     setDetailOpen(false);
-    setMemoryOpen(false);
     if (isListening) stopListening();
     setInputMode("simulate");
     setSpeakerMode("auto");
@@ -245,15 +312,13 @@ export default function CopilotPage() {
 
   // Derived panel data
   const hasDetail = !!(tacticalState.detail && Object.values(tacticalState.detail).some(Boolean));
+  const hasJourney = !!tacticalState.journey;
   const memoryLines = tacticalState.callMemory
     ? tacticalState.callMemory.split(/\\n|\n/).filter(Boolean)
     : [];
-  const hasMemory = memoryLines.length > 0;
   const detailVisible = detailOpen && hasDetail;
-  const memoryVisible = memoryOpen && hasMemory;
 
   const handleToggleDetail = () => setDetailOpen(p => !p);
-  const handleToggleMemory = () => setMemoryOpen(p => !p);
 
   // Active session layout
   return (
@@ -288,7 +353,18 @@ export default function CopilotPage() {
 
 
       {/* ── Main HUD — flexible, shrinks to give panel room ── */}
-      <div className="flex-1 min-h-[220px] relative">
+      <div className="flex-1 min-h-[220px] relative flex flex-col">
+
+        {/* Journey timeline — compact 3-node, only when data exists */}
+        {hasJourney && (
+          <ConversationTimeline
+            journey={tacticalState.journey!}
+            memoryLines={memoryLines}
+          />
+        )}
+
+        {/* Tactical display takes remaining space */}
+        <div className="flex-1 relative">
         <TacticalDisplay
           signal={tacticalState.signal}
           sayNow={tacticalState.sayNow}
@@ -337,42 +413,27 @@ export default function CopilotPage() {
             </div>
           </div>
         )}
-      </div>
+        </div>{/* end flex-1 relative (tactical display) */}
+      </div>{/* end HUD flex-col */}
 
-      {/* ── Panel zone — independent toggles, both can be open ── */}
-      {(hasDetail || hasMemory) && (
+      {/* ── Panel zone — detalle only ── */}
+      {hasDetail && (
         <div className="shrink-0 border-t border-white/5">
 
-          {/* Toggle row — independent buttons with generous click area */}
-          <div className="flex items-center justify-center gap-8">
-            {hasDetail && (
-              <button
-                onClick={handleToggleDetail}
-                className={cn(
-                  "flex items-center gap-2 px-5 py-3 text-[11px] font-mono tracking-widest uppercase transition-colors",
-                  detailVisible
-                    ? "text-zinc-100"
-                    : "text-zinc-400 hover:text-zinc-200"
-                )}
-              >
-                {detailVisible ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                Detalle
-              </button>
-            )}
-            {hasMemory && (
-              <button
-                onClick={handleToggleMemory}
-                className={cn(
-                  "flex items-center gap-2 px-5 py-3 text-[11px] font-mono tracking-widest uppercase transition-colors",
-                  memoryVisible
-                    ? "text-zinc-100"
-                    : "text-zinc-400 hover:text-zinc-200"
-                )}
-              >
-                {memoryVisible ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                Memoria
-              </button>
-            )}
+          {/* Single toggle button */}
+          <div className="flex items-center justify-center">
+            <button
+              onClick={handleToggleDetail}
+              className={cn(
+                "flex items-center gap-2 px-5 py-3 text-[11px] font-mono tracking-widest uppercase transition-colors",
+                detailVisible
+                  ? "text-zinc-100"
+                  : "text-zinc-400 hover:text-zinc-200"
+              )}
+            >
+              {detailVisible ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              Detalle
+            </button>
           </div>
 
           {/* Detalle — independently animated, scrollable internally */}
@@ -385,19 +446,6 @@ export default function CopilotPage() {
           >
             <div className="border-t border-white/5 overflow-y-auto" style={{ maxHeight: "260px" }}>
               {hasDetail && <DetailPanel detail={tacticalState.detail!} />}
-            </div>
-          </div>
-
-          {/* Memoria — independently animated, scrollable internally */}
-          <div
-            className="overflow-hidden"
-            style={{
-              maxHeight: memoryVisible ? "152px" : "0px",
-              transition: "max-height 0.22s ease",
-            }}
-          >
-            <div className="border-t border-white/5 overflow-y-auto" style={{ maxHeight: "152px" }}>
-              {hasMemory && <MemoryPanel lines={memoryLines} />}
             </div>
           </div>
 

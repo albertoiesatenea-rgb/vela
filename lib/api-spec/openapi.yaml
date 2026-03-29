@@ -93,6 +93,22 @@ components:
         support:
           type: string
           description: Brief tactical reinforcement — reframing criterion, useful data type, or key commercial reminder. Never invent figures.
+    Journey:
+      type: object
+      properties:
+        past:
+          type: string
+          description: Brief label for what happened before this moment (2-4 words, e.g. "Presentación completada")
+        now:
+          type: string
+          description: Brief label for the current moment in the conversation (2-4 words, e.g. "Objeción de precio activa")
+        next:
+          type: string
+          description: Brief label for where to take the conversation next (2-4 words, e.g. "Aterrizaje de criterio")
+      required:
+        - past
+        - now
+        - next
     AnalyzeResponse:
       type: object
       properties:
@@ -107,6 +123,8 @@ components:
           description: What to avoid — only when there is a real, probable tactical error. Omit or leave empty if not critical.
         detail:
           $ref: "#/components/schemas/AnalyzeDetail"
+        journey:
+          $ref: "#/components/schemas/Journey"
         call_memory:
           type: string
           description: Updated accumulated tactical summary of the call so far (4-6 bullet lines)

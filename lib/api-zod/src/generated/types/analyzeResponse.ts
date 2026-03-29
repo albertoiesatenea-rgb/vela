@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AnalyzeDetail } from "./analyzeDetail";
+import type { Journey } from "./journey";
 
 export interface AnalyzeResponse {
   /** Short signal label (2-5 words) */
@@ -15,6 +16,7 @@ export interface AnalyzeResponse {
   /** What to avoid — only when there is a real, probable tactical error. Omit or leave empty if not critical. */
   avoid?: string;
   detail?: AnalyzeDetail;
+  journey?: Journey;
   /** Updated accumulated tactical summary of the call so far (4-6 bullet lines) */
   call_memory?: string;
 }

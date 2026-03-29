@@ -11,3 +11,4 @@ export * from "./analyzeRequest";
 export * from "./analyzeResponse";
 export * from "./errorResponse";
 export * from "./healthStatus";
+export * from "./journey";

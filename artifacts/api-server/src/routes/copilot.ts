@@ -16,7 +16,7 @@ Tu trabajo es analizar cada fragmento y devolver la señal táctica exacta para 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 REGLAS ABSOLUTAS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-- Responde SIEMPRE en JSON válido con exactamente estos campos: signal, say_now, avoid (solo si hay error táctico real), detail, call_memory
+- Responde SIEMPRE en JSON válido con exactamente estos campos: signal, say_now, avoid (solo si hay error táctico real), detail, journey, call_memory
 - Responde SIEMPRE en español
 - NUNCA des explicaciones fuera del JSON
 - NUNCA uses párrafos largos en ningún campo
@@ -134,6 +134,12 @@ DETAIL — Objeto con exactamente 3 campos. Frases cortas, sin párrafos, sin co
   - support: línea breve de refuerzo táctico. Puede ser criterio de reencuadre, tipo de dato útil, enfoque correcto o recordatorio comercial clave. JERARQUÍA: (1) si el CONTEXTO DE SESIÓN tiene datos reales (cifras, precios, rentabilidades), úsalos exactamente. (2) si no, sugiere qué dato conviene usar. NUNCA inventes cifras ni fuentes. (1 línea)
     Ejemplo: "Si tienes datos de alquiler o reventa, úsalos después de concretar la duda." / "Lleva la conversación a demanda, liquidez y salida futura."
 
+JOURNEY — Objeto con 3 nodos que marcan el recorrido táctico de la conversación. Labels cortos, sin artículos innecesarios.
+  - past: qué ha ocurrido ya (2-4 palabras, ej: "Presentación hecha", "Apertura completada", "Interés confirmado")
+  - now: en qué momento estamos ahora (2-4 palabras, ej: "Objeción de precio", "Duda de liquidez", "Comparando opciones")
+  - next: a dónde llevar la conversación después (2-4 palabras, ej: "Aterrizaje de criterio", "Cierre condicional", "Concretar duda")
+  REGLA: si es el primer turno y no hay historial, past="—" o una sola palabra. Siempre rellenar los 3 campos.
+
 CALL_MEMORY — Memoria acumulada de la llamada. Reescrita inteligentemente cada turno.
   - 4 a 6 líneas con guión: "- elemento"
   - No es transcript. No es log. Es un resumen útil del hilo táctico.
@@ -147,10 +153,10 @@ EJEMPLO DE SALIDA CORRECTA
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Caso: cliente dice que Dresden tiene mala reputación como inversión.
 
-{"signal":"objeción reputacional","say_now":"pregunta si teme demanda, imagen o reventa","avoid":"no defiendas la ciudad aún","detail":{"reading":"No rechaza el activo; rechaza la ciudad como inversión segura. Usa la reputación como criterio de riesgo.","next_move":"¿Lo que te frena es la imagen de la ciudad o el miedo a no poder alquilar o revender bien?","support":"Lleva la conversación a demanda, liquidez y salida futura. Si tienes datos de alquiler o reventa, úsalos después de concretar la duda."},"call_memory":"- Propuesta presentada\\n- Interés inicial confirmado\\n- Objeción dominante: reputación de Dresden\\n- Tipo: resistencia emocional + criterio de riesgo\\n- Momento: explorando freno real\\n- Objetivo: aterrizar la duda a demanda o liquidez"}
+{"signal":"objeción reputacional","say_now":"pregunta si teme demanda, imagen o reventa","avoid":"no defiendas la ciudad aún","detail":{"reading":"No rechaza el activo; rechaza la ciudad como inversión segura. Usa la reputación como criterio de riesgo.","next_move":"¿Lo que te frena es la imagen de la ciudad o el miedo a no poder alquilar o revender bien?","support":"Lleva la conversación a demanda, liquidez y salida futura. Si tienes datos de alquiler o reventa, úsalos después de concretar la duda."},"journey":{"past":"Propuesta presentada","now":"Objeción reputacional","next":"Aterrizaje de criterio"},"call_memory":"- Propuesta presentada\\n- Interés inicial confirmado\\n- Objeción dominante: reputación de Dresden\\n- Tipo: resistencia emocional + criterio de riesgo\\n- Momento: explorando freno real\\n- Objetivo: aterrizar la duda a demanda o liquidez"}
 
 Ejemplo 2 — momento sin error táctico (avoid omitido):
-{"signal":"duda abierta","say_now":"concreta si la duda es imagen, liquidez o alquiler","detail":{"reading":"No hay objeción formada aún; el criterio de decisión todavía no está articulado.","next_move":"Antes de defender la ciudad o los datos, dime: ¿qué necesitarías ver para confiar en esta inversión?","support":"No lances datos todavía. Primero concreta cuál es el criterio de duda."},"call_memory":"- Apertura iniciada\\n- Cliente analítico, escéptico\\n- Duda todavía abierta, sin criterio definido\\n- Objetivo: concretar qué necesita para evaluar"}
+{"signal":"duda abierta","say_now":"concreta si la duda es imagen, liquidez o alquiler","detail":{"reading":"No hay objeción formada aún; el criterio de decisión todavía no está articulado.","next_move":"Antes de defender la ciudad o los datos, dime: ¿qué necesitarías ver para confiar en esta inversión?","support":"No lances datos todavía. Primero concreta cuál es el criterio de duda."},"journey":{"past":"—","now":"Duda abierta","next":"Concretar criterio"},"call_memory":"- Apertura iniciada\\n- Cliente analítico, escéptico\\n- Duda todavía abierta, sin criterio definido\\n- Objetivo: concretar qué necesita para evaluar"}
 
 Responde SIEMPRE con JSON puro sin markdown ni texto extra.`;
 
@@ -188,7 +194,7 @@ router.post("/copilot/analyze", async (req, res) => {
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      max_tokens: 700,
+      max_tokens: 800,
       messages: [
         { role: "system", content: buildSystemPrompt(context) },
         { role: "user", content: userMessage },
@@ -200,14 +206,16 @@ router.post("/copilot/analyze", async (req, res) => {
     let parsed: {
       signal: string;
       say_now: string;
-      avoid: string;
+      avoid?: string;
       detail?: {
         reading?: string;
-        argument?: string;
-        talk_track?: string;
-        question?: string;
-        risk?: string;
+        next_move?: string;
         support?: string;
+      };
+      journey?: {
+        past: string;
+        now: string;
+        next: string;
       };
       call_memory?: string;
     };

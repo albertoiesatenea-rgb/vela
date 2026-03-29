@@ -63,6 +63,25 @@ export const AnalyzeConversationResponse = zod.object({
         ),
     })
     .optional(),
+  journey: zod
+    .object({
+      past: zod
+        .string()
+        .describe(
+          'Brief label for what happened before this moment (2-4 words, e.g. \"Presentación completada\")',
+        ),
+      now: zod
+        .string()
+        .describe(
+          'Brief label for the current moment in the conversation (2-4 words, e.g. \"Objeción de precio activa\")',
+        ),
+      next: zod
+        .string()
+        .describe(
+          'Brief label for where to take the conversation next (2-4 words, e.g. \"Aterrizaje de criterio\")',
+        ),
+    })
+    .optional(),
   call_memory: zod
     .string()
     .optional()

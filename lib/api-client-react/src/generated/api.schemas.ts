@@ -30,6 +30,15 @@ export interface AnalyzeDetail {
   support?: string;
 }
 
+export interface Journey {
+  /** Brief label for what happened before this moment (2-4 words, e.g. "Presentación completada") */
+  past: string;
+  /** Brief label for the current moment in the conversation (2-4 words, e.g. "Objeción de precio activa") */
+  now: string;
+  /** Brief label for where to take the conversation next (2-4 words, e.g. "Aterrizaje de criterio") */
+  next: string;
+}
+
 export interface AnalyzeResponse {
   /** Short signal label (2-5 words) */
   signal: string;
@@ -38,6 +47,7 @@ export interface AnalyzeResponse {
   /** What to avoid — only when there is a real, probable tactical error. Omit or leave empty if not critical. */
   avoid?: string;
   detail?: AnalyzeDetail;
+  journey?: Journey;
   /** Updated accumulated tactical summary of the call so far (4-6 bullet lines) */
   call_memory?: string;
 }
