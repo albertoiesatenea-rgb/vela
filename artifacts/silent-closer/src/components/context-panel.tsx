@@ -255,13 +255,13 @@ export function SessionBar({
         onKeyDown={(e) => e.key === "Enter" && setExpanded((v) => !v)}
         className="w-full flex items-center justify-between px-5 py-2.5 hover:bg-white/[0.02] transition-colors cursor-pointer"
       >
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-2 flex-1 min-w-0 pr-4">
           <div className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
-          <span className="text-[10px] font-mono tracking-widest uppercase text-zinc-200 shrink-0">
+          <span className="text-[10px] font-mono tracking-widest uppercase text-zinc-500 shrink-0">
             Sesión activa
           </span>
           {!expanded && sessionContext && (
-            <span className="text-[10px] font-mono text-zinc-200 truncate ml-1">
+            <span className="text-[10px] font-mono text-zinc-400 truncate">
               — {sessionContext.split("\n")[0]}
             </span>
           )}
