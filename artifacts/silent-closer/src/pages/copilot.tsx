@@ -633,7 +633,7 @@ export default function CopilotPage() {
                 inputMode === "listen" ? "bg-white text-black shadow" : "text-zinc-300 hover:text-white"
               )}
             >
-              {isSessionListening ? <Mic className="w-3 h-3 text-red-500" /> : <MicOff className="w-3 h-3" />}
+              {isSessionListening ? <Mic className="w-3 h-3 text-red-500" /> : <Mic className="w-3 h-3" />}
               ESCUCHAR
             </button>
             <button
