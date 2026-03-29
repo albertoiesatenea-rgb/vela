@@ -215,18 +215,25 @@ export function ContextSetup({
     <div className="fixed inset-0 bg-black flex flex-col items-center justify-center px-6">
       <div className="w-full max-w-lg flex flex-col gap-6">
 
-        {/* Brand header — icon left of name (logotype reading order) */}
+        {/* Brand header */}
         <div className="flex items-start justify-between">
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-3">
-              <WizardIcon className="w-5 h-5 text-white" />
-              <h1 className="text-3xl font-mono font-bold text-white tracking-[0.12em] uppercase">
+          {/* Logo lockup — character image + wordmark */}
+          <div className="flex items-center gap-4">
+            {/* Wizard character — blends into black bg, white figure floats */}
+            <img
+              src="/wizard-logo.png"
+              alt="Closer Wizard"
+              className="w-16 h-16 shrink-0 select-none"
+              draggable={false}
+            />
+            <div className="flex flex-col gap-1">
+              <h1 className="text-3xl font-mono font-bold text-white tracking-[0.12em] uppercase leading-none">
                 Closer Wizard
               </h1>
+              <p className="text-[11px] font-mono text-zinc-500 tracking-[0.2em] uppercase">
+                {t.SUBTITLE}
+              </p>
             </div>
-            <p className="text-[11px] font-mono text-zinc-500 tracking-[0.2em] uppercase">
-              {t.SUBTITLE}
-            </p>
           </div>
           {/* Language toggle */}
           <div className="flex items-center bg-white/5 p-1 rounded-full border border-white/8 text-[9px] font-mono overflow-hidden mt-1">
