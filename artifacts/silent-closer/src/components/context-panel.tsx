@@ -308,26 +308,31 @@ export function ContextSetup({
                 {t.MODE_ARENA}
               </button>
             ) : (
-              /* Arena active — show role sub-options in place of Arena button */
+              /* Arena active — grouped role sub-options with thin divider */
               <>
+                <div className="w-px h-4 bg-zinc-700 mx-0.5 shrink-0" />
                 <button
                   onClick={() => setArenaRole("seller")}
                   className={cn(
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono transition-all",
-                    arenaRole === "seller" ? "bg-white text-black" : "text-zinc-300 hover:text-white"
+                    arenaRole === "seller"
+                      ? "bg-white text-black"
+                      : "bg-zinc-800 text-zinc-300 hover:text-white"
                   )}
                 >
-                  <Swords className="w-3 h-3" />
+                  <Briefcase className="w-3 h-3" />
                   {t.ARENA_SELLER_SHORT}
                 </button>
                 <button
                   onClick={() => setArenaRole("client")}
                   className={cn(
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono transition-all",
-                    arenaRole === "client" ? "bg-white text-black" : "text-zinc-300 hover:text-white"
+                    arenaRole === "client"
+                      ? "bg-white text-black"
+                      : "bg-zinc-800 text-zinc-300 hover:text-white"
                   )}
                 >
-                  <Swords className="w-3 h-3" />
+                  <User className="w-3 h-3" />
                   {t.ARENA_CLIENT_SHORT}
                 </button>
               </>
