@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "6O3CRRG4W69tBncJ0bhTE"
+uri = "file://closer-wizard-system-doc.txt"
+type = "text"
+title = "Closer Wizard — Documentación del Sistema (para GPT personalizado)"

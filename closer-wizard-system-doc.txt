@@ -1,0 +1,354 @@
+═══════════════════════════════════════════════════════════════════
+CLOSER WIZARD — DOCUMENTACIÓN COMPLETA DEL SISTEMA
+Para uso en GPT personalizado de mejora de prompt
+═══════════════════════════════════════════════════════════════════
+
+PROPÓSITO GENERAL
+─────────────────
+Closer Wizard es un copiloto táctico silencioso para conversaciones de venta en tiempo real.
+El usuario tiene abierta la app en una pantalla secundaria mientras está en una llamada de ventas.
+Escribe o habla fragmentos de la conversación → la IA analiza → devuelve la jugada táctica exacta
+en menos de 3 segundos. No hay conversación con la IA: es un radar táctico unidireccional.
+
+ARQUITECTURA TÉCNICA
+─────────────────────
+- Frontend: React + Vite + TypeScript (pantalla negra pura, tipografía monoespaciada)
+- Backend API: Node.js / Express en puerto 8080
+- IA: OpenAI gpt-4o-mini
+- Rutas API:
+    POST /api/copilot/analyze     — análisis táctico en tiempo real
+    POST /api/copilot/summarize   — análisis post-llamada
+    POST /api/copilot/context-label — genera etiqueta corta del contexto
+
+MODOS DE ENTRADA DE CONVERSACIÓN
+──────────────────────────────────
+1. ESCUCHAR (listen): Web Speech API transcribe el audio en tiempo real. Cada 8 segundos de
+   conversación acumulada se envía al análisis automáticamente.
+
+2. ESCRIBIR (simulate): El usuario pega o escribe un fragmento de conversación manualmente
+   y pulsa Analizar (o Enter).
+
+MODOS DE HABLANTE
+──────────────────
+El usuario puede asignar quién habla en cada fragmento:
+- AUTO: la IA infiere el hablante mediante heurísticos lingüísticos (frecuencia de signos de
+  interrogación, pronombres, patrones de respuesta). El prefijo se añade automáticamente.
+- CLIENTE: fuerza [CLIENTE]: delante del texto
+- YO: fuerza [YO]: delante del texto
+
+FLUJO DE UNA SESIÓN
+────────────────────
+1. Setup: el usuario describe el contexto de la llamada (quién es el cliente, qué vende,
+   datos relevantes del activo, objeciones conocidas, etc.)
+2. La app genera automáticamente una etiqueta corta del contexto (ej: "Inversor inmobiliario / Dresden")
+3. Se abre la pantalla de copiloto
+4. El usuario activa escucha o escribe fragmentos
+5. Cada fragmento se envía con: texto del fragmento + contexto + memoria táctica acumulada
+6. La IA devuelve JSON táctico → se muestra en pantalla
+7. Al terminar la llamada: el usuario selecciona outcome (cerrada/siguiente paso/seguimiento/perdida/no claro)
+8. La app genera análisis post-llamada (score, estado, puntos fuertes, mejoras)
+9. Opcionalmente: reporte completo
+10. Opcionalmente: descarga de datos de entrenamiento (.txt)
+
+═══════════════════════════════════════════════════════════════════
+SISTEMA DE PROMPT PRINCIPAL (ruta /api/copilot/analyze)
+═══════════════════════════════════════════════════════════════════
+
+ROL DEL SISTEMA
+───────────────
+"Eres un copiloto táctico silencioso para conversaciones de venta y persuasión en tiempo real."
+
+SCHEMA DE SALIDA — JSON EXACTO
+───────────────────────────────
+{
+  "signal": "etiqueta táctica corta (2-5 palabras)",
+  "say_now": "jugada táctica (4-12 palabras, imperativo, concreta)",
+  "avoid": "advertencia táctica (2-7 palabras) o null",
+  "detail": {
+    "reading": "lectura interpretativa del momento (1 frase, máx 20 palabras)",
+    "mission": "objetivo táctico del momento (1 frase)",
+    "next_move": "movimiento ampliado o frase/pregunta útil",
+    "support": "apoyo con dato real o criterio de reenfoque"
+  },
+  "journey": {
+    "past": "fase anterior superada (2-4 palabras)",
+    "now": "momento procesual actual (3-6 palabras)",
+    "next": "siguiente paso breve (2-4 palabras)"
+  },
+  "call_memory": {
+    "summary_lines": ["línea 1", "línea 2", "línea 3", "hasta 6"]
+  },
+  "momentum": "green | amber | red"
+}
+
+LO QUE SE ENVÍA EN CADA LLAMADA AL API
+────────────────────────────────────────
+El mensaje de usuario al modelo contiene:
+1. MEMORIA ACUMULADA ACTUAL (si existe) — bulleted list de las summary_lines del turno anterior
+2. FRAGMENTO DE CONVERSACIÓN — el texto nuevo con prefijo de hablante ([CLIENTE]:, [YO]:, o sin prefijo si AUTO no pudo inferir)
+3. "Analiza y responde con JSON táctico:"
+
+El system prompt incluye:
+- El prompt base completo (reglas tácticas, schema, ejemplos)
+- El bloque de CONTEXTO DE SESIÓN ACTIVA (lo que escribió el usuario en setup)
+- La regla de idioma (ES o EN)
+
+DIFERENCIAS CRÍTICAS ENTRE CAMPOS (clave para entender el razonamiento)
+────────────────────────────────────────────────────────────────────────
+SIGNAL → categoriza el tipo de situación táctica (etiqueta clasificatoria)
+DETAIL.READING → interpreta el "por qué" subyacente (NO repite signal)
+DETAIL.MISSION → qué necesitas conseguir AHORA (NO repite reading ni next_move)
+JOURNEY.NOW → dónde está la conversación en su arco (diferente de signal y reading)
+SAY_NOW → la jugada concreta en 4-12 palabras (imperativo, accionable, 1 acción)
+
+REGLA ANTI-REPETICIÓN (la más crítica del sistema)
+────────────────────────────────────────────────────
+Si el cliente ya respondió claramente a la jugada anterior → PROHIBIDO repetirla.
+El motor determina en cada turno en cuál de estas 5 situaciones está:
+1. Cliente respondió CLARAMENTE → avanza al siguiente micro-paso
+2. Cliente respondió PARCIALMENTE → profundiza en lo pendiente
+3. Cliente EVITÓ responder → detecta evasión, decide si presionar o rodear
+4. Cliente abrió FRENTE NUEVO → cambia el eje
+5. Cliente CAMBIÓ EL EJE COMPLETAMENTE → reorienta todo el análisis
+
+TAXONOMÍA DE SEÑALES TÁTICAS
+──────────────────────────────
+Señales de duda inicial (antes de objeción formada):
+- falta de familiaridad: no conoce el activo/ciudad/marca, no rechaza
+- duda abierta: preocupación vaga, criterio no articulado
+- necesita criterio: no tiene marco para decidir
+- falta confianza inicial: escepticismo de entrada
+- objeción incipiente: freno que empieza a surgir
+
+Objeciones ya formadas:
+- real, superficial, falsa, duda genuina, miedo a equivocarse, miedo a comprometerse
+- desconfianza, resistencia emocional, objeción de precio, objeción de liquidez/salida
+- objeción de reputación/zona (solo cuando la crítica ya está articulada)
+- objeción de timing, interés real con resistencia de cierre
+
+REGLA ANTI-SOBREDIAGNÓSTICO:
+Si el cliente dice "no conozco", "no me suena", "no tengo referencias" → NO es objeción
+reputacional fuerte. Primero evalúa si es falta de familiaridad o duda abierta.
+
+REGLA DE COMPARACIONES Y ALTERNATIVAS
+───────────────────────────────────────
+Cuando el cliente menciona una alternativa (otra ciudad, producto, proveedor):
+NO entrar en comparación directa automáticamente.
+La alternativa revela el CRITERIO que la persona valora → trabajar el criterio, no comparar.
+
+Fases cuando los atributos ya están revelados:
+B → traducir atributos a criterios de inversión reales
+C → reenfocar esos criterios sobre la propuesta actual
+D → usar datos concretos si están disponibles y ya toca
+E → avanzar a validación o cierre
+
+REGLA ABSOLUTA: si la persona ya enumeró atributos de la alternativa, está PROHIBIDO
+volver a preguntar "qué valoras de X". Esa pregunta ya está respondida.
+
+REGLAS DE CALIDAD POR CAMPO
+─────────────────────────────
+SAY_NOW: 4-12 palabras. Imperativo. Concreto. Una sola acción.
+  BIEN: "concreta si teme costes anuales o derramas"
+  MAL: "explora sus preocupaciones", "profundiza más"
+
+AVOID: 2-7 palabras. Solo cuando hay error táctico real y probable. Si no, null.
+  BIEN: "no dispares datos aún", "no cierres todavía"
+  MAL: "no seas agresivo", "no ignores sus sentimientos"
+
+SUPPORT: jerarquía de 3 niveles:
+  1. Hay datos reales en contexto/memoria Y ya toca usarlos → cítalos exactamente
+  2. No hay datos pero se conoce el criterio → sugiere qué tipo de dato usar y cómo
+  3. Criterio aún no concretado → da criterio de reenfoque táctico
+  NUNCA: inventar cifras o citar estudios que no existen
+
+CALL_MEMORY: 4-6 líneas. No transcript. No log de eventos. Resumen táctico útil.
+  Incluye: fases superadas, objeción dominante, tipo, momento actual, objetivo.
+  Se reescribe y comprime cada turno (no crece infinito).
+
+MOMENTUM:
+  green = interés real, conversación orientada, objeción trabajada o resuelta
+  amber = conversación abierta sin claridad, objeción presente pero trabajable
+  red = resistencia alta, desconfianza activa, pérdida de control
+
+CIERRE/PREGUNTA CERRADA:
+Solo cuando se cumplen TODAS: objeción principal resuelta, señales de interés real,
+sin frentes abiertos, conversación madura, siguiente paso natural es microcompromiso.
+
+FASES DE REFERENCIA:
+APERTURA · DIAGNÓSTICO · PRESENTACIÓN · VALIDACIÓN DE INTERÉS · OBJECIÓN ACTIVA ·
+RESOLUCIÓN · COMPARACIÓN · CIERRE PRÓXIMO · SEGUIMIENTO · BLOQUEO
+
+═══════════════════════════════════════════════════════════════════
+SISTEMA DE PROMPT DE ANÁLISIS POST-LLAMADA (/api/copilot/summarize)
+═══════════════════════════════════════════════════════════════════
+
+INPUT: call_memory (las summary_lines finales), outcome declarado por usuario, lang, full_report (bool)
+
+OUTPUT JSON:
+{
+  "score": 7.4,           // float 0-10
+  "global_state": "...",  // 1-2 palabras: strong/solid/advancing/workable/weak/blocked/lost/open
+  "result_label": "...",  // etiqueta del resultado
+  "strengths": ["..."],   // 2-3 observaciones tácticas concretas
+  "improvements": ["..."],// 2-3 observaciones honestas específicas
+  "full_report": "..."    // texto largo estructurado, solo si se solicita
+}
+
+ESCALA DE SCORING (fair, resultado-ponderada):
+8.5–9.5: Cierre real o siguiente paso sólido, buena ejecución
+7.5–8.4: Avance claro, buena dirección táctica, con margen de mejora
+6.0–7.4: Llamada trabajable, progreso parcial, debilidades visibles
+4.0–5.9: Resultado débil, errores relevantes, control inconsistente
+0–3.9: Llamada fallida o sin avance real
+
+REGLA CLAVE: si el outcome es "closed" o "next_step" y no hubo errores tácticos graves,
+el score BASE mínimo es 8.0. La ejecución determina si llega a 8.x o 9.x.
+
+FORMATO DEL FULL REPORT (texto estructurado, sin markdown):
+- Executive summary / Resumen ejecutivo
+- What went well / Qué salió bien
+- Tactical improvements / Mejoras tácticas
+- Key moments / Momentos clave
+- Recommended next steps / Próximos pasos recomendados
+
+═══════════════════════════════════════════════════════════════════
+INTERFAZ DE USUARIO — LO QUE VE EL USUARIO EN PANTALLA
+═══════════════════════════════════════════════════════════════════
+
+PANTALLA DE SETUP:
+- Campo de texto libre para describir el contexto de la llamada
+- Modo Rápido (una sola caja de texto) vs Avanzado (campos estructurados: tipo de cliente,
+  producto, objeciones conocidas, datos relevantes, objetivo de la llamada)
+- Toggle ES / EN
+- Botón "Iniciar copiloto →"
+
+PANTALLA PRINCIPAL (durante la llamada):
+ZONA SUPERIOR: SessionBar con etiqueta del contexto, modo de hablante (AUTO/CLIENTE/YO),
+               indicador de momentum (verde/ámbar/rojo), boton de salida
+ZONA CENTRAL (a pantalla completa):
+  - MOVIMIENTO (say_now): texto grande, la jugada táctica principal. 26px, centro.
+  - EVITA (avoid): si existe, aparece en rojo/ámbar
+  Panel plegable DETALLE (expandible):
+    - LECTURA: interpretación (sky-400)
+    - MISIÓN: objetivo táctico (teal-400)
+    - MOVIMIENTO: frase expandida (white)
+    - APOYO: dato o criterio (amber-400)
+  - Journey arc: PASADO · AHORA → SIGUIENTE (tiny, zinc-600)
+ZONA INFERIOR: controles de entrada (botón mic, modo hablante, textarea para modo escrito)
+               Loader cuando está analizando
+
+INDICADOR DE MOMENTUM:
+  El SessionBar muestra una bolita de color:
+  verde (#22c55e) = green, ámbar (#f59e0b) = amber, rojo (#ef4444) = red
+  Visible todo el tiempo para que el usuario calibre el estado global de un vistazo.
+
+═══════════════════════════════════════════════════════════════════
+ESTRUCTURA DE DATOS DEL LOG DE ENTRENAMIENTO
+═══════════════════════════════════════════════════════════════════
+
+El archivo .txt de entrenamiento que descarga el usuario contiene:
+
+1. CONTEXTO DE LA LLAMADA
+   — Texto libre que el usuario escribió en setup. Puede incluir: tipo de cliente, producto
+   que se vende, datos de mercado, objeciones anticipadas, objetivo de la llamada.
+
+2. TRANSCRIPCIÓN DE CONVERSACIÓN
+   — Cada fragmento numerado [1], [2], [3]... que se envió al análisis.
+   — Con prefijo de hablante: [CLIENTE]:, [YO]:, o sin prefijo si AUTO no pudo inferir.
+   — IMPORTANTE: esto son los fragmentos individuales enviados, NO un transcript continuo.
+   — En modo ESCUCHAR: fragmentos de ~8 segundos de audio transcrito.
+   — En modo ESCRIBIR: lo que el usuario pegó manualmente.
+
+3. MEMORIA TÁCTICA ACUMULADA
+   — Las summary_lines del último análisis exitoso.
+   — 4-6 líneas que resumen el estado táctico de la llamada completa.
+   — Esta memoria es lo que el modelo usó para mantener coherencia entre turnos.
+
+4. ANÁLISIS FINAL DE LLAMADA (si el usuario completó el flujo post-llamada)
+   — Score (0-10), global_state, result_label
+   — Strengths (2-3 puntos fuertes específicos)
+   — Improvements (2-3 mejoras concretas)
+
+5. REPORTE COMPLETO (si el usuario lo generó)
+   — Texto estructurado con todas las secciones del full report.
+
+═══════════════════════════════════════════════════════════════════
+LIMITACIONES Y PUNTOS DE FALLO CONOCIDOS
+═══════════════════════════════════════════════════════════════════
+
+1. TRUNCAMIENTO DE CONTEXTO: el modelo usa gpt-4o-mini con max_tokens: 900. Si la respuesta
+   es muy larga, puede truncarse. El sistema intenta extraer JSON igualmente.
+
+2. MODO AUTO HABLANTE: la inferencia automática del hablante es heurística (no perfecta).
+   En conversaciones muy cortas o ambiguas puede no inferir correctamente.
+
+3. MODO ESCUCHAR: depende del Web Speech API del navegador. Solo funciona en Chrome/Edge.
+   El audio se transcribe localmente, no se envía al servidor.
+
+4. FRAGMENTOS CORTOS: si el usuario envía un fragmento muy corto (1-2 palabras) sin contexto
+   previo en memoria, el análisis puede ser poco útil.
+
+5. IDIOMA: el campo `lang` fuerza el idioma de respuesta. Si la llamada mezcla idiomas,
+   puede haber inconsistencias.
+
+6. CALL_MEMORY: el modelo tiene instrucciones de reescribir y comprimir en 4-6 líneas.
+   En llamadas largas y complejas, puede perder matices importantes.
+
+═══════════════════════════════════════════════════════════════════
+QUÉ ANALIZAR CUANDO RECIBAS UN LOG
+═══════════════════════════════════════════════════════════════════
+
+PARA TU GPT PERSONALIZADO: cuando recibas un log de entrenamiento, evalúa:
+
+A. COHERENCIA TÁCTICA
+   - ¿El say_now avanzó correctamente de turno en turno?
+   - ¿Se respetó la regla anti-repetición?
+   - ¿El diagnóstico de la señal fue correcto dado el fragmento?
+   - ¿Reading, mission y next_move eran distintos entre sí y útiles?
+
+B. REGLAS ESPECÍFICAS VIOLADAS
+   - ¿Se preguntó sobre atributos que el cliente ya había revelado?
+   - ¿Se cerró antes de tiempo (sin cumplir las 5 condiciones)?
+   - ¿Se sobrediagnosticó una duda inicial como objeción formada?
+   - ¿Se compararon ciudades/productos cuando debía trabajarse el criterio?
+   - ¿El avoid era genérico cuando debía ser null?
+   - ¿El support inventó datos?
+
+C. CALIDAD DE CAMPOS
+   - ¿El say_now tenía entre 4-12 palabras y era imperativo y concreto?
+   - ¿El momentum refleja el estado táctico real (no solo el tonal)?
+   - ¿La call_memory mantiene coherencia con el arco de la conversación?
+   - ¿El journey.now era diferente del signal?
+
+D. OPORTUNIDADES PERDIDAS
+   - ¿En qué momento debió haber avanzado a cierre y no lo hizo?
+   - ¿En qué momento el diagnóstico fue tardío o equivocado?
+   - ¿Hubo micro-pasos que se saltaron?
+
+E. FORMATO DE RESPUESTA ESPERADA
+   Tu GPT debe devolver:
+   1. Valoración general (score del análisis, qué funcionó, qué falló)
+   2. Lista de reglas violadas o mejorables con ejemplos del log
+   3. Prompt mejorado (texto completo listo para reemplazar en el sistema) o instrucciones
+      precisas de qué párrafo/regla cambiar y cómo
+
+═══════════════════════════════════════════════════════════════════
+INSTRUCCIÓN PARA EL GPT PERSONALIZADO
+═══════════════════════════════════════════════════════════════════
+
+Cuando el usuario te envíe un log de Closer Wizard:
+
+1. Lee el contexto de la llamada (para entender el dominio: producto, cliente, objetivo)
+2. Lee la transcripción (para seguir el arco de la conversación real)
+3. Lee la memoria táctica (para ver cómo el modelo interpretó la conversación)
+4. Lee el análisis final (para calibrar si el resultado fue el correcto dado la calidad táctica)
+5. Evalúa punto por punto según los criterios de la sección QUÉ ANALIZAR
+6. Devuelve: valoración + fallos específicos + mejora de prompt accionable
+
+El objetivo final es que el prompt del sistema de Closer Wizard sea cada vez más preciso,
+sin reglas contradictorias, con ejemplos actualizados, y con las reglas más importantes
+claramente diferenciadas y priorizadas.
+
+═══════════════════════════════════════════════════════════════════
+FIN DEL DOCUMENTO — Closer Wizard System Doc v1.0
+═══════════════════════════════════════════════════════════════════
