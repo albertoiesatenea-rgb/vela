@@ -286,6 +286,7 @@ export default function CopilotPage() {
           sayNow={tacticalState.sayNow}
           avoid={tacticalState.avoid}
           isPending={isPending}
+          isListening={isListening}
         />
 
         {/* Interim speech text */}
@@ -468,7 +469,7 @@ export default function CopilotPage() {
               )}
             >
               <Keyboard className="w-3 h-3" />
-              SIMULAR
+              ESCRIBIR
             </button>
           </div>
 
@@ -490,7 +491,7 @@ export default function CopilotPage() {
         </div>
 
         {/* Keyboard hint */}
-        <p className="text-[9px] font-mono text-zinc-800 tracking-widest">
+        <p className="text-[9px] font-mono text-zinc-500 tracking-widest">
           ← → cambia hablante · espacio cicla
         </p>
       </div>

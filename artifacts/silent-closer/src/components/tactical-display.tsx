@@ -6,6 +6,7 @@ interface TacticalDisplayProps {
   sayNow: string;
   avoid: string;
   isPending?: boolean;
+  isListening?: boolean;
 }
 
 const fade = {
@@ -14,7 +15,7 @@ const fade = {
   exit:    { opacity: 0, filter: "blur(4px)", y: -8, transition: { duration: 0.25, ease: "easeIn" } },
 };
 
-export function TacticalDisplay({ signal, sayNow, avoid, isPending }: TacticalDisplayProps) {
+export function TacticalDisplay({ signal, sayNow, avoid, isPending, isListening }: TacticalDisplayProps) {
   return (
     <div className="h-full w-full flex flex-col">
 
@@ -53,7 +54,7 @@ export function TacticalDisplay({ signal, sayNow, avoid, isPending }: TacticalDi
               sayNow ? "text-white" : "text-zinc-700 font-normal text-3xl sm:text-4xl"
             )}
           >
-            {sayNow || "Escuchando"}
+            {sayNow || (isListening ? "Escuchando" : "—")}
           </motion.p>
         </AnimatePresence>
       </div>
