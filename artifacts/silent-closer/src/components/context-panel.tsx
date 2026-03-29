@@ -163,21 +163,13 @@ export function ContextSetup({
       <div className="w-full max-w-lg flex flex-col gap-7">
 
         {/* Header */}
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-[10px] font-mono tracking-[0.3em] uppercase text-zinc-600">
-              Silent Closer
-            </p>
-            <h1 className="text-xl font-mono font-semibold text-white mt-1 tracking-tight">
-              Prepara la sesión
-            </h1>
-          </div>
-          <button
-            onClick={() => onContextReady("")}
-            className="text-[11px] font-mono text-zinc-400 hover:text-white transition-colors border border-zinc-700 px-3 py-1.5 rounded-full shrink-0 mt-1"
-          >
-            Saltar →
-          </button>
+        <div>
+          <p className="text-[10px] font-mono tracking-[0.3em] uppercase text-zinc-600">
+            Silent Closer
+          </p>
+          <h1 className="text-xl font-mono font-semibold text-white mt-1 tracking-tight">
+            Prepara la sesión
+          </h1>
         </div>
 
         {/* Mode toggle */}
@@ -240,9 +232,24 @@ export function ContextSetup({
             >
               Iniciar sesión →
             </button>
+
+            <button
+              onClick={() => onContextReady("")}
+              className="w-full text-center text-[11px] font-mono text-zinc-500 hover:text-zinc-300 transition-colors py-1"
+            >
+              o saltar sin contexto
+            </button>
           </div>
         ) : (
-          <GuidedForm onSubmit={onContextReady} />
+          <div className="flex flex-col gap-3">
+            <GuidedForm onSubmit={onContextReady} />
+            <button
+              onClick={() => onContextReady("")}
+              className="w-full text-center text-[11px] font-mono text-zinc-500 hover:text-zinc-300 transition-colors py-1"
+            >
+              o saltar sin contexto
+            </button>
+          </div>
         )}
       </div>
     </div>
