@@ -761,8 +761,14 @@ export function Arena({
       {/* ── Top bar ────────────────────────────────────────────────────────── */}
       <div className="shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-white/6">
         <div className="flex items-center gap-2 min-w-0">
-          <WizardIcon className="w-2.5 h-2.5 text-zinc-400 shrink-0" />
-          <span className="text-[8px] tracking-[0.25em] uppercase text-zinc-400 shrink-0">Closer Wizard</span>
+          <button
+            onClick={onExit}
+            className="flex items-center gap-1.5 shrink-0 group"
+            title={t.EXIT}
+          >
+            <WizardIcon className="w-2.5 h-2.5 text-zinc-400 group-hover:text-white transition-colors" />
+            <span className="text-[8px] tracking-[0.25em] uppercase text-zinc-400 group-hover:text-white transition-colors">Closer Wizard</span>
+          </button>
           <div className="w-px h-2.5 bg-zinc-800 shrink-0" />
           <span className="text-[10px] tracking-widest uppercase text-sky-400 font-semibold shrink-0">{t.ARENA}</span>
           <div className="w-px h-2.5 bg-zinc-800 shrink-0" />
