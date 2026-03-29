@@ -18,21 +18,26 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 8000 }: UseSpee
   const [error, setError] = useState<string | null>(null);
   const [interimText, setInterimText] = useState("");
 
-  const recognitionRef = useRef<any>(null);
+  // ── Refs — all mutable state that must be synchronous ──────────────────
+  const recognitionRef   = useRef<any>(null);
   const transcriptBuffer = useRef<string>("");
+  const shouldListenRef  = useRef(false);   // user intent
+  const isActiveRef      = useRef(false);   // recognition actually running right now
+  const lastStartRef     = useRef(0);       // throttle rapid restarts
 
-  // Intent ref — set by user action only, never by recognition bounces
-  const shouldListenRef = useRef(false);
-
-  // Stable callback ref
   const onAnalyzeReadyRef = useRef(onAnalyzeReady);
   onAnalyzeReadyRef.current = onAnalyzeReady;
 
-  // Interval ref — managed by startListening / stopListening, not by isListening state
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // ── Analysis interval ──────────────────────────────────────────────────
+  const intervalRef  = useRef<ReturnType<typeof setInterval> | null>(null);
+  const watchdogRef  = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopInterval = useCallback(() => {
+    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+  }, []);
 
   const startInterval = useCallback(() => {
-    if (intervalRef.current) return; // already running
+    if (intervalRef.current) return;
     intervalRef.current = setInterval(() => {
       const text = transcriptBuffer.current.trim();
       if (text.length > 10) {
@@ -43,77 +48,95 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 8000 }: UseSpee
     }, analysisIntervalMs);
   }, [analysisIntervalMs]);
 
-  const stopInterval = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
+  // ── tryStart — starts recognition, throttled so it doesn't call twice ──
+  // Defined as a ref so it can be called inside onend without stale closure
+  const tryStartRef = useRef<() => void>(() => {});
+  tryStartRef.current = () => {
+    if (!recognitionRef.current) return;
+    if (!shouldListenRef.current) return;
+    if (isActiveRef.current) return;
+    const now = Date.now();
+    if (now - lastStartRef.current < 300) return; // 300ms throttle
+    lastStartRef.current = now;
+    try {
+      recognitionRef.current.start();
+    } catch {
+      // Ignore — watchdog will retry
     }
+  };
+
+  // ── Watchdog — every 2.5s, restart if we should be listening but aren't ─
+  const startWatchdog = useCallback(() => {
+    if (watchdogRef.current) return;
+    watchdogRef.current = setInterval(() => {
+      if (shouldListenRef.current && !isActiveRef.current) {
+        tryStartRef.current();
+      }
+    }, 2500);
   }, []);
 
-  // Initialize Speech Recognition once on mount
+  const stopWatchdog = useCallback(() => {
+    if (watchdogRef.current) { clearInterval(watchdogRef.current); watchdogRef.current = null; }
+  }, []);
+
+  // ── Build recognition once on mount ───────────────────────────────────
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      setIsSupported(false);
-      return;
-    }
-
+    if (!SpeechRecognition) { setIsSupported(false); return; }
     setIsSupported(true);
 
     const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = "es-ES";
+    // ⚠️ non-continuous is MORE reliable than continuous in Chrome:
+    // continuous=true can silently zombie after ~5-10s of speech pauses.
+    // non-continuous fires onend cleanly after each utterance; we restart immediately.
+    recognition.continuous      = false;
+    recognition.interimResults  = true;
+    recognition.lang            = "es-ES";
+    recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
+      isActiveRef.current = true;
       setIsListening(true);
       setError(null);
     };
 
     recognition.onresult = (event: any) => {
-      let currentInterim = "";
+      let interim = "";
       for (let i = event.resultIndex; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
           transcriptBuffer.current += event.results[i][0].transcript + " ";
         } else {
-          currentInterim += event.results[i][0].transcript;
+          interim += event.results[i][0].transcript;
         }
       }
-      setInterimText(currentInterim);
+      setInterimText(interim);
     };
 
     recognition.onerror = (event: any) => {
-      const errType = event.error;
-      if (errType === "not-allowed" || errType === "service-not-allowed") {
+      const e = event.error;
+      if (e === "not-allowed" || e === "service-not-allowed") {
         setError("Permiso de micrófono denegado. Abre la app en una pestaña separada y acepta el permiso.");
         shouldListenRef.current = false;
+        isActiveRef.current = false;
         setIsListening(false);
-      } else if (errType === "no-speech" || errType === "aborted") {
-        // Non-fatal — recognition will fire onend and we'll restart
+      } else if (e === "no-speech" || e === "aborted" || e === "network") {
+        // Non-fatal — onend will fire and watchdog/restart will recover
+        isActiveRef.current = false;
       } else {
-        setError(`Error: ${errType}`);
+        setError(`Error de audio: ${e}`);
         shouldListenRef.current = false;
+        isActiveRef.current = false;
         setIsListening(false);
       }
     };
 
     recognition.onend = () => {
-      // Only update UI state — don't touch the interval
+      isActiveRef.current = false;
       setIsListening(false);
       setInterimText("");
-
-      // Auto-restart if user still wants to listen
+      // Immediately restart if user intent is still to listen
       if (shouldListenRef.current) {
-        setTimeout(() => {
-          if (shouldListenRef.current) {
-            try {
-              recognition.start();
-            } catch {
-              // Already starting — ignore
-            }
-          }
-        }, 250);
+        setTimeout(() => tryStartRef.current(), 120);
       }
     };
 
@@ -121,39 +144,37 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 8000 }: UseSpee
 
     return () => {
       shouldListenRef.current = false;
+      isActiveRef.current = false;
       try { recognition.stop(); } catch { /* ignore */ }
     };
-  }, []);
+  }, []); // only once
 
+  // ── Public API ─────────────────────────────────────────────────────────
   const startListening = useCallback(() => {
     if (!recognitionRef.current) return;
     setError(null);
     transcriptBuffer.current = "";
     shouldListenRef.current = true;
     startInterval();
-    try {
-      recognitionRef.current.start();
-    } catch {
-      // Might already be running
-    }
-  }, [startInterval]);
+    startWatchdog();
+    tryStartRef.current();
+  }, [startInterval, startWatchdog]);
 
   const stopListening = useCallback(() => {
     shouldListenRef.current = false;
+    isActiveRef.current = false;
     stopInterval();
+    stopWatchdog();
     setIsListening(false);
     setInterimText("");
-    if (recognitionRef.current) {
-      try { recognitionRef.current.stop(); } catch { /* ignore */ }
+    // Flush any remaining transcript as a final analysis
+    const remaining = transcriptBuffer.current.trim();
+    if (remaining.length > 10) {
+      onAnalyzeReadyRef.current(remaining);
+      transcriptBuffer.current = "";
     }
-  }, [stopInterval]);
+    try { recognitionRef.current?.stop(); } catch { /* ignore */ }
+  }, [stopInterval, stopWatchdog]);
 
-  return {
-    isSupported,
-    isListening,
-    error,
-    interimText,
-    startListening,
-    stopListening,
-  };
+  return { isSupported, isListening, error, interimText, startListening, stopListening };
 }
