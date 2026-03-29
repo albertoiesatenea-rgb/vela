@@ -10,9 +10,10 @@ declare global {
 interface UseSpeechProps {
   onAnalyzeReady: (text: string) => void;
   analysisIntervalMs?: number;
+  lang?: "es" | "en";
 }
 
-export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 8000 }: UseSpeechProps) {
+export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 8000, lang = "es" }: UseSpeechProps) {
   const [isListening, setIsListening] = useState(false);
   const [isSupported, setIsSupported] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,6 +25,8 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 8000 }: UseSpee
   const shouldListenRef  = useRef(false);   // user intent
   const isActiveRef      = useRef(false);   // recognition actually running right now
   const lastStartRef     = useRef(0);       // throttle rapid restarts
+  const langRef          = useRef(lang);    // always current lang without re-creating recognition
+  langRef.current = lang;
 
   const onAnalyzeReadyRef = useRef(onAnalyzeReady);
   onAnalyzeReadyRef.current = onAnalyzeReady;
@@ -58,6 +61,8 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 8000 }: UseSpee
     const now = Date.now();
     if (now - lastStartRef.current < 300) return; // 300ms throttle
     lastStartRef.current = now;
+    // Set lang dynamically before each start — no need to recreate recognition
+    recognitionRef.current.lang = langRef.current === "en" ? "en-US" : "es-ES";
     try {
       recognitionRef.current.start();
     } catch {

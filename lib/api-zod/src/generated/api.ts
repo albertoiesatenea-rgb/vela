@@ -30,6 +30,10 @@ export const AnalyzeConversationBody = zod.object({
     .string()
     .optional()
     .describe("Accumulated call memory from previous analyses to be updated"),
+  lang: zod
+    .enum(["es", "en"])
+    .optional()
+    .describe("Response language — es (default) or en"),
 });
 
 // Helper: accept string | null | undefined from AI and normalise to string | undefined

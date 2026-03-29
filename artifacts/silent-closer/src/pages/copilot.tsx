@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Mic, MicOff, Keyboard, Loader2, AlertCircle, ExternalLink, ChevronDown, Info } from "lucide-react";
+import { Mic, Keyboard, Loader2, AlertCircle, ExternalLink, ChevronDown, Info } from "lucide-react";
 import { useAnalyzeConversation } from "@workspace/api-client-react";
 import { useSpeech } from "@/hooks/use-speech";
 import { TacticalDisplay } from "@/components/tactical-display";
@@ -9,13 +9,57 @@ import { cn } from "@/lib/utils";
 
 type InputMode = "listen" | "simulate";
 type SpeakerMode = "auto" | "client" | "me";
+type Lang = "es" | "en";
 
-const SPEAKER_LABELS: Record<SpeakerMode, string> = {
-  auto: "AUTO",
-  client: "CLIENTE",
-  me: "YO",
+const LANG_KEY = "sc_lang";
+function loadLang(): Lang {
+  try { return (localStorage.getItem(LANG_KEY) as Lang) || "es"; } catch { return "es"; }
+}
+function saveLang(l: Lang) {
+  try { localStorage.setItem(LANG_KEY, l); } catch { /* ignore */ }
+}
+
+const SPEAKER_LABELS_MAP: Record<Lang, Record<SpeakerMode, string>> = {
+  es: { auto: "AUTO", client: "CLIENTE", me: "YO" },
+  en: { auto: "AUTO", client: "CLIENT",  me: "ME" },
 };
 const SPEAKER_ORDER: SpeakerMode[] = ["auto", "client", "me"];
+
+// ── UI text translations ───────────────────────────────────────────────────
+const T = {
+  es: {
+    LISTEN: "ESCUCHAR", TYPE: "ESCRIBIR", ANALYZING: "Analizando",
+    LISTENING: "Escuchando", PAUSED: "Pausado",
+    START: "Iniciar escucha", PAUSE: "Pausar", AVOID: "EVITA",
+    START_LISTENING: "Iniciar escucha",
+    MODE_LISTEN: "ESCUCHAR", MODE_WRITE: "ESCRIBIR",
+    PASTE_PLACEHOLDER: "Pega un fragmento de la conversación...",
+    ANALYZE: "Analizar",
+    DETAIL: "Detalle",
+    OR_SIMULATE: "O usa el modo Simular para probar la IA ahora",
+    KBD: "← → cambia hablante · espacio cicla",
+    autoHint: (l: string) => `último · ${l} (auto) · ← → cambia`,
+    OPEN_TAB: "Abrir en pestaña separada",
+    NO_SPEECH: "Tu navegador no soporta reconocimiento de voz.\nUsa Chrome o Edge.",
+    OR_TYPE: "O usa el modo Escribir para probar la IA ahora",
+  },
+  en: {
+    LISTEN: "LISTEN", TYPE: "TYPE", ANALYZING: "Analyzing",
+    LISTENING: "Listening", PAUSED: "Paused",
+    START: "Start listening", PAUSE: "Pause", AVOID: "AVOID",
+    START_LISTENING: "Start listening",
+    MODE_LISTEN: "LISTEN", MODE_WRITE: "WRITE",
+    PASTE_PLACEHOLDER: "Paste a conversation snippet...",
+    ANALYZE: "Analyze",
+    DETAIL: "Detail",
+    OR_SIMULATE: "Or use Simulate mode to test the AI now",
+    KBD: "← → change speaker · space cycles",
+    autoHint: (l: string) => `last · ${l} (auto) · ← → change`,
+    OPEN_TAB: "Open in separate tab",
+    NO_SPEECH: "Your browser does not support speech recognition.\nUse Chrome or Edge.",
+    OR_TYPE: "Or use Type mode to test the AI now",
+  },
+};
 
 interface Detail {
   reading?: string;
@@ -64,15 +108,20 @@ function saveLabel(l: string) {
 
 // ── Color config per detail field — colorblind-safe (blue / teal / white / amber)
 const FIELD_CONFIG = {
-  LECTURA:   { label: "text-sky-400",   content: "text-sky-200",   size: "text-[20px]", prefix: "LECTURA ·"   },
-  MISION:    { label: "text-teal-400",  content: "text-teal-200",  size: "text-[20px]", prefix: "MISIÓN ·"    },
-  SIGUIENTE: { label: "text-white",     content: "text-white",     size: "text-[26px]", prefix: "MOVIMIENTO ·" },
-  APOYO:     { label: "text-amber-400", content: "text-amber-200", size: "text-[20px]", prefix: "APOYO ·"      },
+  LECTURA:   { label: "text-sky-400",   content: "text-sky-200",   size: "text-[20px]" },
+  MISION:    { label: "text-teal-400",  content: "text-teal-200",  size: "text-[20px]" },
+  SIGUIENTE: { label: "text-white",     content: "text-white",     size: "text-[26px]" },
+  APOYO:     { label: "text-amber-400", content: "text-amber-200", size: "text-[20px]" },
 } as const;
+
+const FIELD_LABELS: Record<Lang, Record<keyof typeof FIELD_CONFIG, string>> = {
+  es: { LECTURA: "LECTURA ·", MISION: "MISIÓN ·", SIGUIENTE: "MOVIMIENTO ·", APOYO: "APOYO ·" },
+  en: { LECTURA: "READING ·", MISION: "MISSION ·", SIGUIENTE: "MOVE ·",       APOYO: "SUPPORT ·" },
+};
 
 type FieldKey = keyof typeof FIELD_CONFIG;
 
-function DetailField({ fieldKey, value }: { fieldKey: FieldKey; value?: string }) {
+function DetailField({ fieldKey, value, prefix }: { fieldKey: FieldKey; value?: string; prefix: string }) {
   if (!value) return null;
   const cfg = FIELD_CONFIG[fieldKey];
   return (
@@ -80,7 +129,7 @@ function DetailField({ fieldKey, value }: { fieldKey: FieldKey; value?: string }
       fieldKey === "SIGUIENTE" && "font-semibold"
     )}>
       <span className={cn("text-[9px] tracking-[0.2em] uppercase align-middle mr-2 font-normal", cfg.label)}>
-        {cfg.prefix}
+        {prefix}
       </span>
       {value}
     </p>
@@ -88,17 +137,19 @@ function DetailField({ fieldKey, value }: { fieldKey: FieldKey; value?: string }
 }
 
 // ── Detail panel — inline labels, full width, big text; EVITA at the bottom
-function DetailPanel({ detail, avoid }: { detail: Detail; avoid?: string }) {
+function DetailPanel({ detail, avoid, lang }: { detail: Detail; avoid?: string; lang: Lang }) {
+  const labels = FIELD_LABELS[lang];
+  const tx = T[lang];
   return (
     <div className="px-6 py-8 flex flex-col gap-9 w-full">
-      {detail.reading   && <DetailField fieldKey="LECTURA"   value={detail.reading} />}
-      {detail.mission   && <DetailField fieldKey="MISION"    value={detail.mission} />}
-      {detail.next_move && <DetailField fieldKey="SIGUIENTE" value={detail.next_move} />}
-      {detail.support   && <DetailField fieldKey="APOYO"     value={detail.support} />}
+      {detail.reading   && <DetailField fieldKey="LECTURA"   value={detail.reading}   prefix={labels.LECTURA} />}
+      {detail.mission   && <DetailField fieldKey="MISION"    value={detail.mission}   prefix={labels.MISION} />}
+      {detail.next_move && <DetailField fieldKey="SIGUIENTE" value={detail.next_move} prefix={labels.SIGUIENTE} />}
+      {detail.support   && <DetailField fieldKey="APOYO"     value={detail.support}   prefix={labels.APOYO} />}
       {avoid && (
         <p className="font-mono w-full text-center text-[21px] font-semibold uppercase tracking-wide text-red-500">
           <span className="text-[9px] tracking-[0.2em] uppercase align-middle mr-2 font-normal text-red-700">
-            EVITA ·
+            {tx.AVOID} ·
           </span>
           {avoid}
         </p>
@@ -216,53 +267,86 @@ function ConversationTimeline({ journey, memoryLines }: { journey: Journey; memo
 function inferSpeaker(
   text: string,
   lastSpeaker: "client" | "me" | null,
+  lang: Lang,
 ): { speaker: "client" | "me" | "uncertain"; label: string } {
   const t = text.toLowerCase();
   let cs = 0; // client score
   let vs = 0; // vendor score
 
-  // ── Client signals ───────────────────────────────────────────
-  const clientHigh = [
-    "no lo veo", "no me convence", "me preocupa", "no conozco", "me parece caro",
-    "no quiero equivocarme", "me da más", "explícame", "por qué debería",
-    "no sé si", "tengo dudas", "no estoy seguro", "me da miedo",
-    "no me fío", "no confío", "parece arriesgado", "prefiero",
-    "me gusta más", "qué garantías", "y si sale mal", "no lo entiendo",
-    "eso es demasiado", "es que no", "no lo veo claro",
-  ];
-  const clientMid = [
-    "pero", "aunque", "sin embargo", "¿y si", "claro pero",
-    "sí pero", "es que", "a ver", "no sé",
-  ];
-
-  // ── Vendor signals ───────────────────────────────────────────
-  const vendorHigh = [
-    "entiendo tu", "entiendo que", "si te parece", "la idea aquí",
-    "lo que buscamos", "te explico", "lo importante es",
-    "de hecho", "precisamente", "lo que tienes", "esto significa",
-    "bajemos", "concretemos", "dime una cosa", "pregunto",
-    "imagina que", "te propongo", "lo que te ofrezco",
-    "la clave aquí", "piénsalo así",
-  ];
-  const vendorMid = [
-    "exacto", "claro", "por supuesto", "es decir",
-    "en ese caso", "tiene sentido",
-  ];
-
-  for (const s of clientHigh) if (t.includes(s)) cs += 3;
-  for (const s of clientMid)  if (t.includes(s)) cs += 1;
-  for (const s of vendorHigh) if (t.includes(s)) vs += 3;
-  for (const s of vendorMid)  if (t.includes(s)) vs += 1;
+  if (lang === "en") {
+    // ── English signals ───────────────────────────────────────
+    const clientHigh = [
+      "i don't see it", "i'm not convinced", "i'm worried", "i don't know",
+      "that seems expensive", "i don't want to make a mistake", "i trust", "explain it to me",
+      "why should i", "i'm not sure", "i have doubts", "i'm afraid",
+      "i don't trust", "seems risky", "i'd rather", "what guarantees",
+      "what if it goes wrong", "i don't understand", "that's too much",
+    ];
+    const clientMid = [
+      "but", "although", "however", "what if", "yes but",
+      "still", "i mean", "i don't know",
+    ];
+    const vendorHigh = [
+      "i understand your", "i understand that", "if you'd like", "the idea here",
+      "what we're looking for", "let me explain", "what matters is",
+      "actually", "precisely", "what you have here", "this means",
+      "let's break it down", "let me ask you", "imagine if",
+      "what i'm proposing", "the key here", "think of it this way",
+    ];
+    const vendorMid = [
+      "exactly", "of course", "that is", "in that case", "makes sense",
+    ];
+    for (const s of clientHigh) if (t.includes(s)) cs += 3;
+    for (const s of clientMid)  if (t.includes(s)) cs += 1;
+    for (const s of vendorHigh) if (t.includes(s)) vs += 3;
+    for (const s of vendorMid)  if (t.includes(s)) vs += 1;
+  } else {
+    // ── Spanish signals ───────────────────────────────────────
+    const clientHigh = [
+      "no lo veo", "no me convence", "me preocupa", "no conozco", "me parece caro",
+      "no quiero equivocarme", "me da más", "explícame", "por qué debería",
+      "no sé si", "tengo dudas", "no estoy seguro", "me da miedo",
+      "no me fío", "no confío", "parece arriesgado", "prefiero",
+      "me gusta más", "qué garantías", "y si sale mal", "no lo entiendo",
+      "eso es demasiado", "es que no", "no lo veo claro",
+    ];
+    const clientMid = [
+      "pero", "aunque", "sin embargo", "¿y si", "claro pero",
+      "sí pero", "es que", "a ver", "no sé",
+    ];
+    const vendorHigh = [
+      "entiendo tu", "entiendo que", "si te parece", "la idea aquí",
+      "lo que buscamos", "te explico", "lo importante es",
+      "de hecho", "precisamente", "lo que tienes", "esto significa",
+      "bajemos", "concretemos", "dime una cosa", "pregunto",
+      "imagina que", "te propongo", "lo que te ofrezco",
+      "la clave aquí", "piénsalo así",
+    ];
+    const vendorMid = [
+      "exacto", "claro", "por supuesto", "es decir",
+      "en ese caso", "tiene sentido",
+    ];
+    for (const s of clientHigh) if (t.includes(s)) cs += 3;
+    for (const s of clientMid)  if (t.includes(s)) cs += 1;
+    for (const s of vendorHigh) if (t.includes(s)) vs += 3;
+    for (const s of vendorMid)  if (t.includes(s)) vs += 1;
+  }
 
   // Turn alternation as a mild (not decisive) tiebreaker
   if (lastSpeaker === "me")     cs += 1;
   if (lastSpeaker === "client") vs += 1;
 
-  const diff  = Math.abs(cs - vs);
+  const diff = Math.abs(cs - vs);
   if (diff < 3) return { speaker: "uncertain", label: "" };
 
-  if (cs > vs) return { speaker: "client", label: "cliente" };
-  return { speaker: "me", label: "yo" };
+  if (cs > vs) return {
+    speaker: "client",
+    label: lang === "en" ? "client" : "cliente",
+  };
+  return {
+    speaker: "me",
+    label: lang === "en" ? "me" : "yo",
+  };
 }
 
 export default function CopilotPage() {
@@ -285,6 +369,11 @@ export default function CopilotPage() {
   const [inferredAutoLabel, setInferredAutoLabel] = useState<string>("");
   const lastAutoSpeakerRef = useRef<"client" | "me" | null>(null);
 
+  // Language
+  const [lang, setLang] = useState<Lang>(loadLang);
+  const langRef = useRef(lang);
+  langRef.current = lang;
+
   const sessionActive = sessionContext !== null;
   const speakerModeRef = useRef(speakerMode);
   speakerModeRef.current = speakerMode;
@@ -306,7 +395,7 @@ export default function CopilotPage() {
         speakerPrefix = "[YO]: ";
       } else {
         // AUTO mode — infer from text + turn memory
-        const { speaker: inferred, label } = inferSpeaker(text, lastAutoSpeakerRef.current);
+        const { speaker: inferred, label } = inferSpeaker(text, lastAutoSpeakerRef.current, langRef.current);
         if (inferred === "client") {
           speakerPrefix = "[CLIENTE]: ";
           lastAutoSpeakerRef.current = "client";
@@ -335,6 +424,7 @@ export default function CopilotPage() {
             text: fullText,
             ...(sessionContext ? { context: sessionContext } : {}),
             ...(memoryStr ? { call_memory: memoryStr } : {}),
+            lang: langRef.current,
           },
         },
         {
@@ -354,7 +444,7 @@ export default function CopilotPage() {
   );
 
   const { isSupported, isListening, error: speechError, interimText, startListening, stopListening } =
-    useSpeech({ onAnalyzeReady: handleAnalysis, analysisIntervalMs: 8000 });
+    useSpeech({ onAnalyzeReady: handleAnalysis, analysisIntervalMs: 8000, lang });
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -440,10 +530,26 @@ export default function CopilotPage() {
 
       {/* Status pill — top right */}
       <div className="absolute top-10 right-5 flex items-center gap-3 z-10">
+        {/* Language toggle */}
+        <div className="flex items-center bg-white/5 rounded-full border border-white/8 text-[9px] font-mono overflow-hidden">
+          {(["es", "en"] as Lang[]).map(l => (
+            <button
+              key={l}
+              onClick={() => { setLang(l); saveLang(l); }}
+              className={cn(
+                "px-2.5 py-1 uppercase tracking-widest transition-all",
+                lang === l ? "bg-white/15 text-white" : "text-zinc-500 hover:text-zinc-300"
+              )}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
+
         {isPending && (
           <div className="flex items-center gap-1.5 text-muted-foreground">
             <Loader2 className="w-3 h-3 animate-spin" />
-            <span className="text-[10px] font-mono tracking-widest uppercase">Analizando</span>
+            <span className="text-[10px] font-mono tracking-widest uppercase">{T[lang].ANALYZING}</span>
           </div>
         )}
         {inputMode === "listen" && !speechError && (
@@ -456,7 +562,7 @@ export default function CopilotPage() {
           >
             <div className={cn("w-2 h-2 rounded-full", isSessionListening ? "bg-red-500 animate-pulse" : "bg-zinc-600")} />
             <span className="text-[10px] font-mono tracking-widest uppercase">
-              {isSessionListening ? "Escuchando" : "Pausado"}
+              {isSessionListening ? T[lang].LISTENING : T[lang].PAUSED}
             </span>
           </div>
         )}
@@ -506,10 +612,10 @@ export default function CopilotPage() {
                 className="flex items-center justify-center gap-2 text-xs font-mono text-black bg-white rounded-xl px-4 py-2.5 hover:bg-zinc-200 transition-colors"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
-                Abrir en pestaña separada
+                {T[lang].OPEN_TAB}
               </button>
               <p className="text-[10px] text-zinc-200 font-mono text-center">
-                O usa el modo Simular para probar la IA ahora
+                {T[lang].OR_SIMULATE}
               </p>
             </div>
           </div>
@@ -520,8 +626,7 @@ export default function CopilotPage() {
           <div className="absolute inset-0 flex items-center justify-center px-6">
             <div className="bg-zinc-900 border border-white/10 rounded-2xl p-5 max-w-sm w-full">
               <p className="text-xs font-mono text-zinc-200 text-center leading-relaxed">
-                Tu navegador no soporta reconocimiento de voz.<br />
-                Usa Chrome o Edge.
+                {T[lang].NO_SPEECH.split("\n").map((l, i) => <span key={i}>{l}{i === 0 && <br />}</span>)}
               </p>
             </div>
           </div>
@@ -549,7 +654,7 @@ export default function CopilotPage() {
                 className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/8 text-zinc-500 hover:text-zinc-200 hover:bg-white/8 hover:border-white/15 text-[10px] font-mono tracking-widest uppercase transition-colors"
               >
                 <Info className="w-3 h-3" />
-                Detalle
+                {T[lang].DETAIL}
               </button>
             </div>
           </div>
@@ -567,7 +672,7 @@ export default function CopilotPage() {
               <ChevronDown className="w-3.5 h-3.5" />
             </div>
             <div className="overflow-y-auto border-t border-white/5" style={{ maxHeight: "460px" }}>
-              <DetailPanel detail={tacticalState.detail!} avoid={tacticalState.avoid} />
+              <DetailPanel detail={tacticalState.detail!} avoid={tacticalState.avoid} lang={lang} />
             </div>
           </div>
 
@@ -589,7 +694,7 @@ export default function CopilotPage() {
                   handleSimulateSubmit(e as any);
                 }
               }}
-              placeholder="Pega un fragmento de la conversación..."
+              placeholder={T[lang].PASTE_PLACEHOLDER}
               rows={2}
               className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors font-mono resize-none"
               autoFocus
@@ -599,7 +704,7 @@ export default function CopilotPage() {
               disabled={!simulateText.trim() || isPending}
               className="bg-white text-black px-5 rounded-xl font-mono text-xs font-semibold tracking-widest uppercase hover:bg-zinc-200 active:scale-95 disabled:opacity-40 transition-all flex items-center justify-center gap-2 min-w-[90px]"
             >
-              {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Analizar"}
+              {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : T[lang].ANALYZE}
             </button>
           </form>
         )}
@@ -616,8 +721,8 @@ export default function CopilotPage() {
             )}
           >
             {isSessionListening
-              ? <><div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />Pausar</>
-              : <><Mic className="w-3.5 h-3.5" />Iniciar escucha</>}
+              ? <><div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />{T[lang].PAUSE}</>
+              : <><Mic className="w-3.5 h-3.5" />{T[lang].START_LISTENING}</>}
           </button>
         )}
 
@@ -634,7 +739,7 @@ export default function CopilotPage() {
               )}
             >
               {isSessionListening ? <Mic className="w-3 h-3 text-red-500" /> : <Mic className="w-3 h-3" />}
-              ESCUCHAR
+              {T[lang].MODE_LISTEN}
             </button>
             <button
               onClick={() => handleModeSwitch("simulate")}
@@ -644,7 +749,7 @@ export default function CopilotPage() {
               )}
             >
               <Keyboard className="w-3 h-3" />
-              ESCRIBIR
+              {T[lang].MODE_WRITE}
             </button>
           </div>
 
@@ -670,7 +775,7 @@ export default function CopilotPage() {
                     <span className="tracking-widest">AUTO</span>
                     <span className="text-[7px] tracking-normal normal-case text-zinc-400 font-normal">{inferredAutoLabel}</span>
                   </span>
-                ) : SPEAKER_LABELS[s]}
+                ) : SPEAKER_LABELS_MAP[lang][s]}
               </button>
             ))}
           </div>
@@ -680,8 +785,8 @@ export default function CopilotPage() {
         {/* Keyboard hint */}
         <p className="text-[9px] font-mono text-zinc-500 tracking-widest">
           {speakerMode === "auto" && inferredAutoLabel
-            ? `último · ${inferredAutoLabel} (auto) · ← → cambia`
-            : "← → cambia hablante · espacio cicla"}
+            ? T[lang].autoHint(inferredAutoLabel)
+            : T[lang].KBD}
         </p>
       </div>
     </div>

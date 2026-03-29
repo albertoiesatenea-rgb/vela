@@ -269,19 +269,16 @@ Ejemplo turno siguiente — cliente responde "sí, eso me preocupa":
 
 Responde SIEMPRE con JSON puro sin markdown ni texto extra.`;
 
-function buildSystemPrompt(context?: string): string {
-  if (!context || !context.trim()) {
-    return BASE_SYSTEM_PROMPT;
-  }
+function buildSystemPrompt(context?: string, lang?: string): string {
+  const langOverride = lang === "en"
+    ? `\nLANGUAGE OVERRIDE — MANDATORY: All JSON field values must be in English. Respond in English only.\n`
+    : "";
 
-  return `${BASE_SYSTEM_PROMPT}
+  const contextBlock = context?.trim()
+    ? `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCONTEXTO DE SESIÓN ACTIVA\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n${context.trim()}\n\nUsa este contexto para orientar el análisis. Si contiene datos concretos (estadísticas, precios, rentabilidades, cifras de mercado), extráelos y úsalos en detail.support cuando sean tácitamente oportunos — nunca antes de concretar la duda.`
+    : "";
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-CONTEXTO DE SESIÓN ACTIVA
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-${context.trim()}
-
-Usa este contexto para orientar el análisis. Si contiene datos concretos (estadísticas, precios, rentabilidades, cifras de mercado), extráelos y úsalos en detail.support cuando sean tácitamente oportunos — nunca antes de concretar la duda.`;
+  return `${langOverride}${BASE_SYSTEM_PROMPT}${contextBlock}`;
 }
 
 router.post("/copilot/analyze", async (req, res) => {
@@ -291,7 +288,7 @@ router.post("/copilot/analyze", async (req, res) => {
     return;
   }
 
-  const { text, context, call_memory } = parseResult.data;
+  const { text, context, call_memory, lang } = parseResult.data;
 
   const userMessage = [
     call_memory ? `MEMORIA ACUMULADA ACTUAL:\n${call_memory}` : null,
@@ -304,7 +301,7 @@ router.post("/copilot/analyze", async (req, res) => {
       model: "gpt-4o-mini",
       max_tokens: 900,
       messages: [
-        { role: "system", content: buildSystemPrompt(context) },
+        { role: "system", content: buildSystemPrompt(context, lang) },
         { role: "user", content: userMessage },
       ],
     });
