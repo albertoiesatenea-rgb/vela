@@ -19,6 +19,7 @@ const SPEAKER_ORDER: SpeakerMode[] = ["auto", "client", "me"];
 
 interface Detail {
   reading?: string;
+  mission?: string;
   next_move?: string;
   support?: string;
 }
@@ -61,9 +62,10 @@ function saveLabel(l: string) {
   } catch { /* ignore */ }
 }
 
-// ── Color config per detail field — colorblind-safe (blue / white / amber)
+// ── Color config per detail field — colorblind-safe (blue / teal / white / amber)
 const FIELD_CONFIG = {
   LECTURA:   { label: "text-sky-400",   content: "text-sky-200",   size: "text-[20px]", prefix: "LECTURA ·"   },
+  MISION:    { label: "text-teal-400",  content: "text-teal-200",  size: "text-[20px]", prefix: "MISIÓN ·"    },
   SIGUIENTE: { label: "text-white",     content: "text-white",     size: "text-[26px]", prefix: "MOVIMIENTO ·" },
   APOYO:     { label: "text-amber-400", content: "text-amber-200", size: "text-[20px]", prefix: "APOYO ·"      },
 } as const;
@@ -90,6 +92,7 @@ function DetailPanel({ detail, avoid }: { detail: Detail; avoid?: string }) {
   return (
     <div className="px-6 py-8 flex flex-col gap-9 w-full">
       {detail.reading   && <DetailField fieldKey="LECTURA"   value={detail.reading} />}
+      {detail.mission   && <DetailField fieldKey="MISION"    value={detail.mission} />}
       {detail.next_move && <DetailField fieldKey="SIGUIENTE" value={detail.next_move} />}
       {detail.support   && <DetailField fieldKey="APOYO"     value={detail.support} />}
       {avoid && (

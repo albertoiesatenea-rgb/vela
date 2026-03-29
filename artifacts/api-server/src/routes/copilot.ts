@@ -24,6 +24,7 @@ Responde SIEMPRE con este JSON exacto y nada más:
   "avoid": "advertencia táctica o null",
   "detail": {
     "reading": "lectura breve del momento",
+    "mission": "qué necesitas conseguir ahora (1 frase, objetivo táctico)",
     "next_move": "movimiento ampliado o frase/pregunta útil",
     "support": "apoyo breve con dato real o criterio"
   },
@@ -59,6 +60,15 @@ Comprensión más profunda de lo que está pasando por debajo. 1 frase, máx 20 
 NO repite signal. Añade el "por qué" o el contexto real.
 BIEN: "No rechaza el activo; teme que el coste no quepa en su plan de inversión."
 MAL: repetir signal con otras palabras.
+
+DETAIL.MISSION — objetivo táctico del momento
+Qué necesitas conseguir AHORA. NO repite reading (no es diagnóstico) ni next_move (no es acción). Es el propósito táctico detrás del movimiento. 1 frase clara.
+LECTURA = qué está pasando. MISIÓN = qué necesitas conseguir. MOVIMIENTO = qué dices o haces.
+BIEN: "Identificar el cuello de botella real que frena el cierre."
+BIEN: "Traducir la comparación de ciudades a criterios de inversión concretos."
+BIEN: "Justificar la diferencia de precio con valor diferencial del activo."
+MAL: repetir la lectura con otras palabras.
+MAL: repetir el next_move reformulado como objetivo.
 
 JOURNEY.NOW — momento procesual
 Dónde está la conversación en su arco táctico. 3-6 palabras. Diferente de signal (que clasifica) y reading (que interpreta).

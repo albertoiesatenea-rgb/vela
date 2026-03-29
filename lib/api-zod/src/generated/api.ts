@@ -46,6 +46,9 @@ export const AnalyzeConversationResponse = zod.object({
       reading: nullableStr.describe(
         "Richer interpretation of what is happening beneath the surface (1 sentence)",
       ),
+      mission: nullableStr.describe(
+        "Tactical objective for this moment — what you need to achieve right now. Different from reading (which diagnoses) and next_move (which is the action). 1 sentence.",
+      ),
       next_move: nullableStr.describe(
         "The single best actionable move — best question, reframe, or close line. One path only.",
       ),

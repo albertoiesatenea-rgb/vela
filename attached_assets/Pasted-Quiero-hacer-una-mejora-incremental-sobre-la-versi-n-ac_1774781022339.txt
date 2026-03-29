@@ -1,0 +1,115 @@
+Quiero hacer una mejora incremental sobre la versión actual de Silent Closer sin rehacer la app ni romper la UI actual.
+
+La herramienta ya va muy bien, pero ahora detecto que falta una capa táctica importante en el detalle.
+
+Ahora mismo tengo algo parecido a:
+- LECTURA
+- MOVIMIENTO
+- APOYO
+
+Y siento que me falta una pieza intermedia:
+qué necesito conseguir en este momento con la jugada que me propone la app.
+
+OBJETIVO DE ESTA ITERACIÓN
+
+Quiero añadir un nuevo campo al detalle llamado:
+
+MISIÓN
+
+La idea es que MISIÓN me diga cuál es el objetivo táctico del momento.
+
+No quiero que repita la lectura.
+No quiero que repita el movimiento.
+Quiero que me diga:
+- qué tengo que conseguir ahora
+- cuál es el propósito táctico detrás del movimiento sugerido
+- qué intento provocar o desbloquear en esta fase de la conversación
+
+DIFERENCIA ENTRE CAMPOS
+
+LECTURA
+= qué está pasando realmente
+
+MISIÓN
+= qué necesito conseguir ahora
+
+MOVIMIENTO
+= qué digo o hago ahora para conseguirlo
+
+APOYO
+= criterio, argumento o dato que me puede ayudar
+
+EJEMPLOS
+
+Caso 1:
+LECTURA:
+El cliente todavía no concreta qué parte del cierre le falla.
+
+MISIÓN:
+Identificar el cuello de botella real del cierre.
+
+MOVIMIENTO:
+Pregunta qué parte exacta del cierre está frenando resultados.
+
+APOYO:
+No des soluciones aún; primero concreta si el problema es proceso, equipo o conversión.
+
+Caso 2:
+LECTURA:
+El cliente compara Dresden con otra ciudad porque le transmite más seguridad.
+
+MISIÓN:
+Traducir esa comparación a criterios de inversión concretos.
+
+MOVIMIENTO:
+Pregunta si lo que valora es demanda, liquidez o percepción de menor riesgo.
+
+APOYO:
+No debatas ciudades en abstracto; trabaja el criterio que está usando para comparar.
+
+Caso 3:
+LECTURA:
+El cliente objeta el precio comparando con la media por metro cuadrado.
+
+MISIÓN:
+Justificar la diferencia de precio con valor real del activo.
+
+MOVIMIENTO:
+Pregunta si compara solo €/m² o también estado, extras y salida futura.
+
+APOYO:
+Si tienes atributos diferenciales reales, úsalos para mover la conversación de precio a propuesta de valor.
+
+REGLAS DE MISIÓN
+
+- debe ser breve
+- muy clara
+- táctica
+- no genérica
+- no repetir literalmente la lectura
+- no repetir literalmente el movimiento
+- debe responder a: “¿qué necesito conseguir ahora?”
+
+IMPLEMENTACIÓN
+
+Quiero que el detalle pase a tener esta estructura:
+
+- LECTURA
+- MISIÓN
+- MOVIMIENTO
+- APOYO
+
+Opcionalmente EVITA puede quedarse aparte o como advertencia adicional si ya existe, pero el nuevo bloque clave que quiero añadir es MISIÓN.
+
+OBJETIVO FINAL
+
+Quiero que el detalle no solo me diga qué está pasando y qué hacer, sino también para qué sirve esa jugada en esta fase de la conversación.
+
+No rehagas la app.
+No cambies la estética.
+Solo añade y ajusta esta capa táctica.
+
+Cuando termines, explícamelo brevemente:
+- cómo defines ahora MISIÓN
+- cómo la diferencias de LECTURA y MOVIMIENTO
+- y por qué ahora debería ayudar mejor en una conversación real
