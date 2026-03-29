@@ -444,24 +444,6 @@ export function Arena({
     }
   }, [isStarting]);
 
-  // Arrow key shortcuts for client mode (↓ = accept, ↑ = object)
-  useEffect(() => {
-    if (role !== "client" || isStarting || isSending || isEnding) return;
-    const handler = (e: KeyboardEvent) => {
-      if (document.activeElement === textareaRef.current) return;
-      if (exitStep !== null) return;
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        void sendMessage(T[lang].CLIENT_ACCEPT_MSG);
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        void sendMessage(T[lang].CLIENT_OBJECTION_MSG);
-      }
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [role, isStarting, isSending, isEnding, exitStep, lang, sendMessage]);
-
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -558,6 +540,24 @@ export function Arena({
       setTimeout(() => textareaRef.current?.focus(), 50);
     }
   }, [isSending, arenaSessionId, messages.length, lang]);
+
+  // Arrow key shortcuts for client mode (↓ = accept, ↑ = object) — must be after sendMessage
+  useEffect(() => {
+    if (role !== "client" || isStarting || isSending || isEnding) return;
+    const handler = (e: KeyboardEvent) => {
+      if (document.activeElement === textareaRef.current) return;
+      if (exitStep !== null) return;
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        void sendMessage(T[lang].CLIENT_ACCEPT_MSG);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        void sendMessage(T[lang].CLIENT_OBJECTION_MSG);
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [role, isStarting, isSending, isEnding, exitStep, lang, sendMessage]);
 
   const handleSend = useCallback(() => {
     void sendMessage(input);
