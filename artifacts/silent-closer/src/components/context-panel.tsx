@@ -2,26 +2,25 @@ import { useState } from "react";
 import { ChevronDown, ChevronUp, Zap, SlidersHorizontal, User, Users, Target, Briefcase, ShieldOff, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// ── Closer Wizard mark: cone + cross-band + flat brim ────────────────────────
-// Three layers, one compound path (fill-rule="evenodd"):
-//   Outer cone → white. Two crossing strips → black (cut through). Where strips
-//   overlap each other → white again (evenodd cancels) = bright X center.
-//   Small white flaps remain at lower-left and lower-right corners of the cone.
-//   Flat rounded-rect brim sits below with a visible gap.
+// ── Closer Wizard mark: cone + crossing lines + flat brim ────────────────────
+// SVG mask approach: white cone polygon masked by two black diagonal lines that
+// cross in the lower third — divides the cone into exactly 3 white polygons:
+//   1. Upper triangle (main hat body)
+//   2. Lower-left corner triangle
+//   3. Lower-right corner triangle
+// Flat rounded-rect brim below with a visible gap.
 function WizardIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 20" fill="currentColor" className={className} aria-hidden>
-      {/* Cone + X band: outer triangle + two crossing parallelograms */}
-      <path
-        fillRule="evenodd"
-        d={[
-          "M10 1.5 L4.5 13 L15.5 13 Z",          // outer cone
-          "M6 13 L8.5 13 L13.5 9 L11 9 Z",        // strip: bottom-left → top-right
-          "M14 13 L11.5 13 L7 9 L9.5 9 Z",        // strip: bottom-right → top-left
-        ].join(" ")}
-      />
-      {/* Brim — flat pill, separated from cone by a clear gap */}
-      <rect x="1.5" y="14" width="17" height="2.5" rx="1.25" />
+    <svg viewBox="0 0 20 20" className={className} aria-hidden>
+      <defs>
+        <mask id="wiz-hat-mask">
+          <polygon points="10,1.5 4.5,13 15.5,13" fill="white" />
+          <line x1="6.5" y1="9" x2="15.5" y2="13" stroke="black" strokeWidth="1.2" />
+          <line x1="13.5" y1="9" x2="4.5"  y2="13" stroke="black" strokeWidth="1.2" />
+        </mask>
+      </defs>
+      <polygon points="10,1.5 4.5,13 15.5,13" fill="currentColor" mask="url(#wiz-hat-mask)" />
+      <rect x="1.5" y="14" width="17" height="2.5" rx="1.25" fill="currentColor" />
     </svg>
   );
 }
