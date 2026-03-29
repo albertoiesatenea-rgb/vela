@@ -127,6 +127,7 @@ const T = {
     DEBRIEF_SCORE: "PUNTUACIÓN",
     DEBRIEF_CRITIQUE: "QUÉ FALLÓ",
     DEBRIEF_RETRY: "Intentar de nuevo →",
+    CLIENT_RETRY: "Repetir →",
     DEBRIEF_LOADING: "Analizando sesión...",
   },
   en: {
@@ -183,6 +184,7 @@ const T = {
     DEBRIEF_SCORE: "SCORE",
     DEBRIEF_CRITIQUE: "WHAT WENT WRONG",
     DEBRIEF_RETRY: "Try again →",
+    CLIENT_RETRY: "Repeat →",
     DEBRIEF_LOADING: "Analyzing session...",
   },
 };
@@ -706,7 +708,7 @@ export function Arena({
                 onClick={onRetry}
                 className="w-full bg-white text-black text-xs font-mono font-bold py-3 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all"
               >
-                {t.DEBRIEF_RETRY}
+                {role === "client" ? t.CLIENT_RETRY : t.DEBRIEF_RETRY}
               </button>
             )}
             {/* Export */}
