@@ -87,6 +87,78 @@ ${langRule}`;
   }
 }
 
+// ── Debrief generator (for lost/broken sessions, seller role only) ────────────
+async function generateDebrief(
+  turns: ArenaTurn[],
+  context: string,
+  lang: Lang,
+): Promise<{ score: number; critique: string[] } | null> {
+  const transcript = turns.map(t => {
+    const sp = t.speaker === "user"
+      ? (lang === "es" ? "VENDEDOR" : "SELLER")
+      : (lang === "es" ? "CLIENTE" : "CLIENT");
+    return `${sp}: ${t.message}`;
+  }).join("\n");
+
+  const prompt = lang === "es"
+    ? `Eres un coach de ventas experto. Analiza esta conversación de venta perdida y evalúa al vendedor con precisión y sin rodeos.
+
+Contexto de la sesión: ${context || "venta genérica"}
+
+Conversación:
+${transcript}
+
+Responde ÚNICAMENTE con un JSON válido con este formato:
+{
+  "score": <número entero del 1 al 10>,
+  "critique": ["frase corta 1", "frase corta 2", "frase corta 3"]
+}
+
+Reglas:
+- score: puntuación honesta del vendedor (1=desastre, 5=mediocre, 8=bueno, 10=perfecto)
+- critique: exactamente 3 frases cortas y directas explicando por qué se perdió
+- Sé específico con la conversación real, no genérico
+- Responde solo con el JSON, sin texto extra`
+    : `You are an expert sales coach. Analyze this lost sales conversation and evaluate the seller honestly and directly.
+
+Session context: ${context || "generic sale"}
+
+Conversation:
+${transcript}
+
+Reply ONLY with valid JSON in this exact format:
+{
+  "score": <integer 1 to 10>,
+  "critique": ["short point 1", "short point 2", "short point 3"]
+}
+
+Rules:
+- score: honest seller rating (1=disaster, 5=mediocre, 8=good, 10=perfect)
+- critique: exactly 3 short direct sentences explaining why the session was lost
+- Be specific to the actual conversation, not generic
+- Reply only with the JSON, no extra text`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_tokens: 300,
+      temperature: 0.4,
+      messages: [{ role: "user", content: prompt }],
+    });
+    const raw = completion.choices[0]?.message?.content?.trim() ?? "";
+    const parsed = JSON.parse(raw) as { score: number; critique: string[] };
+    if (typeof parsed.score === "number" && Array.isArray(parsed.critique)) {
+      return {
+        score: Math.max(1, Math.min(10, Math.round(parsed.score))),
+        critique: parsed.critique.slice(0, 3),
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 // ── Terminal state detector ───────────────────────────────────────────────────
 // Only runs in seller mode (AI plays client). In client mode, user controls outcome manually.
 // Requires at least 4 turns to have meaningful signal.
@@ -279,6 +351,12 @@ router.post("/arena/finish", async (req, res) => {
 
   const userTurns = session.turns.filter(t => t.speaker === "user").length;
 
+  // Generate debrief for seller sessions that ended in loss/breakdown
+  const needsDebrief = session.role === "seller" && ["lost", "broken"].includes(session.outcome);
+  const debrief = needsDebrief
+    ? await generateDebrief(session.turns, session.context, session.lang)
+    : null;
+
   res.json({
     turns: session.turns,
     summary: {
@@ -290,6 +368,7 @@ router.post("/arena/finish", async (req, res) => {
       createdAt: session.createdAt,
       closedAt: session.closedAt,
       outcome: session.outcome,
+      debrief,
     },
   });
 

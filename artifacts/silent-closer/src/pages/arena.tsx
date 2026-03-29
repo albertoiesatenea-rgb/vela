@@ -16,6 +16,11 @@ interface ArenaMessage {
   message: string;
 }
 
+interface ArenaDebrief {
+  score: number;
+  critique: string[];
+}
+
 interface ArenaSummary {
   role: ArenaRole;
   context: string;
@@ -25,6 +30,7 @@ interface ArenaSummary {
   createdAt: string;
   closedAt: string;
   outcome: FinalOutcome;
+  debrief?: ArenaDebrief | null;
 }
 
 // ── Conversation state heuristic ──────────────────────────────────────────────
@@ -109,6 +115,11 @@ const T = {
     CLIENT_LOST: "No me has convencido",
     // Summary
     OUTCOME_LABEL: "RESULTADO",
+    // Debrief
+    DEBRIEF_SCORE: "PUNTUACIÓN",
+    DEBRIEF_CRITIQUE: "QUÉ FALLÓ",
+    DEBRIEF_RETRY: "Intentar de nuevo →",
+    DEBRIEF_LOADING: "Analizando sesión...",
   },
   en: {
     ARENA: "ARENA",
@@ -152,6 +163,11 @@ const T = {
     CLIENT_LOST: "You didn't convince me",
     // Summary
     OUTCOME_LABEL: "OUTCOME",
+    // Debrief
+    DEBRIEF_SCORE: "SCORE",
+    DEBRIEF_CRITIQUE: "WHAT WENT WRONG",
+    DEBRIEF_RETRY: "Try again →",
+    DEBRIEF_LOADING: "Analyzing session...",
   },
 };
 
@@ -349,12 +365,14 @@ export function Arena({
   role,
   lang,
   onExit,
+  onRetry,
 }: {
   context: string;
   contextLabel: string;
   role: ArenaRole;
   lang: Lang;
   onExit: () => void;
+  onRetry?: () => void;
 }) {
   const t = T[lang];
 
@@ -531,9 +549,11 @@ export function Arena({
     const outcomeName = getOutcomeLabel(summary.outcome, t);
     const outcomeColor = getOutcomeColor(summary.outcome);
     const outcomeBg = getOutcomeBg(summary.outcome);
+    const isLoss = ["lost", "broken"].includes(summary.outcome) && role === "seller";
+    const debrief = summary.debrief;
 
     return (
-      <div className="fixed inset-0 bg-black flex flex-col items-center justify-center px-6">
+      <div className="fixed inset-0 bg-black flex flex-col items-center justify-center px-6 overflow-y-auto py-8">
         <div className="w-full max-w-sm flex flex-col gap-5">
 
           <div className="flex items-center gap-2">
@@ -543,16 +563,51 @@ export function Arena({
             <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-zinc-500">{t.ARENA}</span>
           </div>
 
-          {/* Outcome badge — prominent */}
-          <div className={cn(
-            "flex flex-col gap-1 border rounded-xl px-4 py-3",
-            outcomeBg
-          )}>
+          {/* Outcome badge */}
+          <div className={cn("flex flex-col gap-1 border rounded-xl px-4 py-3", outcomeBg)}>
             <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{t.OUTCOME_LABEL}</p>
-            <p className={cn("text-xl font-mono font-bold", outcomeColor)}>
-              {outcomeName}
-            </p>
+            <p className={cn("text-xl font-mono font-bold", outcomeColor)}>{outcomeName}</p>
           </div>
+
+          {/* Debrief block — only for lost/broken seller sessions */}
+          {isLoss && debrief && (
+            <div className="flex flex-col gap-4 border border-zinc-800 rounded-xl px-4 py-4 bg-zinc-950">
+
+              {/* Score */}
+              <div className="flex items-end gap-2">
+                <div className="flex flex-col gap-0.5">
+                  <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{t.DEBRIEF_SCORE}</p>
+                  <div className="flex items-baseline gap-1">
+                    <span className={cn(
+                      "text-4xl font-mono font-bold tabular-nums",
+                      debrief.score <= 3 ? "text-red-400"
+                      : debrief.score <= 5 ? "text-amber-400"
+                      : debrief.score <= 7 ? "text-zinc-200"
+                      : "text-emerald-400"
+                    )}>
+                      {debrief.score}
+                    </span>
+                    <span className="text-lg font-mono text-zinc-600">/ 10</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Critique bullets */}
+              {debrief.critique.length > 0 && (
+                <div className="flex flex-col gap-1.5">
+                  <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{t.DEBRIEF_CRITIQUE}</p>
+                  <div className="flex flex-col gap-2">
+                    {debrief.critique.map((point, i) => (
+                      <div key={i} className="flex gap-2">
+                        <span className="text-zinc-600 font-mono text-xs shrink-0 mt-0.5">—</span>
+                        <p className="text-xs font-mono text-zinc-300 leading-relaxed">{point}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Stats row */}
           <div className="flex gap-6 border-t border-white/8 pt-4">
@@ -584,9 +639,24 @@ export function Arena({
 
           {/* Actions */}
           <div className="flex flex-col gap-2 border-t border-white/8 pt-4">
+            {/* Retry — primary CTA when it's a loss */}
+            {isLoss && onRetry && (
+              <button
+                onClick={onRetry}
+                className="w-full bg-white text-black text-xs font-mono font-bold py-3 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all"
+              >
+                {t.DEBRIEF_RETRY}
+              </button>
+            )}
+            {/* Export */}
             <button
               onClick={handleExportLog}
-              className="w-full bg-white text-black text-xs font-mono font-bold py-3 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all"
+              className={cn(
+                "w-full text-xs font-mono font-bold py-3 rounded-xl active:scale-[0.98] transition-all",
+                isLoss && onRetry
+                  ? "border border-zinc-800 text-zinc-300 hover:border-zinc-600 hover:text-white"
+                  : "bg-white text-black hover:bg-zinc-100"
+              )}
             >
               {t.EXPORT}
             </button>

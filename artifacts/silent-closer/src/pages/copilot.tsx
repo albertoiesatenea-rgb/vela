@@ -450,6 +450,7 @@ export default function CopilotPage() {
   const [simulateText, setSimulateText] = useState("");
   const [sessionContext, setSessionContext] = useState<string | null>(loadSession);
   const [arenaRole, setArenaRole] = useState<ArenaRole | null>(null);
+  const [arenaKey, setArenaKey] = useState(0);
   const [tacticalState, setTacticalState] = useState<TacticalState>(EMPTY_STATE);
   const [contextLabel, setContextLabel] = useState<string>(loadLabel);
 
@@ -805,11 +806,13 @@ export default function CopilotPage() {
   if (arenaRole !== null) {
     return (
       <Arena
+        key={arenaKey}
         context={sessionContext}
         contextLabel={contextLabel}
         role={arenaRole}
         lang={lang}
         onExit={handleActuallyClearSession}
+        onRetry={() => setArenaKey(k => k + 1)}
       />
     );
   }
