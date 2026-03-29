@@ -31,14 +31,13 @@ interface Journey {
 
 interface TacticalState {
   sayNow: string;
-  hint?: string;
   avoid?: string;
   detail: Detail | null;
   journey: Journey | null;
-  callMemory: string;
+  callMemory: string[];
 }
 
-const EMPTY_STATE: TacticalState = { sayNow: "", hint: undefined, avoid: undefined, detail: null, journey: null, callMemory: "" };
+const EMPTY_STATE: TacticalState = { sayNow: "", avoid: undefined, detail: null, journey: null, callMemory: [] };
 
 const SESSION_KEY = "sc_session_context";
 const LABEL_KEY   = "sc_context_label";
@@ -237,23 +236,28 @@ export default function CopilotPage() {
         speaker === "me"     ? "[YO]: " : "";
       const fullText = speakerPrefix + text;
 
+      // Serialize call_memory array to bulleted string for the API
+      const memLines = callMemoryRef.current;
+      const memoryStr = memLines.length > 0
+        ? memLines.map(l => `- ${l}`).join("\n")
+        : undefined;
+
       analyze(
         {
           data: {
             text: fullText,
             ...(sessionContext ? { context: sessionContext } : {}),
-            ...(callMemoryRef.current ? { call_memory: callMemoryRef.current } : {}),
+            ...(memoryStr ? { call_memory: memoryStr } : {}),
           },
         },
         {
           onSuccess: (res) => {
             setTacticalState({
               sayNow: res.say_now,
-              hint: res.hint || undefined,
               avoid: res.avoid || undefined,
               detail: res.detail ?? null,
               journey: res.journey ?? null,
-              callMemory: res.call_memory ?? "",
+              callMemory: res.call_memory?.summary_lines ?? [],
             });
           },
         }
@@ -336,9 +340,7 @@ export default function CopilotPage() {
   // Derived panel data
   const hasDetail = !!(tacticalState.detail && Object.values(tacticalState.detail).some(Boolean));
   const hasJourney = !!tacticalState.journey;
-  const memoryLines = tacticalState.callMemory
-    ? tacticalState.callMemory.split(/\\n|\n/).filter(Boolean)
-    : [];
+  const memoryLines = tacticalState.callMemory;
   const handleToggleDetail = () => setDetailOpen(p => !p);
 
   // Active session layout

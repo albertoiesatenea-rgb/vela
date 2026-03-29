@@ -1,0 +1,358 @@
+Quiero que revises y corrijas el motor táctico interno de “Silent Closer”.
+
+IMPORTANTE:
+- NO quiero rehacer la app
+- NO quiero cambiar la UI
+- NO quiero nuevas funciones grandes
+- quiero corregir el cerebro y la lógica del output
+- quiero que sustituyas el prompt interno actual por una versión mejor y que ajustes la lógica necesaria para que el comportamiento sea coherente
+
+==================================================
+PROBLEMA REAL
+==================================================
+
+La app ya funciona visualmente, pero el motor todavía falla en cosas importantes:
+
+1. A veces repite el mismo “say_now” aunque el cliente ya haya respondido.
+Ejemplo:
+- el asistente pregunta o sugiere confirmar si la preocupación son gastos de mantenimiento
+- el cliente responde claramente que sí
+- y el asistente vuelve a insistir en lo mismo en vez de avanzar
+
+2. A veces no aterriza bien lo que dice el cliente y da una jugada demasiado genérica.
+
+3. El schema del prompt actual es inconsistente:
+- se exige `signal` pero luego aparece `hint`
+- el ejemplo de salida no coincide del todo con la estructura obligatoria
+- esto puede confundir al modelo
+
+4. Hay redundancias entre:
+- signal
+- journey.now
+- detail.reading
+
+5. Support a veces puede tender a meter datos demasiado pronto o de forma poco disciplinada.
+
+==================================================
+OBJETIVO DE ESTA ITERACIÓN
+==================================================
+
+Quiero que corrijas el motor para que:
+
+- el schema de salida sea limpio y consistente
+- no repita jugadas ya respondidas
+- avance por micro-pasos tácticos
+- detecte mejor qué ha cambiado cuando habla el cliente
+- diferencie bien entre señal, lectura y etapa del viaje
+- use datos solo cuando toque y solo si existen realmente
+- siga funcionando como copiloto de venta y persuasión en tiempo real
+
+==================================================
+DECISIÓN DE SCHEMA
+==================================================
+
+Quiero que el schema final del motor sea exactamente este y solo este:
+
+{
+  "signal": "texto corto",
+  "say_now": "frase táctica corta",
+  "avoid": "advertencia corta o vacío",
+  "detail": {
+    "reading": "lectura breve",
+    "next_move": "movimiento ampliado o frase/pregunta útil",
+    "support": "apoyo breve con dato real o criterio útil"
+  },
+  "journey": {
+    "past": "fase anterior breve",
+    "now": "momento procesual actual",
+    "next": "siguiente paso breve"
+  },
+  "call_memory": {
+    "summary_lines": [
+      "línea 1",
+      "línea 2",
+      "línea 3",
+      "línea 4",
+      "línea 5",
+      "línea 6"
+    ]
+  }
+}
+
+REGLAS:
+- JSON válido siempre
+- sin markdown
+- sin texto fuera del JSON
+- sin campo `hint`
+- sin campos extra
+- `avoid` puede ir vacío o null si no hay error táctico claro
+- `call_memory` debe reescribirse, no crecer infinito
+
+==================================================
+NUEVA LÓGICA DE LOS CAMPOS
+==================================================
+
+1. SIGNAL
+Qué está pasando ahora, en etiqueta táctica corta.
+Debe ser:
+- corto
+- específico
+- táctico
+- 2 a 5 palabras idealmente
+- no genérico
+- no redundante con `journey.now`
+
+Ejemplos:
+- falta de familiaridad
+- objeción de precio
+- objeción reputacional
+- compara, no compra
+- interés real
+- miedo a equivocarse
+- falta claridad
+- cierre prematuro
+
+2. SAY_NOW
+La siguiente mejor jugada táctica.
+Debe ser:
+- una sola acción principal
+- imperativo claro
+- 4 a 12 palabras idealmente
+- útil en llamada real
+- no genérico
+- no repetitivo
+
+Ejemplos:
+- pregunta qué criterio le frena
+- concreta si teme demanda o salida
+- valida y baja a riesgo real
+- usa una pregunta cerrada ahora
+- no cierres todavía
+- pide el dato exacto que compara
+
+3. AVOID
+Solo si hay un error táctico real y probable ahora.
+Si no aporta valor, dejar vacío o null.
+Ejemplos:
+- no dispares datos aún
+- no cierres todavía
+- no debatas la alternativa
+- no asumas la objeción
+
+4. DETAIL.READING
+Interpretación breve del momento.
+No repetir literalmente `signal`.
+Debe aportar comprensión real.
+
+5. DETAIL.NEXT_MOVE
+Versión ampliada y usable del `say_now`.
+Aquí puede haber:
+- una pregunta concreta
+- una frase de reenfoque
+- una mini formulación de cierre
+Pero solo una vía, no varias.
+
+6. DETAIL.SUPPORT
+Apoyo breve.
+Jerarquía:
+- si hay dato real en contexto o memoria y YA toca usarlo -> usarlo
+- si no hay dato real pero sería útil un tipo de dato -> sugerirlo
+- si aún no toca datos -> dar criterio de reenfoque
+Nunca inventar cifras, fuentes ni estudios.
+
+7. JOURNEY
+Quiero que sea procesual, no redundante con `signal`.
+
+Ejemplo correcto:
+- signal: objeción de precio
+- journey.now: resolviendo freno principal
+
+Quiero:
+- `past`: fase anterior superada
+- `now`: momento procesual actual
+- `next`: siguiente paso breve
+
+8. CALL_MEMORY
+Memoria acumulada comprimida.
+4–6 líneas.
+No transcript.
+No log.
+No línea corrida.
+Debe resumir:
+- fases superadas
+- objeción dominante
+- momento actual
+- objetivo actual
+
+==================================================
+REGLA CRÍTICA — ANTI-REPETICIÓN
+==================================================
+
+Esta es la mejora más importante.
+
+Antes de generar el nuevo `say_now`, el motor debe analizar el nuevo fragmento y decidir cuál de estas 5 cosas ha ocurrido:
+
+1. El cliente ha respondido claramente a la jugada anterior
+2. El cliente ha respondido parcialmente
+3. El cliente ha evitado responder
+4. El cliente ha abierto un frente nuevo
+5. El cliente ha cambiado el eje de la conversación
+
+REGLA:
+Si el cliente ya respondió claramente a la pregunta o jugada anterior, está PROHIBIDO repetir la misma jugada.
+
+En ese caso, el motor debe avanzar al siguiente micro-paso táctico, por ejemplo:
+- concretar impacto
+- cuantificar el freno
+- reenfocar
+- resolver
+- comparar criterio
+- cerrar microcompromiso
+- validar si el problema es ese y no otro
+
+Ejemplo:
+Si antes la jugada era “confirma si el miedo son los gastos de mantenimiento”
+y el cliente responde “sí, eso me preocupa”
+entonces la nueva jugada ya no puede ser volver a confirmar eso.
+Debe pasar a algo como:
+- pregunta cuánto le frena
+- concreta si teme mantenimiento o derramas
+- aterriza el impacto en rentabilidad
+- compara si es miedo a coste o a incertidumbre
+
+==================================================
+REGLA CRÍTICA — DUDAS ABIERTAS VS OBJECIONES FORMADAS
+==================================================
+
+Quiero que el motor distinga mejor entre:
+
+- falta de familiaridad
+- duda abierta
+- necesita criterio
+- objeción incipiente
+- objeción ya formada
+
+Ejemplos de falta de familiaridad o duda abierta:
+- no conozco la ciudad
+- no me suena
+- explícame por qué debería invertir ahí
+- no me da confianza todavía
+- no tengo referencias
+
+Eso NO debe leerse automáticamente como objeción reputacional fuerte.
+
+Primero hay que valorar si:
+- falta criterio
+- falta confianza inicial
+- todavía no ha articulado el freno real
+
+En esos casos, la jugada correcta es concretar el criterio, no defender todavía el activo ni sobrediagnosticar.
+
+==================================================
+REGLA GENERAL SOBRE COMPARACIONES Y ALTERNATIVAS
+==================================================
+
+Cuando la otra parte mencione una alternativa:
+- otra ciudad
+- otro producto
+- otro proveedor
+- otra inversión
+- otra opción
+
+el motor no debe asumir automáticamente que hay que entrar en comparación directa.
+
+Primero debe preguntarse:
+- ¿la alternativa es el centro del problema?
+- ¿o solo revela el criterio de decisión que esa persona valora?
+
+En muchos casos, la alternativa solo indica que valora:
+- seguridad
+- demanda
+- liquidez
+- reputación
+- familiaridad
+- menor riesgo
+- facilidad de salida
+
+Regla:
+La alternativa revela el criterio.
+El criterio es lo que hay que trabajar primero.
+
+==================================================
+REGLA SOBRE DATOS
+==================================================
+
+Los datos son importantes, pero hay que usarlos con disciplina.
+
+Quiero esta regla:
+
+1. Si hay datos reales disponibles en el contexto, memoria o base conectada, el motor puede usarlos.
+2. Si no hay datos reales disponibles, no puede inventarlos.
+3. Si el momento todavía no pide datos, no los uses aunque existan.
+4. Si aún falta concretar la duda, primero concreta el criterio y luego usa datos.
+
+SUPPORT debe seguir esta jerarquía:
+- dato real disponible y tácticamente oportuno
+- tipo de dato que convendría usar
+- criterio útil de reenfoque
+
+Nunca:
+- cifras inventadas
+- estudios falsos
+- autoridad falsa
+
+==================================================
+REGLA SOBRE PREGUNTA CERRADA
+==================================================
+
+Solo sugerir cierre o pregunta cerrada si:
+- la objeción principal ya está clara o resuelta
+- hay interés real
+- no quedan frentes importantes abiertos
+- la conversación ya maduró
+
+Si todavía hay:
+- objeción activa
+- duda difusa
+- resistencia fuerte
+- falta de criterio
+
+entonces no toca cerrar.
+
+==================================================
+PROMPT INTERNO NUEVO QUE QUIERO QUE USES
+==================================================
+
+Sustituye el prompt actual por una versión coherente que implemente todas estas reglas.
+
+Quiero que el nuevo prompt interno:
+- use exactamente el schema definido arriba
+- elimine el campo `hint`
+- defina bien `signal`
+- diferencie `signal`, `detail.reading` y `journey.now`
+- incluya la lógica de anti-repetición por cambios de turno
+- incluya la lógica de dudas abiertas vs objeciones formadas
+- incluya la regla general de comparaciones y alternativas
+- incluya la disciplina sobre uso de datos
+- mantenga el tono táctico, específico y comercial
+
+==================================================
+LO QUE QUIERO QUE HAGAS
+==================================================
+
+1. Reescribe el prompt interno del motor
+2. Asegúrate de que el código que procesa la respuesta espere exactamente el nuevo schema
+3. Ajusta cualquier validación/parsing necesario
+4. Corrige la lógica para que no repita la misma jugada si el cliente ya respondió
+5. Mantén el resto de la app igual
+
+==================================================
+ENTREGABLE
+==================================================
+
+Cuando termines, explícame brevemente:
+1. qué errores detectaste en el prompt actual
+2. qué cambiaste del schema
+3. cómo evitaste la repetición de jugadas
+4. cómo diferencias ahora signal / reading / journey.now
+5. cómo funciona ahora la regla de datos

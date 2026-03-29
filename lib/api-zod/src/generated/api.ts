@@ -36,12 +36,10 @@ export const AnalyzeConversationBody = zod.object({
 const nullableStr = zod.string().nullish().transform((v) => v ?? undefined);
 
 export const AnalyzeConversationResponse = zod.object({
+  signal: nullableStr.describe("Short tactical classification label (2-5 words)"),
   say_now: zod.string().describe("Tactical action to take (4-12 words)"),
   avoid: nullableStr.describe(
-    "What to avoid — only when there is a real, probable tactical error. Omit or leave empty if not critical.",
-  ),
-  hint: nullableStr.describe(
-    "Brief coaching note — the tactical objective behind say_now (1 sentence, natural tone, max 15 words)",
+    "What to avoid — only when there is a real, probable tactical error. Null if not critical.",
   ),
   detail: zod
     .object({
@@ -49,23 +47,28 @@ export const AnalyzeConversationResponse = zod.object({
         "Richer interpretation of what is happening beneath the surface (1 sentence)",
       ),
       next_move: nullableStr.describe(
-        "The single best actionable move — best question, best reframe, best close line. One path only.",
+        "The single best actionable move — best question, reframe, or close line. One path only.",
       ),
       support: nullableStr.describe(
-        "Brief tactical reinforcement — reframing criterion, useful data type, or key commercial reminder. Never invent figures.",
+        "Brief tactical reinforcement — real data from context, type of data to find, or reframing criterion. Never invent figures.",
       ),
     })
     .nullish()
     .transform((v) => v ?? undefined),
   journey: zod
     .object({
-      past: zod.string(),
-      now: zod.string(),
-      next: zod.string(),
+      past: zod.string().describe("Last completed phase (2-4 words)"),
+      now: zod.string().describe("Current processual moment (3-6 words) — different from signal and reading"),
+      next: zod.string().describe("Next concrete step (2-4 words)"),
     })
     .nullish()
     .transform((v) => v ?? undefined),
-  call_memory: nullableStr.describe(
-    "Updated accumulated tactical summary of the call so far (4-6 bullet lines)",
-  ),
+  call_memory: zod
+    .object({
+      summary_lines: zod
+        .array(zod.string())
+        .describe("4-6 tactical summary lines, rewritten each turn"),
+    })
+    .nullish()
+    .transform((v) => v ?? undefined),
 });
