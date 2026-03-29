@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Mic, MicOff, Keyboard, Loader2, AlertCircle, ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
+import { Mic, MicOff, Keyboard, Loader2, AlertCircle, ExternalLink, ChevronDown, Info } from "lucide-react";
 import { useAnalyzeConversation } from "@workspace/api-client-react";
 import { useSpeech } from "@/hooks/use-speech";
 import { TacticalDisplay } from "@/components/tactical-display";
@@ -316,8 +316,6 @@ export default function CopilotPage() {
   const memoryLines = tacticalState.callMemory
     ? tacticalState.callMemory.split(/\\n|\n/).filter(Boolean)
     : [];
-  const detailVisible = detailOpen && hasDetail;
-
   const handleToggleDetail = () => setDetailOpen(p => !p);
 
   // Active session layout
@@ -416,18 +414,48 @@ export default function CopilotPage() {
         </div>{/* end flex-1 relative (tactical display) */}
       </div>{/* end HUD flex-col */}
 
-      {/* ── Detail panel — slides above controls, no toggle here ── */}
-      <div
-        className="shrink-0 overflow-hidden"
-        style={{
-          maxHeight: detailVisible ? "260px" : "0px",
-          transition: "max-height 0.25s ease",
-        }}
-      >
-        <div className="border-t border-white/5 overflow-y-auto" style={{ maxHeight: "260px" }}>
-          {hasDetail && <DetailPanel detail={tacticalState.detail!} />}
-        </div>
-      </div>
+      {/* ── Detail panel — badge when closed, full content when open ── */}
+      <AnimatePresence mode="wait">
+        {hasDetail && !detailOpen && (
+          <motion.div
+            key="detail-badge"
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0, transition: { duration: 0.18 } }}
+            exit={{ opacity: 0, y: 4, transition: { duration: 0.12 } }}
+            className="shrink-0 flex items-center justify-center py-2 border-t border-white/5"
+          >
+            <button
+              onClick={handleToggleDetail}
+              className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/8 text-zinc-500 hover:text-zinc-200 hover:bg-white/8 hover:border-white/15 text-[10px] font-mono tracking-widest uppercase transition-all"
+            >
+              <Info className="w-3 h-3" />
+              Detalle
+            </button>
+          </motion.div>
+        )}
+
+        {hasDetail && detailOpen && (
+          <motion.div
+            key="detail-open"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto", transition: { duration: 0.22 } }}
+            exit={{ opacity: 0, height: 0, transition: { duration: 0.16 } }}
+            className="shrink-0 overflow-hidden border-t border-white/5"
+          >
+            {/* Tap-to-close strip */}
+            <button
+              onClick={handleToggleDetail}
+              className="w-full flex items-center justify-center py-1.5 text-zinc-700 hover:text-zinc-500 transition-colors"
+            >
+              <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+            {/* Scrollable detail content */}
+            <div className="overflow-y-auto border-t border-white/5" style={{ maxHeight: "240px" }}>
+              <DetailPanel detail={tacticalState.detail!} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Controls — bottom bar ─────────────────── */}
       <div className="shrink-0 border-t border-white/5 bg-black px-6 py-4 flex flex-col items-center gap-3">
@@ -476,8 +504,8 @@ export default function CopilotPage() {
           </button>
         )}
 
-        {/* Bottom row: mode toggle + speaker mode + detail chevron */}
-        <div className="flex items-center justify-center gap-3 w-full relative">
+        {/* Bottom row: mode toggle + speaker mode */}
+        <div className="flex items-center justify-center gap-3 w-full">
 
           {/* Input mode toggle */}
           <div className="flex items-center bg-white/5 p-1 rounded-full border border-white/8">
@@ -519,18 +547,6 @@ export default function CopilotPage() {
             ))}
           </div>
 
-          {/* Detail toggle — always accessible, far right */}
-          {hasDetail && (
-            <button
-              onClick={handleToggleDetail}
-              className={cn(
-                "absolute right-0 flex items-center justify-center w-10 h-10 rounded-full transition-colors",
-                detailVisible ? "text-zinc-100 bg-white/8" : "text-zinc-500 hover:text-zinc-200"
-              )}
-            >
-              {detailVisible ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
-            </button>
-          )}
         </div>
 
         {/* Keyboard hint */}
