@@ -2,21 +2,21 @@ import { useState } from "react";
 import { ChevronDown, ChevronUp, Zap, SlidersHorizontal, User, Users, Target, Briefcase, ShieldOff, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// ── Closer Wizard mark: bold wand + star ─────────────────────────────────────
-// Three elements = three narrative layers:
-//   1. Rounded handle (the grip — tool, precision, closer)
-//   2. Thick wand shaft (the instrument — direction, action)
-//   3. Large filled 4-point star at the tip (the magic — wizard, outcome)
-// No thin lines. Everything has mass. Reads clearly at 8px in monochrome.
+// ── Closer Wizard mark: bold wand + floating star ────────────────────────────
+// Three elements with intentional gap between wand tip and star:
+//   1. Rounded handle (the grip — bottom-left)
+//   2. Thick wand shaft (diagonal, stops mid-frame)
+//   3. Floating 4-point star in upper-right — clearly separated from the tip
+// The gap reads as "magic in flight", not a drooping wand.
 function WizardIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
-      {/* Handle — heavy round end, grounds the wand */}
-      <circle cx="2.2" cy="17.5" r="2.2" fill="currentColor" />
-      {/* Wand shaft — thick diagonal, bold enough to read at small sizes */}
-      <line x1="2.2" y1="17.5" x2="9.5" y2="5.5" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" />
-      {/* 4-point star — outer r=5, inner r=2, centered upper-right */}
-      <path d="M14 0.5L15.4 4.1L19 5.5L15.4 6.9L14 10.5L12.6 6.9L9 5.5L12.6 4.1Z" fill="currentColor" />
+      {/* Handle — heavy round end, grounds the wand at bottom-left */}
+      <circle cx="2" cy="18" r="2.2" fill="currentColor" />
+      {/* Wand shaft — stops at ~60% of diagonal, clear gap before star */}
+      <line x1="2" y1="18" x2="9" y2="7.5" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" />
+      {/* 4-point star — upper-right corner, floating above the wand tip */}
+      <path d="M16 0.5L17.4 2.6L19.5 4L17.4 5.4L16 7.5L14.6 5.4L12.5 4L14.6 2.6Z" fill="currentColor" />
     </svg>
   );
 }
@@ -217,16 +217,9 @@ export function ContextSetup({
 
         {/* Brand header */}
         <div className="flex items-start justify-between">
-          {/* Logo lockup — character image + wordmark */}
-          <div className="flex items-center gap-0">
-            {/* Wizard character — larger so the figure has real presence */}
-            <img
-              src="/wizard-logo.png"
-              alt="Closer Wizard"
-              className="w-24 h-24 shrink-0 select-none -ml-3 -mr-2"
-              style={{ clipPath: "inset(0 18% 18% 0)" }}
-              draggable={false}
-            />
+          {/* Logo lockup — SVG mark + wordmark */}
+          <div className="flex items-center gap-4">
+            <WizardIcon className="w-11 h-11 text-white shrink-0" />
             <div className="flex flex-col gap-1.5">
               <h1 className="text-3xl font-mono font-bold text-white tracking-[0.12em] uppercase leading-none">
                 Closer Wizard
