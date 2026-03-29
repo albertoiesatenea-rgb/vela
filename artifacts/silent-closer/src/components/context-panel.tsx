@@ -2,20 +2,19 @@ import { useState } from "react";
 import { ChevronDown, ChevronUp, Zap, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// ── Closer Wizard icon: tilted hat + 4-point star ────────────────────────────
-// Tilted cone gives character; band differentiates from plain triangle;
-// 4-point star clearly reads "magic" even at 12px.
+// ── Closer Wizard mark: wand shaft + 4-point star ────────────────────────────
+// A thin diagonal wand (lower-left → upper-right) with a clean 4-point star
+// at its tip. Two elements, no noise. Reads at 10px; unmistakably "wizard".
+// Small handle dot anchors the base and prevents it from reading as an arrow.
 function WizardIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 22" fill="currentColor" className={className} aria-hidden>
-      {/* Tilted hat cone */}
-      <path d="M10 1.5L17 16H3L10 1.5Z" />
-      {/* Hat band — visible stripe that sells it as a hat, not a triangle */}
-      <rect x="3" y="15.5" width="14" height="1.5" opacity="0.35" />
-      {/* Brim — clearly wider than the cone */}
-      <rect x="0.5" y="17" width="18" height="3" rx="1.5" />
-      {/* 4-point diamond star — floats upper-right, outside the cone */}
-      <path d="M20.5 1L21.5 3.5L24 4.5L21.5 5.5L20.5 8L19.5 5.5L17 4.5L19.5 3.5Z" />
+    <svg viewBox="0 0 18 18" fill="none" className={className} aria-hidden>
+      {/* Handle dot — anchors the wand base */}
+      <circle cx="2.2" cy="15.8" r="0.9" fill="currentColor" />
+      {/* Wand shaft — diagonal line connecting handle to star */}
+      <line x1="2.2" y1="15.8" x2="9" y2="5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      {/* 4-point star at wand tip — upper right, left arm meets wand */}
+      <path d="M13 0.5L14.4 3.6L17.5 5L14.4 6.4L13 9.5L11.6 6.4L8.5 5L11.6 3.6Z" fill="currentColor" />
     </svg>
   );
 }
@@ -219,14 +218,14 @@ export function ContextSetup({
     <div className="fixed inset-0 bg-black flex flex-col items-center justify-center px-6">
       <div className="w-full max-w-lg flex flex-col gap-6">
 
-        {/* Brand header — name first, icon after (reads brand → sees symbol) */}
+        {/* Brand header — icon left of name (logotype reading order) */}
         <div className="flex items-start justify-between">
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-3">
+              <WizardIcon className="w-5 h-5 text-white" />
               <h1 className="text-3xl font-mono font-bold text-white tracking-[0.12em] uppercase">
                 Closer Wizard
               </h1>
-              <WizardIcon className="w-5 h-[18px] text-white opacity-80" />
             </div>
             <p className="text-[11px] font-mono text-zinc-500 tracking-[0.2em] uppercase">
               {t.SUBTITLE}
@@ -348,8 +347,11 @@ export function SessionBar({
         className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-white/[0.02] transition-colors cursor-pointer"
       >
         <div className="flex items-center gap-2 flex-1 min-w-0 pr-3">
-          {/* Brand mark — subtle wizard icon as identity anchor */}
-          <WizardIcon className="w-2.5 h-[11px] text-zinc-700 shrink-0" />
+          {/* Brand mark — icon + wordmark as persistent identity anchor */}
+          <WizardIcon className="w-2.5 h-2.5 text-zinc-500 shrink-0" />
+          <span className="text-[8px] font-mono tracking-[0.25em] uppercase text-zinc-500 shrink-0">
+            Closer Wizard
+          </span>
           <div className="w-px h-2.5 bg-zinc-800 shrink-0" />
           {/* Session indicator */}
           <div className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />

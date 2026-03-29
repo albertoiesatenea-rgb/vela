@@ -1,0 +1,199 @@
+Quiero hacer una revisión seria del branding visual de Closer Wizard, sin rehacer toda la app, pero sí corrigiendo una parte que ahora mismo no funciona bien.
+
+IMPORTANTE:
+- no quiero perder el minimalismo
+- no quiero una estética infantil
+- no quiero un branding recargado
+- pero tampoco quiero una marca débil o genérica
+- quiero que Closer Wizard se sienta como un producto serio, con identidad propia y memorable
+
+==================================================
+PROBLEMA REAL
+==================================================
+
+Ahora mismo el icono/símbolo no funciona bien.
+
+Se siente demasiado abstracto, demasiado provisional y no transmite de verdad la idea de:
+- wizard
+- guía táctica
+- inteligencia conversacional
+- ayuda para cerrar ventas o conversaciones
+
+Visualmente ahora parece más un triángulo o una forma genérica que una identidad real de marca.
+
+Además, en la pantalla de conversación el branding prácticamente desaparece.
+Solo se ve un iconito arriba a la izquierda, y como ese icono no transmite nada, la marca pierde fuerza durante el uso real del producto.
+
+==================================================
+OBJETIVO GENERAL
+==================================================
+
+Quiero que Closer Wizard tenga:
+1. un símbolo / icono mucho más representativo
+2. una presencia de marca más clara dentro de la pantalla de conversación
+3. una identidad visual coherente con el nombre
+4. una estética que siga siendo minimalista y premium
+
+==================================================
+PARTE 1 — REHACER EL ICONO / SÍMBOLO
+==================================================
+
+No quiero parchear el icono actual.
+Quiero replantearlo desde cero.
+
+OBJETIVO
+Que el símbolo transmita mejor:
+- wizard
+- inteligencia
+- guía táctica
+- precisión
+- sensación de “copiloto que te ayuda a cerrar”
+
+IMPORTANTE
+No quiero:
+- un triángulo abstracto
+- un símbolo genérico sin narrativa
+- una ilustración infantil
+- un dibujo cartoon exagerado
+- algo demasiado recargado
+
+QUIERO EXPLORAR DOS DIRECCIONES POSIBLES
+
+OPCIÓN A — WIZARD ICÓNICO MINIMALISTA
+Un símbolo muy simple que sugiera claramente:
+- sombrero
+- silueta
+- varita
+- destello
+pero de forma ultra limpia, casi como un emblema.
+
+OPCIÓN B — GLYPH / SIGILO / MONOGRAMA CON AIRE DE WIZARD
+Un símbolo más premium y menos literal:
+- una marca tipo glyph
+- una W o CW estilizada
+- un símbolo con aire de conjuro, sello o marca mágica
+- algo que sugiera wizard sin dibujar un mago de forma directa
+
+PREFERENCIA
+Quiero que elijas la ruta que mejor encaje con el producto real.
+Mi prioridad es:
+- que transmita mejor
+- que no quede infantil
+- que funcione también en pequeño
+- que acompañe bien al wordmark
+
+==================================================
+PARTE 2 — DAR MÁS PESO AL WORDMARK
+==================================================
+
+Quiero que el nombre:
+CLOSER WIZARD
+siga siendo el núcleo principal del branding.
+
+El símbolo debe apoyar al nombre, no intentar sustituirlo.
+
+Si visualmente queda mejor:
+- prioriza el wordmark
+- y usa el icono como apoyo
+No quiero depender de un símbolo flojo.
+
+==================================================
+PARTE 3 — BRANDING DENTRO DE LA PANTALLA DE CONVERSACIÓN
+==================================================
+
+Ahora mismo en la pantalla de conversación no se siente la marca.
+Quiero que haya presencia de Closer Wizard también ahí.
+
+OBJETIVO
+Que durante el uso real del producto se note que esto es Closer Wizard.
+Que haya identidad sin romper el minimalismo.
+
+IMPORTANTE
+No quiero:
+- una cabecera gigante
+- branding invasivo
+- una barra corporativa pesada
+- un logo enorme
+
+SÍ quiero:
+- una presencia sutil pero clara
+- que el nombre se vea
+- que la conversación siga sintiéndose premium y limpia
+
+PROPUESTA
+Añade una cabecera de marca discreta en la pantalla de conversación, por ejemplo:
+- CLOSER WIZARD
+- subtítulo muy pequeño si hace falta
+- icono acompañando
+- bien colocado y bien integrado
+
+Puede ser:
+- arriba del todo
+- alineado con el sistema actual
+- o una pequeña banda/cabecera minimalista
+
+Pero quiero que la marca exista de verdad, no solo un símbolo diminuto sin contexto.
+
+==================================================
+PARTE 4 — REVISAR POSICIÓN DEL SÍMBOLO RESPECTO AL NOMBRE
+==================================================
+
+Quiero que revises también si queda mejor:
+- icono a la izquierda
+o
+- icono a la derecha del nombre
+
+Mi impresión es que, con un símbolo débil, molesta más.
+Con un símbolo bueno, puede funcionar.
+
+Quiero que elijas la opción que visualmente quede:
+- más premium
+- más equilibrada
+- más propia de una marca seria
+
+No quiero una explicación teórica.
+Quiero que decidas según lo que mejor funcione en diseño real.
+
+==================================================
+PARTE 5 — REGLA DE DISEÑO
+==================================================
+
+Todo esto debe seguir sintiéndose:
+- premium
+- limpio
+- minimalista
+- táctico
+- serio
+- con personalidad
+
+No quiero:
+- branding infantil
+- estética de videojuego cutre
+- símbolos sin sentido
+- decoración porque sí
+
+Quiero:
+- un branding más memorable
+- más coherente con “Closer Wizard”
+- y más presente durante la experiencia real
+
+==================================================
+LO QUE QUIERO QUE HAGAS
+==================================================
+
+1. Replantea el símbolo / icono desde cero
+2. Mantén el wordmark como pieza principal
+3. Añade branding sutil pero claro en la pantalla de conversación
+4. Revisa la posición del icono respecto al nombre
+5. Mantén la estética minimalista y premium
+
+==================================================
+ENTREGABLE
+==================================================
+
+Cuando termines, dime brevemente:
+1. qué nueva dirección has elegido para el símbolo
+2. por qué transmite mejor Closer Wizard
+3. cómo has metido la marca en la pantalla de conversación
+4. dónde has colocado el icono respecto al nombre
+5. y por qué ahora el branding debería sentirse más sólido y más reconocible

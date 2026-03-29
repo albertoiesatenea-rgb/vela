@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 function WizardOverlayHeader() {
   return (
     <div className="flex items-center gap-2 mb-1">
-      <WizardIcon className="w-4 h-5 text-zinc-500" />
+      <WizardIcon className="w-4 h-4 text-zinc-500" />
       <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-zinc-600">
         Closer Wizard
       </span>
