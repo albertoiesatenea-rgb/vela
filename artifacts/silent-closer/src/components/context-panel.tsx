@@ -283,12 +283,9 @@ export function ContextSetup({
         {/* Divider */}
         <div className="border-t border-white/8" />
 
-        {/* ── Modo ──────────────────────────────────────────────────────── */}
-        <div className="flex flex-col gap-2">
-          <p className="text-[9px] font-mono tracking-[0.28em] uppercase text-zinc-500">
-            {lang === "es" ? "Modo" : "Mode"}
-          </p>
-          <div className="flex items-center bg-zinc-950 p-1 rounded-full border border-zinc-800 w-fit">
+        {/* ── Controls row — mode + context format in one line ──────────── */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center bg-zinc-950 p-1 rounded-full border border-zinc-800">
             <button
               onClick={() => setAppMode("copilot")}
               className={cn(
@@ -310,16 +307,8 @@ export function ContextSetup({
               {t.MODE_ARENA}
             </button>
           </div>
-        </div>
 
-        {/* ── Define el contexto ────────────────────────────────────────── */}
-        <div className="flex flex-col gap-3">
-          <p className="text-[9px] font-mono tracking-[0.28em] uppercase text-zinc-500">
-            {t.DEFINE}
-          </p>
-
-          {/* Quick / Advanced toggle */}
-          <div className="flex items-center bg-zinc-950 p-1 rounded-full border border-zinc-800 w-fit">
+          <div className="flex items-center bg-zinc-950 p-1 rounded-full border border-zinc-800">
             <button
               onClick={() => setContextMode("quick")}
               className={cn(
@@ -341,25 +330,25 @@ export function ContextSetup({
               {t.ADVANCED}
             </button>
           </div>
-
-          {/* Context input */}
-          {contextMode === "quick" ? (
-            <textarea
-              value={quickText}
-              onChange={(e) => setQuickText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  if (quickText.trim()) handleSubmit(quickText);
-                }
-              }}
-              placeholder={t.PLACEHOLDER}
-              rows={2}
-              autoFocus
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors font-mono resize-none leading-relaxed"
-            />
-          ) : null}
         </div>
+
+        {/* ── Context input ─────────────────────────────────────────────── */}
+        {contextMode === "quick" && (
+          <textarea
+            value={quickText}
+            onChange={(e) => setQuickText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                if (quickText.trim()) handleSubmit(quickText);
+              }
+            }}
+            placeholder={t.PLACEHOLDER}
+            rows={3}
+            autoFocus
+            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors font-mono resize-none leading-relaxed"
+          />
+        )}
 
         {/* ── Arena role block (only in Arena mode, quick context) ──────── */}
         {appMode === "arena" && contextMode === "quick" && (
