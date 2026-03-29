@@ -398,6 +398,13 @@ export function Arena({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Focus textarea as soon as the session finishes loading
+  useEffect(() => {
+    if (!isStarting) {
+      setTimeout(() => textareaRef.current?.focus(), 50);
+    }
+  }, [isStarting]);
+
   useEffect(() => {
     let cancelled = false;
     void (async () => {
