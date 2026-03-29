@@ -110,9 +110,11 @@ const T = {
     MODAL_CORRECT: "Corregir resultado",
     MODAL_CORRECT_PROMPT: "¿Cuál fue el resultado real?",
     // Client mode outcome buttons
-    CLIENT_SOLD: "Me has vendido",
-    CLIENT_ADVANCED: "Me has hecho avanzar",
-    CLIENT_LOST: "No me has convencido",
+    CLIENT_SOLD: "Trato hecho ✓",
+    CLIENT_ACCEPT: "Ok, acepto →",
+    CLIENT_OBJECTION: "Tengo una objeción",
+    CLIENT_ACCEPT_MSG: "Vale, acepto eso. Sigue adelante.",
+    CLIENT_OBJECTION_MSG: "Espera, tengo una objeción con eso.",
     // Summary
     OUTCOME_LABEL: "RESULTADO",
     // Debrief
@@ -158,9 +160,11 @@ const T = {
     MODAL_CORRECT: "Correct outcome",
     MODAL_CORRECT_PROMPT: "What was the actual outcome?",
     // Client mode outcome buttons
-    CLIENT_SOLD: "You sold me",
-    CLIENT_ADVANCED: "I agreed to move forward",
-    CLIENT_LOST: "You didn't convince me",
+    CLIENT_SOLD: "Deal ✓",
+    CLIENT_ACCEPT: "OK, I'll take that →",
+    CLIENT_OBJECTION: "I have an objection",
+    CLIENT_ACCEPT_MSG: "OK, I'll take that. Keep going.",
+    CLIENT_OBJECTION_MSG: "Wait, I have an objection with that.",
     // Summary
     OUTCOME_LABEL: "OUTCOME",
     // Debrief
@@ -326,34 +330,44 @@ function OutcomeModal({
 function ClientOutcomeBar({
   lang,
   disabled,
+  onShortcut,
   onOutcome,
 }: {
   lang: Lang;
   disabled: boolean;
+  onShortcut: (text: string) => void;
   onOutcome: (outcome: FinalOutcome) => void;
 }) {
   const t = T[lang];
-  const buttons: Array<{ outcome: FinalOutcome; label: string; color: string }> = [
-    { outcome: "closed", label: t.CLIENT_SOLD, color: "text-emerald-400 border-emerald-400/30 hover:border-emerald-400/60 hover:bg-emerald-400/5" },
-    { outcome: "next_step", label: t.CLIENT_ADVANCED, color: "text-sky-400 border-sky-400/30 hover:border-sky-400/60 hover:bg-sky-400/5" },
-    { outcome: "lost", label: t.CLIENT_LOST, color: "text-zinc-400 border-zinc-700 hover:border-zinc-500 hover:text-zinc-300" },
-  ];
 
   return (
     <div className="flex gap-2 pt-1">
-      {buttons.map(({ outcome, label, color }) => (
-        <button
-          key={outcome}
-          onClick={() => onOutcome(outcome)}
-          disabled={disabled}
-          className={cn(
-            "flex-1 py-2 rounded-lg border text-[10px] font-mono tracking-wide transition-all disabled:opacity-30 disabled:pointer-events-none",
-            color
-          )}
-        >
-          {label}
-        </button>
-      ))}
+      {/* Accept — shortcut message, conversation continues */}
+      <button
+        onClick={() => onShortcut(t.CLIENT_ACCEPT_MSG)}
+        disabled={disabled}
+        className="flex-1 py-2 rounded-lg border text-[10px] font-mono tracking-wide transition-all disabled:opacity-30 disabled:pointer-events-none text-sky-400 border-sky-400/30 hover:border-sky-400/60 hover:bg-sky-400/5"
+      >
+        {t.CLIENT_ACCEPT}
+      </button>
+
+      {/* Objection — shortcut message, conversation continues */}
+      <button
+        onClick={() => onShortcut(t.CLIENT_OBJECTION_MSG)}
+        disabled={disabled}
+        className="flex-1 py-2 rounded-lg border text-[10px] font-mono tracking-wide transition-all disabled:opacity-30 disabled:pointer-events-none text-amber-400 border-amber-400/30 hover:border-amber-400/60 hover:bg-amber-400/5"
+      >
+        {t.CLIENT_OBJECTION}
+      </button>
+
+      {/* Sold — ends session */}
+      <button
+        onClick={() => onOutcome("closed")}
+        disabled={disabled}
+        className="flex-1 py-2 rounded-lg border text-[10px] font-mono tracking-wide transition-all disabled:opacity-30 disabled:pointer-events-none text-emerald-400 border-emerald-400/30 hover:border-emerald-400/60 hover:bg-emerald-400/5"
+      >
+        {t.CLIENT_SOLD}
+      </button>
     </div>
   );
 }
@@ -462,11 +476,10 @@ export function Arena({
     }
   }, [arenaSessionId, isEnding, messages, role, context, lang]);
 
-  const handleSend = useCallback(async () => {
-    const text = input.trim();
-    if (!text || isSending || !arenaSessionId) return;
+  const sendMessage = useCallback(async (text: string) => {
+    if (!text.trim() || isSending || !arenaSessionId) return;
 
-    const userMsg: ArenaMessage = { index: messages.length, speaker: "user", message: text };
+    const userMsg: ArenaMessage = { index: messages.length, speaker: "user", message: text.trim() };
     setMessages(prev => [...prev, userMsg]);
     setInput("");
     setIsSending(true);
@@ -475,12 +488,11 @@ export function Arena({
       const res = await fetch("/api/arena/turn", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ arenaSessionId, userMessage: text }),
+        body: JSON.stringify({ arenaSessionId, userMessage: text.trim() }),
       });
       const data = await res.json() as { aiMessage: string; terminalSignal?: ArenaOutcome };
       setMessages(prev => [...prev, { index: prev.length, speaker: "ai", message: data.aiMessage }]);
       setConversationState(inferState(data.aiMessage, lang));
-      // Show confirmation modal if terminal state detected (seller mode, non-trivial outcomes)
       if (data.terminalSignal && data.terminalSignal !== "none" && data.terminalSignal !== "manual_stop") {
         setPendingOutcome(data.terminalSignal as Exclude<ArenaOutcome, "none" | "manual_stop">);
       }
@@ -494,12 +506,16 @@ export function Arena({
       setIsSending(false);
       setTimeout(() => textareaRef.current?.focus(), 50);
     }
-  }, [input, isSending, arenaSessionId, messages.length, lang]);
+  }, [isSending, arenaSessionId, messages.length, lang]);
+
+  const handleSend = useCallback(() => {
+    void sendMessage(input);
+  }, [input, sendMessage]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      void handleSend();
+      handleSend();
     }
   };
 
@@ -756,6 +772,7 @@ export function Arena({
             <ClientOutcomeBar
               lang={lang}
               disabled={isEnding || isSending}
+              onShortcut={(text) => void sendMessage(text)}
               onOutcome={(outcome) => void handleEnd(outcome)}
             />
           )}
