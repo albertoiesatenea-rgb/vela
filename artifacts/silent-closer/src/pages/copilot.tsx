@@ -133,7 +133,7 @@ function ConversationTimeline({ journey, memoryLines }: { journey: Journey; memo
 
         {/* STATE 0 — only NOW, centered pill box */}
         {view === 0 && (
-          <div className="flex justify-center pt-3 pb-2 px-6">
+          <div className="flex justify-center pt-6 pb-3 px-6">
             <div className="border border-white/25 rounded px-5 py-2 group-hover:border-white/40 transition-colors">
               <span className="text-[14px] font-mono text-white uppercase tracking-wide font-semibold text-center leading-snug">
                 {journey.now}
@@ -144,7 +144,7 @@ function ConversationTimeline({ journey, memoryLines }: { journey: Journey; memo
 
         {/* STATE 1 — 3 nodes in a row, constrained width so they stay close */}
         {view === 1 && (
-          <div className="flex items-start justify-center gap-0 pt-3 pb-2 px-4">
+          <div className="flex items-start justify-center gap-0 pt-6 pb-3 px-4">
             {/* ANTES */}
             <div className="flex flex-col items-center gap-2 w-[120px] shrink-0">
               <div className="w-2 h-2 rounded-full bg-zinc-600 group-hover:bg-zinc-500 transition-colors mt-0.5" />
@@ -175,7 +175,7 @@ function ConversationTimeline({ journey, memoryLines }: { journey: Journey; memo
 
         {/* STATE 2 — full session memory (shown below, trigger row stays compact) */}
         {view === 2 && (
-          <div className="flex items-center justify-center gap-2 pt-3 pb-2 px-6">
+          <div className="flex items-center justify-center gap-2 pt-6 pb-3 px-6">
             <div className="w-2 h-2 rounded-full bg-zinc-400 group-hover:bg-zinc-300 transition-colors shrink-0" />
             <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider text-center leading-snug">
               Historial completo
