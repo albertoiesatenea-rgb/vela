@@ -10,8 +10,8 @@ import { cn } from "@/lib/utils";
 function WizardOverlayHeader() {
   return (
     <div className="flex items-center gap-2 mb-1">
-      <WizardIcon className="w-5 h-5 text-zinc-600 shrink-0" />
-      <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-zinc-600">
+      <WizardIcon className="w-5 h-5 text-zinc-400 shrink-0" />
+      <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-zinc-400">
         Closer Wizard
       </span>
     </div>
@@ -1075,7 +1075,7 @@ export default function CopilotPage() {
                 </div>
                 <button
                   onClick={handleActuallyClearSession}
-                  className="text-[10px] font-mono text-zinc-600 hover:text-zinc-400 transition-colors text-center"
+                  className="text-[10px] font-mono text-zinc-500 hover:text-zinc-300 transition-colors text-center"
                 >
                   {T[lang].SKIP_ANALYSIS}
                 </button>
@@ -1087,8 +1087,8 @@ export default function CopilotPage() {
               <div className="w-full max-w-sm flex flex-col gap-5">
                 {isSummarizing ? (
                   <div className="flex flex-col items-center gap-3 py-12">
-                    <Loader2 className="w-5 h-5 text-zinc-500 animate-spin" />
-                    <p className="text-xs font-mono text-zinc-500 tracking-widest uppercase">{T[lang].ANALYZING_CALL}</p>
+                    <Loader2 className="w-5 h-5 text-zinc-400 animate-spin" />
+                    <p className="text-xs font-mono text-zinc-400 tracking-widest uppercase">{T[lang].ANALYZING_CALL}</p>
                   </div>
                 ) : callSummary ? (
                   <>
@@ -1098,21 +1098,21 @@ export default function CopilotPage() {
                         {/* Brand + result header */}
                         <div className="flex flex-col gap-0.5">
                           <WizardOverlayHeader />
-                          <p className="text-[10px] font-mono tracking-widest uppercase text-zinc-600 mt-3">{T[lang].CALL_RESULT}</p>
+                          <p className="text-[10px] font-mono tracking-widest uppercase text-zinc-400 mt-3">{T[lang].CALL_RESULT}</p>
                           <p className="text-lg font-mono font-bold text-white leading-tight">{callSummary.resultLabel}</p>
                         </div>
 
                         {/* Score + State row */}
                         <div className="flex items-center gap-4 border-t border-white/5 pt-4">
                           <div className="flex flex-col">
-                            <p className="text-[10px] font-mono tracking-widest uppercase text-zinc-600">{T[lang].CALL_SCORE}</p>
+                            <p className="text-[10px] font-mono tracking-widest uppercase text-zinc-400">{T[lang].CALL_SCORE}</p>
                             <p className="text-3xl font-mono font-bold text-white leading-none mt-0.5">
-                              {callSummary.score.toFixed(1)}<span className="text-zinc-600 text-lg"> / 10</span>
+                              {callSummary.score.toFixed(1)}<span className="text-zinc-500 text-lg"> / 10</span>
                             </p>
                           </div>
                           <div className="h-8 w-px bg-white/8 shrink-0" />
                           <div className="flex flex-col">
-                            <p className="text-[10px] font-mono tracking-widest uppercase text-zinc-600">{T[lang].CALL_STATE}</p>
+                            <p className="text-[10px] font-mono tracking-widest uppercase text-zinc-400">{T[lang].CALL_STATE}</p>
                             <p className="text-sm font-mono font-semibold text-white uppercase tracking-widest mt-0.5">{callSummary.globalState}</p>
                           </div>
                         </div>
@@ -1120,7 +1120,7 @@ export default function CopilotPage() {
                         {/* Strengths */}
                         {callSummary.strengths.length > 0 && (
                           <div className="flex flex-col gap-1.5 border-t border-white/5 pt-4">
-                            <p className="text-[10px] font-mono tracking-widest uppercase text-zinc-600">{T[lang].STRENGTHS}</p>
+                            <p className="text-[10px] font-mono tracking-widest uppercase text-zinc-400">{T[lang].STRENGTHS}</p>
                             {callSummary.strengths.map((s, i) => (
                               <p key={i} className="text-xs font-mono text-zinc-300 leading-relaxed">
                                 <span className="text-green-600 mr-1.5">→</span>{s}
@@ -1132,7 +1132,7 @@ export default function CopilotPage() {
                         {/* Improvements */}
                         {callSummary.improvements.length > 0 && (
                           <div className="flex flex-col gap-1.5 border-t border-white/5 pt-4">
-                            <p className="text-[10px] font-mono tracking-widest uppercase text-zinc-600">{T[lang].IMPROVEMENTS}</p>
+                            <p className="text-[10px] font-mono tracking-widest uppercase text-zinc-400">{T[lang].IMPROVEMENTS}</p>
                             {callSummary.improvements.map((s, i) => (
                               <p key={i} className="text-xs font-mono text-zinc-300 leading-relaxed">
                                 <span className="text-amber-600 mr-1.5">△</span>{s}
@@ -1170,7 +1170,7 @@ export default function CopilotPage() {
                           {/* 4. Download session audit log — tertiary, for GPT auditor */}
                           <button
                             onClick={handleDownloadAuditLog}
-                            className="w-full text-center text-[10px] font-mono text-zinc-600 hover:text-zinc-400 py-1 transition-colors"
+                            className="w-full text-center text-[10px] font-mono text-zinc-500 hover:text-zinc-300 py-1 transition-colors"
                           >
                             {T[lang].DOWNLOAD_AUDIT}
                           </button>
@@ -1184,24 +1184,24 @@ export default function CopilotPage() {
                         {/* Compact stats header — score/result/state always visible */}
                         <div className="flex items-center gap-3 pb-3 border-b border-white/8">
                           <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-                            <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-600">{T[lang].CALL_RESULT}</p>
+                            <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-400">{T[lang].CALL_RESULT}</p>
                             <p className="text-xs font-mono font-semibold text-white truncate">{callSummary.resultLabel}</p>
                           </div>
                           <div className="shrink-0 text-center">
-                            <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-600">{T[lang].CALL_SCORE}</p>
+                            <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-400">{T[lang].CALL_SCORE}</p>
                             <p className="text-xl font-mono font-bold text-white leading-none">
-                              {callSummary.score.toFixed(1)}<span className="text-zinc-600 text-xs"> /10</span>
+                              {callSummary.score.toFixed(1)}<span className="text-zinc-500 text-xs"> /10</span>
                             </p>
                           </div>
                           <div className="shrink-0 text-right">
-                            <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-600">{T[lang].CALL_STATE}</p>
+                            <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-400">{T[lang].CALL_STATE}</p>
                             <p className="text-xs font-mono font-semibold text-white uppercase">{callSummary.globalState}</p>
                           </div>
                         </div>
 
                         {/* Full report text */}
                         <div className="flex flex-col gap-2">
-                          <p className="text-[10px] font-mono tracking-widest uppercase text-zinc-600">{T[lang].FULL_REPORT}</p>
+                          <p className="text-[10px] font-mono tracking-widest uppercase text-zinc-400">{T[lang].FULL_REPORT}</p>
                           <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 max-h-80 overflow-y-auto">
                             <p className="text-xs font-mono text-zinc-300 leading-relaxed whitespace-pre-wrap">{callSummary.fullReport}</p>
                           </div>
@@ -1226,14 +1226,14 @@ export default function CopilotPage() {
                           {/* 3. Back to summary — secondary text link */}
                           <button
                             onClick={() => setEndStep("summary")}
-                            className="w-full text-center text-[10px] font-mono text-zinc-600 hover:text-zinc-300 py-1.5 transition-colors"
+                            className="w-full text-center text-[10px] font-mono text-zinc-500 hover:text-zinc-200 py-1.5 transition-colors"
                           >
                             {T[lang].BACK_SUMMARY}
                           </button>
                           {/* 4. Download session audit log */}
                           <button
                             onClick={handleDownloadAuditLog}
-                            className="w-full text-center text-[10px] font-mono text-zinc-600 hover:text-zinc-400 py-1 transition-colors"
+                            className="w-full text-center text-[10px] font-mono text-zinc-500 hover:text-zinc-300 py-1 transition-colors"
                           >
                             {T[lang].DOWNLOAD_AUDIT}
                           </button>
@@ -1337,7 +1337,7 @@ export default function CopilotPage() {
       {/* Interim transcript — own row, well below main text */}
       <div className="shrink-0 h-8 flex items-center justify-center px-6 pointer-events-none">
         {inputMode === "listen" && isSessionListening && interimText && (
-          <p className="text-[11px] text-zinc-500 font-mono truncate max-w-xl w-full text-center">
+          <p className="text-[11px] text-zinc-400 font-mono truncate max-w-xl w-full text-center">
             {interimText}
           </p>
         )}
@@ -1511,7 +1511,7 @@ export default function CopilotPage() {
         </div>
 
         {/* Keyboard hint */}
-        <p className="text-[9px] font-mono text-zinc-500 tracking-widest">
+        <p className="text-[9px] font-mono text-zinc-400 tracking-widest">
           {speakerMode === "auto" && inferredAutoLabel
             ? T[lang].autoHint(inferredAutoLabel)
             : T[lang].KBD}

@@ -185,7 +185,7 @@ function AdvancedForm({ onSubmit, lang }: { onSubmit: (context: string) => void;
         {!isLast && (
           <button
             onClick={goNext}
-            className="text-[11px] font-mono text-zinc-600 hover:text-zinc-300 transition-colors py-1.5 text-center"
+            className="text-[11px] font-mono text-zinc-500 hover:text-zinc-200 transition-colors py-1.5 text-center"
           >
             {t.ADV_NEXT}
           </button>
@@ -228,7 +228,7 @@ export function ContextSetup({
               <h1 className="text-3xl font-mono font-bold text-white tracking-[0.12em] uppercase leading-none">
                 Closer Wizard
               </h1>
-              <p className="text-[11px] font-mono text-zinc-500 tracking-[0.2em] uppercase">
+              <p className="text-[11px] font-mono text-zinc-400 tracking-[0.2em] uppercase">
                 {t.SUBTITLE}
               </p>
             </div>
@@ -356,14 +356,14 @@ export function SessionBar({
       >
         <div className="flex items-center gap-2 flex-1 min-w-0 pr-3">
           {/* Brand mark — icon + wordmark as persistent identity anchor */}
-          <WizardIcon className="w-2.5 h-2.5 text-zinc-500 shrink-0" />
-          <span className="text-[8px] font-mono tracking-[0.25em] uppercase text-zinc-500 shrink-0">
+          <WizardIcon className="w-2.5 h-2.5 text-zinc-400 shrink-0" />
+          <span className="text-[8px] font-mono tracking-[0.25em] uppercase text-zinc-400 shrink-0">
             Closer Wizard
           </span>
           <div className="w-px h-2.5 bg-zinc-800 shrink-0" />
           {/* Session indicator */}
           <div className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
-          <span className="text-[10px] font-mono tracking-widest uppercase text-zinc-500 shrink-0">
+          <span className="text-[10px] font-mono tracking-widest uppercase text-zinc-300 shrink-0">
             {t.SESSION}
           </span>
           {!expanded && (
@@ -398,8 +398,8 @@ export function SessionBar({
             {endLabel ?? t.END}
           </button>
           {expanded
-            ? <ChevronUp className="w-3 h-3 text-zinc-600" />
-            : <ChevronDown className="w-3 h-3 text-zinc-600" />}
+            ? <ChevronUp className="w-3 h-3 text-zinc-400" />
+            : <ChevronDown className="w-3 h-3 text-zinc-400" />}
         </div>
       </div>
 
