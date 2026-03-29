@@ -28,6 +28,7 @@ A single-screen, ultraminimalist sales call assistant for use on a second screen
 - **Tactical engine**: POST /api/copilot/analyze → { signal, say_now, avoid }
 - **UI**: Pure black background, large centered text, SEÑAL / DI AHORA / EVITA layout, smooth Framer Motion transitions.
 - **Arena mode**: Separate chat-based conversation simulator. User picks "Yo soy vendedor" or "Yo soy cliente", AI plays the opposite role. Routes: POST /api/arena/start, /api/arena/turn, /api/arena/finish. In-memory sessions. Exportable unified audit log (.md). Completely separate UX from Copilot mode.
+- **Arena profiles**: Client personality profiles (analítico, emocional, inseguro, arrogante, indeciso, duro) when user is seller. Seller profiles (comunicativo, autoritario, técnico, pasivo, agresivo, consultivo) when user is client. Difficulty levels (fácil, normal, difícil, brutal) for seller role. Random context generator (shuffle button). ArenaAdvancedForm with role-specific step questions. Profiles/difficulty injected into system prompts on the backend.
 - **Unified Audit Log**: `artifacts/silent-closer/src/lib/audit-log.ts` — shared module for both Copiloto and Arena. Types: AuditLog, SessionMeta, SessionContext, SessionConfig, AuditTurn, CopilotTurnData, ArenaTurnData, SessionSummary, AuditHints. Functions: buildCopilotAuditLog(), buildArenaAuditLog(), renderAuditLogMarkdown(), triggerAuditLogDownload(). Output: forensic markdown (.md) compatible with Closer Wizard Auditor GPT.
 
 ### Known limitations (first MVP)

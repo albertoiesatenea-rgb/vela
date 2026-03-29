@@ -401,6 +401,7 @@ export function Arena({
   contextLabel,
   role,
   lang,
+  arenaConfig = {},
   onExit,
   onRetry,
 }: {
@@ -408,6 +409,7 @@ export function Arena({
   contextLabel: string;
   role: ArenaRole;
   lang: Lang;
+  arenaConfig?: { clientProfile?: string; sellerProfile?: string; difficulty?: string };
   onExit: () => void;
   onRetry?: () => void;
 }) {
@@ -452,7 +454,7 @@ export function Arena({
         const res = await fetch("/api/arena/start", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ role, lang, context }),
+          body: JSON.stringify({ role, lang, context, ...arenaConfig }),
         });
         const data = await res.json() as { arenaSessionId: string; openingMessage: string };
         if (cancelled) return;

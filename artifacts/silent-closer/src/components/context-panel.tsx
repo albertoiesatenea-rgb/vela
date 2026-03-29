@@ -1,7 +1,13 @@
 import { useState, useRef, useEffect } from "react";
-import { ChevronDown, ChevronUp, Zap, SlidersHorizontal, User, Users, Target, Briefcase, ShieldOff, FileText, Swords, Navigation, Headphones } from "lucide-react";
+import { ChevronDown, ChevronUp, Zap, SlidersHorizontal, User, Users, Target, Briefcase, ShieldOff, FileText, Swords, Navigation, Headphones, Shuffle, Package, Building, Lightbulb, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ArenaRole } from "@/pages/arena";
+
+export interface ArenaConfig {
+  clientProfile?: string;
+  sellerProfile?: string;
+  difficulty?: string;
+}
 
 type AppMode = "copilot" | "arena";
 
@@ -131,6 +137,229 @@ function buildContextFromAdvanced(answers: string[], lang: Lang): string {
   return parts.join("\n");
 }
 
+// ── Arena profiles & difficulty ──────────────────────────────────────────────
+const CLIENT_PROFILES = {
+  es: [
+    { id: "analytical",      label: "Analítico" },
+    { id: "emotional",       label: "Emocional" },
+    { id: "insecure",        label: "Inseguro" },
+    { id: "arrogant",        label: "Arrogante" },
+    { id: "indecisive",      label: "Indeciso" },
+    { id: "hard_negotiator", label: "Duro" },
+  ],
+  en: [
+    { id: "analytical",      label: "Analytical" },
+    { id: "emotional",       label: "Emotional" },
+    { id: "insecure",        label: "Insecure" },
+    { id: "arrogant",        label: "Arrogant" },
+    { id: "indecisive",      label: "Indecisive" },
+    { id: "hard_negotiator", label: "Hard" },
+  ],
+};
+
+const SELLER_PROFILES = {
+  es: [
+    { id: "communicative", label: "Comunicativo" },
+    { id: "authoritative", label: "Autoritario" },
+    { id: "technical",     label: "Técnico" },
+    { id: "passive",       label: "Pasivo" },
+    { id: "aggressive",    label: "Agresivo" },
+    { id: "consultive",    label: "Consultivo" },
+  ],
+  en: [
+    { id: "communicative", label: "Communicative" },
+    { id: "authoritative", label: "Authoritative" },
+    { id: "technical",     label: "Technical" },
+    { id: "passive",       label: "Passive" },
+    { id: "aggressive",    label: "Aggressive" },
+    { id: "consultive",    label: "Consultive" },
+  ],
+};
+
+const DIFFICULTY_LEVELS = {
+  es: [
+    { id: "easy",   label: "Fácil" },
+    { id: "normal", label: "Normal" },
+    { id: "hard",   label: "Difícil" },
+    { id: "brutal", label: "Brutal" },
+  ],
+  en: [
+    { id: "easy",   label: "Easy" },
+    { id: "normal", label: "Normal" },
+    { id: "hard",   label: "Hard" },
+    { id: "brutal", label: "Brutal" },
+  ],
+};
+
+const RANDOM_CONTEXTS = {
+  seller: {
+    es: [
+      "Vendo software de gestión de proyectos a una empresa de construcción mediana que sigue usando hojas de Excel.",
+      "Ofrezco servicios de consultoría de marketing digital a un restaurante local que quiere crecer online.",
+      "Presento una solución de ciberseguridad a un despacho de abogados que acaba de sufrir un ciberataque menor.",
+      "Vendo seguros de vida a un emprendedor de 35 años, casado y con dos hijos pequeños.",
+      "Propongo un sistema de automatización de almacén a un distribuidor de alimentación que tiene problemas de errores en pedidos.",
+      "Ofrezco formación corporativa en ventas a una empresa de telecomunicaciones con resultados mediocres este año.",
+      "Vendo una plataforma de recursos humanos a una empresa de 80 personas que gestiona todo con email y papel.",
+      "Propongo servicios de contabilidad online a una startup tecnológica que lleva 2 años funcionando.",
+      "Vendo un CRM a una inmobiliaria que tiene 12 agentes y ningún sistema de seguimiento de clientes.",
+      "Ofrezco servicios de diseño web y posicionamiento SEO a una clínica dental que no aparece en Google.",
+    ],
+    en: [
+      "I'm selling project management software to a mid-size construction firm still using spreadsheets.",
+      "I'm offering digital marketing consulting to a local restaurant that wants to grow online.",
+      "I'm presenting a cybersecurity solution to a law firm that recently had a minor data breach.",
+      "I'm selling life insurance to a 35-year-old entrepreneur with a young family.",
+      "I'm proposing warehouse automation to a food distributor struggling with order errors.",
+      "I'm selling sales training services to a telecom company with weak results this year.",
+      "I'm offering an HR platform to an 80-person company managing everything via email.",
+      "I'm selling accounting software to a 2-year-old tech startup.",
+      "I'm selling a CRM to a real estate agency with 12 agents and no tracking system.",
+      "I'm offering web design and SEO to a dental clinic that doesn't appear in Google.",
+    ],
+  },
+  client: {
+    es: [
+      "Soy el director financiero de una empresa de 60 personas. Me llaman para venderme un software de contabilidad que ya tienen varios empleados pidiendo.",
+      "Soy el dueño de una cafetería con 3 locales. Me contactan para ofrecerme publicidad en una revista del sector.",
+      "Soy el responsable de compras de una empresa industrial. Un proveedor quiere que cambie a su solución de mantenimiento.",
+      "Soy un inversor privado. Me presentan una oportunidad de invertir en una startup de tecnología educativa.",
+      "Soy el director de RRHH de una empresa de 200 personas. Me proponen un nuevo sistema de selección de personal.",
+      "Soy el gerente de una clínica privada. Me ofrecen una plataforma de gestión de citas y pacientes.",
+    ],
+    en: [
+      "I'm the CFO of a 60-person company. I'm being called to buy accounting software that several employees have been requesting.",
+      "I own a coffee chain with 3 locations. I'm being offered advertising in an industry magazine.",
+      "I'm the purchasing manager at an industrial firm. A supplier wants me to switch to their maintenance solution.",
+      "I'm a private investor being pitched an edtech startup opportunity.",
+      "I'm the HR Director of a 200-person company being pitched a new recruitment platform.",
+      "I'm the manager of a private clinic being offered a patient management system.",
+    ],
+  },
+};
+
+function pickRandomContext(role: ArenaRole, lang: Lang): string {
+  const pool = RANDOM_CONTEXTS[role][lang];
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+// ── Arena Advanced Form ───────────────────────────────────────────────────────
+const ARENA_ADV_ICONS_SELLER = [Package, Building, Lightbulb, ShieldOff];
+const ARENA_ADV_ICONS_CLIENT = [User, Briefcase, MessageSquare];
+
+function ArenaAdvancedForm({
+  role,
+  lang,
+  onSubmit,
+}: {
+  role: ArenaRole;
+  lang: Lang;
+  onSubmit: (ctx: string) => void;
+}) {
+  const isSeller = role === "seller";
+
+  const questions = isSeller
+    ? (lang === "es"
+        ? ["¿Qué estás vendiendo?", "¿A quién o qué empresa?", "¿Cuál es tu principal argumento de valor?", "¿Posibles objeciones o frenos?"]
+        : ["What are you selling?", "Who or what company?", "What is your main value argument?", "Possible objections or blockers?"])
+    : (lang === "es"
+        ? ["¿Qué te están vendiendo?", "¿Cuál es tu rol o empresa?", "¿Cuál es tu principal duda o preocupación?"]
+        : ["What are they selling you?", "What's your role or company?", "What's your main doubt or concern?"]);
+
+  const placeholders = isSeller
+    ? (lang === "es"
+        ? ["software de CRM, seguro de vida, servicio de limpieza…", "director de ventas, pyme de 50 personas, startup…", "ahorra un 30% en costes operativos…", "precio, ya tienen proveedor, no es el momento…"]
+        : ["CRM software, life insurance, cleaning service…", "sales director, 50-person SME, startup…", "saves 30% in operational costs…", "price, already have a provider, bad timing…"])
+    : (lang === "es"
+        ? ["un CRM, un seguro de empresa, consultoría…", "director financiero, responsable de compras…", "precio demasiado alto, no estoy convencido de necesitarlo…"]
+        : ["a CRM, business insurance, consulting…", "CFO, purchasing manager…", "price too high, not convinced I need it…"]);
+
+  const labels = isSeller
+    ? (lang === "es"
+        ? ["Producto", "A quién", "Valor", "Objeciones"]
+        : ["Product", "To whom", "Value", "Objections"])
+    : (lang === "es"
+        ? ["Qué venden", "Mi rol", "Mi duda"]
+        : ["What's sold", "My role", "My doubt"]);
+
+  const icons = isSeller ? ARENA_ADV_ICONS_SELLER : ARENA_ADV_ICONS_CLIENT;
+
+  const [step, setStep] = useState(0);
+  const [answers, setAnswers] = useState<string[]>(Array(questions.length).fill(""));
+
+  const setAnswer = (v: string) =>
+    setAnswers(prev => { const n = [...prev]; n[step] = v; return n; });
+
+  const buildCtx = (ans: string[]) => {
+    return ans
+      .map((v, i) => v.trim() ? `${labels[i]}: ${v.trim()}` : null)
+      .filter(Boolean)
+      .join("\n");
+  };
+
+  const goNext = () => {
+    if (step < questions.length - 1) setStep(s => s + 1);
+    else onSubmit(buildCtx(answers));
+  };
+
+  const ctaLabel = lang === "es" ? "Entrar en Arena →" : "Enter Arena →";
+
+  return (
+    <div className="flex flex-col gap-5">
+      {/* Step icons */}
+      <div className="flex gap-1">
+        {labels.map((label, i) => {
+          const Icon = icons[i];
+          const isCurrent = i === step;
+          const isFilled = answers[i].trim().length > 0;
+          return (
+            <button
+              key={i}
+              onClick={() => setStep(i)}
+              onMouseDown={e => e.preventDefault()}
+              className={cn(
+                "flex-1 flex flex-col items-center gap-1 py-2 px-0.5 rounded-lg transition-all",
+                isCurrent ? "bg-white/8 border border-white/12" : "hover:bg-white/6 border border-transparent"
+              )}
+            >
+              <Icon className={cn("w-3 h-3 transition-colors", isCurrent ? "text-white" : isFilled ? "text-zinc-200" : "text-zinc-400")} />
+              <span className={cn("text-[7px] font-mono tracking-wider uppercase w-full text-center transition-colors truncate",
+                isCurrent ? "text-white" : isFilled ? "text-zinc-300" : "text-zinc-400"
+              )}>
+                {label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Active question */}
+      <div className="flex flex-col gap-3">
+        <p className="text-[14px] font-mono font-semibold text-white leading-snug">
+          {questions[step]}
+        </p>
+        <input
+          key={step}
+          type="text"
+          value={answers[step]}
+          onChange={e => setAnswer(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); goNext(); } }}
+          placeholder={placeholders[step]}
+          autoFocus
+          className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-700 focus:outline-none focus:border-zinc-600 transition-colors font-mono"
+        />
+      </div>
+
+      <button
+        onClick={() => onSubmit(buildCtx(answers))}
+        className="w-full bg-white text-black text-xs font-mono font-semibold py-3 rounded-xl hover:bg-zinc-100 transition-all active:scale-[0.98]"
+      >
+        {ctaLabel}
+      </button>
+    </div>
+  );
+}
+
 // ── Step-by-step Advanced form ───────────────────────────────────────────────
 const ADV_TOTAL = 6;
 
@@ -224,7 +453,7 @@ export function ContextSetup({
   onLangChange,
 }: {
   onContextReady: (ctx: string) => void;
-  onArenaReady: (ctx: string, role: ArenaRole) => void;
+  onArenaReady: (ctx: string, role: ArenaRole, config: ArenaConfig) => void;
   lang: Lang;
   onLangChange: (l: Lang) => void;
 }) {
@@ -233,6 +462,12 @@ export function ContextSetup({
   const [appMode, setAppMode] = useState<AppMode>("copilot");
   const [arenaRole, setArenaRole] = useState<ArenaRole>("seller");
   const [quickText, setQuickText] = useState("");
+
+  // Arena profile/difficulty state
+  const [clientProfile, setClientProfile] = useState<string | undefined>(undefined);
+  const [sellerProfile, setSellerProfile] = useState<string | undefined>(undefined);
+  const [difficulty, setDifficulty] = useState<string>("normal");
+
   const quickRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-focus the textarea on mount and whenever quick mode is activated
@@ -244,19 +479,29 @@ export function ContextSetup({
 
   const handleSetAppMode = (m: AppMode) => {
     setAppMode(m);
-    if (m === "arena") setContextMode("quick"); // Advanced form has no meaning in Arena
   };
 
   const handleSubmit = (ctx: string) => {
     if (!ctx.trim()) return;
     if (appMode === "arena") {
-      onArenaReady(ctx, arenaRole);
+      onArenaReady(ctx, arenaRole, { clientProfile, sellerProfile, difficulty });
     } else {
       onContextReady(ctx);
     }
   };
 
+  const handleRandomContext = () => {
+    const ctx = pickRandomContext(arenaRole, lang);
+    setQuickText(ctx);
+    setTimeout(() => quickRef.current?.focus(), 50);
+  };
+
   const ctaLabel = appMode === "arena" ? t.START_ARENA : t.START;
+
+  // Profile chips to show in Arena quick mode
+  const clientProfileItems = CLIENT_PROFILES[lang];
+  const sellerProfileItems = SELLER_PROFILES[lang];
+  const difficultyItems = DIFFICULTY_LEVELS[lang];
 
   return (
     <div className="fixed inset-0 bg-black flex flex-col items-center justify-center px-6 overflow-y-auto py-6">
@@ -297,7 +542,7 @@ export function ContextSetup({
         {/* ── Controls row ──────────────────────────────────────────────── */}
         <div className="flex items-center justify-between gap-3">
 
-          {/* Mode pill — expands inline with role options when Arena is active */}
+          {/* Mode pill */}
           <div className="flex items-center bg-zinc-950 p-1 rounded-full border border-zinc-800">
             <button
               onClick={() => handleSetAppMode("copilot")}
@@ -312,7 +557,6 @@ export function ContextSetup({
             </button>
 
             {appMode === "copilot" ? (
-              /* Copilot active — show plain Arena option */
               <button
                 onClick={() => handleSetAppMode("arena")}
                 onMouseDown={e => e.preventDefault()}
@@ -322,16 +566,13 @@ export function ContextSetup({
                 {t.MODE_ARENA}
               </button>
             ) : (
-              /* Arena active — grouped role sub-options */
               <>
                 <button
                   onClick={() => setArenaRole("seller")}
                   onMouseDown={e => e.preventDefault()}
                   className={cn(
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono transition-all",
-                    arenaRole === "seller"
-                      ? "bg-white text-black"
-                      : "bg-zinc-800 text-zinc-300 hover:text-white"
+                    arenaRole === "seller" ? "bg-white text-black" : "bg-zinc-800 text-zinc-300 hover:text-white"
                   )}
                 >
                   <Headphones className="w-3 h-3" />
@@ -342,9 +583,7 @@ export function ContextSetup({
                   onMouseDown={e => e.preventDefault()}
                   className={cn(
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono transition-all",
-                    arenaRole === "client"
-                      ? "bg-white text-black"
-                      : "bg-zinc-800 text-zinc-300 hover:text-white"
+                    arenaRole === "client" ? "bg-white text-black" : "bg-zinc-800 text-zinc-300 hover:text-white"
                   )}
                 >
                   <User className="w-3 h-3" />
@@ -354,71 +593,235 @@ export function ContextSetup({
             )}
           </div>
 
-          {/* Rápido/Avanzado only makes sense in Copilot mode */}
-          {appMode === "copilot" && (
-            <div className="flex items-center bg-zinc-950 p-1 rounded-full border border-zinc-800">
-              <button
-                onClick={() => setContextMode("quick")}
-                onMouseDown={e => e.preventDefault()}
-                className={cn(
-                  "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono transition-all",
-                  contextMode === "quick" ? "bg-white text-black" : "text-zinc-300 hover:text-white"
-                )}
-              >
-                <Zap className="w-3 h-3" />
-                {t.QUICK}
-              </button>
-              <button
-                onClick={() => setContextMode("advanced")}
-                onMouseDown={e => e.preventDefault()}
-                className={cn(
-                  "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono transition-all",
-                  contextMode === "advanced" ? "bg-white text-black" : "text-zinc-300 hover:text-white"
-                )}
-              >
-                <SlidersHorizontal className="w-3 h-3" />
-                {t.ADVANCED}
-              </button>
-            </div>
-          )}
+          {/* Rápido/Avanzado — both modes */}
+          <div className="flex items-center bg-zinc-950 p-1 rounded-full border border-zinc-800">
+            <button
+              onClick={() => setContextMode("quick")}
+              onMouseDown={e => e.preventDefault()}
+              className={cn(
+                "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono transition-all",
+                contextMode === "quick" ? "bg-white text-black" : "text-zinc-300 hover:text-white"
+              )}
+            >
+              <Zap className="w-3 h-3" />
+              {t.QUICK}
+            </button>
+            <button
+              onClick={() => setContextMode("advanced")}
+              onMouseDown={e => e.preventDefault()}
+              className={cn(
+                "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono transition-all",
+                contextMode === "advanced" ? "bg-white text-black" : "text-zinc-300 hover:text-white"
+              )}
+            >
+              <SlidersHorizontal className="w-3 h-3" />
+              {t.ADVANCED}
+            </button>
+          </div>
         </div>
 
-        {/* ── Context input ─────────────────────────────────────────────── */}
+        {/* ── Quick mode ────────────────────────────────────────────────── */}
         {contextMode === "quick" && (
-          <textarea
-            ref={quickRef}
-            value={quickText}
-            onChange={(e) => setQuickText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                if (quickText.trim()) handleSubmit(quickText);
-              }
-            }}
-            placeholder={
-              appMode === "arena"
-                ? (arenaRole === "client" ? t.ARENA_PH_CLIENT : t.ARENA_PH_SELLER)
-                : t.PLACEHOLDER
-            }
-            rows={3}
-            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors font-mono resize-none leading-relaxed"
-          />
+          <>
+            {/* Context textarea + random button */}
+            <div className="relative">
+              <textarea
+                ref={quickRef}
+                value={quickText}
+                onChange={(e) => setQuickText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    if (quickText.trim()) handleSubmit(quickText);
+                  }
+                }}
+                placeholder={
+                  appMode === "arena"
+                    ? (arenaRole === "client" ? t.ARENA_PH_CLIENT : t.ARENA_PH_SELLER)
+                    : t.PLACEHOLDER
+                }
+                rows={3}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 pr-12 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors font-mono resize-none leading-relaxed"
+              />
+              {/* Random context button — only in Arena */}
+              {appMode === "arena" && (
+                <button
+                  onClick={handleRandomContext}
+                  onMouseDown={e => e.preventDefault()}
+                  title={lang === "es" ? "Contexto aleatorio" : "Random context"}
+                  className="absolute top-2.5 right-2.5 p-1.5 rounded-lg text-zinc-500 hover:text-white hover:bg-white/8 transition-all"
+                >
+                  <Shuffle className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* ── Arena-only: profile chips ──────────────────────────── */}
+            {appMode === "arena" && (
+              <div className="flex flex-col gap-3">
+                {/* Client profile — shown when user is seller (AI plays client) */}
+                {arenaRole === "seller" && (
+                  <div className="flex flex-col gap-1.5">
+                    <p className="text-[9px] font-mono text-zinc-500 uppercase tracking-[0.2em]">
+                      {lang === "es" ? "Perfil del cliente IA" : "AI client profile"}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {clientProfileItems.map(p => (
+                        <button
+                          key={p.id}
+                          onClick={() => setClientProfile(clientProfile === p.id ? undefined : p.id)}
+                          onMouseDown={e => e.preventDefault()}
+                          className={cn(
+                            "px-3 py-1 rounded-full text-[10px] font-mono transition-all border",
+                            clientProfile === p.id
+                              ? "bg-sky-500/20 border-sky-500/60 text-sky-300"
+                              : "bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500"
+                          )}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Seller profile — shown when user is client (AI plays seller) */}
+                {arenaRole === "client" && (
+                  <div className="flex flex-col gap-1.5">
+                    <p className="text-[9px] font-mono text-zinc-500 uppercase tracking-[0.2em]">
+                      {lang === "es" ? "Perfil del vendedor IA" : "AI seller profile"}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {sellerProfileItems.map(p => (
+                        <button
+                          key={p.id}
+                          onClick={() => setSellerProfile(sellerProfile === p.id ? undefined : p.id)}
+                          onMouseDown={e => e.preventDefault()}
+                          className={cn(
+                            "px-3 py-1 rounded-full text-[10px] font-mono transition-all border",
+                            sellerProfile === p.id
+                              ? "bg-teal-500/20 border-teal-500/60 text-teal-300"
+                              : "bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500"
+                          )}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Difficulty — only when user is seller */}
+                {arenaRole === "seller" && (
+                  <div className="flex flex-col gap-1.5">
+                    <p className="text-[9px] font-mono text-zinc-500 uppercase tracking-[0.2em]">
+                      {lang === "es" ? "Dificultad" : "Difficulty"}
+                    </p>
+                    <div className="flex gap-1.5">
+                      {difficultyItems.map(d => (
+                        <button
+                          key={d.id}
+                          onClick={() => setDifficulty(d.id)}
+                          onMouseDown={e => e.preventDefault()}
+                          className={cn(
+                            "flex-1 py-1 rounded-full text-[10px] font-mono transition-all border",
+                            difficulty === d.id
+                              ? "bg-amber-500/20 border-amber-500/60 text-amber-300"
+                              : "bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500"
+                          )}
+                        >
+                          {d.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* CTA */}
+            <button
+              onClick={() => handleSubmit(quickText)}
+              disabled={!quickText.trim()}
+              className="w-full bg-white text-black text-sm font-mono font-bold py-3.5 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all disabled:opacity-40 disabled:pointer-events-none"
+            >
+              {ctaLabel}
+            </button>
+          </>
         )}
 
-        {/* Advanced form */}
-        {contextMode === "advanced" && (
+        {/* ── Advanced form — Copilot ──────────────────────────────────── */}
+        {contextMode === "advanced" && appMode === "copilot" && (
           <AdvancedForm onSubmit={handleSubmit} lang={lang} ctaLabel={ctaLabel} />
         )}
 
-        {/* ── CTA (quick mode) ──────────────────────────────────────────── */}
-        {contextMode === "quick" && (
-          <button
-            onClick={() => handleSubmit(quickText)}
-            disabled={appMode === "arena" && !quickText.trim()}
-            className="w-full bg-white text-black text-sm font-mono font-bold py-3.5 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all disabled:opacity-40 disabled:pointer-events-none"
-          >
-            {ctaLabel}
-          </button>
+        {/* ── Advanced form — Arena ────────────────────────────────────── */}
+        {contextMode === "advanced" && appMode === "arena" && (
+          <>
+            <ArenaAdvancedForm
+              role={arenaRole}
+              lang={lang}
+              onSubmit={(ctx) => handleSubmit(ctx)}
+            />
+
+            {/* Profile/difficulty also available in advanced mode */}
+            <div className="flex flex-col gap-3">
+              {arenaRole === "seller" && (
+                <>
+                  <div className="flex flex-col gap-1.5">
+                    <p className="text-[9px] font-mono text-zinc-500 uppercase tracking-[0.2em]">
+                      {lang === "es" ? "Perfil del cliente IA" : "AI client profile"}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {clientProfileItems.map(p => (
+                        <button key={p.id} onClick={() => setClientProfile(clientProfile === p.id ? undefined : p.id)}
+                          onMouseDown={e => e.preventDefault()}
+                          className={cn("px-3 py-1 rounded-full text-[10px] font-mono transition-all border",
+                            clientProfile === p.id ? "bg-sky-500/20 border-sky-500/60 text-sky-300" : "bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500"
+                          )}>
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <p className="text-[9px] font-mono text-zinc-500 uppercase tracking-[0.2em]">
+                      {lang === "es" ? "Dificultad" : "Difficulty"}
+                    </p>
+                    <div className="flex gap-1.5">
+                      {difficultyItems.map(d => (
+                        <button key={d.id} onClick={() => setDifficulty(d.id)}
+                          onMouseDown={e => e.preventDefault()}
+                          className={cn("flex-1 py-1 rounded-full text-[10px] font-mono transition-all border",
+                            difficulty === d.id ? "bg-amber-500/20 border-amber-500/60 text-amber-300" : "bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500"
+                          )}>
+                          {d.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+              {arenaRole === "client" && (
+                <div className="flex flex-col gap-1.5">
+                  <p className="text-[9px] font-mono text-zinc-500 uppercase tracking-[0.2em]">
+                    {lang === "es" ? "Perfil del vendedor IA" : "AI seller profile"}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {sellerProfileItems.map(p => (
+                      <button key={p.id} onClick={() => setSellerProfile(sellerProfile === p.id ? undefined : p.id)}
+                        onMouseDown={e => e.preventDefault()}
+                        className={cn("px-3 py-1 rounded-full text-[10px] font-mono transition-all border",
+                          sellerProfile === p.id ? "bg-teal-500/20 border-teal-500/60 text-teal-300" : "bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500"
+                        )}>
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
         )}
 
       </div>

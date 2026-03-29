@@ -4,6 +4,7 @@ import { useAnalyzeConversation } from "@workspace/api-client-react";
 import { useSpeech } from "@/hooks/use-speech";
 import { TacticalDisplay } from "@/components/tactical-display";
 import { ContextSetup, SessionBar, WizardIcon } from "@/components/context-panel";
+import type { ArenaConfig } from "@/components/context-panel";
 import { Arena } from "@/pages/arena";
 import type { ArenaRole } from "@/pages/arena";
 import { cn } from "@/lib/utils";
@@ -451,6 +452,7 @@ export default function CopilotPage() {
   const [simulateText, setSimulateText] = useState("");
   const [sessionContext, setSessionContext] = useState<string | null>(loadSession);
   const [arenaRole, setArenaRole] = useState<ArenaRole | null>(null);
+  const [arenaConfig, setArenaConfig] = useState<ArenaConfig>({});
   const [arenaKey, setArenaKey] = useState(0);
   const [tacticalState, setTacticalState] = useState<TacticalState>(EMPTY_STATE);
   const [contextLabel, setContextLabel] = useState<string>(loadLabel);
@@ -664,9 +666,10 @@ export default function CopilotPage() {
       .catch(() => {});
   };
 
-  const handleArenaReady = (context: string, role: ArenaRole) => {
+  const handleArenaReady = (context: string, role: ArenaRole, config: ArenaConfig) => {
     setSessionContext(context);
     setArenaRole(role);
+    setArenaConfig(config);
     setContextLabel("");
     saveLabel("");
     // Generate short label for the top bar
@@ -812,6 +815,7 @@ export default function CopilotPage() {
         contextLabel={contextLabel}
         role={arenaRole}
         lang={lang}
+        arenaConfig={arenaConfig}
         onExit={handleActuallyClearSession}
         onRetry={() => setArenaKey(k => k + 1)}
       />

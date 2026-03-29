@@ -24,46 +24,92 @@ interface ArenaSession {
   createdAt: string;
   closedAt?: string;
   outcome?: Exclude<ArenaOutcome, "none">;
+  clientProfile?: string;
+  sellerProfile?: string;
+  difficulty?: string;
 }
 
 // ── In-memory session store ───────────────────────────────────────────────────
 const sessions = new Map<string, ArenaSession>();
 
+// ── Personality & difficulty descriptors ─────────────────────────────────────
+const CLIENT_PROFILE_DESC: Record<string, string> = {
+  analytical:      "Eres analítico: necesitas datos, números y evidencia antes de decidir. Haces muchas preguntas técnicas y específicas. Los argumentos emocionales no te convencen.",
+  emotional:       "Eres emocional: decides basándote en confianza, sensaciones y relación personal. Te afectan los testimonios y casos de éxito. La conexión con el vendedor importa mucho.",
+  insecure:        "Eres inseguro: tienes muchas dudas y miedo a equivocarte. Necesitas validación y garantías constantes. Postpones decisiones y buscas opiniones externas.",
+  arrogant:        "Eres arrogante: crees que sabes más que el vendedor. Cuestionas su competencia, comparas con competidores y eres difícil de impresionar.",
+  indecisive:      "Eres indeciso: cambias de opinión, necesitas mucho tiempo, dices 'me lo pienso' repetidamente y es difícil que te comprometas a nada.",
+  hard_negotiator: "Eres un negociador duro: presionas siempre en precio, pides descuentos agresivos, comparas con la competencia y amenazas con no cerrar si no obtienes condiciones.",
+};
+
+const SELLER_PROFILE_DESC: Record<string, string> = {
+  communicative: "Eres comunicativo: hablas mucho, construyes relación, usas anécdotas y ejemplos. A veces te extiendes demasiado.",
+  authoritative: "Eres autoritario: proyectas mucha seguridad, eres directo y asertivo, controlas la conversación y rebates objeciones con firmeza.",
+  technical:     "Eres técnico: hablas en detalle de características, especificaciones y datos. Eres muy preciso pero a veces poco emocional.",
+  passive:       "Eres pasivo: escuchas mucho, no presionas, esperas que el cliente llegue a sus conclusiones. Puedes parecer poco convencido de tu propio producto.",
+  aggressive:    "Eres agresivo: presionas para cerrar, creas urgencia artificial, no aceptas 'no' fácilmente y puedes incomodar al cliente.",
+  consultive:    "Eres consultivo: haces muchas preguntas, entiendes primero las necesidades del cliente y adaptas tu solución antes de argumentar.",
+};
+
+const DIFFICULTY_DESC: Record<string, string> = {
+  easy:   "Sé fácil de convencer. Tienes pocas objeciones y estás bastante abierto a escuchar.",
+  normal: "Sé realista. Tienes algunas objeciones válidas y necesitas buenos argumentos para convencerte.",
+  hard:   "Sé exigente. Tienes muchas objeciones, comparas mucho con la competencia y eres difícil de convencer.",
+  brutal: "Sé muy difícil. Eres escéptico, cuestionas todo, tienes objeciones fuertes y solo cederás ante argumentos verdaderamente sólidos.",
+};
+
 // ── Prompt builders ───────────────────────────────────────────────────────────
-function buildSystemPrompt(role: ArenaRole, context: string, lang: Lang): string {
+function buildSystemPrompt(
+  role: ArenaRole,
+  context: string,
+  lang: Lang,
+  clientProfile?: string,
+  sellerProfile?: string,
+  difficulty?: string,
+): string {
   const langRule = lang === "en"
     ? "Respond only in English."
     : "Responde solo en español.";
 
   if (role === "seller") {
+    const profileNote = clientProfile && CLIENT_PROFILE_DESC[clientProfile]
+      ? `\nPERSONALIDAD: ${CLIENT_PROFILE_DESC[clientProfile]}`
+      : "";
+    const diffNote = difficulty && DIFFICULTY_DESC[difficulty]
+      ? `\nDIFICULTAD: ${DIFFICULTY_DESC[difficulty]}`
+      : "";
+
     return `Eres el cliente/prospecto en una simulación de conversación de venta.
 
 Contexto de la sesión:
 ${context || "Conversación de venta genérica."}
+${profileNote}${diffNote}
 
-Tu papel es el de la otra parte: el cliente, inversor, prospecto o interlocutor que puede ser convencido.
-Responde siempre como esa persona. Puedes tener dudas, objeciones, preguntas, comparar alternativas o mostrar interés con reservas.
+Tu papel es el de la otra parte: el cliente, inversor, prospecto o interlocutor.
+Responde siempre como esa persona. Mantén tu personalidad y nivel de dificultad de forma consistente durante toda la conversación.
 
 Reglas:
-- Sé coherente con el contexto dado.
-- Si el contexto es escaso, simula un cliente realista y razonable.
-- No seas ni demasiado fácil ni imposiblemente hostil.
+- Sé coherente con el contexto y tu personalidad asignada.
 - Responde con 1-3 frases conversacionales naturales.
 - No añadas etiquetas, explicaciones ni metacomentarios.
 - Solo el texto de tu respuesta como cliente.
 ${langRule}`;
   } else {
-    return `Eres un vendedor/consultor experto en una simulación de conversación de venta.
+    const profileNote = sellerProfile && SELLER_PROFILE_DESC[sellerProfile]
+      ? `\nPERSONALIDAD: ${SELLER_PROFILE_DESC[sellerProfile]}`
+      : "";
+
+    return `Eres un vendedor/consultor en una simulación de conversación de venta.
 
 Contexto de la sesión:
 ${context || "Conversación de venta genérica."}
+${profileNote}
 
-Tu papel es el del vendedor: guías la conversación, gestionas objeciones, presentas argumentos sólidos y trabajas hacia un cierre o avance.
+Tu papel es el del vendedor: guías la conversación, gestionas objeciones, presentas argumentos y trabajas hacia un cierre o avance.
+Mantén tu personalidad de forma consistente durante toda la conversación.
 
 Reglas:
-- Sé coherente con el contexto dado.
-- Si el contexto es escaso, simula un vendedor profesional y razonable.
-- Sé profesional, directo y útil. No seas agresivo.
+- Sé coherente con el contexto y tu estilo de venta asignado.
 - Responde con 1-3 frases conversacionales naturales.
 - No añadas etiquetas, explicaciones ni metacomentarios.
 - Solo el texto de tu respuesta como vendedor.
@@ -71,18 +117,29 @@ ${langRule}`;
   }
 }
 
-function buildOpeningPrompt(role: ArenaRole, context: string, lang: Lang): string {
+function buildOpeningPrompt(
+  role: ArenaRole,
+  context: string,
+  lang: Lang,
+  clientProfile?: string,
+  sellerProfile?: string,
+): string {
   const langRule = lang === "en" ? "Write in English." : "Escribe en español.";
+  const profileHint = role === "seller" && clientProfile && CLIENT_PROFILE_DESC[clientProfile]
+    ? ` Personalidad del cliente: ${CLIENT_PROFILE_DESC[clientProfile]}`
+    : role === "client" && sellerProfile && SELLER_PROFILE_DESC[sellerProfile]
+    ? ` Personalidad del vendedor: ${SELLER_PROFILE_DESC[sellerProfile]}`
+    : "";
 
   if (role === "seller") {
     return `Genera el primer mensaje de un cliente/prospecto que inicia o responde a un primer contacto de venta.
-Contexto: ${context || "conversación de venta genérica"}
-Escribe 1-2 frases naturales como si fueras el cliente iniciando el contacto o respondiendo al vendedor. Sin etiquetas. Solo el texto.
+Contexto: ${context || "conversación de venta genérica"}${profileHint}
+Escribe 1-2 frases naturales como si fueras el cliente. Sin etiquetas. Solo el texto.
 ${langRule}`;
   } else {
     return `Genera el primer mensaje de un vendedor experto que inicia una conversación de venta.
-Contexto: ${context || "conversación de venta genérica"}
-Escribe 1-2 frases naturales como si fueras el vendedor iniciando el contacto. Sin etiquetas. Solo el texto.
+Contexto: ${context || "conversación de venta genérica"}${profileHint}
+Escribe 1-2 frases naturales como si fueras el vendedor. Sin etiquetas. Solo el texto.
 ${langRule}`;
   }
 }
@@ -222,10 +279,13 @@ Reply with one word only:`;
 
 // ── POST /api/arena/start ─────────────────────────────────────────────────────
 router.post("/arena/start", async (req, res) => {
-  const { role, lang = "es", context = "" } = req.body as {
+  const { role, lang = "es", context = "", clientProfile, sellerProfile, difficulty } = req.body as {
     role?: ArenaRole;
     lang?: Lang;
     context?: string;
+    clientProfile?: string;
+    sellerProfile?: string;
+    difficulty?: string;
   };
 
   if (!role || !["seller", "client"].includes(role)) {
@@ -241,6 +301,9 @@ router.post("/arena/start", async (req, res) => {
     context: context.trim(),
     turns: [],
     createdAt: new Date().toISOString(),
+    clientProfile,
+    sellerProfile,
+    difficulty,
   };
 
   let openingMessage = "";
@@ -248,7 +311,7 @@ router.post("/arena/start", async (req, res) => {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       max_tokens: 150,
-      messages: [{ role: "user", content: buildOpeningPrompt(role, context, lang) }],
+      messages: [{ role: "user", content: buildOpeningPrompt(role, context, lang, clientProfile, sellerProfile) }],
     });
     openingMessage = completion.choices[0]?.message?.content?.trim() ?? "";
   } catch {
@@ -293,7 +356,7 @@ router.post("/arena/turn", async (req, res) => {
   });
 
   const gptMessages: { role: "system" | "user" | "assistant"; content: string }[] = [
-    { role: "system", content: buildSystemPrompt(session.role, session.context, session.lang) },
+    { role: "system", content: buildSystemPrompt(session.role, session.context, session.lang, session.clientProfile, session.sellerProfile, session.difficulty) },
   ];
 
   for (const turn of session.turns) {
