@@ -32,65 +32,40 @@ export const AnalyzeConversationBody = zod.object({
     .describe("Accumulated call memory from previous analyses to be updated"),
 });
 
+// Helper: accept string | null | undefined from AI and normalise to string | undefined
+const nullableStr = zod.string().nullish().transform((v) => v ?? undefined);
+
 export const AnalyzeConversationResponse = zod.object({
   say_now: zod.string().describe("Tactical action to take (4-12 words)"),
-  avoid: zod
-    .string()
-    .optional()
-    .describe(
-      "What to avoid — only when there is a real, probable tactical error. Omit or leave empty if not critical.",
-    ),
-  hint: zod
-    .string()
-    .optional()
-    .describe(
-      "Brief coaching note — the tactical objective behind say_now (1 sentence, natural tone, max 15 words)",
-    ),
+  avoid: nullableStr.describe(
+    "What to avoid — only when there is a real, probable tactical error. Omit or leave empty if not critical.",
+  ),
+  hint: nullableStr.describe(
+    "Brief coaching note — the tactical objective behind say_now (1 sentence, natural tone, max 15 words)",
+  ),
   detail: zod
     .object({
-      reading: zod
-        .string()
-        .optional()
-        .describe(
-          "Richer interpretation of what is happening beneath the surface (1 sentence)",
-        ),
-      next_move: zod
-        .string()
-        .optional()
-        .describe(
-          "The single best actionable move — best question, best reframe, best close line. One path only.",
-        ),
-      support: zod
-        .string()
-        .optional()
-        .describe(
-          "Brief tactical reinforcement — reframing criterion, useful data type, or key commercial reminder. Never invent figures.",
-        ),
+      reading: nullableStr.describe(
+        "Richer interpretation of what is happening beneath the surface (1 sentence)",
+      ),
+      next_move: nullableStr.describe(
+        "The single best actionable move — best question, best reframe, best close line. One path only.",
+      ),
+      support: nullableStr.describe(
+        "Brief tactical reinforcement — reframing criterion, useful data type, or key commercial reminder. Never invent figures.",
+      ),
     })
-    .optional(),
+    .nullish()
+    .transform((v) => v ?? undefined),
   journey: zod
     .object({
-      past: zod
-        .string()
-        .describe(
-          'Academic label for the last completed phase (2-4 words, e.g. \"Propuesta presentada\")',
-        ),
-      now: zod
-        .string()
-        .describe(
-          'Specific description of what is happening right now — academic phase name + situational context (3-7 words, e.g. \"Manejo de objeción reputacional\")',
-        ),
-      next: zod
-        .string()
-        .describe(
-          'Next step to lead toward the session goal (2-4 words, e.g. \"Aterrizar el criterio\")',
-        ),
+      past: zod.string(),
+      now: zod.string(),
+      next: zod.string(),
     })
-    .optional(),
-  call_memory: zod
-    .string()
-    .optional()
-    .describe(
-      "Updated accumulated tactical summary of the call so far (4-6 bullet lines)",
-    ),
+    .nullish()
+    .transform((v) => v ?? undefined),
+  call_memory: nullableStr.describe(
+    "Updated accumulated tactical summary of the call so far (4-6 bullet lines)",
+  ),
 });
