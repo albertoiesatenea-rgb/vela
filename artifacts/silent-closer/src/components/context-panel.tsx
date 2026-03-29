@@ -223,7 +223,7 @@ export function ContextSetup({
             <img
               src="/wizard-logo.png"
               alt="Closer Wizard"
-              className="w-24 h-24 shrink-0 select-none -ml-3 -mr-4"
+              className="w-24 h-24 shrink-0 select-none -ml-3 -mr-2"
               style={{ clipPath: "inset(0 18% 18% 0)" }}
               draggable={false}
             />
