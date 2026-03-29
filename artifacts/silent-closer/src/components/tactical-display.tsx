@@ -31,7 +31,7 @@ function DetailRow({ label, value }: { label: string; value?: string }) {
   if (!value) return null;
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-zinc-200">{label}</span>
+      <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-zinc-400">{label}</span>
       <p className="text-xs font-mono text-zinc-200 leading-snug">{value}</p>
     </div>
   );
@@ -47,8 +47,10 @@ export function TacticalDisplay({ signal, sayNow, avoid, detail, callMemory, isP
     : [];
   const hasMemory = memoryLines.length > 0;
 
+  const panelOpen = detailOpen || memoryOpen;
+
   return (
-    <div className="h-full w-full flex flex-col overflow-y-auto">
+    <div className="h-full w-full flex flex-col relative">
 
       {/* ── SEÑAL ──────────────────────────────────── */}
       <div className="flex flex-col items-center justify-center gap-2 py-5 shrink-0">
@@ -71,7 +73,7 @@ export function TacticalDisplay({ signal, sayNow, avoid, detail, callMemory, isP
       </div>
 
       {/* ── DI AHORA ────────────────────────────────── */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 min-h-[120px]">
+      <div className="flex-1 flex flex-col items-center justify-center px-6">
         <span className="text-[10px] font-mono tracking-[0.3em] text-zinc-300 uppercase mb-6">DI AHORA</span>
         <AnimatePresence mode="wait">
           <motion.p
@@ -108,11 +110,9 @@ export function TacticalDisplay({ signal, sayNow, avoid, detail, callMemory, isP
         </div>
       </div>
 
-      {/* ── PANELS: DETAIL + MEMORY ────────────────── */}
+      {/* ── TOGGLE ROW — always anchored at bottom ── */}
       {(hasDetail || hasMemory) && (
-        <div className="shrink-0 border-t border-white/5 mx-4 mb-2">
-
-          {/* Toggle row */}
+        <div className="shrink-0 border-t border-white/5">
           <div className="flex items-center justify-center gap-6 py-2">
             {hasDetail && (
               <button
@@ -133,59 +133,49 @@ export function TacticalDisplay({ signal, sayNow, avoid, detail, callMemory, isP
               </button>
             )}
           </div>
-
-          {/* Detail panel */}
-          <AnimatePresence>
-            {detailOpen && hasDetail && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
-                className="overflow-hidden"
-              >
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-3 pt-1 border-t border-white/5">
-                  <DetailRow label="Lectura" value={detail?.reading} />
-                  <DetailRow label="Enfoque" value={detail?.argument} />
-                  {detail?.talk_track && (
-                    <div className="sm:col-span-2 flex flex-col gap-0.5">
-                      <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-zinc-200">Guion</span>
-                      <p className="text-xs font-mono text-zinc-200 leading-snug italic">{detail.talk_track}</p>
-                    </div>
-                  )}
-                  <DetailRow label="Pregunta" value={detail?.question} />
-                  <DetailRow label="Riesgo" value={detail?.risk} />
-                  <DetailRow label="Apoyo" value={detail?.support} />
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Memory panel */}
-          <AnimatePresence>
-            {memoryOpen && hasMemory && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
-                className="overflow-hidden"
-              >
-                <div className="pb-3 pt-1 border-t border-white/5">
-                  <ul className="space-y-1.5">
-                    {memoryLines.map((line, i) => (
-                      <li key={i} className="text-[11px] font-mono text-zinc-300 leading-snug">
-                        {line.startsWith("-") ? line : `- ${line}`}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
         </div>
       )}
+
+      {/* ── PANEL OVERLAY — absolute, floats above HUD ── */}
+      <AnimatePresence>
+        {panelOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 12 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="absolute left-0 right-0 bottom-[40px] bg-black border-t border-white/10 px-5 py-4 max-h-[52%] overflow-y-auto"
+          >
+            {/* Detail content */}
+            {detailOpen && hasDetail && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <DetailRow label="Lectura" value={detail?.reading} />
+                <DetailRow label="Enfoque" value={detail?.argument} />
+                {detail?.talk_track && (
+                  <div className="sm:col-span-2 flex flex-col gap-0.5">
+                    <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-zinc-400">Guion</span>
+                    <p className="text-xs font-mono text-zinc-200 leading-snug italic">{detail.talk_track}</p>
+                  </div>
+                )}
+                <DetailRow label="Pregunta" value={detail?.question} />
+                <DetailRow label="Riesgo" value={detail?.risk} />
+                <DetailRow label="Apoyo" value={detail?.support} />
+              </div>
+            )}
+
+            {/* Memory content */}
+            {memoryOpen && hasMemory && (
+              <ul className="space-y-1.5">
+                {memoryLines.map((line, i) => (
+                  <li key={i} className="text-[11px] font-mono text-zinc-300 leading-snug">
+                    {line.startsWith("-") ? line : `- ${line}`}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   );
