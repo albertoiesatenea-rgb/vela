@@ -289,6 +289,12 @@ export function ContextSetup({
               <textarea
                 value={quickText}
                 onChange={(e) => setQuickText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    if (quickText.trim()) onContextReady(quickText);
+                  }
+                }}
                 placeholder={t.PLACEHOLDER}
                 rows={2}
                 autoFocus
