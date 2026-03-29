@@ -2,21 +2,18 @@ import { useState } from "react";
 import { ChevronDown, ChevronUp, Zap, SlidersHorizontal, User, Users, Target, Briefcase, ShieldOff, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// ── Closer Wizard mark: bold wand + floating star ────────────────────────────
-// Three elements with intentional gap between wand tip and star:
-//   1. Rounded handle (the grip — bottom-left)
-//   2. Thick wand shaft (diagonal, stops mid-frame)
-//   3. Floating 4-point star in upper-right — clearly separated from the tip
-// The gap reads as "magic in flight", not a drooping wand.
+// ── Closer Wizard mark: minimal wizard hat silhouette ────────────────────────
+// Two filled shapes, no strokes:
+//   1. Cone — tall triangle, pointed tip
+//   2. Brim — wide ellipse beneath, overlaps cone base for a seamless join
+// Fully scalable SVG, reads cleanly at any size.
 function WizardIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
-      {/* Handle — heavy round end, grounds the wand at bottom-left */}
-      <circle cx="2" cy="18" r="2.2" fill="currentColor" />
-      {/* Wand shaft — stops at ~60% of diagonal, clear gap before star */}
-      <line x1="2" y1="18" x2="9" y2="7.5" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" />
-      {/* 4-point star — upper-right corner, floating above the wand tip */}
-      <path d="M16 0.5L17.4 2.6L19.5 4L17.4 5.4L16 7.5L14.6 5.4L12.5 4L14.6 2.6Z" fill="currentColor" />
+    <svg viewBox="0 0 20 20" fill="currentColor" className={className} aria-hidden>
+      {/* Cone body — pointed top, widens toward brim */}
+      <path d="M10 1.5 L4.5 14 L15.5 14 Z" />
+      {/* Brim — wide ellipse, overlaps cone base for seamless join */}
+      <ellipse cx="10" cy="14.5" rx="9" ry="2.3" />
     </svg>
   );
 }
