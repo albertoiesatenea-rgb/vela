@@ -127,7 +127,7 @@ function GuidedForm({ onSubmit }: { onSubmit: (context: string) => void }) {
         type="submit"
         className="w-full bg-white text-black text-sm font-mono font-bold py-3 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all mt-1"
       >
-        Comenzar sesión →
+        Iniciar copiloto →
       </button>
     </form>
   );
@@ -162,7 +162,7 @@ export function ContextSetup({
         {/* Functional section */}
         <div className="flex flex-col gap-5">
           <p className="text-[10px] font-mono tracking-[0.25em] uppercase text-zinc-400">
-            Prepara la llamada
+            Define el contexto
           </p>
 
           {/* Mode toggle */}
@@ -199,7 +199,7 @@ export function ContextSetup({
               <textarea
                 value={quickText}
                 onChange={(e) => setQuickText(e.target.value)}
-                placeholder="Quién es, qué quieres conseguir, qué te preocupa…"
+                placeholder="Ej: quiero vender un piso en Dresden a un inversor muy analítico que duda de la ciudad"
                 rows={2}
                 autoFocus
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors font-mono resize-none leading-relaxed"
@@ -209,7 +209,7 @@ export function ContextSetup({
                 onClick={() => onContextReady(quickText)}
                 className="w-full bg-white text-black text-sm font-mono font-bold py-3.5 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all"
               >
-                Comenzar sesión →
+                Iniciar copiloto →
               </button>
 
               <button

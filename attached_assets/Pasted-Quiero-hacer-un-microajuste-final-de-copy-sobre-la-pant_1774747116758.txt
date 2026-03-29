@@ -1,0 +1,94 @@
+Quiero hacer un microajuste final de copy sobre la pantalla inicial actual de “Silent Closer” sin cambiar la estructura visual ni la estética general.
+
+IMPORTANTE:
+- no rehagas nada
+- no cambies la jerarquía visual
+- no toques el layout
+- no cambies el estilo
+- no añadas nuevos elementos
+- solo quiero ajustar el copy final para que la pantalla sea más universal, más clara y más producto
+
+La pantalla actual ya me gusta bastante.
+Quiero mantener:
+- SILENT CLOSER como marca principal
+- el look minimalista
+- el subtítulo
+- la estructura general
+- el campo de contexto
+- el botón principal
+- la acción secundaria
+
+Solo quiero dejar cerrados los textos finales.
+
+==================================================
+CAMBIOS QUE QUIERO
+==================================================
+
+1. TEXTO FUNCIONAL PRINCIPAL
+
+Ahora mismo no quiero usar algo demasiado específico como “Prepara la llamada”, porque la herramienta no sirve solo para llamadas.
+Puede servir para videollamadas y otras conversaciones en vivo.
+
+Quiero cambiar ese texto funcional por:
+
+DEFINE EL CONTEXTO
+
+Ese debe ser el texto principal de acción en esta pantalla.
+
+2. PLACEHOLDER DEL CAMPO DE CONTEXTO
+
+Quiero que el placeholder sea un ejemplo real, entendible, útil y natural.
+
+No quiero un placeholder demasiado abstracto.
+No quiero uno demasiado genérico.
+No quiero uno demasiado largo.
+
+Quiero usar este placeholder exacto:
+
+Ej: quiero vender un piso en Dresden a un inversor muy analítico que duda de la ciudad
+
+Este placeholder debe ayudar al usuario a entender cómo usar el campo:
+- qué quiere conseguir
+- con quién habla
+- qué tipo de freno existe
+
+3. BOTÓN PRINCIPAL
+
+No quiero “Comenzar sesión” porque suena a login o autenticación.
+
+Quiero cambiarlo por:
+
+INICIAR COPILOTO
+
+Debe mantenerse el mismo protagonismo visual del botón actual.
+
+4. ACCIÓN SECUNDARIA
+
+Quiero mantener esta opción secundaria:
+
+CONTINUAR SIN CONTEXTO
+
+Debe seguir viéndose claramente secundaria, discreta y elegante.
+
+==================================================
+OBJETIVO DE ESTOS CAMBIOS
+==================================================
+
+Quiero que la pantalla inicial se sienta:
+- más clara
+- más universal
+- más natural
+- más producto
+- menos ambigua
+- y mejor alineada con el uso real de la herramienta
+
+==================================================
+REGLA FINAL
+==================================================
+
+No cambies nada más.
+Solo ajusta estos textos y mantén todo el resto igual.
+
+Cuando termines, dime brevemente:
+- qué textos has dejado finalmente
+- y por qué ahora la pantalla debería leerse mejor
