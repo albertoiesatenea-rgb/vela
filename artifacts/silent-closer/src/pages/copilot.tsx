@@ -54,11 +54,11 @@ function saveLabel(l: string) {
   } catch { /* ignore */ }
 }
 
-// ── Color config per detail field (3 fields)
+// ── Color config per detail field — colorblind-safe (blue / white / amber)
 const FIELD_CONFIG = {
-  LECTURA:   { label: "text-zinc-400",    content: "text-zinc-300",    border: "border-zinc-600",    size: "text-[11px]" },
-  SIGUIENTE: { label: "text-white",       content: "text-white",       border: "border-white/40",    size: "text-[13px]" },
-  APOYO:     { label: "text-emerald-400", content: "text-emerald-100", border: "border-emerald-700", size: "text-[11px]" },
+  LECTURA:   { label: "text-sky-400",   content: "text-sky-200",   border: "border-sky-600",   size: "text-[11px]" },
+  SIGUIENTE: { label: "text-white",     content: "text-white",     border: "border-white/70",  size: "text-[13px]" },
+  APOYO:     { label: "text-amber-400", content: "text-amber-200", border: "border-amber-600", size: "text-[11px]" },
 } as const;
 
 type FieldKey = keyof typeof FIELD_CONFIG;
@@ -344,25 +344,33 @@ export default function CopilotPage() {
       {(hasDetail || hasMemory) && (
         <div className="shrink-0 border-t border-white/5">
 
-          {/* Toggle row — independent buttons, more breathing room */}
-          <div className="flex items-center justify-center gap-12 py-3">
+          {/* Toggle row — independent buttons with generous click area */}
+          <div className="flex items-center justify-center gap-8">
             {hasDetail && (
               <button
                 onClick={handleToggleDetail}
-                className="flex items-center gap-2 text-[11px] font-mono tracking-widest uppercase transition-colors hover:text-white"
-                style={{ color: detailVisible ? "rgb(228 228 231)" : "rgb(82 82 91)" }}
+                className={cn(
+                  "flex items-center gap-2 px-5 py-3 text-[11px] font-mono tracking-widest uppercase transition-colors",
+                  detailVisible
+                    ? "text-zinc-100"
+                    : "text-zinc-400 hover:text-zinc-200"
+                )}
               >
-                {detailVisible ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                {detailVisible ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                 Detalle
               </button>
             )}
             {hasMemory && (
               <button
                 onClick={handleToggleMemory}
-                className="flex items-center gap-2 text-[11px] font-mono tracking-widest uppercase transition-colors hover:text-white"
-                style={{ color: memoryVisible ? "rgb(228 228 231)" : "rgb(82 82 91)" }}
+                className={cn(
+                  "flex items-center gap-2 px-5 py-3 text-[11px] font-mono tracking-widest uppercase transition-colors",
+                  memoryVisible
+                    ? "text-zinc-100"
+                    : "text-zinc-400 hover:text-zinc-200"
+                )}
               >
-                {memoryVisible ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                {memoryVisible ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                 Memoria
               </button>
             )}
