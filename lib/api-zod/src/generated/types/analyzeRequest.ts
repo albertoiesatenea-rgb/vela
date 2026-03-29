@@ -14,4 +14,6 @@ export interface AnalyzeRequest {
   text: string;
   /** Optional session context to guide the tactical analysis */
   context?: string;
+  /** Accumulated call memory from previous analyses to be updated */
+  call_memory?: string;
 }

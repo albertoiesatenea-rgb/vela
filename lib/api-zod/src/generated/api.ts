@@ -26,6 +26,10 @@ export const AnalyzeConversationBody = zod.object({
     .string()
     .optional()
     .describe("Optional session context to guide the tactical analysis"),
+  call_memory: zod
+    .string()
+    .optional()
+    .describe("Accumulated call memory from previous analyses to be updated"),
 });
 
 export const AnalyzeConversationResponse = zod.object({
@@ -43,19 +47,35 @@ export const AnalyzeConversationResponse = zod.object({
       argument: zod
         .string()
         .optional()
-        .describe("How to frame or orient the conversation (1 line)"),
+        .describe("Tactical reframing line for the conversation (1 line)"),
+      talk_track: zod
+        .string()
+        .optional()
+        .describe(
+          "A slightly longer phrase or mini-script if more support is needed",
+        ),
       question: zod
         .string()
         .optional()
-        .describe("A suggested follow-up question if SAY NOW is not enough"),
+        .describe("A suggested follow-up question to deepen or regain control"),
       risk: zod
         .string()
         .optional()
-        .describe("The specific tactical error to avoid (1 line)"),
+        .describe(
+          "The specific tactical error and its probable consequence (1 line)",
+        ),
       support: zod
         .string()
         .optional()
-        .describe("A brief supporting note on what to do (1 line)"),
+        .describe(
+          "A brief commercial support note — suggest argument type, not invented facts",
+        ),
     })
     .optional(),
+  call_memory: zod
+    .string()
+    .optional()
+    .describe(
+      "Updated accumulated tactical summary of the call so far (4-6 bullet lines)",
+    ),
 });

@@ -15,4 +15,6 @@ export interface AnalyzeResponse {
   /** What to avoid doing right now (2-6 words) */
   avoid: string;
   detail?: AnalyzeDetail;
+  /** Updated accumulated tactical summary of the call so far (4-6 bullet lines) */
+  call_memory?: string;
 }

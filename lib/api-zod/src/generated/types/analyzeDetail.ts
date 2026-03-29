@@ -9,12 +9,14 @@
 export interface AnalyzeDetail {
   /** What the engine is detecting beneath the surface (1 sentence) */
   reading?: string;
-  /** How to frame or orient the conversation (1 line) */
+  /** Tactical reframing line for the conversation (1 line) */
   argument?: string;
-  /** A suggested follow-up question if SAY NOW is not enough */
+  /** A slightly longer phrase or mini-script if more support is needed */
+  talk_track?: string;
+  /** A suggested follow-up question to deepen or regain control */
   question?: string;
-  /** The specific tactical error to avoid (1 line) */
+  /** The specific tactical error and its probable consequence (1 line) */
   risk?: string;
-  /** A brief supporting note on what to do (1 line) */
+  /** A brief commercial support note — suggest argument type, not invented facts */
   support?: string;
 }

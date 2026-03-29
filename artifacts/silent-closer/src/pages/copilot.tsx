@@ -29,9 +29,10 @@ interface TacticalState {
   sayNow: string;
   avoid: string;
   detail: Detail | null;
+  callMemory: string;
 }
 
-const EMPTY_STATE: TacticalState = { signal: "", sayNow: "", avoid: "", detail: null };
+const EMPTY_STATE: TacticalState = { signal: "", sayNow: "", avoid: "", detail: null, callMemory: "" };
 
 const SESSION_KEY = "sc_session_context";
 const HISTORY_KEY = "sc_signal_history";
@@ -67,6 +68,9 @@ export default function CopilotPage() {
 
   const { mutate: analyze, isPending } = useAnalyzeConversation();
 
+  const callMemoryRef = useRef(tacticalState.callMemory);
+  callMemoryRef.current = tacticalState.callMemory;
+
   const handleAnalysis = useCallback(
     (text: string) => {
       if (!text.trim()) return;
@@ -77,7 +81,13 @@ export default function CopilotPage() {
       const fullText = speakerPrefix + text;
 
       analyze(
-        { data: { text: fullText, ...(sessionContext ? { context: sessionContext } : {}) } },
+        {
+          data: {
+            text: fullText,
+            ...(sessionContext ? { context: sessionContext } : {}),
+            ...(callMemoryRef.current ? { call_memory: callMemoryRef.current } : {}),
+          },
+        },
         {
           onSuccess: (res) => {
             setTacticalState({
@@ -85,6 +95,7 @@ export default function CopilotPage() {
               sayNow: res.say_now,
               avoid: res.avoid,
               detail: res.detail ?? null,
+              callMemory: res.call_memory ?? "",
             });
             if (res.signal) {
               setSignalHistory((prev) => {
@@ -229,6 +240,7 @@ export default function CopilotPage() {
           sayNow={tacticalState.sayNow}
           avoid={tacticalState.avoid}
           detail={tacticalState.detail}
+          callMemory={tacticalState.callMemory}
           isPending={isPending}
         />
 

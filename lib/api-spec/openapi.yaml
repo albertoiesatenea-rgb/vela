@@ -76,6 +76,9 @@ components:
         context:
           type: string
           description: Optional session context to guide the tactical analysis
+        call_memory:
+          type: string
+          description: Accumulated call memory from previous analyses to be updated
       required:
         - text
     AnalyzeDetail:
@@ -86,16 +89,19 @@ components:
           description: What the engine is detecting beneath the surface (1 sentence)
         argument:
           type: string
-          description: How to frame or orient the conversation (1 line)
+          description: Tactical reframing line for the conversation (1 line)
+        talk_track:
+          type: string
+          description: A slightly longer phrase or mini-script if more support is needed
         question:
           type: string
-          description: A suggested follow-up question if SAY NOW is not enough
+          description: A suggested follow-up question to deepen or regain control
         risk:
           type: string
-          description: The specific tactical error to avoid (1 line)
+          description: The specific tactical error and its probable consequence (1 line)
         support:
           type: string
-          description: A brief supporting note on what to do (1 line)
+          description: A brief commercial support note — suggest argument type, not invented facts
     AnalyzeResponse:
       type: object
       properties:
@@ -110,6 +116,9 @@ components:
           description: What to avoid doing right now (2-6 words)
         detail:
           $ref: "#/components/schemas/AnalyzeDetail"
+        call_memory:
+          type: string
+          description: Updated accumulated tactical summary of the call so far (4-6 bullet lines)
       required:
         - signal
         - say_now

@@ -1,0 +1,535 @@
+Quiero hacer una mejora incremental y consolidada sobre la app actual “Silent Closer Copilot”.
+
+IMPORTANTE:
+NO quiero que rehagas la app desde cero.
+NO quiero que cambies la base visual actual.
+NO quiero una nueva arquitectura de producto.
+NO quiero convertir esto en un CRM ni en software corporativo.
+NO quiero una interfaz pesada.
+NO quiero paneles grandes ni dashboards.
+NO quiero romper el minimalismo.
+
+La base actual me gusta y quiero conservarla:
+- SIGNAL
+- SAY NOW
+- AVOID
+- estética oscura
+- look minimalista
+- sensación de copiloto táctico de segunda pantalla
+
+Tu misión es mejorar lo que ya existe, no reemplazarlo.
+
+==================================================
+OBJETIVO GENERAL
+==================================================
+
+Quiero que la app actual sea mucho más útil en conversaciones reales sin perder su simplicidad.
+
+Quiero mantener como centro de la experiencia:
+- SIGNAL
+- SAY NOW
+- AVOID
+
+Pero quiero añadir y mejorar estas piezas:
+
+1. Mejorar mucho la calidad del motor táctico
+2. Añadir una capa opcional de detalle/refuerzo que ayude de verdad a vender
+3. Añadir una memoria acumulada resumida de la llamada
+4. Mantener la app limpia, compacta y tácticamente útil
+
+Todo esto sin romper la estética actual y sin rehacer nada de cero.
+
+==================================================
+PARTE 1 — MEJORA DEL MOTOR PRINCIPAL
+==================================================
+
+Ahora mismo la app funciona, pero el motor a veces es demasiado genérico.
+
+Ejemplos de salidas malas:
+- “explora sus preocupaciones sobre Dresden”
+- “no ignores sus sentimientos negativos”
+- “profundiza más”
+- “valida su emoción”
+- “defiende Dresden”
+
+Eso no ayuda lo suficiente en una llamada real.
+
+Quiero que el motor sea:
+- más específico
+- más táctico
+- más comercial
+- menos genérico
+- menos tipo coach
+- menos abstracto
+- más útil bajo presión real
+
+----------------------------------
+SIGNAL
+----------------------------------
+
+SIGNAL debe responder:
+“¿Qué está pasando realmente ahora?”
+
+Debe ser:
+- corto
+- específico
+- táctico
+- 2 a 5 palabras idealmente
+- estable
+- no genérico
+- no emocional en abstracto
+
+Ejemplos buenos:
+- objeción reputacional
+- rechazo a la ciudad
+- duda de liquidez
+- miedo a equivocarse
+- objeción falsa
+- desconfianza
+- compara, no compra
+- interés real
+- cierre prematuro
+- pide seguridad
+- falta claridad
+
+----------------------------------
+SAY NOW
+----------------------------------
+
+SAY NOW debe responder:
+“¿Qué debería hacer o decir ahora mismo?”
+
+Debe ser:
+- una sola acción principal
+- imperativo o instrucción clara
+- 4 a 12 palabras idealmente
+- útil en llamada real
+- específica
+- no vaga
+- no teórica
+
+Ejemplos buenos:
+- pregunta si teme demanda, imagen o reventa
+- separa percepción de rentabilidad
+- pide el dato exacto que le frena
+- aterriza la duda a alquiler o salida
+- valida y profundiza
+- devuelve la objeción en pregunta
+- cierra con siguiente paso
+- baja presión y escucha
+
+----------------------------------
+AVOID
+----------------------------------
+
+AVOID debe responder:
+“¿Qué error no conviene cometer ahora?”
+
+Debe ser:
+- corto
+- 2 a 7 palabras idealmente
+- concreto
+- táctico
+- no genérico
+
+Ejemplos buenos:
+- no defiendas Dresden todavía
+- no respondas con datos ya
+- no cierres aún
+- no discutas ideología
+- no argumentes en largo
+- no cambies de frente
+
+----------------------------------
+REGLA DE ORO DEL MOTOR
+----------------------------------
+
+Si una recomendación podría servir igual para 50 objeciones distintas, entonces es demasiado genérica.
+
+Quiero que el motor aterrice mejor objeciones como:
+- precio
+- ciudad
+- barrio
+- reputación
+- liquidez
+- demanda
+- miedo a no alquilar
+- miedo a no revender
+- desconfianza
+- comparación con otras opciones
+- rechazo emocional disfrazado de criterio racional
+- interés real con resistencia de cierre
+
+----------------------------------
+ESTABILIDAD
+----------------------------------
+
+No quiero una app nerviosa que cambie de recomendación cada pocos segundos por pequeños matices.
+
+Quiero estabilidad:
+- no cambies SIGNAL por detalles menores
+- no cambies SAY NOW si la jugada sigue siendo esencialmente la misma
+- cambia solo si cambia de verdad:
+  - la objeción dominante
+  - la fase de la conversación
+  - el nivel de apertura
+  - o el momento táctico
+
+----------------------------------
+FALLBACK
+----------------------------------
+
+Si falta claridad:
+- SIGNAL: falta claridad
+- SAY NOW: haz una pregunta aclaratoria
+- AVOID: no asumas la objeción
+
+==================================================
+PARTE 2 — CAPA OPCIONAL DE DETALLE / REFUERZO
+==================================================
+
+Quiero una capa adicional opcional para cuando necesite más claridad o más munición comercial.
+
+IMPORTANTE:
+- no debe salir siempre abierta
+- no debe robar protagonismo a SAY NOW
+- no debe parecer un dashboard
+- no debe recargar la interfaz
+- debe seguir colapsada por defecto
+
+Quiero un pequeño panel opcional tipo:
+- Ver detalle
+- Más contexto
+- Refuerzo
+
+Cuando se abra, debe mostrar una ampliación táctica útil de verdad.
+
+Quiero que el detalle muestre:
+
+1. READING
+Qué está leyendo realmente el motor.
+Ejemplos:
+- No rechaza solo el piso; rechaza la ciudad como activo.
+- Parece una objeción reputacional, pero probablemente teme demanda o salida.
+- Está usando la imagen de Dresden para expresar inseguridad sobre la inversión.
+
+2. ARGUMENT
+Una línea táctica de reenfoque comercial.
+Ejemplos:
+- Lleva la conversación de reputación de ciudad a criterios de inversión.
+- Separa percepción política de demanda real y salida futura.
+- Convierte una opinión general en una duda concreta sobre alquiler, reventa o liquidez.
+- No vendas la ciudad; vende la lógica de la inversión.
+
+3. TALK_TRACK
+Una frase algo más desarrollada que me sirva casi como mini guion si necesito apoyo extra.
+Ejemplos:
+- Entiendo la percepción, pero para decidir una inversión prefiero separar imagen general de factores como demanda de alquiler, salida futura y riesgo real.
+- Si quieres, no discutimos si Dresden gusta más o menos; bajemos a lo importante como inversión: demanda, reventa y riesgo real.
+- Cuando dices que Dresden no te convence, ¿hablas de una percepción general o de que crees que allí costará alquilar o vender bien?
+
+4. QUESTION
+Una pregunta útil para profundizar o recuperar control.
+Ejemplos:
+- ¿Lo que te frena es la imagen de Dresden o el miedo a no alquilar o revender bien?
+- ¿Qué criterio concreto te hace descartarla como inversión?
+- ¿Te preocupa la ciudad en sí o esta operación concreta?
+
+5. RISK
+Qué error sería peligroso ahora.
+Ejemplos:
+- Si defiendes la ciudad demasiado pronto, entrarás en una discusión improductiva.
+- Si respondes con datos antes de concretar el miedo, sonarás reactivo.
+- Si contradices su percepción sin bajarla a inversión, se cerrará más.
+
+6. SUPPORT
+Una línea muy breve de apoyo comercial útil.
+
+IMPORTANTE:
+No inventes fuentes, datos ni referencias.
+
+SUPPORT solo debe:
+- sugerir el tipo de dato que conviene usar
+- o recordar la palanca correcta
+
+Ejemplos:
+- Usa demanda, liquidez y salida; no ideología.
+- Si tienes datos de alquiler o reventa, úsalos después de concretar la duda.
+- No cites cifras si no están verificadas.
+- Apóyate en empleo, universidad e infraestructuras solo si los tienes preparados.
+
+==================================================
+PARTE 3 — MEMORIA ACUMULADA RESUMIDA DE LA LLAMADA
+==================================================
+
+Quiero añadir una nueva pieza muy importante:
+una memoria viva resumida de la llamada.
+
+ACLARACIÓN IMPORTANTE:
+No me refiero solo a un bloque que diga el estado actual de la llamada.
+No quiero únicamente:
+- fase actual
+- tema actual
+- freno actual
+- objetivo actual
+
+Lo que quiero es una MEMORIA ACUMULADA RESUMIDA DE LA LLAMADA.
+
+OBJETIVO
+Quiero un bloque pequeño y útil que me permita ver, de un vistazo, qué ha pasado hasta ahora en la llamada, en versión resumida y táctica.
+
+Debe ayudarme a comprobar si la app está siguiendo bien el hilo de la conversación.
+
+NO quiero:
+- transcript largo
+- historial completo
+- lista infinita de eventos
+- log técnico
+- una caja que crezca sin parar
+
+SÍ quiero:
+- un resumen acumulado corto
+- que se vaya actualizando
+- que se reescriba inteligentemente
+- que mantenga lo importante de la llamada hasta ahora
+- que no se vuelva infinito
+
+La idea es algo tipo:
+- ya se ha hecho la introducción
+- ya se ha presentado la propuesta
+- el cliente ha mostrado interés inicial
+- ha aparecido una objeción sobre Dresden
+- ahora mismo se está tratando objeción de precio
+- el objetivo actual es concretar si la objeción es real o superficial
+
+O por ejemplo:
+- introducción completada
+- propuesta ya presentada
+- interés sí, pero con dudas sobre la ciudad
+- objeción dominante actual: reputación de Dresden
+- momento actual: exploración de freno real
+- siguiente objetivo: bajar la duda a demanda, liquidez o reventa
+
+Este bloque debe mezclar:
+1. lo que ya ha pasado
+2. el punto actual
+3. el hilo táctico de la llamada
+
+Debe responder a esta pregunta:
+“¿Qué ha pasado hasta ahora y en qué punto útil estamos?”
+
+NOMBRE DEL BLOQUE
+Puedes llamarlo:
+- CALL MEMORY
+- MEMORIA DE LLAMADA
+- RESUMEN ACUMULADO
+- MEMORIA VIVA
+
+Elige el nombre que mejor encaje con la estética actual.
+
+FORMATO DESEADO
+Quiero una de estas dos opciones, elige la más limpia:
+
+OPCIÓN A:
+Un bloque de 4 a 6 líneas cortas, por ejemplo:
+- Introducción completada
+- Propuesta ya presentada
+- Interés inicial confirmado
+- Objeción dominante: reputación de Dresden
+- Momento actual: explorando freno real
+- Objetivo: aterrizar la duda a inversión
+
+OPCIÓN B:
+Un pequeño párrafo o bloque muy corto en lenguaje natural, por ejemplo:
+“Ya se ha hecho la introducción y se ha presentado la propuesta. El cliente muestra interés, pero todavía no compra la ciudad como inversión. Ahora mismo la conversación está en objeción reputacional y el objetivo es concretar si el freno real es demanda, liquidez o imagen.”
+
+REGLAS
+- debe ser corto
+- debe ser muy legible
+- debe ser útil tácticamente
+- no debe crecer sin límite
+- no debe acumular texto infinito
+- no debe parecer un transcript
+- no debe parecer un log
+- debe actualizarse reescribiéndose, no simplemente añadiendo nuevas líneas eternamente
+
+REGLA CLAVE
+Cada vez que la llamada avance, este bloque debe actualizarse conservando solo lo importante.
+
+Quiero una memoria comprimida, no una cronología infinita.
+
+PUNTOS QUE DEBE INTENTAR REFLEJAR
+- si ya se ha hecho la introducción
+- si ya se ha presentado la propuesta
+- si el cliente ha mostrado interés
+- si ya han aparecido objeciones
+- qué objeción domina ahora
+- qué punto táctico se está trabajando
+- cuál es el objetivo actual de la conversación
+
+IMPORTANTE
+Este bloque debe complementar a SIGNAL / SAY NOW / AVOID, no sustituirlos.
+
+==================================================
+REGLA CRÍTICA SOBRE DATOS Y ARGUMENTOS
+==================================================
+
+No quiero que la app invente argumentos falsos, referencias inexistentes ni datos no verificados.
+
+No debe escribir:
+- según este estudio
+- según esta referencia
+- según este dato
+si esa fuente no existe realmente en el contexto o en una base conectada.
+
+Si no hay datos verificados disponibles, el sistema debe:
+- sugerir el tipo de argumento
+- sugerir el tipo de dato útil
+- o reenfocar la conversación
+pero nunca inventar autoridad.
+
+==================================================
+REGLA DE VENTA
+==================================================
+
+Cuando la objeción sea comercial, quiero que el motor piense como un vendedor táctico.
+
+Quiero esta conversión mental:
+objeción superficial
+→ freno real
+→ criterio de decisión
+→ siguiente jugada
+→ argumento de apoyo
+→ error a evitar
+
+No quiero:
+- validar emociones por validar
+- explorar por explorar
+- frases blandas
+- psicología genérica
+- salidas decorativas
+
+==================================================
+CASO DE REFERENCIA
+==================================================
+
+Caso:
+Estoy vendiendo un inmueble en Dresden.
+El cliente dice que Dresden le parece mala ciudad para invertir, que hay muchos fascistas y que no le convence.
+
+No quiero una salida tipo:
+- defiende Dresden
+- explora sus preocupaciones sobre Dresden
+- valida sus emociones
+- no ignores sus sentimientos negativos
+
+Quiero algo parecido a esto:
+
+{
+  "signal": "objeción reputacional",
+  "say_now": "pregunta si teme demanda, imagen o reventa",
+  "avoid": "no defiendas Dresden todavía",
+  "detail": {
+    "reading": "No rechaza solo el activo; rechaza la ciudad como inversión.",
+    "argument": "Lleva la conversación de percepción de ciudad a criterios de inversión.",
+    "talk_track": "Entiendo la percepción, pero para decidir una inversión prefiero separar imagen general de factores como demanda de alquiler, salida futura y riesgo real.",
+    "question": "¿Lo que te frena es la imagen de Dresden o el miedo a no alquilar o revender bien?",
+    "risk": "Si contradices su percepción demasiado pronto, se cerrará más.",
+    "support": "Usa demanda, salida y liquidez; no ideología."
+  },
+  "call_memory": {
+    "summary_lines": [
+      "Introducción completada",
+      "Propuesta ya presentada",
+      "Interés inicial sí, pero con reservas sobre la ciudad",
+      "Objeción dominante: reputación de Dresden",
+      "Momento actual: explorando freno real",
+      "Objetivo: bajar la duda a criterios de inversión"
+    ]
+  }
+}
+
+==================================================
+OUTPUT DESEADO DEL MOTOR
+==================================================
+
+Quiero que el motor devuelva este JSON:
+
+{
+  "signal": "texto corto",
+  "say_now": "frase táctica corta",
+  "avoid": "advertencia corta",
+  "detail": {
+    "reading": "lectura breve",
+    "argument": "línea de enfoque",
+    "talk_track": "mini guion útil",
+    "question": "pregunta sugerida",
+    "risk": "riesgo táctico",
+    "support": "apoyo opcional"
+  },
+  "call_memory": {
+    "summary_lines": [
+      "línea breve 1",
+      "línea breve 2",
+      "línea breve 3",
+      "línea breve 4",
+      "línea breve 5",
+      "línea breve 6"
+    ]
+  }
+}
+
+Reglas:
+- siempre JSON válido
+- sin texto extra
+- sin markdown
+- sin campos adicionales fuera de esta estructura
+- todo debe ser breve
+- call_memory debe ser compacto
+- call_memory debe reescribirse, no crecer infinito
+- detail debe seguir siendo opcional y secundario en la UI
+
+==================================================
+PRIORIZACIÓN VISUAL
+==================================================
+
+Orden de importancia visual:
+1. SAY NOW
+2. SIGNAL
+3. AVOID
+4. panel de detalle opcional
+5. memoria acumulada de llamada
+
+La memoria acumulada debe ser visible o semi-visible de forma discreta, sin robar protagonismo a la jugada principal.
+
+==================================================
+IMPLEMENTACIÓN
+==================================================
+
+No rehagas la app.
+No cambies la filosofía.
+No rompas la pantalla principal.
+
+Haz una mejora incremental para:
+1. mejorar el motor
+2. reforzar el detalle opcional
+3. añadir la memoria acumulada resumida de llamada
+
+==================================================
+OBJETIVO FINAL
+==================================================
+
+Quiero que la app no solo me diga qué hacer,
+sino que además me deje ver rápidamente:
+- qué ha pasado hasta ahora
+- si está entendiendo bien la conversación
+- y cuál es el hilo táctico de la llamada
+
+No quiero una mejora estética.
+Quiero una mejora comercial y funcional real.
+
+Cuando termines:
+- dime qué has cambiado en el motor
+- qué has cambiado en el detalle
+- qué has añadido en la memoria acumulada
+- y por qué ahora debería ayudar mejor en llamadas reales

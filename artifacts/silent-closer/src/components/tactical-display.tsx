@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 interface Detail {
   reading?: string;
   argument?: string;
+  talk_track?: string;
   question?: string;
   risk?: string;
   support?: string;
@@ -16,6 +17,7 @@ interface TacticalDisplayProps {
   sayNow: string;
   avoid: string;
   detail?: Detail | null;
+  callMemory?: string;
   isPending?: boolean;
 }
 
@@ -30,14 +32,20 @@ function DetailRow({ label, value }: { label: string; value?: string }) {
   return (
     <div className="flex flex-col gap-0.5">
       <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-zinc-700">{label}</span>
-      <span className="text-xs font-mono text-zinc-400 leading-snug">{value}</span>
+      <p className="text-xs font-mono text-zinc-400 leading-snug">{value}</p>
     </div>
   );
 }
 
-export function TacticalDisplay({ signal, sayNow, avoid, detail, isPending }: TacticalDisplayProps) {
+export function TacticalDisplay({ signal, sayNow, avoid, detail, callMemory, isPending }: TacticalDisplayProps) {
   const [detailOpen, setDetailOpen] = useState(false);
+  const [memoryOpen, setMemoryOpen] = useState(false);
+
   const hasDetail = detail && Object.values(detail).some(Boolean);
+  const memoryLines = callMemory
+    ? callMemory.split("\\n").filter(Boolean)
+    : [];
+  const hasMemory = memoryLines.length > 0;
 
   return (
     <div className="h-full w-full flex flex-col">
@@ -100,22 +108,35 @@ export function TacticalDisplay({ signal, sayNow, avoid, detail, isPending }: Ta
         </div>
       </div>
 
-      {/* ── DETAIL PANEL ─────────────────────────────── */}
-      {hasDetail && (
-        <div className="shrink-0 border-t border-white/5 mx-6 mb-3">
-          <button
-            onClick={() => setDetailOpen((v) => !v)}
-            className="w-full flex items-center justify-center gap-1.5 py-2 text-[10px] font-mono tracking-widest uppercase text-zinc-700 hover:text-zinc-500 transition-colors"
-          >
-            {detailOpen ? (
-              <><ChevronUp className="w-2.5 h-2.5" /> Cerrar detalle</>
-            ) : (
-              <><ChevronDown className="w-2.5 h-2.5" /> Ver detalle</>
-            )}
-          </button>
+      {/* ── PANELS: DETAIL + MEMORY ────────────────── */}
+      {(hasDetail || hasMemory) && (
+        <div className="shrink-0 border-t border-white/5 mx-4 mb-2">
 
+          {/* Toggle row */}
+          <div className="flex items-center justify-center gap-6 py-2">
+            {hasDetail && (
+              <button
+                onClick={() => { setDetailOpen(v => !v); setMemoryOpen(false); }}
+                className="flex items-center gap-1 text-[10px] font-mono tracking-widest uppercase text-zinc-700 hover:text-zinc-500 transition-colors"
+              >
+                {detailOpen ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
+                Ver detalle
+              </button>
+            )}
+            {hasMemory && (
+              <button
+                onClick={() => { setMemoryOpen(v => !v); setDetailOpen(false); }}
+                className="flex items-center gap-1 text-[10px] font-mono tracking-widest uppercase text-zinc-700 hover:text-zinc-500 transition-colors"
+              >
+                {memoryOpen ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
+                Memoria
+              </button>
+            )}
+          </div>
+
+          {/* Detail panel */}
           <AnimatePresence>
-            {detailOpen && (
+            {detailOpen && hasDetail && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
@@ -123,16 +144,46 @@ export function TacticalDisplay({ signal, sayNow, avoid, detail, isPending }: Ta
                 transition={{ duration: 0.2, ease: "easeOut" }}
                 className="overflow-hidden"
               >
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-3 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-3 pt-1 border-t border-white/5">
                   <DetailRow label="Lectura" value={detail?.reading} />
                   <DetailRow label="Enfoque" value={detail?.argument} />
-                  <DetailRow label="Pregunta sugerida" value={detail?.question} />
+                  {detail?.talk_track && (
+                    <div className="sm:col-span-2 flex flex-col gap-0.5">
+                      <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-zinc-700">Guion</span>
+                      <p className="text-xs font-mono text-zinc-400 leading-snug italic">{detail.talk_track}</p>
+                    </div>
+                  )}
+                  <DetailRow label="Pregunta" value={detail?.question} />
                   <DetailRow label="Riesgo" value={detail?.risk} />
                   <DetailRow label="Apoyo" value={detail?.support} />
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Memory panel */}
+          <AnimatePresence>
+            {memoryOpen && hasMemory && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className="overflow-hidden"
+              >
+                <div className="pb-3 pt-1 border-t border-white/5">
+                  <ul className="space-y-1.5">
+                    {memoryLines.map((line, i) => (
+                      <li key={i} className="text-[11px] font-mono text-zinc-500 leading-snug">
+                        {line.startsWith("-") ? line : `- ${line}`}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
         </div>
       )}
 
