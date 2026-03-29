@@ -111,7 +111,7 @@ const T = {
     MODAL_CORRECT_PROMPT: "¿Cuál fue el resultado real?",
     // Client mode outcome buttons
     CLIENT_SOLD: "Trato hecho ✓",
-    CLIENT_ACCEPT: "Ok, sigue →",
+    CLIENT_ACCEPT: "Ok, sigue",
     CLIENT_OBJECTION: "No estoy de acuerdo",
     CLIENT_ACCEPT_MSG: "Ok, cuéntame más.",
     CLIENT_OBJECTION_MSG: "No, eso no me convence.",
@@ -172,7 +172,7 @@ const T = {
     MODAL_CORRECT_PROMPT: "What was the actual outcome?",
     // Client mode outcome buttons
     CLIENT_SOLD: "Deal ✓",
-    CLIENT_ACCEPT: "OK, keep going →",
+    CLIENT_ACCEPT: "OK, keep going",
     CLIENT_OBJECTION: "I disagree",
     CLIENT_ACCEPT_MSG: "OK, tell me more.",
     CLIENT_OBJECTION_MSG: "No, I'm not convinced by that.",
@@ -443,6 +443,24 @@ export function Arena({
       setTimeout(() => textareaRef.current?.focus(), 50);
     }
   }, [isStarting]);
+
+  // Arrow key shortcuts for client mode (↓ = accept, ↑ = object)
+  useEffect(() => {
+    if (role !== "client" || isStarting || isSending || isEnding) return;
+    const handler = (e: KeyboardEvent) => {
+      if (document.activeElement === textareaRef.current) return;
+      if (exitStep !== null) return;
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        void sendMessage(T[lang].CLIENT_ACCEPT_MSG);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        void sendMessage(T[lang].CLIENT_OBJECTION_MSG);
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [role, isStarting, isSending, isEnding, exitStep, lang, sendMessage]);
 
   useEffect(() => {
     let cancelled = false;
@@ -915,7 +933,10 @@ export function Arena({
           {/* Footer row: hint + end session */}
           <div className="flex justify-between items-center">
             <p className="text-[9px] text-zinc-600 tracking-widest">
-              {lang === "es" ? "Enter envía · Shift+Enter nueva línea" : "Enter sends · Shift+Enter new line"}
+              {role === "client"
+                ? (lang === "es" ? "↓ Ok, sigue · ↑ No estoy de acuerdo · Enter envía" : "↓ Keep going · ↑ Disagree · Enter sends")
+                : (lang === "es" ? "Enter envía · Shift+Enter nueva línea" : "Enter sends · Shift+Enter new line")
+              }
             </p>
             {role === "seller" && (
               <button
