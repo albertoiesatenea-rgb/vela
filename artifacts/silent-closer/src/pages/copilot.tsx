@@ -31,13 +31,14 @@ interface Journey {
 
 interface TacticalState {
   sayNow: string;
+  hint?: string;
   avoid?: string;
   detail: Detail | null;
   journey: Journey | null;
   callMemory: string;
 }
 
-const EMPTY_STATE: TacticalState = { sayNow: "", avoid: undefined, detail: null, journey: null, callMemory: "" };
+const EMPTY_STATE: TacticalState = { sayNow: "", hint: undefined, avoid: undefined, detail: null, journey: null, callMemory: "" };
 
 const SESSION_KEY = "sc_session_context";
 const LABEL_KEY   = "sc_context_label";
@@ -240,6 +241,7 @@ export default function CopilotPage() {
           onSuccess: (res) => {
             setTacticalState({
               sayNow: res.say_now,
+              hint: res.hint || undefined,
               avoid: res.avoid || undefined,
               detail: res.detail ?? null,
               journey: res.journey ?? null,
@@ -378,6 +380,7 @@ export default function CopilotPage() {
         <div className="flex-1 relative">
         <TacticalDisplay
           sayNow={tacticalState.sayNow}
+          hint={tacticalState.hint}
           avoid={tacticalState.avoid}
           isPending={isPending}
           isListening={isListening}

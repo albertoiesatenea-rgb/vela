@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 
 interface TacticalDisplayProps {
   sayNow: string;
+  hint?: string;
   avoid?: string;
   isPending?: boolean;
   isListening?: boolean;
@@ -14,12 +15,18 @@ const fade = {
   exit:    { opacity: 0, filter: "blur(4px)", y: -8, transition: { duration: 0.25, ease: "easeIn" } },
 };
 
-export function TacticalDisplay({ sayNow, avoid, isPending, isListening }: TacticalDisplayProps) {
+const fadeSlow = {
+  initial: { opacity: 0, y: 6 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut", delay: 0.15 } },
+  exit:    { opacity: 0, y: -4, transition: { duration: 0.2 } },
+};
+
+export function TacticalDisplay({ sayNow, hint, avoid, isPending, isListening }: TacticalDisplayProps) {
   return (
     <div className="h-full w-full flex flex-col">
 
       {/* ── DI AHORA ────────────────────────────────── */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6">
+      <div className="flex-1 flex flex-col items-center justify-center px-6 gap-4">
         <AnimatePresence mode="wait">
           <motion.p
             key={sayNow || "empty-say"}
@@ -34,6 +41,22 @@ export function TacticalDisplay({ sayNow, avoid, isPending, isListening }: Tacti
           >
             {sayNow || (isListening ? "Escuchando" : "—")}
           </motion.p>
+        </AnimatePresence>
+
+        {/* ── HINT — nota táctica debajo del comando ── */}
+        <AnimatePresence mode="wait">
+          {hint && sayNow && (
+            <motion.p
+              key={hint}
+              variants={fadeSlow}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              className="text-[13px] font-mono text-zinc-400 text-center leading-relaxed max-w-md"
+            >
+              {hint}
+            </motion.p>
+          )}
         </AnimatePresence>
       </div>
 

@@ -40,6 +40,12 @@ export const AnalyzeConversationResponse = zod.object({
     .describe(
       "What to avoid — only when there is a real, probable tactical error. Omit or leave empty if not critical.",
     ),
+  hint: zod
+    .string()
+    .optional()
+    .describe(
+      "Brief coaching note — the tactical objective behind say_now (1 sentence, natural tone, max 15 words)",
+    ),
   detail: zod
     .object({
       reading: zod

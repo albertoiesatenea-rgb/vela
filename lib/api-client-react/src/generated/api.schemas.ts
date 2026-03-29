@@ -44,6 +44,8 @@ export interface AnalyzeResponse {
   say_now: string;
   /** What to avoid — only when there is a real, probable tactical error. Omit or leave empty if not critical. */
   avoid?: string;
+  /** Brief coaching note — the tactical objective behind say_now (1 sentence, natural tone, max 15 words) */
+  hint?: string;
   detail?: AnalyzeDetail;
   journey?: Journey;
   /** Updated accumulated tactical summary of the call so far (4-6 bullet lines) */
