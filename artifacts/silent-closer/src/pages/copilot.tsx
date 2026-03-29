@@ -33,14 +33,33 @@ interface TacticalState {
 
 const EMPTY_STATE: TacticalState = { signal: "", sayNow: "", avoid: "", detail: null };
 
+const SESSION_KEY = "sc_session_context";
+const HISTORY_KEY = "sc_signal_history";
+
+function loadSession(): string | null {
+  try { return localStorage.getItem(SESSION_KEY); } catch { return null; }
+}
+function saveSession(ctx: string | null) {
+  try {
+    if (ctx === null) localStorage.removeItem(SESSION_KEY);
+    else localStorage.setItem(SESSION_KEY, ctx);
+  } catch { /* ignore */ }
+}
+function loadHistory(): string[] {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) ?? "[]"); } catch { return []; }
+}
+function saveHistory(h: string[]) {
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(h)); } catch { /* ignore */ }
+}
+
 export default function CopilotPage() {
   const [inputMode, setInputMode] = useState<InputMode>("simulate");
   const [speakerMode, setSpeakerMode] = useState<SpeakerMode>("auto");
   const [simulateText, setSimulateText] = useState("");
-  const [sessionContext, setSessionContext] = useState<string | null>(null);
+  // Restore session from localStorage on mount
+  const [sessionContext, setSessionContext] = useState<string | null>(loadSession);
   const [tacticalState, setTacticalState] = useState<TacticalState>(EMPTY_STATE);
-  // Mini call map: last 5 signals
-  const [signalHistory, setSignalHistory] = useState<string[]>([]);
+  const [signalHistory, setSignalHistory] = useState<string[]>(loadHistory);
 
   const sessionActive = sessionContext !== null;
   const speakerModeRef = useRef(speakerMode);
@@ -68,7 +87,11 @@ export default function CopilotPage() {
               detail: res.detail ?? null,
             });
             if (res.signal) {
-              setSignalHistory((prev) => [...prev.slice(-4), res.signal]);
+              setSignalHistory((prev) => {
+                const next = [...prev.slice(-4), res.signal];
+                saveHistory(next);
+                return next;
+              });
             }
           },
         }
@@ -86,7 +109,7 @@ export default function CopilotPage() {
 
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
-      if (tag === "input" || tag === "textarea") return;
+      if (tag === "input" || tag === "textarea" || tag === "button") return;
 
       const idx = SPEAKER_ORDER.indexOf(speakerModeRef.current);
 
@@ -108,14 +131,18 @@ export default function CopilotPage() {
 
   const handleContextReady = (context: string) => {
     setSessionContext(context);
+    saveSession(context);
     setTacticalState(EMPTY_STATE);
     setSignalHistory([]);
+    saveHistory([]);
   };
 
   const handleClearSession = () => {
     setSessionContext(null);
+    saveSession(null);
     setTacticalState(EMPTY_STATE);
     setSignalHistory([]);
+    saveHistory([]);
     if (isListening) stopListening();
     setInputMode("simulate");
     setSpeakerMode("auto");
