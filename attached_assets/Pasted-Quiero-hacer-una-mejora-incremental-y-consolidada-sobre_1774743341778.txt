@@ -1,0 +1,566 @@
+Quiero hacer una mejora incremental y consolidada sobre la app actual “Silent Closer Copilot”.
+
+IMPORTANTE:
+NO quiero que rehagas la app desde cero.
+NO quiero que cambies la base visual actual.
+NO quiero una nueva arquitectura de producto.
+NO quiero convertir esto en un CRM ni en un software corporativo.
+NO quiero paneles grandes ni una interfaz pesada.
+
+La base actual me gusta:
+- la estética
+- la pantalla principal
+- la jerarquía visual
+- el look minimalista
+- la idea de SIGNAL / SAY NOW / AVOID
+- la sensación de copiloto táctico de segunda pantalla
+
+Tu misión es mejorar lo que ya existe, no reemplazarlo.
+
+==================================================
+OBJETIVO GENERAL
+==================================================
+
+Quiero que la app actual sea mucho más útil en conversaciones reales sin perder su simplicidad.
+
+Quiero mantener como centro de la experiencia:
+- SIGNAL
+- SAY NOW
+- AVOID
+
+Pero quiero añadir cuatro mejoras importantes:
+
+1. Mejorar mucho la calidad del motor táctico
+2. Añadir una capa opcional de detalle/refuerzo
+3. Añadir contexto inicial y memoria corta de la llamada
+4. Añadir control de hablante AUTO / CLIENTE / YO con atajos de teclado
+
+Todo esto sin romper la estética minimalista y sin rehacer la app.
+
+==================================================
+PRIORIDAD MÁXIMA
+==================================================
+
+Si en algún momento dudas entre:
+- añadir más cosas
+o
+- mantener claridad y simplicidad
+
+elige siempre claridad y simplicidad.
+
+El producto debe seguir sintiéndose como:
+- una herramienta silenciosa
+- una segunda pantalla táctica
+- algo rápido de leer
+- algo útil bajo presión real
+
+==================================================
+LO QUE QUIERO MANTENER
+==================================================
+
+Mantén la estructura principal actual:
+- SIGNAL arriba
+- SAY NOW como pieza principal grande
+- AVOID abajo
+- fondo oscuro
+- look premium
+- minimalismo
+- foco en lectura instantánea
+
+No quiero que eso cambie salvo ajustes pequeños de calidad visual.
+
+==================================================
+MEJORA 1 — HACER EL MOTOR MUCHO MÁS ESPECÍFICO Y ÚTIL
+==================================================
+
+Ahora mismo la app funciona, pero a veces el motor es demasiado genérico.
+
+Ejemplos de salidas malas:
+- “explora sus preocupaciones sobre Dresden”
+- “no ignores sus sentimientos negativos”
+- “profundiza más”
+- “valida su emoción”
+
+Eso no ayuda lo suficiente en una llamada real.
+
+Quiero que el motor sea:
+- más específico
+- más táctico
+- más comercial
+- menos genérico
+- menos tipo coach
+- menos abstracto
+- más útil bajo presión
+
+----------------------------------
+SIGNAL
+----------------------------------
+
+SIGNAL debe responder:
+“¿Qué está pasando realmente ahora?”
+
+Debe ser:
+- corto
+- específico
+- táctico
+- 2 a 5 palabras idealmente
+- estable
+- no genérico
+- no emocional en abstracto
+
+Ejemplos buenos:
+- objeción reputacional
+- rechazo a la ciudad
+- duda de liquidez
+- miedo a equivocarse
+- objeción falsa
+- desconfianza
+- compara, no compra
+- interés real
+- cierre prematuro
+- pide seguridad
+- falta claridad
+
+----------------------------------
+SAY NOW
+----------------------------------
+
+SAY NOW debe responder:
+“¿Qué debería hacer o decir ahora mismo?”
+
+Debe ser:
+- una sola acción principal
+- imperativo o instrucción clara
+- 4 a 12 palabras idealmente
+- útil en llamada real
+- específico
+- no vago
+- no académico
+- no genérico
+
+Ejemplos buenos:
+- pregunta si teme demanda, imagen o reventa
+- separa percepción de rentabilidad
+- pide el dato exacto que le frena
+- aterriza la duda a alquiler o salida
+- valida y profundiza
+- devuelve la objeción en pregunta
+- cierra con siguiente paso
+- baja presión y escucha
+
+----------------------------------
+AVOID
+----------------------------------
+
+AVOID debe responder:
+“¿Qué error no conviene cometer ahora?”
+
+Debe ser:
+- corto
+- 2 a 7 palabras idealmente
+- concreto
+- táctico
+- no moralizante
+- no genérico
+
+Ejemplos buenos:
+- no defiendas Dresden todavía
+- no respondas con datos ya
+- no cierres aún
+- no discutas ideología
+- no argumentes en largo
+- no cambies de frente
+
+----------------------------------
+REGLA DE ORO DEL MOTOR
+----------------------------------
+
+Si una recomendación podría servir igual para 50 objeciones distintas, entonces es demasiado genérica.
+
+Quiero que el motor aterrice mejor objeciones como:
+- precio
+- ciudad
+- barrio
+- reputación
+- liquidez
+- demanda
+- miedo a no alquilar
+- miedo a no revender
+- desconfianza
+- comparación con otras opciones
+- rechazo emocional disfrazado de criterio racional
+- interés real con resistencia de cierre
+
+----------------------------------
+ESTABILIDAD
+----------------------------------
+
+No quiero una app nerviosa que cambie de recomendación cada pocos segundos por pequeños matices.
+
+Quiero estabilidad:
+- no cambies SIGNAL por detalles menores
+- no cambies SAY NOW si la jugada sigue siendo esencialmente la misma
+- cambia solo si cambia de verdad:
+  - la objeción dominante
+  - la fase de la conversación
+  - el nivel de apertura
+  - o el momento táctico
+
+----------------------------------
+FALLBACK
+----------------------------------
+
+Si falta claridad:
+- SIGNAL: falta claridad
+- SAY NOW: haz una pregunta aclaratoria
+- AVOID: no asumas la objeción
+
+==================================================
+MEJORA 2 — AÑADIR CAPA OPCIONAL DE DETALLE / REFUERZO
+==================================================
+
+Quiero una capa adicional opcional para cuando necesite más claridad.
+
+IMPORTANTE:
+- no debe salir siempre abierta
+- no debe robar protagonismo a SAY NOW
+- no debe parecer un dashboard
+- no debe recargar la interfaz
+
+Quiero un pequeño panel colapsable tipo:
+- Ver detalle
+- Más contexto
+- Refuerzo
+
+Cuando se abra, quiero que muestre un refuerzo táctico breve.
+
+Campos del panel de detalle:
+
+1. READING
+Lectura breve del ángulo dominante.
+Ejemplos:
+- No rechaza solo el piso; rechaza la ciudad como activo.
+- Parece objeción de ciudad, pero probablemente teme demanda o salida.
+- Está usando imagen de zona para expresar inseguridad de inversión.
+
+2. ARGUMENT
+Línea de reenfoque.
+Ejemplos:
+- Lleva la crítica de ciudad a criterio de inversión.
+- Separa percepción política de demanda real.
+- Convierte una opinión general en una duda concreta y medible.
+
+3. QUESTION
+Pregunta sugerida algo más desarrollada.
+Ejemplos:
+- Cuando dices que Dresden te parece mala ciudad, ¿te preocupa más la demanda, la reventa o la imagen?
+- ¿Te frena la ciudad como tal o esta operación concreta?
+
+4. RISK
+Error táctico probable.
+Ejemplos:
+- Si te pones a defender la ciudad demasiado pronto, se cerrará más.
+- Si respondes con datos antes de concretar, sonarás reactivo.
+
+5. SUPPORT
+Palanca opcional o apoyo.
+Ejemplos:
+- Usa demanda, salida y liquidez; no ideología.
+- Si tienes datos reales, úsalos tras concretar la objeción.
+- No cites referencias si no las tienes verificadas.
+
+----------------------------------
+REGLA CRÍTICA
+----------------------------------
+
+NO inventes referencias, estudios, cifras ni fuentes.
+Si la app no tiene una base de conocimiento real o datos verificados, no debe fingirlos.
+
+SUPPORT puede sugerir:
+- qué tipo de argumento conviene usar
+- qué tipo de dato sería útil
+- qué palanca conviene activar
+
+Pero no debe inventar hechos.
+
+----------------------------------
+FORMATO DE SALIDA DEL MOTOR
+----------------------------------
+
+Quiero que el motor devuelva este JSON:
+
+{
+  "signal": "texto corto",
+  "say_now": "frase táctica corta",
+  "avoid": "advertencia corta",
+  "detail": {
+    "reading": "lectura breve",
+    "argument": "línea de enfoque",
+    "question": "pregunta sugerida",
+    "risk": "riesgo táctico",
+    "support": "apoyo opcional"
+  }
+}
+
+Reglas:
+- siempre JSON válido
+- sin texto extra
+- sin markdown
+- sin campos adicionales
+- detail puede venir vacío o con textos muy breves
+- la interfaz principal no debe saturarse por esto
+
+==================================================
+MEJORA 3 — CONTEXTO INICIAL FLEXIBLE
+==================================================
+
+Quiero poder darle más contexto al asistente antes de la llamada o sesión.
+
+Quiero dos modos de contexto:
+
+----------------------------------
+A. MODO RÁPIDO
+----------------------------------
+
+Un cuadro simple donde yo pueda escribir en lenguaje natural la situación.
+
+Ejemplos:
+- Quiero convencer a mi madre para que me deje ir a un cumpleaños.
+- Voy a vender un inmueble en Dresden a un cliente escéptico.
+- Quiero cerrar una reserva con un cliente que cree que el precio es alto.
+- El cliente cree que la ciudad es mala para invertir y tiene objeciones reputacionales.
+
+Este modo rápido debe ser compacto y limpio.
+
+----------------------------------
+B. MODO GUIADO
+----------------------------------
+
+Quiero un selector de tipo de conversación con plantillas simples.
+
+Tipos:
+- conversación general
+- conversación personal
+- negociación
+- venta
+- videollamada comercial
+- venta inmobiliaria
+- gestión de objeciones
+
+Plantilla general:
+- Con quién hablo
+- Qué quiero conseguir
+- Qué me preocupa
+- Información útil adicional
+
+Plantilla venta inmobiliaria:
+- Nombre del cliente
+- Inmueble
+- Características clave
+- Zona / ciudad
+- Precio o rango
+- Objetivo de la llamada
+- Posibles objeciones
+- Perfil del cliente
+- Información adicional
+
+IMPORTANTE:
+- esto debe seguir siendo visualmente compacto
+- debe poder colapsarse una vez iniciada la sesión
+- no quiero un formulario pesado
+- no quiero que robe protagonismo a la pantalla principal
+
+==================================================
+MEJORA 4 — MAPA / MEMORIA CORTA DE LA LLAMADA
+==================================================
+
+Necesito que la app no solo lea el bloque actual, sino que también “se entere” de en qué punto estamos.
+
+Quiero un pequeño bloque de memoria táctica de llamada.
+
+No quiero transcript largo.
+No quiero historial completo.
+No quiero una caja grande.
+
+Quiero un pequeño bloque discreto llamado por ejemplo:
+- CALL MAP
+- RESUMEN
+- ESTADO
+- CONTEXTO VIVO
+
+Debe mostrar algo como:
+- Fase: descubrimiento / objeción / validación / cierre
+- Tema: de qué se está hablando
+- Freno: objeción dominante actual
+- Objetivo: qué intenta conseguir el usuario ahora
+- Resumen: una frase muy breve opcional
+
+Ejemplos de resumen:
+- rechaza más la ciudad que el inmueble
+- hay interés, pero pide seguridad
+- objeción superficial, miedo real aún oculto
+
+Este bloque debe:
+- ser discreto
+- ser muy legible
+- no ensuciar la interfaz
+- ayudarme a saber rápidamente dónde estamos
+
+==================================================
+MEJORA 5 — CONTROL DE HABLANTE AUTO / CLIENTE / YO
+==================================================
+
+Quiero añadir una forma elegante y simple de ayudar al sistema a distinguir quién habla.
+
+Debe haber 3 modos:
+- AUTO
+- CLIENTE
+- YO
+
+Objetivo:
+- en AUTO, la app interpreta sola
+- en CLIENTE, ese tramo se trata como intervención del cliente
+- en YO, ese tramo se trata como intervención mía
+
+Esto no debe verse como una herramienta técnica fea.
+Quiero que se vea:
+- elegante
+- simple
+- premium
+- discreto
+- táctico
+
+Diseño:
+Quiero un control pequeño tipo segmented toggle o pill switch:
+AUTO | CLIENTE | YO
+
+Debe integrarse con el look actual.
+
+----------------------------------
+ATAJOS DE TECLADO
+----------------------------------
+
+Quiero además poder cambiar este modo sin depender del ratón.
+
+Comportamiento deseado:
+
+- Flecha izquierda:
+  mueve un paso a la izquierda
+  YO -> CLIENTE
+  CLIENTE -> AUTO
+  AUTO -> AUTO
+
+- Flecha derecha:
+  mueve un paso a la derecha
+  AUTO -> CLIENTE
+  CLIENTE -> YO
+  YO -> YO
+
+- Espacio:
+  hace ciclo
+  AUTO -> CLIENTE -> YO -> AUTO
+
+IMPORTANTE:
+- los atajos solo deben funcionar cuando la sesión esté activa
+- NO deben funcionar si estoy escribiendo en inputs o textareas
+- la barra espaciadora no debe provocar scroll
+- las flechas no deben provocar comportamientos raros
+- el cambio de modo debe sentirse inmediato y estable
+
+Mantén también la interacción normal con ratón.
+
+Si encaja, añade una pequeña pista visual muy discreta sobre los atajos.
+
+==================================================
+PRIORIZACIÓN VISUAL
+==================================================
+
+Orden de importancia visual:
+1. SAY NOW
+2. SIGNAL
+3. AVOID
+4. panel de detalle opcional
+5. mapa de llamada
+6. control AUTO / CLIENTE / YO
+7. contexto inicial colapsable
+
+Todo debe seguir sintiéndose limpio y silencioso.
+
+==================================================
+REGLA DE IMPLEMENTACIÓN
+==================================================
+
+NO rehagas nada de cero.
+Haz cambios mínimos y quirúrgicos.
+
+Quiero una mejora incremental sobre la app actual:
+- conservar la base visual
+- mejorar el cerebro
+- añadir contexto
+- añadir mapa corto de llamada
+- añadir detalle opcional
+- añadir control de hablante y atajos
+
+Todo sin romper la filosofía actual.
+
+==================================================
+FASES DE IMPLEMENTACIÓN
+==================================================
+
+Implementa por este orden:
+
+FASE 1
+- mejorar el motor táctico
+- mejorar SIGNAL / SAY NOW / AVOID
+- añadir detail en el output
+- añadir panel opcional de detalle
+
+FASE 2
+- añadir contexto inicial (modo rápido + modo guiado)
+- hacerlo colapsable
+
+FASE 3
+- añadir call map / resumen corto de llamada
+
+FASE 4
+- añadir control AUTO / CLIENTE / YO
+- añadir flechas izquierda/derecha + espacio
+- asegurar que no interfiera con inputs
+
+==================================================
+LO QUE NO QUIERO
+==================================================
+
+- rehacer la app
+- añadir múltiples páginas
+- añadir autenticación
+- añadir base de datos compleja
+- añadir CRM
+- añadir dashboards
+- añadir analytics
+- añadir historial largo
+- añadir branding innecesario
+- añadir paneles grandes
+- añadir funciones de post-llamada
+- añadir complejidad que no aporte al uso real
+
+==================================================
+ENTREGABLES
+==================================================
+
+Quiero que al terminar me dejes:
+1. la app actual mejorada sin romper la base visual
+2. el motor mucho más específico
+3. el panel opcional de detalle/refuerzo
+4. el contexto inicial flexible
+5. el call map corto
+6. el control AUTO / CLIENTE / YO
+7. los atajos de teclado funcionando
+8. una explicación breve de:
+   - qué has cambiado
+   - qué se mantiene
+   - cómo funciona cada mejora
+   - y por qué ahora ayuda mejor en llamadas reales
+
+Regla final:
+Si dudas entre “hacer más cosas” o “hacer mejor lo importante”, elige siempre hacer mejor lo importante.

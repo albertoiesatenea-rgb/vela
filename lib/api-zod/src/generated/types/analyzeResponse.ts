@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { AnalyzeDetail } from "./analyzeDetail";
 
 export interface AnalyzeResponse {
   /** Short signal label (2-5 words) */
@@ -13,4 +14,5 @@ export interface AnalyzeResponse {
   say_now: string;
   /** What to avoid doing right now (2-6 words) */
   avoid: string;
+  detail?: AnalyzeDetail;
 }

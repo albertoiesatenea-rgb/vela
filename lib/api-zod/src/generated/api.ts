@@ -32,4 +32,30 @@ export const AnalyzeConversationResponse = zod.object({
   signal: zod.string().describe("Short signal label (2-5 words)"),
   say_now: zod.string().describe("Tactical action to take (4-12 words)"),
   avoid: zod.string().describe("What to avoid doing right now (2-6 words)"),
+  detail: zod
+    .object({
+      reading: zod
+        .string()
+        .optional()
+        .describe(
+          "What the engine is detecting beneath the surface (1 sentence)",
+        ),
+      argument: zod
+        .string()
+        .optional()
+        .describe("How to frame or orient the conversation (1 line)"),
+      question: zod
+        .string()
+        .optional()
+        .describe("A suggested follow-up question if SAY NOW is not enough"),
+      risk: zod
+        .string()
+        .optional()
+        .describe("The specific tactical error to avoid (1 line)"),
+      support: zod
+        .string()
+        .optional()
+        .describe("A brief supporting note on what to do (1 line)"),
+    })
+    .optional(),
 });

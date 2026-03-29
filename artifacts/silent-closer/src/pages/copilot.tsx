@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Mic, MicOff, Keyboard, Loader2, AlertCircle, ExternalLink } from "lucide-react";
 import { useAnalyzeConversation } from "@workspace/api-client-react";
 import { useSpeech } from "@/hooks/use-speech";
@@ -6,30 +6,70 @@ import { TacticalDisplay } from "@/components/tactical-display";
 import { ContextSetup, SessionBar } from "@/components/context-panel";
 import { cn } from "@/lib/utils";
 
-type Mode = "listen" | "simulate";
+type InputMode = "listen" | "simulate";
+type SpeakerMode = "auto" | "client" | "me";
+
+const SPEAKER_LABELS: Record<SpeakerMode, string> = {
+  auto: "AUTO",
+  client: "CLIENTE",
+  me: "YO",
+};
+const SPEAKER_ORDER: SpeakerMode[] = ["auto", "client", "me"];
+
+interface Detail {
+  reading?: string;
+  argument?: string;
+  question?: string;
+  risk?: string;
+  support?: string;
+}
+
+interface TacticalState {
+  signal: string;
+  sayNow: string;
+  avoid: string;
+  detail: Detail | null;
+}
+
+const EMPTY_STATE: TacticalState = { signal: "", sayNow: "", avoid: "", detail: null };
 
 export default function CopilotPage() {
-  const [mode, setMode] = useState<Mode>("simulate");
+  const [inputMode, setInputMode] = useState<InputMode>("simulate");
+  const [speakerMode, setSpeakerMode] = useState<SpeakerMode>("auto");
   const [simulateText, setSimulateText] = useState("");
-  // null = setup screen; string = active session (may be empty string = no context)
   const [sessionContext, setSessionContext] = useState<string | null>(null);
+  const [tacticalState, setTacticalState] = useState<TacticalState>(EMPTY_STATE);
+  // Mini call map: last 5 signals
+  const [signalHistory, setSignalHistory] = useState<string[]>([]);
 
-  const [tacticalState, setTacticalState] = useState({
-    signal: "",
-    sayNow: "",
-    avoid: "",
-  });
+  const sessionActive = sessionContext !== null;
+  const speakerModeRef = useRef(speakerMode);
+  speakerModeRef.current = speakerMode;
 
   const { mutate: analyze, isPending } = useAnalyzeConversation();
 
   const handleAnalysis = useCallback(
     (text: string) => {
       if (!text.trim()) return;
+      const speaker = speakerModeRef.current;
+      const speakerPrefix =
+        speaker === "client" ? "[CLIENTE]: " :
+        speaker === "me"     ? "[YO]: " : "";
+      const fullText = speakerPrefix + text;
+
       analyze(
-        { data: { text, ...(sessionContext ? { context: sessionContext } : {}) } },
+        { data: { text: fullText, ...(sessionContext ? { context: sessionContext } : {}) } },
         {
           onSuccess: (res) => {
-            setTacticalState({ signal: res.signal, sayNow: res.say_now, avoid: res.avoid });
+            setTacticalState({
+              signal: res.signal,
+              sayNow: res.say_now,
+              avoid: res.avoid,
+              detail: res.detail ?? null,
+            });
+            if (res.signal) {
+              setSignalHistory((prev) => [...prev.slice(-4), res.signal]);
+            }
           },
         }
       );
@@ -40,21 +80,50 @@ export default function CopilotPage() {
   const { isSupported, isListening, error: speechError, interimText, startListening, stopListening } =
     useSpeech({ onAnalyzeReady: handleAnalysis, analysisIntervalMs: 8000 });
 
+  // ── Keyboard shortcuts (only when session active, not in text inputs) ────────
+  useEffect(() => {
+    if (!sessionActive) return;
+
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+      if (tag === "input" || tag === "textarea") return;
+
+      const idx = SPEAKER_ORDER.indexOf(speakerModeRef.current);
+
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        setSpeakerMode(SPEAKER_ORDER[Math.max(0, idx - 1)]);
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        setSpeakerMode(SPEAKER_ORDER[Math.min(SPEAKER_ORDER.length - 1, idx + 1)]);
+      } else if (e.key === " ") {
+        e.preventDefault();
+        setSpeakerMode(SPEAKER_ORDER[(idx + 1) % SPEAKER_ORDER.length]);
+      }
+    };
+
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [sessionActive]);
+
   const handleContextReady = (context: string) => {
     setSessionContext(context);
-    setTacticalState({ signal: "", sayNow: "", avoid: "" });
+    setTacticalState(EMPTY_STATE);
+    setSignalHistory([]);
   };
 
   const handleClearSession = () => {
     setSessionContext(null);
-    setTacticalState({ signal: "", sayNow: "", avoid: "" });
+    setTacticalState(EMPTY_STATE);
+    setSignalHistory([]);
     if (isListening) stopListening();
-    setMode("simulate");
+    setInputMode("simulate");
+    setSpeakerMode("auto");
   };
 
-  const handleModeSwitch = (newMode: Mode) => {
+  const handleModeSwitch = (newMode: InputMode) => {
     if (newMode === "simulate" && isListening) stopListening();
-    setMode(newMode);
+    setInputMode(newMode);
   };
 
   const handleMicToggle = () => {
@@ -88,7 +157,7 @@ export default function CopilotPage() {
             <span className="text-[10px] font-mono tracking-widest uppercase">Analizando</span>
           </div>
         )}
-        {mode === "listen" && !speechError && (
+        {inputMode === "listen" && !speechError && (
           <div
             onClick={handleMicToggle}
             className={cn(
@@ -104,24 +173,47 @@ export default function CopilotPage() {
         )}
       </div>
 
-      {/* Main HUD — fills all space between bar and controls */}
+      {/* Call map — top left, only when there's history */}
+      {signalHistory.length > 0 && (
+        <div className="absolute top-10 left-5 z-10 flex items-center gap-1.5 max-w-[40%]">
+          <span className="text-[9px] font-mono tracking-widest uppercase text-zinc-800 shrink-0">señales</span>
+          <div className="flex items-center gap-1 flex-wrap">
+            {signalHistory.map((s, i) => (
+              <span
+                key={i}
+                className={cn(
+                  "text-[9px] font-mono uppercase tracking-wide px-1.5 py-0.5 rounded",
+                  i === signalHistory.length - 1
+                    ? "text-zinc-500 bg-white/5"
+                    : "text-zinc-800"
+                )}
+              >
+                {s}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Main HUD */}
       <div className="flex-1 min-h-0 relative">
         <TacticalDisplay
           signal={tacticalState.signal}
           sayNow={tacticalState.sayNow}
           avoid={tacticalState.avoid}
+          detail={tacticalState.detail}
           isPending={isPending}
         />
 
         {/* Interim text */}
-        {mode === "listen" && isListening && interimText && (
+        {inputMode === "listen" && isListening && interimText && (
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 max-w-xl w-full px-6 text-center pointer-events-none">
             <p className="text-[11px] text-zinc-700 font-mono truncate">{interimText}</p>
           </div>
         )}
 
         {/* Mic error overlay */}
-        {mode === "listen" && speechError && (
+        {inputMode === "listen" && speechError && (
           <div className="absolute inset-0 flex items-center justify-center px-6">
             <div className="flex flex-col gap-3 bg-zinc-900 border border-white/10 rounded-2xl p-5 shadow-xl max-w-sm w-full">
               <div className="flex items-start gap-3">
@@ -143,7 +235,7 @@ export default function CopilotPage() {
         )}
 
         {/* Browser not supported */}
-        {mode === "listen" && !isSupported && !speechError && (
+        {inputMode === "listen" && !isSupported && !speechError && (
           <div className="absolute inset-0 flex items-center justify-center px-6">
             <div className="bg-zinc-900 border border-white/10 rounded-2xl p-5 max-w-sm w-full">
               <p className="text-xs font-mono text-zinc-400 text-center leading-relaxed">
@@ -155,15 +247,12 @@ export default function CopilotPage() {
         )}
       </div>
 
-      {/* Controls — solid bottom bar */}
+      {/* Controls — bottom bar */}
       <div className="shrink-0 border-t border-white/5 bg-black px-6 py-4 flex flex-col items-center gap-3">
 
         {/* Simulate textarea */}
-        {mode === "simulate" && (
-          <form
-            onSubmit={handleSimulateSubmit}
-            className="w-full max-w-2xl flex items-stretch gap-2"
-          >
+        {inputMode === "simulate" && (
+          <form onSubmit={handleSimulateSubmit} className="w-full max-w-2xl flex items-stretch gap-2">
             <textarea
               value={simulateText}
               onChange={(e) => setSimulateText(e.target.value)}
@@ -183,15 +272,13 @@ export default function CopilotPage() {
               disabled={!simulateText.trim() || isPending}
               className="bg-white text-black px-5 rounded-xl font-mono text-xs font-semibold tracking-widest uppercase hover:bg-zinc-200 active:scale-95 disabled:opacity-40 transition-all flex items-center justify-center gap-2 min-w-[90px]"
             >
-              {isPending
-                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                : "Analizar"}
+              {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Analizar"}
             </button>
           </form>
         )}
 
         {/* Listen mic button */}
-        {mode === "listen" && isSupported && !speechError && (
+        {inputMode === "listen" && isSupported && !speechError && (
           <button
             onClick={handleMicToggle}
             className={cn(
@@ -207,29 +294,54 @@ export default function CopilotPage() {
           </button>
         )}
 
-        {/* Mode toggle */}
-        <div className="flex items-center bg-white/5 p-1 rounded-full border border-white/8">
-          <button
-            onClick={() => handleModeSwitch("listen")}
-            className={cn(
-              "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono font-medium transition-all",
-              mode === "listen" ? "bg-white text-black shadow" : "text-zinc-500 hover:text-white"
-            )}
-          >
-            {isListening ? <Mic className="w-3 h-3 text-red-500" /> : <MicOff className="w-3 h-3" />}
-            ESCUCHAR
-          </button>
-          <button
-            onClick={() => handleModeSwitch("simulate")}
-            className={cn(
-              "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono font-medium transition-all",
-              mode === "simulate" ? "bg-white text-black shadow" : "text-zinc-500 hover:text-white"
-            )}
-          >
-            <Keyboard className="w-3 h-3" />
-            SIMULAR
-          </button>
+        {/* Bottom row: mode toggle + speaker mode */}
+        <div className="flex items-center justify-center gap-3 w-full">
+
+          {/* Input mode toggle */}
+          <div className="flex items-center bg-white/5 p-1 rounded-full border border-white/8">
+            <button
+              onClick={() => handleModeSwitch("listen")}
+              className={cn(
+                "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono font-medium transition-all",
+                inputMode === "listen" ? "bg-white text-black shadow" : "text-zinc-500 hover:text-white"
+              )}
+            >
+              {isListening ? <Mic className="w-3 h-3 text-red-500" /> : <MicOff className="w-3 h-3" />}
+              ESCUCHAR
+            </button>
+            <button
+              onClick={() => handleModeSwitch("simulate")}
+              className={cn(
+                "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono font-medium transition-all",
+                inputMode === "simulate" ? "bg-white text-black shadow" : "text-zinc-500 hover:text-white"
+              )}
+            >
+              <Keyboard className="w-3 h-3" />
+              SIMULAR
+            </button>
+          </div>
+
+          {/* Speaker mode toggle */}
+          <div className="flex items-center bg-white/5 p-1 rounded-full border border-white/8">
+            {SPEAKER_ORDER.map((s) => (
+              <button
+                key={s}
+                onClick={() => setSpeakerMode(s)}
+                className={cn(
+                  "px-3 py-1.5 rounded-full text-[10px] font-mono tracking-widest transition-all",
+                  speakerMode === s ? "bg-white/15 text-white" : "text-zinc-600 hover:text-zinc-400"
+                )}
+              >
+                {SPEAKER_LABELS[s]}
+              </button>
+            ))}
+          </div>
         </div>
+
+        {/* Keyboard hint */}
+        <p className="text-[9px] font-mono text-zinc-800 tracking-widest">
+          ← → cambia hablante · espacio cicla
+        </p>
       </div>
     </div>
   );

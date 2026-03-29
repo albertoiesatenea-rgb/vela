@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./analyzeDetail";
 export * from "./analyzeRequest";
 export * from "./analyzeResponse";
 export * from "./errorResponse";

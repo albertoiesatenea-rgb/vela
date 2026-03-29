@@ -5,19 +5,6 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-export interface HealthStatus {
-  status: string;
-}
-
-export interface AnalyzeRequest {
-  /**
-   * Conversation fragment to analyze
-   * @minLength 1
-   */
-  text: string;
-  /** Optional session context to guide the tactical analysis */
-  context?: string;
-}
 
 export interface AnalyzeDetail {
   /** What the engine is detecting beneath the surface (1 sentence) */
@@ -30,18 +17,4 @@ export interface AnalyzeDetail {
   risk?: string;
   /** A brief supporting note on what to do (1 line) */
   support?: string;
-}
-
-export interface AnalyzeResponse {
-  /** Short signal label (2-5 words) */
-  signal: string;
-  /** Tactical action to take (4-12 words) */
-  say_now: string;
-  /** What to avoid doing right now (2-6 words) */
-  avoid: string;
-  detail?: AnalyzeDetail;
-}
-
-export interface ErrorResponse {
-  error: string;
 }
