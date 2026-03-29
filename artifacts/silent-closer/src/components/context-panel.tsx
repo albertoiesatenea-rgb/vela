@@ -462,6 +462,7 @@ export function ContextSetup({
   const [appMode, setAppMode] = useState<AppMode>("copilot");
   const [arenaRole, setArenaRole] = useState<ArenaRole>("seller");
   const [quickText, setQuickText] = useState("");
+  const [isRandomCtx, setIsRandomCtx] = useState(false);
 
   // Arena profile/difficulty state
   const [clientProfile, setClientProfile] = useState<string | undefined>(undefined);
@@ -493,7 +494,15 @@ export function ContextSetup({
   const handleRandomContext = () => {
     const ctx = pickRandomContext(arenaRole, lang);
     setQuickText(ctx);
+    setIsRandomCtx(true);
     setTimeout(() => quickRef.current?.focus(), 50);
+  };
+
+  const handleRoleSwitch = (newRole: ArenaRole) => {
+    setArenaRole(newRole);
+    if (isRandomCtx) {
+      setQuickText(pickRandomContext(newRole, lang));
+    }
   };
 
   const ctaLabel = appMode === "arena" ? t.START_ARENA : t.START;
@@ -568,7 +577,7 @@ export function ContextSetup({
             ) : (
               <>
                 <button
-                  onClick={() => setArenaRole("seller")}
+                  onClick={() => handleRoleSwitch("seller")}
                   onMouseDown={e => e.preventDefault()}
                   className={cn(
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono transition-all",
@@ -579,7 +588,7 @@ export function ContextSetup({
                   {t.ARENA_SELLER_SHORT}
                 </button>
                 <button
-                  onClick={() => setArenaRole("client")}
+                  onClick={() => handleRoleSwitch("client")}
                   onMouseDown={e => e.preventDefault()}
                   className={cn(
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono transition-all",
@@ -628,7 +637,7 @@ export function ContextSetup({
               <textarea
                 ref={quickRef}
                 value={quickText}
-                onChange={(e) => setQuickText(e.target.value)}
+                onChange={(e) => { setQuickText(e.target.value); setIsRandomCtx(false); }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
