@@ -675,20 +675,38 @@ export default function CopilotPage() {
   // Helper: build copy text for summary
   const buildSummaryText = () => {
     if (!callSummary) return "";
-    const t2 = T[lang];
+    const isEs = lang === "es";
     const lines = [
-      `CLOSER WIZARD — ${t2.CALL_RESULT}`,
-      `${t2.CALL_RESULT}: ${callSummary.resultLabel}`,
-      `${t2.CALL_SCORE}: ${callSummary.score.toFixed(1)} / 10`,
-      `${t2.CALL_STATE}: ${callSummary.globalState.toUpperCase()}`,
+      "CLOSER WIZARD",
       "",
-      `${t2.STRENGTHS}:`,
+      `${isEs ? "Resultado" : "Result"}: ${callSummary.resultLabel}`,
+      `Score: ${callSummary.score.toFixed(1)} / 10`,
+      `${isEs ? "Estado" : "State"}: ${callSummary.globalState.toUpperCase()}`,
+      "",
+      `${isEs ? "Puntos fuertes" : "Strengths"}:`,
       ...callSummary.strengths.map(s => `→ ${s}`),
       "",
-      `${t2.IMPROVEMENTS}:`,
+      `${isEs ? "Puntos a mejorar" : "Improvements"}:`,
       ...callSummary.improvements.map(s => `△ ${s}`),
     ];
     return lines.join("\n");
+  };
+
+  // Helper: build copy text for full report (prepends stats header)
+  const buildFullReportText = () => {
+    if (!callSummary?.fullReport) return "";
+    const isEs = lang === "es";
+    const header = [
+      "CLOSER WIZARD",
+      "",
+      `${isEs ? "Resultado" : "Result"}: ${callSummary.resultLabel}`,
+      `Score: ${callSummary.score.toFixed(1)} / 10`,
+      `${isEs ? "Estado" : "State"}: ${callSummary.globalState.toUpperCase()}`,
+      "",
+      "──────────────",
+      "",
+    ].join("\n");
+    return header + callSummary.fullReport;
   };
 
   const OUTCOME_OPTS: { key: CallOutcome; label: string }[] = [
@@ -747,20 +765,13 @@ export default function CopilotPage() {
                   </div>
                 ) : callSummary ? (
                   <>
-                    {endStep === "report" && (
-                      <button
-                        onClick={() => setEndStep("summary")}
-                        className="text-[10px] font-mono text-zinc-500 hover:text-zinc-300 transition-colors text-left"
-                      >
-                        {T[lang].BACK_SUMMARY}
-                      </button>
-                    )}
-
+                    {/* ── SUMMARY step ── */}
                     {endStep === "summary" && (
                       <>
-                        {/* Header */}
+                        {/* Brand + result header */}
                         <div className="flex flex-col gap-0.5">
-                          <p className="text-[10px] font-mono tracking-widest uppercase text-zinc-600">{T[lang].CALL_RESULT}</p>
+                          <WizardOverlayHeader />
+                          <p className="text-[10px] font-mono tracking-widest uppercase text-zinc-600 mt-3">{T[lang].CALL_RESULT}</p>
                           <p className="text-lg font-mono font-bold text-white leading-tight">{callSummary.resultLabel}</p>
                         </div>
 
@@ -802,49 +813,92 @@ export default function CopilotPage() {
                             ))}
                           </div>
                         )}
+
+                        {/* ── Summary action hierarchy ── */}
+                        <div className="flex flex-col gap-2 border-t border-white/5 pt-4">
+                          {/* 1. Copy summary — primary quick action */}
+                          <button
+                            onClick={() => handleCopyText(buildSummaryText())}
+                            className="w-full flex items-center justify-center gap-2 bg-white text-black text-xs font-mono font-bold py-3 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all"
+                          >
+                            {copied ? T[lang].COPIED : T[lang].COPY_SUMMARY}
+                          </button>
+                          {/* 2. Close session — easy, natural, comfortable */}
+                          <button
+                            onClick={handleActuallyClearSession}
+                            className="w-full flex items-center justify-center gap-2 bg-zinc-900 border border-zinc-700 text-white text-xs font-mono font-semibold py-3 rounded-xl hover:bg-zinc-800 hover:border-zinc-500 active:scale-[0.98] transition-all"
+                          >
+                            {T[lang].CLOSE_SESSION}
+                          </button>
+                          {/* 3. Generate full report — secondary, truly optional */}
+                          <button
+                            onClick={() => void handleGenerateReport()}
+                            disabled={isGeneratingReport}
+                            className="w-full flex items-center justify-center gap-1.5 text-[10px] font-mono text-zinc-500 hover:text-zinc-300 py-2 transition-colors disabled:opacity-40"
+                          >
+                            {isGeneratingReport
+                              ? <><Loader2 className="w-3 h-3 animate-spin" />{T[lang].ANALYZING_CALL}</>
+                              : `${T[lang].GEN_REPORT} →`}
+                          </button>
+                        </div>
                       </>
                     )}
 
-                    {/* Full report text */}
+                    {/* ── REPORT step ── */}
                     {endStep === "report" && callSummary.fullReport && (
-                      <div className="flex flex-col gap-2">
-                        <p className="text-[10px] font-mono tracking-widest uppercase text-zinc-600">{T[lang].FULL_REPORT}</p>
-                        <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 max-h-96 overflow-y-auto">
-                          <p className="text-xs font-mono text-zinc-300 leading-relaxed whitespace-pre-wrap">{callSummary.fullReport}</p>
+                      <>
+                        {/* Compact stats header — score/result/state always visible */}
+                        <div className="flex items-center gap-3 pb-3 border-b border-white/8">
+                          <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                            <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-600">{T[lang].CALL_RESULT}</p>
+                            <p className="text-xs font-mono font-semibold text-white truncate">{callSummary.resultLabel}</p>
+                          </div>
+                          <div className="shrink-0 text-center">
+                            <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-600">{T[lang].CALL_SCORE}</p>
+                            <p className="text-xl font-mono font-bold text-white leading-none">
+                              {callSummary.score.toFixed(1)}<span className="text-zinc-600 text-xs"> /10</span>
+                            </p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-600">{T[lang].CALL_STATE}</p>
+                            <p className="text-xs font-mono font-semibold text-white uppercase">{callSummary.globalState}</p>
+                          </div>
                         </div>
-                      </div>
-                    )}
 
-                    {/* Action buttons */}
-                    <div className="flex flex-col gap-2 border-t border-white/5 pt-4">
-                      {endStep === "summary" && (
-                        <button
-                          onClick={() => void handleGenerateReport()}
-                          disabled={isGeneratingReport}
-                          className="w-full flex items-center justify-center gap-2 bg-zinc-900 border border-zinc-700 text-white text-xs font-mono font-semibold py-3 rounded-xl hover:bg-zinc-800 hover:border-zinc-500 active:scale-[0.98] transition-all disabled:opacity-50"
-                        >
-                          {isGeneratingReport
-                            ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />{T[lang].ANALYZING_CALL}</>
-                            : T[lang].GEN_REPORT}
-                        </button>
-                      )}
-                      <button
-                        onClick={() => handleCopyText(
-                          endStep === "report" && callSummary.fullReport
-                            ? callSummary.fullReport
-                            : buildSummaryText()
-                        )}
-                        className="w-full flex items-center justify-center gap-2 bg-white/5 border border-white/10 text-zinc-300 text-xs font-mono py-2.5 rounded-xl hover:bg-white/8 hover:text-white active:scale-[0.98] transition-all"
-                      >
-                        {copied ? T[lang].COPIED : (endStep === "report" ? T[lang].COPY_REPORT : T[lang].COPY_SUMMARY)}
-                      </button>
-                      <button
-                        onClick={handleActuallyClearSession}
-                        className="w-full text-xs font-mono text-zinc-500 hover:text-red-400 py-2.5 rounded-xl hover:bg-red-950/20 transition-all"
-                      >
-                        {T[lang].CLOSE_SESSION}
-                      </button>
-                    </div>
+                        {/* Full report text */}
+                        <div className="flex flex-col gap-2">
+                          <p className="text-[10px] font-mono tracking-widest uppercase text-zinc-600">{T[lang].FULL_REPORT}</p>
+                          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 max-h-80 overflow-y-auto">
+                            <p className="text-xs font-mono text-zinc-300 leading-relaxed whitespace-pre-wrap">{callSummary.fullReport}</p>
+                          </div>
+                        </div>
+
+                        {/* ── Report action hierarchy ── */}
+                        <div className="flex flex-col gap-2 border-t border-white/5 pt-4">
+                          {/* 1. Copy report — primary */}
+                          <button
+                            onClick={() => handleCopyText(buildFullReportText())}
+                            className="w-full flex items-center justify-center gap-2 bg-white text-black text-xs font-mono font-bold py-3 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all"
+                          >
+                            {copied ? T[lang].COPIED : T[lang].COPY_REPORT}
+                          </button>
+                          {/* 2. Close session — clear and comfortable */}
+                          <button
+                            onClick={handleActuallyClearSession}
+                            className="w-full flex items-center justify-center gap-2 bg-zinc-900 border border-zinc-700 text-white text-xs font-mono font-semibold py-3 rounded-xl hover:bg-zinc-800 hover:border-zinc-500 active:scale-[0.98] transition-all"
+                          >
+                            {T[lang].CLOSE_SESSION}
+                          </button>
+                          {/* 3. Back to summary — secondary text link */}
+                          <button
+                            onClick={() => setEndStep("summary")}
+                            className="w-full text-center text-[10px] font-mono text-zinc-600 hover:text-zinc-300 py-1.5 transition-colors"
+                          >
+                            {T[lang].BACK_SUMMARY}
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </>
                 ) : null}
               </div>

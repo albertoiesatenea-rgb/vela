@@ -1,0 +1,196 @@
+Quiero hacer una mejora importante sobre el flujo final de cierre de sesión / reporte en Closer Wizard, sin rehacer la app desde cero.
+
+IMPORTANTE:
+- no quiero romper la estética actual
+- no quiero meter más fricción
+- quiero que el cierre de sesión sea más práctico
+- quiero que el resumen corto sea más útil y portable
+- y quiero que el full report sea opcional de verdad
+
+==================================================
+OBJETIVO GENERAL
+==================================================
+
+Quiero que al terminar una sesión:
+1. el resumen corto sea la salida principal
+2. el score no se pierda
+3. cerrar la sesión sea fácil y natural
+4. generar full report sea opcional, no el camino principal
+
+==================================================
+PARTE 1 — INCLUIR SIEMPRE SCORE Y STATE EN EL RESUMEN COPIABLE
+==================================================
+
+Ahora mismo el resumen corto visual tiene:
+- resultado
+- score
+- state
+- strengths
+- improvements
+
+Pero quiero asegurarme de que cuando el usuario haga:
+- Copy summary
+
+se copie también:
+- Call result / Resultado
+- Score
+- State
+
+No quiero perder esa información al llevármela a:
+- notas personales
+- otra IA
+- histórico
+- seguimiento de llamadas
+
+FORMATO DESEADO DEL RESUMEN COPIABLE
+
+Resultado: [resultado]
+Score: [x.x/10]
+Estado: [state]
+
+Puntos fuertes:
+- ...
+- ...
+- ...
+
+Puntos a mejorar:
+- ...
+- ...
+- ...
+
+Quiero que Copy summary copie algo así, limpio y útil.
+
+==================================================
+PARTE 2 — GENERATE FULL REPORT DEBE SER OPCIONAL DE VERDAD
+==================================================
+
+Ahora mismo quiero que el flujo natural sea:
+
+1. terminar llamada
+2. ver resumen corto
+3. poder cerrar fácilmente
+4. y solo si quiero, generar el reporte completo
+
+No quiero que el full report se sienta como el siguiente paso obligatorio.
+Debe ser una opción secundaria.
+
+OBJETIVO
+Quiero que la pantalla de resumen final esté pensada para:
+- revisar rápido
+- copiar
+- cerrar
+
+Y que “Generate full report” sea solo una opción adicional para profundizar.
+
+==================================================
+PARTE 3 — HACER “CLOSE SESSION” MÁS NATURAL Y MÁS CÓMODO
+==================================================
+
+Ahora mismo cerrar la sesión no debe sentirse escondido ni como una acción incómoda.
+
+Quiero que:
+- cerrar sea fácil
+- cerrar sea visible
+- cerrar sea un final natural del flujo
+
+No quiero tener que hacer demasiados pasos para salir.
+No quiero mamoneo.
+
+Puedes mejorar:
+- tamaño
+- padding
+- jerarquía visual
+- posición
+- claridad del botón
+
+Sin romper la estética minimalista.
+
+==================================================
+PARTE 4 — FULL REPORT TAMBIÉN DEBE INCLUIR SCORE / RESULTADO / STATE
+==================================================
+
+Cuando el usuario genere el full report, quiero que ese reporte completo incluya también, al principio, una cabecera clara con:
+
+- Resultado
+- Score
+- State
+
+No quiero que el full report arranque directamente con párrafos largos y que se pierda esa info.
+
+Quiero una estructura tipo:
+
+Resultado: ...
+Score: ...
+State: ...
+
+Resumen general:
+...
+
+Fortalezas:
+...
+
+Mejoras:
+...
+
+Feedback ampliado:
+...
+
+==================================================
+PARTE 5 — PRIORIZACIÓN DE BOTONES
+==================================================
+
+Quiero que en la pantalla final el orden de importancia esté mejor pensado.
+
+Mi propuesta preferida:
+
+1. Copy summary
+2. Close session
+3. Generate full report
+
+o bien:
+
+1. Close session
+2. Copy summary
+3. Generate full report
+
+Elige la jerarquía que mejor funcione visualmente y en UX, pero con esta idea:
+- full report no debe ser el camino principal
+- cerrar no debe estar escondido
+- copiar resumen debe ser muy fácil
+
+==================================================
+PARTE 6 — REGLA DE DISEÑO
+==================================================
+
+Todo esto debe seguir sintiéndose:
+- premium
+- limpio
+- táctico
+- rápido
+- sin fricción
+- producto serio
+
+No quiero:
+- pantallas recargadas
+- demasiados pasos
+- botones confusos
+- que el cierre de sesión sea un proceso pesado
+
+==================================================
+OBJETIVO FINAL
+==================================================
+
+Quiero que:
+1. el resumen corto sea la salida principal
+2. el score y el state viajen con el resumen
+3. cerrar la sesión sea fácil y natural
+4. el full report exista, pero como opción opcional y secundaria
+
+No rehagas la app.
+Solo mejora el flujo final y la utilidad real del resumen.
+
+Cuando termines, explícamelo brevemente:
+1. qué incluye ahora Copy summary
+2. cómo has reorganizado la jerarquía de acciones finales
+3. cómo has hecho más fácil cerrar la sesión
+4. y cómo empieza ahora el full report
