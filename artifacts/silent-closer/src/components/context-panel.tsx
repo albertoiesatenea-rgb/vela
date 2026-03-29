@@ -2,6 +2,22 @@ import { useState } from "react";
 import { ChevronDown, ChevronUp, Zap, AlignLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// ── Closer Wizard minimal hat icon ─────────────────────────────────────────
+function WizardIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 14 17" fill="currentColor" className={className} aria-hidden>
+      {/* Conical hat */}
+      <polygon points="7,0 12.5,12 1.5,12" />
+      {/* Brim */}
+      <rect x="0.5" y="12.5" width="13" height="2.5" rx="1.25" opacity="0.85" />
+      {/* Tiny star accent on the hat */}
+      <circle cx="7" cy="4.5" r="0.9" fill="black" fillOpacity="0.35" />
+    </svg>
+  );
+}
+
+export { WizardIcon };
+
 type Lang = "es" | "en";
 type ContextMode = "quick" | "guided";
 
@@ -213,9 +229,12 @@ export function ContextSetup({
         {/* Brand header */}
         <div className="flex items-start justify-between">
           <div className="flex flex-col gap-1">
-            <h1 className="text-3xl font-mono font-bold text-white tracking-[0.12em] uppercase">
-              Silent Closer
-            </h1>
+            <div className="flex items-center gap-2.5">
+              <WizardIcon className="w-5 h-6 text-white opacity-90" />
+              <h1 className="text-3xl font-mono font-bold text-white tracking-[0.12em] uppercase">
+                Closer Wizard
+              </h1>
+            </div>
             <p className="text-[11px] font-mono text-zinc-500 tracking-[0.2em] uppercase">
               {t.SUBTITLE}
             </p>
@@ -311,17 +330,26 @@ export function ContextSetup({
   );
 }
 
+type Momentum = "red" | "amber" | "green" | undefined;
+
+const MOMENTUM_LABELS: Record<"es" | "en", Record<"red" | "amber" | "green", string>> = {
+  es: { red: "TENSO", amber: "NEUTRO", green: "FAVORABLE" },
+  en: { red: "TENSE", amber: "NEUTRAL", green: "FAVORABLE" },
+};
+
 /** Compact top bar — shown during active session */
 export function SessionBar({
   sessionContext,
   contextLabel,
   onClearSession,
   lang = "es",
+  momentum,
 }: {
   sessionContext: string;
   contextLabel?: string;
   onClearSession: () => void;
   lang?: Lang;
+  momentum?: Momentum;
 }) {
   const t = CP[lang];
   const [expanded, setExpanded] = useState(false);
@@ -348,6 +376,22 @@ export function SessionBar({
           )}
         </div>
         <div className="flex items-center gap-3 shrink-0">
+          {momentum && (
+            <div className={cn(
+              "flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-mono tracking-widest uppercase transition-all duration-700",
+              momentum === "green" && "border-green-800 text-green-400 bg-green-950/40",
+              momentum === "amber" && "border-amber-800 text-amber-400 bg-amber-950/40",
+              momentum === "red"   && "border-red-800 text-red-400 bg-red-950/40",
+            )}>
+              <div className={cn(
+                "w-1 h-1 rounded-full",
+                momentum === "green" && "bg-green-500",
+                momentum === "amber" && "bg-amber-500",
+                momentum === "red"   && "bg-red-500 animate-pulse",
+              )} />
+              <span>{MOMENTUM_LABELS[lang as "es" | "en"][momentum]}</span>
+            </div>
+          )}
           <button
             onClick={(e) => { e.stopPropagation(); onClearSession(); }}
             className="text-[10px] font-mono text-zinc-200 hover:text-red-400 transition-colors"

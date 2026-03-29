@@ -35,7 +35,8 @@ Responde SIEMPRE con este JSON exacto y nada más:
   },
   "call_memory": {
     "summary_lines": ["línea 1", "línea 2", "línea 3", "hasta 6"]
-  }
+  },
+  "momentum": "green | amber | red"
 }
 
 REGLAS ABSOLUTAS:
@@ -246,6 +247,35 @@ Incluye: fases superadas, objeción dominante, tipo de objeción, momento actual
 Reescribe y comprime cada turno. No crecer infinito. Máximo 6 líneas.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+MOMENTUM — ESTADO GLOBAL DE LA LLAMADA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Evalúa el estado táctico global de la conversación. NO solo el tono emocional.
+
+"green" — momento favorable:
+- Interés real manifestado
+- Conversación bien orientada hacia un objetivo
+- Objeción principal clara, trabajada o resuelta
+- Apertura activa, disposición a seguir
+- Momentum de avance
+
+"amber" — momento neutro o en construcción:
+- Conversación abierta pero sin claridad todavía
+- Objeción presente pero trabajable
+- Interés posible pero no articulado
+- Falta concretar la duda o el criterio
+- En proceso de diagnóstico o exploración
+
+"red" — momento desfavorable:
+- Resistencia alta o creciente
+- Desconfianza activa
+- Objeción mal enfocada o que crece
+- Pérdida de control de la conversación
+- Bloqueo, evasión o cierre emocional
+
+REGLA: si hay objeción fuerte pero ya bien aterrizada y trabajable → amber, no red.
+Si hay interés real aunque con dudas → green o amber según apertura.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 FASES DE VENTA — REFERENCIA
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 APERTURA · DIAGNÓSTICO · PRESENTACIÓN · VALIDACIÓN DE INTERÉS · OBJECIÓN ACTIVA ·
@@ -260,11 +290,11 @@ EJEMPLO DE SALIDA CORRECTA
 Fragmento: "[CLIENTE]: Es que el edificio es muy antiguo, tendrá muchos gastos."
 Memoria anterior: ya confirmado interés, primera vez que aparece esta objeción.
 
-{"signal":"objeción de mantenimiento","say_now":"concreta si teme costes anuales o derramas","avoid":"no defiendas el activo aún","detail":{"reading":"No rechaza la inversión; teme que los gastos imprevisibles destruyan la rentabilidad esperada.","next_move":"¿Lo que te preocupa es el coste de mantenimiento anual o las derramas grandes e imprevisibles?","support":"Si tienes datos de ITE o reserva de comunidad, úsalos. Si no, pregunta primero cuánto le impacta en rentabilidad esperada."},"journey":{"past":"Interés inicial confirmado","now":"resolviendo objeción de mantenimiento","next":"cuantificar el freno"},"call_memory":{"summary_lines":["Propuesta presentada","Interés inicial confirmado","Objeción nueva: gastos de mantenimiento en edificio antiguo","Tipo: miedo a costes imprevisibles","Momento: explorando magnitud del freno","Objetivo: concretar y cuantificar el impacto en rentabilidad"]}}
+{"signal":"objeción de mantenimiento","say_now":"concreta si teme costes anuales o derramas","avoid":"no defiendas el activo aún","detail":{"reading":"No rechaza la inversión; teme que los gastos imprevisibles destruyan la rentabilidad esperada.","next_move":"¿Lo que te preocupa es el coste de mantenimiento anual o las derramas grandes e imprevisibles?","support":"Si tienes datos de ITE o reserva de comunidad, úsalos. Si no, pregunta primero cuánto le impacta en rentabilidad esperada."},"journey":{"past":"Interés inicial confirmado","now":"resolviendo objeción de mantenimiento","next":"cuantificar el freno"},"call_memory":{"summary_lines":["Propuesta presentada","Interés inicial confirmado","Objeción nueva: gastos de mantenimiento en edificio antiguo","Tipo: miedo a costes imprevisibles","Momento: explorando magnitud del freno","Objetivo: concretar y cuantificar el impacto en rentabilidad"]},"momentum":"amber"}
 
 Ejemplo turno siguiente — cliente responde "sí, eso me preocupa":
 
-{"signal":"objeción confirmada","say_now":"cuantifica cuánto le frena en rentabilidad esperada","avoid":null,"detail":{"reading":"Ya confirmó el freno. El siguiente paso es dimensionarlo: ¿cuánto impacta realmente en su rentabilidad?","next_move":"¿Cuánto tendría que gastar en mantenimiento para que esta inversión dejara de tener sentido para ti?","support":"Si tienes datos de coste medio de comunidad o mantenimiento en la zona, úsalos ahora. Si no, ayúdale a calcular el umbral de rentabilidad."},"journey":{"past":"Objeción identificada","now":"cuantificando impacto del freno","next":"reenfocar o resolver"},"call_memory":{"summary_lines":["Propuesta presentada","Interés inicial confirmado","Objeción: gastos de mantenimiento en edificio antiguo","Cliente confirmó que le preocupa","Momento: cuantificando magnitud del freno","Objetivo: dimensionar impacto en rentabilidad y resolver"]}}
+{"signal":"objeción confirmada","say_now":"cuantifica cuánto le frena en rentabilidad esperada","avoid":null,"detail":{"reading":"Ya confirmó el freno. El siguiente paso es dimensionarlo: ¿cuánto impacta realmente en su rentabilidad?","next_move":"¿Cuánto tendría que gastar en mantenimiento para que esta inversión dejara de tener sentido para ti?","support":"Si tienes datos de coste medio de comunidad o mantenimiento en la zona, úsalos ahora. Si no, ayúdale a calcular el umbral de rentabilidad."},"journey":{"past":"Objeción identificada","now":"cuantificando impacto del freno","next":"reenfocar o resolver"},"call_memory":{"summary_lines":["Propuesta presentada","Interés inicial confirmado","Objeción: gastos de mantenimiento en edificio antiguo","Cliente confirmó que le preocupa","Momento: cuantificando magnitud del freno","Objetivo: dimensionar impacto en rentabilidad y resolver"]},"momentum":"amber"}
 
 Responde SIEMPRE con JSON puro sin markdown ni texto extra.`;
 
@@ -320,6 +350,7 @@ router.post("/copilot/analyze", async (req, res) => {
         detail: { reading: "", next_move: "", support: "" },
         journey: { past: "—", now: "sin contexto", next: "concretar" },
         call_memory: { summary_lines: ["Inicio de sesión", "Sin contexto claro todavía"] },
+        momentum: "amber",
       };
     }
 

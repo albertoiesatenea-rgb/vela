@@ -74,15 +74,18 @@ interface Journey {
   next: string;
 }
 
+type Momentum = "red" | "amber" | "green" | undefined;
+
 interface TacticalState {
   sayNow: string;
   avoid?: string;
   detail: Detail | null;
   journey: Journey | null;
   callMemory: string[];
+  momentum: Momentum;
 }
 
-const EMPTY_STATE: TacticalState = { sayNow: "", avoid: undefined, detail: null, journey: null, callMemory: [] };
+const EMPTY_STATE: TacticalState = { sayNow: "", avoid: undefined, detail: null, journey: null, callMemory: [], momentum: undefined };
 
 const SESSION_KEY = "sc_session_context";
 const LABEL_KEY   = "sc_context_label";
@@ -435,6 +438,7 @@ export default function CopilotPage() {
               detail: res.detail ?? null,
               journey: res.journey ?? null,
               callMemory: res.call_memory?.summary_lines ?? [],
+              momentum: res.momentum as Momentum,
             });
           },
         }
@@ -526,7 +530,7 @@ export default function CopilotPage() {
     <div className="fixed inset-0 bg-black text-foreground flex flex-col overflow-hidden font-sans">
 
       {/* Compact session bar */}
-      <SessionBar sessionContext={sessionContext} contextLabel={contextLabel} onClearSession={handleClearSession} lang={lang} />
+      <SessionBar sessionContext={sessionContext} contextLabel={contextLabel} onClearSession={handleClearSession} lang={lang} momentum={tacticalState.momentum} />
 
       {/* Status pill — top right */}
       <div className="absolute top-10 right-5 flex items-center gap-3 z-10">

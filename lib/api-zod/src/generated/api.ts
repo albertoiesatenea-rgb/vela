@@ -78,4 +78,11 @@ export const AnalyzeConversationResponse = zod.object({
     })
     .nullish()
     .transform((v) => v ?? undefined),
+  momentum: zod
+    .enum(["red", "amber", "green"])
+    .nullish()
+    .transform((v) => v ?? undefined)
+    .describe(
+      "Global tactical momentum — green (favorable, advancing), amber (neutral/workable), red (resistance, bad direction)",
+    ),
 });

@@ -1,0 +1,233 @@
+Quiero hacer una mejora importante sobre la app actual, manteniendo la base visual y funcional que ya tenemos, sin rehacer el producto desde cero.
+
+IMPORTANTE:
+- NO quiero romper la app actual
+- NO quiero perder el estilo minimalista
+- NO quiero una nueva arquitectura
+- quiero una mejora de identidad de producto y una mejora funcional importante de lectura global de la llamada
+
+==================================================
+PARTE 1 — CAMBIO DE NOMBRE DEL PRODUCTO
+==================================================
+
+Quiero cambiar el nombre visible del producto de:
+
+SILENT CLOSER
+
+a:
+
+CLOSER WIZARD
+
+OBJETIVO
+Quiero que la herramienta tenga una identidad más potente, más memorable y con más personalidad.
+
+CLOSER WIZARD me parece mejor porque transmite:
+- guía táctica
+- inteligencia
+- capacidad de cierre
+- personalidad de producto
+
+Quiero que actualices:
+- el nombre visible en la pantalla inicial
+- el nombre visible dentro de la app
+- cualquier encabezado o branding donde aún aparezca Silent Closer
+
+Mantén la estética sobria y premium.
+
+==================================================
+PARTE 2 — LOGO / ICONO DE MARCA
+==================================================
+
+Quiero añadir una identidad visual muy simple para Closer Wizard.
+
+La idea es un símbolo tipo:
+- mago de ventas
+- sombrero
+- wizard
+- guía táctica
+
+PERO:
+- no quiero algo infantil
+- no quiero un dibujo cartoon exagerado
+- no quiero fantasy recargado
+- no quiero un logo grande o molesto
+
+Quiero un icono muy simple, elegante y coherente con el estilo de la app.
+
+REFERENCIA ESTÉTICA
+- pixelado fino o retro sutil puede encajar bien
+- muy minimalista
+- monocromo o casi monocromo
+- pequeño
+- sobrio
+- más símbolo que ilustración
+
+IDEAS VÁLIDAS
+- un pequeño sombrero de mago estilizado
+- una silueta simple tipo wizard
+- un icono geométrico con aire de “wizard táctico”
+- una combinación sutil de sombrero + estrella + señal
+
+IMPORTANTE
+El logo debe:
+- integrarse con la estética actual
+- no parecer de videojuego infantil
+- no comerse la marca
+- reforzar el branding sin ensuciar la interfaz
+
+Puedes colocarlo de forma sutil junto al nombre o en el encabezado, donde mejor quede visualmente.
+
+==================================================
+PARTE 3 — NUEVO INDICADOR GLOBAL DEL ESTADO DE LA LLAMADA
+==================================================
+
+Quiero añadir un indicador muy visual y muy rápido de leer que me diga cómo va la llamada en este momento.
+
+OBJETIVO
+Quiero que, además de decirme:
+- qué está pasando
+- qué hacer ahora
+
+la app también me dé una lectura global del momentum de la conversación.
+
+La idea intuitiva es algo tipo:
+- mal / tenso / mal enfocada
+- neutral / trabajable / todavía abierta
+- bien / favorable / encarrilada
+
+VISUALMENTE
+Me gustaría algo muy simple, tipo:
+- carita triste
+- carita neutra
+- carita positiva
+
+o equivalente visual más elegante.
+
+Si las caritas rompen demasiado el tono premium, puedes usar una alternativa más sobria:
+- punto / indicador rojo
+- punto / indicador ámbar
+- punto / indicador verde
+- con o sin icono facial muy sutil
+
+Mi prioridad no es la carita en sí, sino que el estado se entienda en medio segundo.
+
+ESTADOS QUE QUIERO
+
+1. ESTADO NEGATIVO
+Color: rojo
+Significado:
+- resistencia alta
+- objeción mal enfocada o creciendo
+- desconfianza
+- mala dirección de la conversación
+- momento poco favorable
+
+2. ESTADO INTERMEDIO
+Color: ámbar / naranja
+Significado:
+- conversación abierta
+- objeción trabajable
+- todavía falta claridad
+- hay interés pero aún no está madura
+- momento neutro o en construcción
+
+3. ESTADO POSITIVO
+Color: verde
+Significado:
+- interés real
+- conversación bien orientada
+- objeción principal clara o resuelta
+- buena apertura
+- momento favorable para avanzar
+
+==================================================
+PARTE 4 — CÓMO DEBE PENSAR ESTE INDICADOR
+==================================================
+
+No quiero que el indicador sea aleatorio o superficial.
+
+Quiero que se base en factores reales de la conversación, como:
+- nivel de apertura de la otra parte
+- claridad o confusión de la objeción
+- disposición a seguir
+- resistencia actual
+- momentum de venta
+- cercanía a un siguiente paso
+- sensación de control o pérdida de control
+
+No quiero que dependa solo del tono emocional.
+Quiero que refleje el estado táctico global.
+
+Ejemplo:
+- si hay objeción fuerte pero ya bien aterrizada y trabajable, puede ser ámbar, no rojo
+- si hay interés real y la conversación avanza, verde
+- si la conversación se bloquea o se pone peor, rojo
+
+==================================================
+PARTE 5 — UBICACIÓN EN LA UI
+==================================================
+
+Quiero que este indicador:
+- se vea rápido
+- no ensucie la pantalla
+- no robe protagonismo a SIGNAL o SAY NOW
+- esté integrado con elegancia
+
+Opciones válidas:
+- una esquina superior
+- una pequeña zona cerca del encabezado
+- una pastilla pequeña debajo del título de sesión
+- o cualquier ubicación discreta y muy visible
+
+Elige la opción más limpia.
+
+IMPORTANTE
+No quiero un widget grande.
+Quiero algo mínimo pero útil.
+
+==================================================
+PARTE 6 — REGLA DE DISEÑO
+==================================================
+
+Todo esto debe seguir sintiéndose:
+- premium
+- sobrio
+- táctico
+- limpio
+- producto serio
+
+No quiero:
+- elementos chillones
+- logos grandes
+- iconos caricaturescos
+- indicadores que parezcan juguete
+- colores excesivos
+
+Quiero:
+- identidad más potente
+- lectura más rápida del estado de la llamada
+- sin perder elegancia
+
+==================================================
+LO QUE QUIERO QUE HAGAS
+==================================================
+
+1. Cambia el branding visible de Silent Closer a Closer Wizard
+2. Diseña e integra un icono/logo muy simple con estética compatible con la app
+3. Añade un indicador global del estado de la llamada con 3 niveles:
+   - negativo
+   - intermedio
+   - positivo
+4. Haz que ese indicador esté basado en el momento real de la conversación
+5. Mantén la UI limpia y minimalista
+
+==================================================
+ENTREGABLE
+==================================================
+
+Cuando termines, dime brevemente:
+1. cómo has aplicado el cambio de marca
+2. qué tipo de logo/icono has elegido
+3. dónde has colocado el indicador de estado
+4. cómo decides si va en rojo / ámbar / verde
+5. por qué esta mejora debería ayudar más en llamadas reales
