@@ -63,9 +63,9 @@ function saveLabel(l: string) {
 
 // ── Color config per detail field — colorblind-safe (blue / white / amber)
 const FIELD_CONFIG = {
-  LECTURA:   { label: "text-sky-400",   content: "text-sky-200",   size: "text-[15px]", prefix: "LEE ·" },
-  SIGUIENTE: { label: "text-white",     content: "text-white",     size: "text-[18px]", prefix: "DI ·"  },
-  APOYO:     { label: "text-amber-400", content: "text-amber-200", size: "text-[15px]", prefix: "APO ·" },
+  LECTURA:   { label: "text-sky-400",   content: "text-sky-200",   size: "text-[15px]", prefix: "LECTURA ·"            },
+  SIGUIENTE: { label: "text-white",     content: "text-white",     size: "text-[18px]", prefix: "SIGUIENTE MOVIMIENTO ·" },
+  APOYO:     { label: "text-amber-400", content: "text-amber-200", size: "text-[15px]", prefix: "APOYO ·"               },
 } as const;
 
 type FieldKey = keyof typeof FIELD_CONFIG;
@@ -121,63 +121,79 @@ function MemoryBullets({ lines }: { lines: string[] }) {
   );
 }
 
-// ── Conversation timeline — 3 connected nodes embedded in HUD
+// ── Conversation timeline — 3-state cycling on each click
+// State 0: only NOW (default) → State 1: 3 nodes → State 2: full memory → back to 0
 function ConversationTimeline({ journey, memoryLines }: { journey: Journey; memoryLines: string[] }) {
-  const [expanded, setExpanded] = useState(false);
+  const [view, setView] = useState<0 | 1 | 2>(0);
+  const cycle = () => setView(v => ((v + 1) % 3) as 0 | 1 | 2);
 
   return (
     <div className="shrink-0">
-      {/* Compact 3-node row — now node takes flex-1 as it carries the signal role */}
-      <button
-        onClick={() => setExpanded(p => !p)}
-        className="w-full flex items-start gap-0 pt-3 pb-2 px-5 group"
-        title={expanded ? "Cerrar historial" : "Ver historial completo"}
-      >
-        {/* ANTES node */}
-        <div className="flex flex-col items-center gap-1.5 w-[72px] shrink-0">
-          <div className="w-1.5 h-1.5 rounded-full bg-zinc-700 group-hover:bg-zinc-600 transition-colors mt-0.5" />
-          <span className="text-[8px] font-mono text-zinc-600 uppercase tracking-wider text-center leading-tight">
-            {journey.past}
-          </span>
-        </div>
+      <button onClick={cycle} className="w-full group">
 
-        {/* Left connector */}
-        <div className="h-px w-4 bg-zinc-700 mt-[5px] shrink-0" />
+        {/* STATE 0 — only NOW, centered */}
+        {view === 0 && (
+          <div className="flex items-center justify-center gap-2 pt-3 pb-2 px-6">
+            <div className="w-2 h-2 rounded-full bg-white group-hover:bg-zinc-100 transition-colors shrink-0" />
+            <span className="text-[12px] font-mono text-white uppercase tracking-wide font-semibold text-center leading-snug">
+              {journey.now}
+            </span>
+          </div>
+        )}
 
-        {/* AHORA node — flex-1, prominent, carries full signal context */}
-        <div className="flex flex-col items-center gap-1.5 flex-1 min-w-0 px-2">
-          <div className="w-2.5 h-2.5 rounded-full bg-white group-hover:bg-zinc-100 transition-colors" />
-          <span className="text-[11px] font-mono text-white uppercase tracking-wide text-center leading-tight font-semibold">
-            {journey.now}
-          </span>
-        </div>
+        {/* STATE 1 — 3 nodes in a row, constrained width so they stay close */}
+        {view === 1 && (
+          <div className="flex items-start justify-center gap-0 pt-3 pb-2 px-4">
+            {/* ANTES */}
+            <div className="flex flex-col items-center gap-1.5 w-[110px] shrink-0">
+              <div className="w-1.5 h-1.5 rounded-full bg-zinc-700 group-hover:bg-zinc-600 transition-colors mt-0.5" />
+              <span className="text-[8px] font-mono text-zinc-500 uppercase tracking-wider text-center leading-tight">
+                {journey.past}
+              </span>
+            </div>
+            {/* Left connector */}
+            <div className="h-px w-5 bg-zinc-700 mt-[5px] shrink-0" />
+            {/* AHORA */}
+            <div className="flex flex-col items-center gap-1.5 w-[180px] shrink-0 px-1">
+              <div className="w-2.5 h-2.5 rounded-full bg-white group-hover:bg-zinc-100 transition-colors" />
+              <span className="text-[11px] font-mono text-white uppercase tracking-wide text-center leading-tight font-semibold">
+                {journey.now}
+              </span>
+            </div>
+            {/* Right connector */}
+            <div className="h-px w-5 bg-zinc-700 mt-[5px] shrink-0" />
+            {/* DESPUÉS */}
+            <div className="flex flex-col items-center gap-1.5 w-[110px] shrink-0">
+              <div className="w-1.5 h-1.5 rounded-full border border-zinc-600 bg-transparent mt-0.5" />
+              <span className="text-[8px] font-mono text-zinc-500 uppercase tracking-wider text-center leading-tight">
+                {journey.next}
+              </span>
+            </div>
+          </div>
+        )}
 
-        {/* Right connector */}
-        <div className="h-px w-4 bg-zinc-700 mt-[5px] shrink-0" />
+        {/* STATE 2 — full session memory (shown below, trigger row stays compact) */}
+        {view === 2 && (
+          <div className="flex items-center justify-center gap-2 pt-3 pb-2 px-6">
+            <div className="w-2 h-2 rounded-full bg-zinc-400 group-hover:bg-zinc-300 transition-colors shrink-0" />
+            <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider text-center leading-snug">
+              Historial completo
+            </span>
+          </div>
+        )}
 
-        {/* DESPUÉS node — outlined future */}
-        <div className="flex flex-col items-center gap-1.5 w-[72px] shrink-0">
-          <div className="w-1.5 h-1.5 rounded-full border border-zinc-600 bg-transparent mt-0.5" />
-          <span className="text-[8px] font-mono text-zinc-500 uppercase tracking-wider text-center leading-tight">
-            {journey.next}
-          </span>
-        </div>
       </button>
 
-      {/* Expanded — full memory bullets */}
-      <AnimatePresence>
-        {expanded && memoryLines.length > 0 && (
-          <motion.div
-            key="memory-expanded"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto", transition: { duration: 0.22 } }}
-            exit={{ opacity: 0, height: 0, transition: { duration: 0.16 } }}
-            className="overflow-hidden border-t border-white/5"
-          >
-            <MemoryBullets lines={memoryLines} />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Memory bullets — shown in state 2 */}
+      <div
+        className="overflow-hidden border-t border-white/5"
+        style={{
+          maxHeight: view === 2 && memoryLines.length > 0 ? "220px" : "0px",
+          transition: "max-height 0.22s ease",
+        }}
+      >
+        <MemoryBullets lines={memoryLines} />
+      </div>
     </div>
   );
 }
