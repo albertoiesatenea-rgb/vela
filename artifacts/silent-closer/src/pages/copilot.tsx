@@ -160,13 +160,13 @@ const SESSION_KEY = "sc_session_context";
 const LABEL_KEY   = "sc_context_label";
 
 function loadSession(): string | null {
-  try { return localStorage.getItem(SESSION_KEY); } catch { return null; }
+  // Always start from the setup screen — never restore a previous session
+  try { localStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
+  return null;
 }
-function saveSession(ctx: string | null) {
-  try {
-    if (ctx === null) localStorage.removeItem(SESSION_KEY);
-    else localStorage.setItem(SESSION_KEY, ctx);
-  } catch { /* ignore */ }
+function saveSession(_ctx: string | null) {
+  // Session is not persisted across page loads (intentional — setup screen is always first)
+  try { /* no-op */ } catch { /* ignore */ }
 }
 function loadLabel(): string {
   try { return localStorage.getItem(LABEL_KEY) ?? ""; } catch { return ""; }
