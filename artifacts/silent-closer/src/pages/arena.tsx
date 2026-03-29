@@ -700,8 +700,8 @@ export function Arena({
 
           {/* Actions */}
           <div className="flex flex-col gap-2 border-t border-white/8 pt-4">
-            {/* Retry — primary CTA when it's a loss */}
-            {isLoss && onRetry && (
+            {/* Retry — primary CTA for losses and all client sessions */}
+            {(isLoss || role === "client") && onRetry && (
               <button
                 onClick={onRetry}
                 className="w-full bg-white text-black text-xs font-mono font-bold py-3 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all"
@@ -714,7 +714,7 @@ export function Arena({
               onClick={handleExportLog}
               className={cn(
                 "w-full text-xs font-mono font-bold py-3 rounded-xl active:scale-[0.98] transition-all",
-                isLoss && onRetry
+                (isLoss || role === "client") && onRetry
                   ? "border border-zinc-800 text-zinc-300 hover:border-zinc-600 hover:text-white"
                   : "bg-white text-black hover:bg-zinc-100"
               )}
