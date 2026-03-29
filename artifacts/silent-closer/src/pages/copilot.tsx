@@ -134,8 +134,8 @@ function ConversationTimeline({ journey, memoryLines }: { journey: Journey; memo
         {/* STATE 0 — only NOW, centered pill box */}
         {view === 0 && (
           <div className="flex justify-center pt-3 pb-2 px-6">
-            <div className="border border-white/20 rounded px-4 py-1.5 group-hover:border-white/35 transition-colors">
-              <span className="text-[11px] font-mono text-white uppercase tracking-wide font-semibold text-center leading-snug">
+            <div className="border border-white/25 rounded px-5 py-2 group-hover:border-white/40 transition-colors">
+              <span className="text-[14px] font-mono text-white uppercase tracking-wide font-semibold text-center leading-snug">
                 {journey.now}
               </span>
             </div>
@@ -146,27 +146,27 @@ function ConversationTimeline({ journey, memoryLines }: { journey: Journey; memo
         {view === 1 && (
           <div className="flex items-start justify-center gap-0 pt-3 pb-2 px-4">
             {/* ANTES */}
-            <div className="flex flex-col items-center gap-1.5 w-[110px] shrink-0">
-              <div className="w-1.5 h-1.5 rounded-full bg-zinc-700 group-hover:bg-zinc-600 transition-colors mt-0.5" />
-              <span className="text-[8px] font-mono text-zinc-500 uppercase tracking-wider text-center leading-tight">
+            <div className="flex flex-col items-center gap-2 w-[120px] shrink-0">
+              <div className="w-2 h-2 rounded-full bg-zinc-600 group-hover:bg-zinc-500 transition-colors mt-0.5" />
+              <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider text-center leading-tight">
                 {journey.past}
               </span>
             </div>
             {/* Left connector */}
-            <div className="h-px w-5 bg-zinc-700 mt-[5px] shrink-0" />
+            <div className="h-px w-5 bg-zinc-700 mt-[6px] shrink-0" />
             {/* AHORA */}
-            <div className="flex flex-col items-center gap-1.5 w-[180px] shrink-0 px-1">
-              <div className="w-2.5 h-2.5 rounded-full bg-white group-hover:bg-zinc-100 transition-colors" />
-              <span className="text-[11px] font-mono text-white uppercase tracking-wide text-center leading-tight font-semibold">
+            <div className="flex flex-col items-center gap-2 w-[200px] shrink-0 px-1">
+              <div className="w-3 h-3 rounded-full bg-white group-hover:bg-zinc-100 transition-colors" />
+              <span className="text-[13px] font-mono text-white uppercase tracking-wide text-center leading-tight font-semibold">
                 {journey.now}
               </span>
             </div>
             {/* Right connector */}
-            <div className="h-px w-5 bg-zinc-700 mt-[5px] shrink-0" />
+            <div className="h-px w-5 bg-zinc-700 mt-[6px] shrink-0" />
             {/* DESPUÉS */}
-            <div className="flex flex-col items-center gap-1.5 w-[110px] shrink-0">
-              <div className="w-1.5 h-1.5 rounded-full border border-zinc-600 bg-transparent mt-0.5" />
-              <span className="text-[8px] font-mono text-zinc-500 uppercase tracking-wider text-center leading-tight">
+            <div className="flex flex-col items-center gap-2 w-[120px] shrink-0">
+              <div className="w-2 h-2 rounded-full border border-zinc-500 bg-transparent mt-0.5" />
+              <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider text-center leading-tight">
                 {journey.next}
               </span>
             </div>

@@ -45,11 +45,12 @@ export function TacticalDisplay({ sayNow, avoid, isPending, isListening }: Tacti
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto", transition: { duration: 0.3 } }}
             exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
-            className="flex flex-col items-center justify-center gap-2 py-5 shrink-0 overflow-hidden"
+            className="flex flex-col items-center justify-center gap-1.5 py-6 shrink-0 overflow-hidden"
           >
+            <span className="text-[9px] font-mono text-amber-600 uppercase tracking-[0.25em]">evita</span>
             <AnimatePresence mode="wait">
               <motion.div key={avoid} variants={fade} initial="initial" animate="animate" exit="exit">
-                <span className="text-sm font-mono text-red-500 uppercase tracking-widest font-semibold">
+                <span className="text-2xl font-mono text-amber-400 uppercase tracking-wide font-semibold text-center">
                   {avoid}
                 </span>
               </motion.div>
