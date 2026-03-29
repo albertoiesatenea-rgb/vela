@@ -1,20 +1,18 @@
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Zap, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, ChevronUp, Zap, SlidersHorizontal, User, Users, Target, Briefcase, ShieldOff, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// ── Closer Wizard mark: wand shaft + 4-point star ────────────────────────────
-// A thin diagonal wand (lower-left → upper-right) with a clean 4-point star
-// at its tip. Two elements, no noise. Reads at 10px; unmistakably "wizard".
-// Small handle dot anchors the base and prevents it from reading as an arrow.
+// ── Closer Wizard mark: geometric wizard hat ──────────────────────────────────
+// A clean triangle (cone) + wide rounded brim. Two shapes, strong silhouette.
+// No decorations — the geometric precision is the premium signal.
+// Reads clearly at 8px; works as favicon, badge, inline header.
 function WizardIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 18 18" fill="none" className={className} aria-hidden>
-      {/* Handle dot — anchors the wand base */}
-      <circle cx="2.2" cy="15.8" r="0.9" fill="currentColor" />
-      {/* Wand shaft — diagonal line connecting handle to star */}
-      <line x1="2.2" y1="15.8" x2="9" y2="5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-      {/* 4-point star at wand tip — upper right, left arm meets wand */}
-      <path d="M13 0.5L14.4 3.6L17.5 5L14.4 6.4L13 9.5L11.6 6.4L8.5 5L11.6 3.6Z" fill="currentColor" />
+    <svg viewBox="0 0 20 16" fill="currentColor" className={className} aria-hidden>
+      {/* Hat cone — medium-angle triangle, not too pointy */}
+      <path d="M10 0.5L18.5 13H1.5Z" />
+      {/* Wide brim — 1.5px wider than cone on each side, rounded ends */}
+      <rect x="0" y="13" width="20" height="3" rx="1.5" />
     </svg>
   );
 }
@@ -35,11 +33,9 @@ const CP = {
     END:       "Finalizar",
     SUBTITLE:  "Inteligencia táctica conversacional",
     // Advanced step-by-step
-    ADV_STEP:  (n: number, total: number) => `PASO ${n} DE ${total}`,
-    ADV_BACK:  "← Atrás",
     ADV_NEXT:  "Siguiente →",
-    ADV_SKIP:  "Omitir",
     ADV_START: "Iniciar copiloto →",
+    ADV_SHORT_LABELS: ["Rol", "Quién", "Objetivo", "Oferta", "Frenos", "Notas"] as string[],
     ADV_Q: [
       "¿Quién eres tú en esta conversación?",
       "¿Con quién estás hablando?",
@@ -69,11 +65,9 @@ const CP = {
     SESSION:   "Session",
     END:       "End",
     SUBTITLE:  "Conversational tactical intelligence",
-    ADV_STEP:  (n: number, total: number) => `STEP ${n} OF ${total}`,
-    ADV_BACK:  "← Back",
     ADV_NEXT:  "Next →",
-    ADV_SKIP:  "Skip",
     ADV_START: "Start copilot →",
+    ADV_SHORT_LABELS: ["Role", "Who", "Goal", "Offer", "Blockers", "Notes"] as string[],
     ADV_Q: [
       "Who are you in this conversation?",
       "Who are you talking to?",
@@ -107,6 +101,8 @@ function buildContextFromAdvanced(answers: string[], lang: Lang): string {
 // ── Step-by-step Advanced form ───────────────────────────────────────────────
 const ADV_TOTAL = 6;
 
+const ADV_STEP_ICONS = [User, Users, Target, Briefcase, ShieldOff, FileText];
+
 function AdvancedForm({ onSubmit, lang }: { onSubmit: (context: string) => void; lang: Lang }) {
   const t = CP[lang];
   const [step, setStep] = useState(0);
@@ -120,36 +116,48 @@ function AdvancedForm({ onSubmit, lang }: { onSubmit: (context: string) => void;
     else onSubmit(buildContextFromAdvanced(answers, lang));
   };
 
-  const goSkip = () => {
-    setAnswer("");
-    if (step < ADV_TOTAL - 1) setStep(s => s + 1);
-    else onSubmit(buildContextFromAdvanced(answers, lang));
-  };
+  const goStart = () => onSubmit(buildContextFromAdvanced(answers, lang));
 
   const isLast = step === ADV_TOTAL - 1;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
 
-      {/* Progress bar */}
+      {/* Clickable stepper — icon + short label per step */}
       <div className="flex gap-1">
-        {Array(ADV_TOTAL).fill(0).map((_, i) => (
-          <div
-            key={i}
-            className={cn(
-              "h-[2px] flex-1 rounded-full transition-all duration-300",
-              i < step ? "bg-zinc-500" : i === step ? "bg-white" : "bg-zinc-800"
-            )}
-          />
-        ))}
+        {t.ADV_SHORT_LABELS.map((label, i) => {
+          const Icon = ADV_STEP_ICONS[i];
+          const isCurrent = i === step;
+          const isFilled  = answers[i].trim().length > 0;
+          return (
+            <button
+              key={i}
+              onClick={() => setStep(i)}
+              className={cn(
+                "flex-1 flex flex-col items-center gap-1 py-2 px-0.5 rounded-lg transition-all",
+                isCurrent
+                  ? "bg-white/8 border border-white/10"
+                  : "hover:bg-white/4 border border-transparent"
+              )}
+            >
+              <Icon className={cn(
+                "w-3 h-3 transition-colors",
+                isCurrent ? "text-white" : isFilled ? "text-zinc-400" : "text-zinc-700"
+              )} />
+              <span className={cn(
+                "text-[7px] font-mono tracking-wider uppercase w-full text-center transition-colors truncate",
+                isCurrent ? "text-white" : isFilled ? "text-zinc-500" : "text-zinc-700"
+              )}>
+                {label}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Step content */}
+      {/* Active step — question + input */}
       <div className="flex flex-col gap-3">
-        <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-600">
-          {t.ADV_STEP(step + 1, ADV_TOTAL)}
-        </p>
-        <p className="text-[15px] font-mono font-semibold text-white leading-snug">
+        <p className="text-[14px] font-mono font-semibold text-white leading-snug">
           {t.ADV_Q[step]}
         </p>
         <input
@@ -164,36 +172,21 @@ function AdvancedForm({ onSubmit, lang }: { onSubmit: (context: string) => void;
         />
       </div>
 
-      {/* Nav buttons */}
-      <div className="flex items-center gap-2">
-        {step > 0 ? (
+      {/* Nav — Siguiente (subtle) + always-available Iniciar */}
+      <div className="flex flex-col gap-2">
+        {!isLast && (
           <button
-            onClick={() => setStep(s => s - 1)}
-            className="text-[10px] font-mono text-zinc-600 hover:text-zinc-300 transition-colors px-2 py-2 shrink-0"
+            onClick={goNext}
+            className="text-[11px] font-mono text-zinc-600 hover:text-zinc-300 transition-colors py-1.5 text-center"
           >
-            {t.ADV_BACK}
+            {t.ADV_NEXT}
           </button>
-        ) : (
-          <div className="flex-shrink-0 w-12" />
         )}
-
         <button
-          onClick={goSkip}
-          className="text-[10px] font-mono text-zinc-600 hover:text-zinc-400 transition-colors px-3 py-2 rounded-lg shrink-0"
+          onClick={goStart}
+          className="w-full bg-white text-black text-xs font-mono font-semibold py-3 rounded-xl hover:bg-zinc-100 transition-all active:scale-[0.98]"
         >
-          {t.ADV_SKIP}
-        </button>
-
-        <button
-          onClick={goNext}
-          className={cn(
-            "flex-1 text-xs font-mono font-semibold py-2.5 rounded-xl transition-all active:scale-[0.98]",
-            isLast
-              ? "bg-white text-black hover:bg-zinc-100"
-              : "bg-zinc-900 border border-zinc-700 text-white hover:bg-zinc-800 hover:border-zinc-500"
-          )}
-        >
-          {isLast ? t.ADV_START : t.ADV_NEXT}
+          {t.ADV_START}
         </button>
       </div>
     </div>

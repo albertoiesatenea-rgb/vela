@@ -1,0 +1,211 @@
+Quiero rehacer el icono/logo de Closer Wizard otra vez, porque el actual no funciona.
+
+IMPORTANTE:
+- no quiero un parche
+- no quiero una versión ligeramente mejor de la varita actual
+- no quiero una explicación conceptual bonita sobre por qué funciona
+- quiero que VISUALMENTE funcione de verdad
+- quiero un símbolo con más presencia, más personalidad y más fuerza de marca
+
+==================================================
+PROBLEMA REAL
+==================================================
+
+El icono actual no transmite casi nada.
+
+Aunque la explicación conceptual diga:
+- wand
+- estrella
+- precisión
+- magia
+
+la realidad visual es:
+- demasiado fino
+- demasiado débil
+- sin masa visual
+- sin silueta potente
+- poco memorable
+- parece un adorno más que una marca
+- no está a la altura del nombre “Closer Wizard”
+
+No quiero un símbolo “correcto”.
+Quiero un símbolo que se sienta fuerte, reconocible y con identidad.
+
+==================================================
+OBJETIVO
+==================================================
+
+Quiero un icono/logo que:
+- sí transmita wizard
+- sí tenga personalidad
+- sí se sienta como marca real
+- sí acompañe bien a “Closer Wizard”
+- sea minimalista, pero NO flojo
+- sea premium, pero NO vacío
+- tenga silueta fuerte y memorable
+
+REGLA PRINCIPAL
+Prefiero:
+- un símbolo simple pero potente
+antes que
+- un símbolo finísimo, elegante en teoría, pero que no diga nada
+
+==================================================
+DIRECCIÓN DESEADA
+==================================================
+
+No quiero volver a una varita flácida con una estrella suelta.
+Tampoco quiero un triángulo ambiguo.
+No quiero un icono abstracto que haya que justificar con discurso.
+
+Quiero explorar una identidad mucho más sólida.
+
+PRIORIDAD DE DIRECCIONES
+
+OPCIÓN 1 — MONOGRAMA / EMBLEMA “CW” CON AIRE DE WIZARD
+Esta es mi dirección preferida.
+
+Quiero un símbolo que parta de:
+- C
+- W
+o
+- CW fusionadas
+
+y que tenga un gesto visual sutil que sugiera:
+- magia
+- conjuro
+- precisión
+- inteligencia táctica
+
+Puede ser:
+- un destello integrado
+- una punta / sello / corte / runa
+- una forma que parezca emblema o insignia
+- algo más “marca premium” que “dibujito”
+
+OBJETIVO:
+que funcione como símbolo serio de marca y no como icono decorativo.
+
+OPCIÓN 2 — EMBLEMA DE WIZARD TÁCTICO
+Un símbolo tipo sello o insignia que sugiera wizard sin dibujar un mago infantil.
+
+Puede inspirarse en:
+- un sombrero muy simplificado
+- un ojo / foco / señal
+- una runa
+- una estrella integrada
+- una marca tipo “sigil” o “seal”
+
+OBJETIVO:
+que se sienta como una marca de poder / guía / precisión.
+
+OPCIÓN 3 — WIZARD LITERAL ULTRASIMPLE
+Solo si queda realmente bien.
+
+Un símbolo que sugiera wizard de forma más literal:
+- sombrero reconocible
+- silueta simple
+- quizá un gesto de varita
+- pero con mucha limpieza y mucha fuerza
+
+Solo quiero esta ruta si no queda infantil ni cutre.
+
+==================================================
+LO QUE NO QUIERO
+==================================================
+
+- no quiero una línea fina con una estrella en la punta
+- no quiero un triángulo ambiguo
+- no quiero un clipart
+- no quiero un icono débil
+- no quiero un símbolo que necesite explicación
+- no quiero “minimalismo” entendido como “falta de carácter”
+- no quiero algo que en pequeño parezca un ruido cualquiera
+
+==================================================
+LO QUE SÍ QUIERO
+==================================================
+
+- más cuerpo visual
+- mejor silueta
+- más memorabilidad
+- más presencia
+- una sensación de emblema real
+- un símbolo que, aunque sea pequeño, se note que es una marca
+- algo que pueda vivir en:
+  - home
+  - pantalla de conversación
+  - favicon
+  - badge
+  - cabecera
+
+==================================================
+CRITERIOS DE CALIDAD
+==================================================
+
+El nuevo símbolo debe:
+- sentirse premium
+- sentirse táctico
+- sentirse más fuerte
+- combinar con el wordmark “Closer Wizard”
+- no competir demasiado con el nombre, pero sí sostenerlo
+- verse bien en pequeño
+- verse bien también si aparece solo
+
+Quiero que el símbolo tenga una buena silueta incluso en monocromo.
+
+==================================================
+INTEGRACIÓN CON LA MARCA
+==================================================
+
+Mantén el wordmark como pieza principal.
+El símbolo debe acompañarlo mejor.
+
+Si el símbolo nuevo es bueno, decide si queda mejor:
+- a la izquierda del nombre
+o
+- a la derecha
+
+Elige lo que visualmente quede más fuerte y más equilibrado.
+
+==================================================
+BRANDING EN LA PANTALLA DE CONVERSACIÓN
+==================================================
+
+Quiero mantener branding dentro de la pantalla de conversación.
+Pero si el símbolo nuevo es mejor, quiero que se note más la marca ahí también.
+
+No quiero una presencia invasiva.
+Sí quiero que la marca exista de verdad durante el uso real.
+
+Si encaja mejor, prioriza:
+- wordmark visible + símbolo pequeño
+más que
+- símbolo diminuto perdido en una esquina
+
+==================================================
+REGLA DE DECISIÓN FINAL
+==================================================
+
+Si tienes que elegir entre:
+- más conceptual pero flojo
+o
+- más simple pero con fuerza real
+
+elige SIEMPRE:
+más simple pero con fuerza real.
+
+Quiero el mejor logo posible para Closer Wizard.
+No solo algo “aceptable”.
+Quiero algo con carácter, identidad y presencia.
+
+==================================================
+ENTREGABLE
+==================================================
+
+Cuando termines, dime brevemente:
+1. qué dirección elegiste (monograma, emblema o wizard literal)
+2. por qué ahora transmite más
+3. qué hiciste para darle más cuerpo y más silueta
+4. dónde lo colocaste respecto al nombre
+5. y por qué ahora debería sentirse mucho más fuerte como marca

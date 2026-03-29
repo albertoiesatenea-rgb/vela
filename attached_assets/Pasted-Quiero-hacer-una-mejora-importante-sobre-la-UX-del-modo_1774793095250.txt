@@ -1,0 +1,206 @@
+Quiero hacer una mejora importante sobre la UX del modo avanzado de Closer Wizard, sin rehacer la app desde cero ni romper la estética actual.
+
+IMPORTANTE:
+- no quiero perder el minimalismo
+- no quiero un onboarding pesado
+- quiero que el modo avanzado sea más intuitivo, más rápido y más usable
+- la idea es que siga siendo un briefing premium, pero menos rígido y menos redundante
+
+==================================================
+PROBLEMAS ACTUALES
+==================================================
+
+Ahora mismo veo varios problemas en el modo avanzado:
+
+1. El botón “Omitir” es redundante
+Si dejar el campo vacío y pulsar “Siguiente” produce el mismo resultado, entonces “Omitir” no aporta nada y solo mete ruido.
+
+2. El botón “Atrás” quizá tampoco hace falta
+Si el flujo se puede hacer más flexible, no necesito depender de Atrás / Siguiente como si fuera un wizard rígido.
+
+3. Las barras/segmentos que indican el progreso no son intuitivos
+Ahora mismo no se entienden bien visualmente:
+- no sé de un vistazo qué representa cada paso
+- no son memorables
+- no son muy amigables
+
+4. Falta una salida clara para arrancar sin completar todo
+Quiero poder iniciar el copiloto aunque no haya rellenado todos los pasos.
+
+==================================================
+OBJETIVO GENERAL
+==================================================
+
+Quiero que el modo avanzado se sienta:
+- más claro
+- más rápido
+- más friendly
+- más flexible
+- más premium
+- menos formulario
+- menos rígido
+
+==================================================
+PARTE 1 — ELIMINAR “OMITIR”
+==================================================
+
+Quiero eliminar el botón:
+OMITIR
+
+Porque es redundante.
+
+Si el usuario deja el campo vacío y pulsa:
+SIGUIENTE
+ya está omitiendo ese paso.
+
+No quiero dos acciones que hagan prácticamente lo mismo.
+
+==================================================
+PARTE 2 — REPLANTEAR “ATRÁS”
+==================================================
+
+Quiero que revises si realmente hace falta el botón:
+ATRÁS
+
+Mi impresión es que no hace falta si el flujo se diseña mejor.
+
+PROPUESTA
+En lugar de depender tanto de Atrás / Siguiente, quiero que el usuario pueda:
+- avanzar con Siguiente
+- pero también tocar directamente cualquier paso para ir a él
+
+Si los pasos son clicables, Atrás deja de ser casi innecesario.
+
+Si visualmente y funcionalmente queda mejor, elimina Atrás.
+
+==================================================
+PARTE 3 — HACER LOS PASOS MÁS INTUITIVOS
+==================================================
+
+Las barras/segmentos actuales de progreso no me parecen intuitivos.
+
+Quiero sustituir esa representación por algo más claro visualmente.
+
+PROPUESTA
+Quiero un stepper con:
+- icono
+- nombre corto
+- estado visual claro
+- y que además sea clicable
+
+Ejemplos de pasos posibles:
+- Yo
+- Interlocutor
+- Objetivo
+- Oferta
+- Objeciones
+- Notas
+
+o una variante equivalente, si ves una jerarquía mejor.
+
+Cada paso debería tener:
+- un icono reconocible
+- una etiqueta breve
+- estado activo/inactivo
+- y posibilidad de hacer click para ir directamente a ese paso
+
+OBJETIVO
+Que de un vistazo se entienda:
+- dónde estoy
+- qué pasos hay
+- y a cuál puedo ir
+
+==================================================
+PARTE 4 — HACER EL FLUJO MÁS FLEXIBLE
+==================================================
+
+Quiero que el modo avanzado no sea un wizard rígido.
+
+La idea no es obligar al usuario a completar todos los pasos en orden.
+La idea es ayudarle a estructurar mejor el contexto.
+
+Por tanto:
+- el usuario puede ir en orden con Siguiente
+- pero también puede saltar a otro paso tocándolo
+- y no debe depender de Atrás / Omitir para moverse
+
+==================================================
+PARTE 5 — AÑADIR UNA ACCIÓN CLARA DE “INICIAR COPILOTO”
+==================================================
+
+Esto es importante.
+
+Aunque el usuario no haya rellenado todos los pasos,
+quiero que siempre exista una acción clara para arrancar.
+
+Quiero un botón:
+INICIAR COPILOTO
+
+Ese botón debe permitir iniciar la sesión aunque algunos pasos estén vacíos.
+
+No quiero que el usuario tenga que “terminar el wizard”.
+Quiero que el modo avanzado ayude, no que bloquee.
+
+OBJETIVO
+Que el usuario pueda:
+- rellenar mucho contexto
+o
+- rellenar solo parte
+y arrancar igualmente
+
+==================================================
+PARTE 6 — PROPUESTA DE UX FINAL
+==================================================
+
+Mi dirección preferida sería algo así:
+
+1. Stepper superior con icono + nombre de cada paso
+2. Un campo central para el paso activo
+3. Botón “Siguiente” para quien quiera avanzar en orden
+4. Botón “Iniciar copiloto” siempre disponible
+5. Sin Omitir
+6. Sin Atrás, si el stepper clicable lo hace innecesario
+
+==================================================
+PARTE 7 — REGLA DE DISEÑO
+==================================================
+
+Todo esto debe seguir sintiéndose:
+- premium
+- limpio
+- táctico
+- minimalista
+- rápido
+- serio
+
+No quiero:
+- demasiados botones
+- demasiado texto
+- una experiencia de formulario torpe
+- barras poco claras
+- pasos rígidos sin flexibilidad
+
+==================================================
+OBJETIVO FINAL
+==================================================
+
+Quiero que el modo avanzado:
+- sea más intuitivo
+- tenga menos redundancia
+- use pasos visualmente más claros
+- permita saltar entre pasos
+- y siempre dé la opción de iniciar el copiloto aunque falten cosas
+
+No rehagas la app.
+Solo mejora la UX del modo avanzado.
+
+==================================================
+ENTREGABLE
+==================================================
+
+Cuando termines, explícamelo brevemente:
+1. qué has hecho con Omitir
+2. qué has hecho con Atrás
+3. cómo has rediseñado los pasos
+4. si ahora los pasos son clicables
+5. y cómo funciona la opción de Iniciar copiloto aunque falten campos
