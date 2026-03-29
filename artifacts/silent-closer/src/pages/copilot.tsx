@@ -63,9 +63,9 @@ function saveLabel(l: string) {
 
 // ── Color config per detail field — colorblind-safe (blue / white / amber)
 const FIELD_CONFIG = {
-  LECTURA:   { label: "text-sky-400",   content: "text-sky-200",   size: "text-[16px]", prefix: "LECTURA ·"   },
-  SIGUIENTE: { label: "text-white",     content: "text-white",     size: "text-[21px]", prefix: "MOVIMIENTO ·" },
-  APOYO:     { label: "text-amber-400", content: "text-amber-200", size: "text-[16px]", prefix: "APOYO ·"      },
+  LECTURA:   { label: "text-sky-400",   content: "text-sky-200",   size: "text-[20px]", prefix: "LECTURA ·"   },
+  SIGUIENTE: { label: "text-white",     content: "text-white",     size: "text-[26px]", prefix: "MOVIMIENTO ·" },
+  APOYO:     { label: "text-amber-400", content: "text-amber-200", size: "text-[20px]", prefix: "APOYO ·"      },
 } as const;
 
 type FieldKey = keyof typeof FIELD_CONFIG;
@@ -88,12 +88,12 @@ function DetailField({ fieldKey, value }: { fieldKey: FieldKey; value?: string }
 // ── Detail panel — inline labels, full width, big text; EVITA at the bottom
 function DetailPanel({ detail, avoid }: { detail: Detail; avoid?: string }) {
   return (
-    <div className="px-6 py-6 flex flex-col gap-7 w-full">
+    <div className="px-6 py-8 flex flex-col gap-9 w-full">
       {detail.reading   && <DetailField fieldKey="LECTURA"   value={detail.reading} />}
       {detail.next_move && <DetailField fieldKey="SIGUIENTE" value={detail.next_move} />}
       {detail.support   && <DetailField fieldKey="APOYO"     value={detail.support} />}
       {avoid && (
-        <p className="font-mono w-full text-center text-[17px] font-semibold uppercase tracking-wide text-red-500">
+        <p className="font-mono w-full text-center text-[21px] font-semibold uppercase tracking-wide text-red-500">
           <span className="text-[9px] tracking-[0.2em] uppercase align-middle mr-2 font-normal text-red-700">
             EVITA ·
           </span>
@@ -207,6 +207,61 @@ function ConversationTimeline({ journey, memoryLines }: { journey: Journey; memo
   );
 }
 
+// ── Auto speaker inference ─────────────────────────────────────────────────
+// Returns the most likely speaker using language heuristics + turn alternation.
+// Prefers prudence: only makes a call when there is a clear signal (score diff ≥ 3).
+function inferSpeaker(
+  text: string,
+  lastSpeaker: "client" | "me" | null,
+): { speaker: "client" | "me" | "uncertain"; label: string } {
+  const t = text.toLowerCase();
+  let cs = 0; // client score
+  let vs = 0; // vendor score
+
+  // ── Client signals ───────────────────────────────────────────
+  const clientHigh = [
+    "no lo veo", "no me convence", "me preocupa", "no conozco", "me parece caro",
+    "no quiero equivocarme", "me da más", "explícame", "por qué debería",
+    "no sé si", "tengo dudas", "no estoy seguro", "me da miedo",
+    "no me fío", "no confío", "parece arriesgado", "prefiero",
+    "me gusta más", "qué garantías", "y si sale mal", "no lo entiendo",
+    "eso es demasiado", "es que no", "no lo veo claro",
+  ];
+  const clientMid = [
+    "pero", "aunque", "sin embargo", "¿y si", "claro pero",
+    "sí pero", "es que", "a ver", "no sé",
+  ];
+
+  // ── Vendor signals ───────────────────────────────────────────
+  const vendorHigh = [
+    "entiendo tu", "entiendo que", "si te parece", "la idea aquí",
+    "lo que buscamos", "te explico", "lo importante es",
+    "de hecho", "precisamente", "lo que tienes", "esto significa",
+    "bajemos", "concretemos", "dime una cosa", "pregunto",
+    "imagina que", "te propongo", "lo que te ofrezco",
+    "la clave aquí", "piénsalo así",
+  ];
+  const vendorMid = [
+    "exacto", "claro", "por supuesto", "es decir",
+    "en ese caso", "tiene sentido",
+  ];
+
+  for (const s of clientHigh) if (t.includes(s)) cs += 3;
+  for (const s of clientMid)  if (t.includes(s)) cs += 1;
+  for (const s of vendorHigh) if (t.includes(s)) vs += 3;
+  for (const s of vendorMid)  if (t.includes(s)) vs += 1;
+
+  // Turn alternation as a mild (not decisive) tiebreaker
+  if (lastSpeaker === "me")     cs += 1;
+  if (lastSpeaker === "client") vs += 1;
+
+  const diff  = Math.abs(cs - vs);
+  if (diff < 3) return { speaker: "uncertain", label: "" };
+
+  if (cs > vs) return { speaker: "client", label: "cliente" };
+  return { speaker: "me", label: "yo" };
+}
+
 export default function CopilotPage() {
   const [inputMode, setInputMode] = useState<InputMode>("simulate");
   const [speakerMode, setSpeakerMode] = useState<SpeakerMode>("auto");
@@ -217,6 +272,10 @@ export default function CopilotPage() {
 
   // Panel state
   const [detailOpen, setDetailOpen] = useState(false);
+
+  // AUTO inference state
+  const [inferredAutoLabel, setInferredAutoLabel] = useState<string>("");
+  const lastAutoSpeakerRef = useRef<"client" | "me" | null>(null);
 
   const sessionActive = sessionContext !== null;
   const speakerModeRef = useRef(speakerMode);
@@ -231,9 +290,29 @@ export default function CopilotPage() {
     (text: string) => {
       if (!text.trim()) return;
       const speaker = speakerModeRef.current;
-      const speakerPrefix =
-        speaker === "client" ? "[CLIENTE]: " :
-        speaker === "me"     ? "[YO]: " : "";
+
+      let speakerPrefix = "";
+      if (speaker === "client") {
+        speakerPrefix = "[CLIENTE]: ";
+      } else if (speaker === "me") {
+        speakerPrefix = "[YO]: ";
+      } else {
+        // AUTO mode — infer from text + turn memory
+        const { speaker: inferred, label } = inferSpeaker(text, lastAutoSpeakerRef.current);
+        if (inferred === "client") {
+          speakerPrefix = "[CLIENTE]: ";
+          lastAutoSpeakerRef.current = "client";
+          setInferredAutoLabel(label);
+        } else if (inferred === "me") {
+          speakerPrefix = "[YO]: ";
+          lastAutoSpeakerRef.current = "me";
+          setInferredAutoLabel(label);
+        } else {
+          // Uncertain — send without prefix, reset label
+          setInferredAutoLabel("");
+        }
+      }
+
       const fullText = speakerPrefix + text;
 
       // Serialize call_memory array to bulleted string for the API
@@ -471,14 +550,14 @@ export default function CopilotPage() {
             onClick={handleToggleDetail}
             className="overflow-hidden border-t border-white/5 cursor-pointer select-none"
             style={{
-              maxHeight: detailOpen ? "380px" : "0px",
+              maxHeight: detailOpen ? "500px" : "0px",
               transition: "max-height 0.22s ease",
             }}
           >
             <div className="flex items-center justify-center py-1.5 text-zinc-700">
               <ChevronDown className="w-3.5 h-3.5" />
             </div>
-            <div className="overflow-y-auto border-t border-white/5" style={{ maxHeight: "340px" }}>
+            <div className="overflow-y-auto border-t border-white/5" style={{ maxHeight: "460px" }}>
               <DetailPanel detail={tacticalState.detail!} avoid={tacticalState.avoid} />
             </div>
           </div>
@@ -565,13 +644,24 @@ export default function CopilotPage() {
             {SPEAKER_ORDER.map((s) => (
               <button
                 key={s}
-                onClick={() => setSpeakerMode(s)}
+                onClick={() => {
+                  setSpeakerMode(s);
+                  if (s !== "auto") {
+                    setInferredAutoLabel("");
+                    lastAutoSpeakerRef.current = null;
+                  }
+                }}
                 className={cn(
                   "px-3 py-1.5 rounded-full text-[10px] font-mono tracking-widest transition-all",
                   speakerMode === s ? "bg-white/15 text-white" : "text-zinc-200 hover:text-zinc-100"
                 )}
               >
-                {SPEAKER_LABELS[s]}
+                {s === "auto" && speakerMode === "auto" && inferredAutoLabel ? (
+                  <span className="flex flex-col items-center leading-none gap-[2px]">
+                    <span className="tracking-widest">AUTO</span>
+                    <span className="text-[7px] tracking-normal normal-case text-zinc-400 font-normal">{inferredAutoLabel}</span>
+                  </span>
+                ) : SPEAKER_LABELS[s]}
               </button>
             ))}
           </div>
@@ -580,7 +670,9 @@ export default function CopilotPage() {
 
         {/* Keyboard hint */}
         <p className="text-[9px] font-mono text-zinc-500 tracking-widest">
-          ← → cambia hablante · espacio cicla
+          {speakerMode === "auto" && inferredAutoLabel
+            ? `último · ${inferredAutoLabel} (auto) · ← → cambia`
+            : "← → cambia hablante · espacio cicla"}
         </p>
       </div>
     </div>

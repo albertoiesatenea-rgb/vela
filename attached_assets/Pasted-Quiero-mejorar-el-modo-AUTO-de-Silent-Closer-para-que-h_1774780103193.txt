@@ -1,0 +1,206 @@
+Quiero mejorar el modo AUTO de Silent Closer para que haga una inferencia mucho mejor de quién está hablando en cada fragmento cuando escucha la conversación sin etiquetado manual.
+
+IMPORTANTE:
+- no quiero rehacer la app
+- no quiero romper el modo manual actual
+- no quiero depender ciegamente de una adivinación perfecta
+- quiero una inferencia inteligente, práctica y robusta
+- si la confianza es baja, prefiero que el sistema sea prudente antes que asumir mal
+
+==================================================
+OBJETIVO
+==================================================
+
+En modo AUTO, la app debe intentar inferir si el fragmento que entra lo ha dicho:
+- el usuario / vendedor / persona A
+o
+- la otra parte / cliente / persona B
+
+La idea no es acertar el 100% siempre.
+La idea es que haga una inferencia razonable usando:
+1. cualquier diarización real disponible
+2. el contexto de sesión
+3. el lenguaje usado
+4. la memoria de turnos previos
+5. la estructura típica de una conversación de venta
+
+==================================================
+JERARQUÍA DE DECISIÓN
+==================================================
+
+Quiero que el sistema siga este orden:
+
+1. Si la transcripción o el proveedor de audio ya aporta speaker diarization real o etiquetas de hablante, úsalo como fuente principal.
+2. Si no hay diarización real, infiere el hablante por contexto y lenguaje.
+3. Si la confianza es baja, no hagas una asunción agresiva.
+4. Si hay ambigüedad, marca el turno como incierto o usa una heurística prudente.
+5. El modo manual AUTO / CLIENTE / YO debe poder corregir esto si el usuario lo cambia.
+
+==================================================
+USAR EL CONTEXTO DE SESIÓN
+==================================================
+
+El contexto inicial ya dice:
+- quién es el usuario
+- a quién se dirige
+- qué quiere conseguir
+- y el tipo de situación
+
+Quiero que el modo AUTO use eso para inferir mejor los papeles.
+
+Ejemplo:
+si el contexto dice que el usuario es un asesor que quiere vender una inversión a un cliente escéptico, entonces la app debe asumir de base:
+
+PROBABLEMENTE USUARIO / VENDEDOR:
+- pregunta
+- presenta
+- explica
+- reencuadra
+- compara criterios
+- responde objeciones
+- propone siguiente paso
+- intenta cerrar o avanzar
+
+PROBABLEMENTE CLIENTE:
+- plantea dudas
+- objeta
+- compara con otras opciones
+- expresa miedo o desconfianza
+- pide justificación
+- responde preguntas
+- muestra interés o resistencia
+
+==================================================
+HEURÍSTICAS DE LENGUAJE
+==================================================
+
+Si no hay diarización real, quiero que uses heurísticas de lenguaje para inferir el hablante.
+
+INDICIOS DE QUE HABLA EL CLIENTE / PERSONA B
+- expresa objeciones o dudas
+- usa frases como:
+  - no lo veo claro
+  - no me convence
+  - me preocupa
+  - no conozco la ciudad
+  - eso me parece caro
+  - no quiero equivocarme
+  - me da más confianza otra opción
+  - explícamelo mejor
+  - por qué debería hacer esto
+- responde a una pregunta previa
+- reacciona a una propuesta
+- aporta sus criterios o miedos
+
+INDICIOS DE QUE HABLA EL USUARIO / PERSONA A
+- formula preguntas tácticas
+- guía la conversación
+- explica la propuesta
+- presenta argumentos
+- reencuadra objeciones
+- valida y profundiza
+- pide siguiente paso
+- propone avanzar
+- introduce datos o beneficios
+- usa formulaciones como:
+  - entiendo tu duda
+  - si te parece
+  - la idea aquí es
+  - lo importante es
+  - bajemos esto a criterios concretos
+  - te explico por qué
+  - lo que buscamos es
+
+==================================================
+MEMORIA DE TURNOS
+==================================================
+
+Quiero que la app no infiera cada fragmento como si naciera de cero.
+
+Debe mantener una hipótesis de turnos:
+- quién habló en el último fragmento
+- si hubo cambio de turno o continuidad
+- si el nuevo texto parece respuesta a una pregunta previa
+- si el nuevo texto parece continuación del mismo hablante
+
+Ejemplo:
+si el último fragmento fue una pregunta del vendedor, el siguiente fragmento probablemente sea del cliente.
+Si el último fragmento fue una objeción del cliente, el siguiente puede ser del vendedor respondiendo.
+Pero no asumas esto siempre de forma ciega: úsalo como una pista más.
+
+==================================================
+CONFIANZA E INCERTIDUMBRE
+==================================================
+
+No quiero una clasificación rígida y ciega.
+
+Quiero que internamente el sistema maneje algo como:
+- hablante inferido
+- nivel de confianza: alto / medio / bajo
+
+Si la confianza es baja:
+- no debe construir toda la táctica como si estuviera 100% seguro
+- debe ser más prudente
+- y si hace falta, tratar el turno como ambiguo
+
+No hace falta mostrar siempre esa confianza al usuario, pero sí usarla para no romper el análisis.
+
+==================================================
+REGLA DE PRUDENCIA
+==================================================
+
+Es mejor:
+- una inferencia prudente
+que
+- una asignación segura pero equivocada
+
+Si no está claro quién habla, prefiero que el sistema:
+- no saque conclusiones muy agresivas
+- no trate una frase del vendedor como si fuera una objeción del cliente
+- y no trate una objeción del cliente como si fuera una explicación del vendedor
+
+==================================================
+CORRECCIÓN MANUAL
+==================================================
+
+Quiero que el modo AUTO conviva bien con el control manual AUTO / CLIENTE / YO.
+
+Si el usuario cambia manualmente a CLIENTE o YO:
+- eso debe anular la inferencia automática para ese tramo
+
+El modo AUTO debe ser ayuda, no dictadura.
+
+==================================================
+POSIBLE MEJORA DE UI
+==================================================
+
+Si encaja bien sin ensuciar la interfaz, me gustaría una señal muy discreta cuando el modo AUTO esté infiriendo hablante.
+
+Algo pequeño como:
+- Cliente (auto)
+- Yo (auto)
+
+o una marca sutil equivalente.
+
+Pero solo si no recarga la UI.
+
+==================================================
+OBJETIVO FINAL
+==================================================
+
+Quiero que el modo AUTO:
+- interprete mejor quién habla
+- use contexto + lenguaje + turnos previos
+- sea prudente cuando no tenga certeza
+- no rompa el análisis por confundir vendedor y cliente
+- y permita corrección manual cuando haga falta
+
+No rehagas la app.
+No cambies la filosofía.
+Solo mejora la inferencia de hablante en modo AUTO.
+
+Cuando termines, explícamelo brevemente:
+1. qué señales usas para inferir el hablante
+2. cómo usas el contexto y la memoria de turnos
+3. cómo manejas la incertidumbre
+4. y cómo convive esto con AUTO / CLIENTE / YO
