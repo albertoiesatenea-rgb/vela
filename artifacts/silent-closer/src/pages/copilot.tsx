@@ -577,13 +577,6 @@ export default function CopilotPage() {
           lang={lang}
         />
 
-        {/* Interim speech text */}
-        {inputMode === "listen" && isSessionListening && interimText && (
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 max-w-xl w-full px-6 text-center pointer-events-none">
-            <p className="text-[11px] text-zinc-200 font-mono truncate">{interimText}</p>
-          </div>
-        )}
-
         {/* Mic error overlay */}
         {inputMode === "listen" && speechError && (
           <div className="absolute inset-0 flex items-center justify-center px-6">
@@ -617,6 +610,16 @@ export default function CopilotPage() {
           </div>
         )}
         </div>{/* end flex-1 relative (tactical display) */}
+
+      {/* Interim transcript — own row, well below main text */}
+      <div className="shrink-0 h-8 flex items-center justify-center px-6 pointer-events-none">
+        {inputMode === "listen" && isSessionListening && interimText && (
+          <p className="text-[11px] text-zinc-500 font-mono truncate max-w-xl w-full text-center">
+            {interimText}
+          </p>
+        )}
+      </div>
+
       </div>{/* end HUD flex-col */}
 
       {/* ── Detail panel — CSS transitions only, no layout bounce ── */}
