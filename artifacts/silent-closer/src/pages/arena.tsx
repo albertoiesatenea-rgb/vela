@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 export type ArenaRole = "seller" | "client";
 type Lang = "es" | "en";
 type ConversationState = "favorable" | "tense" | "critical";
+export type ArenaOutcome = "closed" | "next_step" | "lost" | "broken" | "manual_stop" | "none";
+type FinalOutcome = Exclude<ArenaOutcome, "none">;
 
 interface ArenaMessage {
   index: number;
@@ -22,13 +24,10 @@ interface ArenaSummary {
   userTurns: number;
   createdAt: string;
   closedAt: string;
+  outcome: FinalOutcome;
 }
 
 // ── Conversation state heuristic ──────────────────────────────────────────────
-// Simple keyword-based inference on the last AI message.
-// Checks critical first (strong resistance), then favorable (openness/agreement),
-// defaults to tense (neutral/hesitant) for everything in between.
-
 const CRITICAL_KEYWORDS = {
   es: [
     "no me interesa", "no puedo", "absolutamente no", "imposible", "demasiado caro",
@@ -61,11 +60,8 @@ const FAVORABLE_KEYWORDS = {
 
 function inferState(text: string, lang: Lang): ConversationState {
   const lower = text.toLowerCase();
-  const critical = CRITICAL_KEYWORDS[lang];
-  const favorable = FAVORABLE_KEYWORDS[lang];
-
-  if (critical.some(kw => lower.includes(kw))) return "critical";
-  if (favorable.some(kw => lower.includes(kw))) return "favorable";
+  if (CRITICAL_KEYWORDS[lang].some(kw => lower.includes(kw))) return "critical";
+  if (FAVORABLE_KEYWORDS[lang].some(kw => lower.includes(kw))) return "favorable";
   return "tense";
 }
 
@@ -95,6 +91,24 @@ const T = {
     STATE_FAVORABLE: "Favorable",
     STATE_TENSE: "Tensa",
     STATE_CRITICAL: "Crítica",
+    // Outcomes
+    OUTCOME_CLOSED: "Sesión ganada",
+    OUTCOME_NEXT_STEP: "Avance conseguido",
+    OUTCOME_LOST: "Sesión perdida",
+    OUTCOME_BROKEN: "Conversación rota",
+    OUTCOME_MANUAL_STOP: "Parada manual",
+    // Modal
+    MODAL_DETECT: "Arena detecta",
+    MODAL_CONFIRM: "Confirmar y cerrar",
+    MODAL_CONTINUE: "Seguir conversando",
+    MODAL_CORRECT: "Corregir resultado",
+    MODAL_CORRECT_PROMPT: "¿Cuál fue el resultado real?",
+    // Client mode outcome buttons
+    CLIENT_SOLD: "Me has vendido",
+    CLIENT_ADVANCED: "Me has hecho avanzar",
+    CLIENT_LOST: "No me has convencido",
+    // Summary
+    OUTCOME_LABEL: "RESULTADO",
   },
   en: {
     ARENA: "ARENA",
@@ -120,8 +134,60 @@ const T = {
     STATE_FAVORABLE: "Favorable",
     STATE_TENSE: "Tense",
     STATE_CRITICAL: "Critical",
+    // Outcomes
+    OUTCOME_CLOSED: "Session won",
+    OUTCOME_NEXT_STEP: "Next step achieved",
+    OUTCOME_LOST: "Session lost",
+    OUTCOME_BROKEN: "Conversation broken",
+    OUTCOME_MANUAL_STOP: "Manual stop",
+    // Modal
+    MODAL_DETECT: "Arena detects",
+    MODAL_CONFIRM: "Confirm and close",
+    MODAL_CONTINUE: "Keep talking",
+    MODAL_CORRECT: "Correct outcome",
+    MODAL_CORRECT_PROMPT: "What was the actual outcome?",
+    // Client mode outcome buttons
+    CLIENT_SOLD: "You sold me",
+    CLIENT_ADVANCED: "I agreed to move forward",
+    CLIENT_LOST: "You didn't convince me",
+    // Summary
+    OUTCOME_LABEL: "OUTCOME",
   },
 };
+
+// ── Outcome helpers ───────────────────────────────────────────────────────────
+function getOutcomeLabel(outcome: FinalOutcome, t: typeof T["es"]): string {
+  const map: Record<FinalOutcome, string> = {
+    closed: t.OUTCOME_CLOSED,
+    next_step: t.OUTCOME_NEXT_STEP,
+    lost: t.OUTCOME_LOST,
+    broken: t.OUTCOME_BROKEN,
+    manual_stop: t.OUTCOME_MANUAL_STOP,
+  };
+  return map[outcome];
+}
+
+function getOutcomeColor(outcome: FinalOutcome): string {
+  const map: Record<FinalOutcome, string> = {
+    closed: "text-emerald-400",
+    next_step: "text-sky-400",
+    lost: "text-red-400",
+    broken: "text-amber-400",
+    manual_stop: "text-zinc-400",
+  };
+  return map[outcome];
+}
+
+function getOutcomeBg(outcome: FinalOutcome): string {
+  const map: Record<FinalOutcome, string> = {
+    closed: "bg-emerald-400/10 border-emerald-400/20",
+    next_step: "bg-sky-400/10 border-sky-400/20",
+    lost: "bg-red-400/10 border-red-400/20",
+    broken: "bg-amber-400/10 border-amber-400/20",
+    manual_stop: "bg-zinc-800/60 border-zinc-700/40",
+  };
+  return map[outcome];
+}
 
 // ── State indicator ───────────────────────────────────────────────────────────
 const STATE_DOT: Record<ConversationState, string> = {
@@ -139,15 +205,139 @@ const STATE_TEXT: Record<ConversationState, string> = {
 function StateIndicator({ state, lang }: { state: ConversationState | null; lang: Lang }) {
   if (!state) return null;
   const t = T[lang];
-  const label = state === "favorable"
-    ? t.STATE_FAVORABLE
-    : state === "tense" ? t.STATE_TENSE : t.STATE_CRITICAL;
+  const label = state === "favorable" ? t.STATE_FAVORABLE : state === "tense" ? t.STATE_TENSE : t.STATE_CRITICAL;
   return (
     <div className="flex items-center gap-1.5 shrink-0">
       <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", STATE_DOT[state])} />
       <span className={cn("text-[9px] font-mono tracking-widest uppercase", STATE_TEXT[state])}>
         {label}
       </span>
+    </div>
+  );
+}
+
+// ── Outcome confirmation modal (seller mode) ──────────────────────────────────
+function OutcomeModal({
+  detectedOutcome,
+  lang,
+  onConfirm,
+  onContinue,
+}: {
+  detectedOutcome: Exclude<ArenaOutcome, "none" | "manual_stop">;
+  lang: Lang;
+  onConfirm: (outcome: FinalOutcome) => void;
+  onContinue: () => void;
+}) {
+  const t = T[lang];
+  const [correcting, setCorrecting] = useState(false);
+
+  const outcomes: Array<{ key: FinalOutcome; label: string }> = [
+    { key: "closed", label: t.OUTCOME_CLOSED },
+    { key: "next_step", label: t.OUTCOME_NEXT_STEP },
+    { key: "lost", label: t.OUTCOME_LOST },
+    { key: "broken", label: t.OUTCOME_BROKEN },
+  ];
+
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center px-6 z-50">
+      <div className="w-full max-w-xs bg-zinc-950 border border-zinc-800 rounded-2xl p-5 flex flex-col gap-4">
+        {!correcting ? (
+          <>
+            <div className="flex flex-col gap-1">
+              <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">
+                {t.MODAL_DETECT}
+              </p>
+              <p className={cn("text-base font-mono font-bold", getOutcomeColor(detectedOutcome))}>
+                {getOutcomeLabel(detectedOutcome, t)}
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => onConfirm(detectedOutcome)}
+                className="w-full py-2.5 rounded-xl bg-white text-black text-xs font-mono font-bold hover:bg-zinc-100 active:scale-[0.98] transition-all"
+              >
+                {t.MODAL_CONFIRM}
+              </button>
+              <button
+                onClick={onContinue}
+                className="w-full py-2.5 rounded-xl border border-zinc-800 text-zinc-300 text-xs font-mono hover:border-zinc-600 hover:text-white transition-all"
+              >
+                {t.MODAL_CONTINUE}
+              </button>
+              <button
+                onClick={() => setCorrecting(true)}
+                className="w-full py-1.5 text-[10px] font-mono text-zinc-600 hover:text-zinc-400 transition-colors"
+              >
+                {t.MODAL_CORRECT}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">
+              {t.MODAL_CORRECT_PROMPT}
+            </p>
+            <div className="flex flex-col gap-2">
+              {outcomes.map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => onConfirm(key)}
+                  className={cn(
+                    "w-full py-2.5 rounded-xl border text-xs font-mono transition-all text-left px-3",
+                    key === detectedOutcome
+                      ? "border-zinc-600 text-white bg-zinc-900"
+                      : "border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+              <button
+                onClick={() => setCorrecting(false)}
+                className="w-full py-1.5 text-[10px] font-mono text-zinc-600 hover:text-zinc-400 transition-colors"
+              >
+                ← {lang === "es" ? "Volver" : "Back"}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Client mode outcome buttons ───────────────────────────────────────────────
+function ClientOutcomeBar({
+  lang,
+  disabled,
+  onOutcome,
+}: {
+  lang: Lang;
+  disabled: boolean;
+  onOutcome: (outcome: FinalOutcome) => void;
+}) {
+  const t = T[lang];
+  const buttons: Array<{ outcome: FinalOutcome; label: string; color: string }> = [
+    { outcome: "closed", label: t.CLIENT_SOLD, color: "text-emerald-400 border-emerald-400/30 hover:border-emerald-400/60 hover:bg-emerald-400/5" },
+    { outcome: "next_step", label: t.CLIENT_ADVANCED, color: "text-sky-400 border-sky-400/30 hover:border-sky-400/60 hover:bg-sky-400/5" },
+    { outcome: "lost", label: t.CLIENT_LOST, color: "text-zinc-400 border-zinc-700 hover:border-zinc-500 hover:text-zinc-300" },
+  ];
+
+  return (
+    <div className="flex gap-2 pt-1">
+      {buttons.map(({ outcome, label, color }) => (
+        <button
+          key={outcome}
+          onClick={() => onOutcome(outcome)}
+          disabled={disabled}
+          className={cn(
+            "flex-1 py-1.5 rounded-lg border text-[9px] font-mono tracking-wide transition-all disabled:opacity-30 disabled:pointer-events-none",
+            color
+          )}
+        >
+          {label}
+        </button>
+      ))}
     </div>
   );
 }
@@ -177,6 +367,8 @@ export function Arena({
   const [summary, setSummary] = useState<ArenaSummary | null>(null);
   const [allTurns, setAllTurns] = useState<ArenaMessage[]>([]);
   const [conversationState, setConversationState] = useState<ConversationState | null>(null);
+  // Terminal state detection (seller mode)
+  const [pendingOutcome, setPendingOutcome] = useState<Exclude<ArenaOutcome, "none" | "manual_stop"> | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -184,12 +376,10 @@ export function Arena({
   const aiLabel = role === "seller" ? t.AI_AS_CLIENT : t.AI_AS_SELLER;
   const roleTag = role === "seller" ? t.ROLE_TAG_SELLER : t.ROLE_TAG_CLIENT;
 
-  // Scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Start arena session on mount
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -203,7 +393,6 @@ export function Arena({
         if (cancelled) return;
         setArenaSessionId(data.arenaSessionId);
         setMessages([{ index: 0, speaker: "ai", message: data.openingMessage }]);
-        // Infer initial state from opening message
         setConversationState(inferState(data.openingMessage, lang));
       } catch {
         if (!cancelled) {
@@ -216,6 +405,37 @@ export function Arena({
     })();
     return () => { cancelled = true; };
   }, []);
+
+  const handleEnd = useCallback(async (outcome: FinalOutcome = "manual_stop") => {
+    if (!arenaSessionId || isEnding) return;
+    setIsEnding(true);
+    setPendingOutcome(null);
+    try {
+      const res = await fetch("/api/arena/finish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ arenaSessionId, outcome }),
+      });
+      const data = await res.json() as { turns: ArenaMessage[]; summary: ArenaSummary };
+      setAllTurns(data.turns);
+      setSummary(data.summary);
+    } catch {
+      const localTurns = messages.map((m, i) => ({ ...m, index: i }));
+      setAllTurns(localTurns);
+      setSummary({
+        role,
+        context,
+        lang,
+        totalTurns: messages.length,
+        userTurns: messages.filter(m => m.speaker === "user").length,
+        createdAt: new Date().toISOString(),
+        closedAt: new Date().toISOString(),
+        outcome,
+      });
+    } finally {
+      setIsEnding(false);
+    }
+  }, [arenaSessionId, isEnding, messages, role, context, lang]);
 
   const handleSend = useCallback(async () => {
     const text = input.trim();
@@ -232,10 +452,13 @@ export function Arena({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ arenaSessionId, userMessage: text }),
       });
-      const data = await res.json() as { aiMessage: string };
+      const data = await res.json() as { aiMessage: string; terminalSignal?: ArenaOutcome };
       setMessages(prev => [...prev, { index: prev.length, speaker: "ai", message: data.aiMessage }]);
-      // Update conversation state after each AI response
       setConversationState(inferState(data.aiMessage, lang));
+      // Show confirmation modal if terminal state detected (seller mode, non-trivial outcomes)
+      if (data.terminalSignal && data.terminalSignal !== "none" && data.terminalSignal !== "manual_stop") {
+        setPendingOutcome(data.terminalSignal as Exclude<ArenaOutcome, "none" | "manual_stop">);
+      }
     } catch {
       setMessages(prev => [...prev, {
         index: prev.length,
@@ -248,50 +471,26 @@ export function Arena({
     }
   }, [input, isSending, arenaSessionId, messages.length, lang]);
 
-  const handleEnd = useCallback(async () => {
-    if (!arenaSessionId || isEnding) return;
-    setIsEnding(true);
-    try {
-      const res = await fetch("/api/arena/finish", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ arenaSessionId }),
-      });
-      const data = await res.json() as { turns: ArenaMessage[]; summary: ArenaSummary };
-      setAllTurns(data.turns);
-      setSummary(data.summary);
-    } catch {
-      const localTurns = messages.map((m, i) => ({ ...m, index: i }));
-      setAllTurns(localTurns);
-      setSummary({
-        role,
-        context,
-        lang,
-        totalTurns: messages.length,
-        userTurns: messages.filter(m => m.speaker === "user").length,
-        createdAt: new Date().toISOString(),
-        closedAt: new Date().toISOString(),
-      });
-    } finally {
-      setIsEnding(false);
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      void handleSend();
     }
-  }, [arenaSessionId, isEnding, messages, role, context, lang]);
+  };
 
   const handleExportLog = () => {
     if (!summary) return;
     const isEs = lang === "es";
-    const roleName = role === "seller"
-      ? (isEs ? "Vendedor" : "Seller")
-      : (isEs ? "Cliente" : "Client");
-    const aiName = role === "seller"
-      ? (isEs ? "CLIENTE" : "CLIENT")
-      : (isEs ? "VENDEDOR" : "SELLER");
+    const roleName = role === "seller" ? (isEs ? "Vendedor" : "Seller") : (isEs ? "Cliente" : "Client");
+    const aiName = role === "seller" ? (isEs ? "CLIENTE" : "CLIENT") : (isEs ? "VENDEDOR" : "SELLER");
+    const outcomeName = getOutcomeLabel(summary.outcome, T[lang]);
 
     const lines: string[] = [
       `CLOSER WIZARD — ARENA SESSION LOG`,
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
       `${isEs ? "Modo" : "Mode"}: ARENA`,
       `${isEs ? "Tu rol" : "Your role"}: ${roleName}`,
+      `${isEs ? "Resultado" : "Outcome"}: ${outcomeName}`,
       `${isEs ? "Idioma" : "Lang"}: ${lang.toUpperCase()}`,
       `${isEs ? "Inicio" : "Start"}: ${summary.createdAt}`,
       `${isEs ? "Fin" : "End"}: ${summary.closedAt}`,
@@ -312,6 +511,7 @@ export function Arena({
     lines.push(``);
     lines.push(`${isEs ? "RESUMEN" : "SUMMARY"}`);
     lines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+    lines.push(`${isEs ? "Resultado" : "Outcome"}: ${outcomeName}`);
     lines.push(`${isEs ? "Turnos totales" : "Total turns"}: ${summary.totalTurns}`);
     lines.push(`${isEs ? "Tus turnos" : "Your turns"}: ${summary.userTurns}`);
 
@@ -325,19 +525,17 @@ export function Arena({
     URL.revokeObjectURL(url);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      void handleSend();
-    }
-  };
-
-  // ── Summary screen ────────────────────────────────────────────────────────
+  // ── Summary screen ──────────────────────────────────────────────────────────
   if (summary) {
     const roleName = role === "seller" ? t.ROLE_SELLER : t.ROLE_CLIENT;
+    const outcomeName = getOutcomeLabel(summary.outcome, t);
+    const outcomeColor = getOutcomeColor(summary.outcome);
+    const outcomeBg = getOutcomeBg(summary.outcome);
+
     return (
       <div className="fixed inset-0 bg-black flex flex-col items-center justify-center px-6">
-        <div className="w-full max-w-sm flex flex-col gap-6">
+        <div className="w-full max-w-sm flex flex-col gap-5">
+
           <div className="flex items-center gap-2">
             <WizardIcon className="w-5 h-5 text-zinc-400" />
             <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-zinc-400">Closer Wizard</span>
@@ -345,17 +543,26 @@ export function Arena({
             <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-zinc-500">{t.ARENA}</span>
           </div>
 
-          <div className="flex flex-col gap-1">
-            <p className="text-[10px] font-mono tracking-widest uppercase text-zinc-400">{t.SUMMARY_TITLE}</p>
-            <p className="text-2xl font-mono font-bold text-white leading-tight">
-              {summary.userTurns} {t.TURNS.toLowerCase()}
+          {/* Outcome badge — prominent */}
+          <div className={cn(
+            "flex flex-col gap-1 border rounded-xl px-4 py-3",
+            outcomeBg
+          )}>
+            <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{t.OUTCOME_LABEL}</p>
+            <p className={cn("text-xl font-mono font-bold", outcomeColor)}>
+              {outcomeName}
             </p>
           </div>
 
+          {/* Stats row */}
           <div className="flex gap-6 border-t border-white/8 pt-4">
             <div className="flex flex-col gap-0.5">
               <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{t.ROLE_USED}</p>
               <p className="text-sm font-mono font-semibold text-white uppercase">{roleName}</p>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{t.TURNS}</p>
+              <p className="text-sm font-mono font-semibold text-white">{summary.userTurns}</p>
             </div>
             <div className="flex flex-col gap-0.5">
               <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{t.TOTAL}</p>
@@ -363,6 +570,7 @@ export function Arena({
             </div>
           </div>
 
+          {/* Context */}
           {summary.context && (
             <div className="border-t border-white/8 pt-4">
               <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500 mb-1.5">
@@ -374,6 +582,7 @@ export function Arena({
             </div>
           )}
 
+          {/* Actions */}
           <div className="flex flex-col gap-2 border-t border-white/8 pt-4">
             <button
               onClick={handleExportLog}
@@ -388,18 +597,28 @@ export function Arena({
               {t.CLOSE}
             </button>
           </div>
+
         </div>
       </div>
     );
   }
 
-  // ── Main Arena screen ─────────────────────────────────────────────────────
+  // ── Main Arena screen ───────────────────────────────────────────────────────
   return (
     <div className="fixed inset-0 bg-black flex flex-col font-mono overflow-hidden">
 
-      {/* ── Top bar ──────────────────────────────────────────────────────── */}
+      {/* Outcome confirmation modal (seller mode only) */}
+      {pendingOutcome && (
+        <OutcomeModal
+          detectedOutcome={pendingOutcome}
+          lang={lang}
+          onConfirm={(outcome) => void handleEnd(outcome)}
+          onContinue={() => setPendingOutcome(null)}
+        />
+      )}
+
+      {/* ── Top bar ────────────────────────────────────────────────────────── */}
       <div className="shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-white/6">
-        {/* Left cluster */}
         <div className="flex items-center gap-2 min-w-0">
           <WizardIcon className="w-2.5 h-2.5 text-zinc-400 shrink-0" />
           <span className="text-[8px] tracking-[0.25em] uppercase text-zinc-400 shrink-0">Closer Wizard</span>
@@ -415,7 +634,6 @@ export function Arena({
           )}
         </div>
 
-        {/* Right cluster — state + exit */}
         <div className="flex items-center gap-3 shrink-0 ml-4">
           <StateIndicator state={conversationState} lang={lang} />
           <button
@@ -427,7 +645,7 @@ export function Arena({
         </div>
       </div>
 
-      {/* ── Message list ─────────────────────────────────────────────────── */}
+      {/* ── Message list ───────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto px-4 py-4">
         {isStarting ? (
           <div className="flex items-center justify-center h-full gap-2 text-zinc-500">
@@ -437,12 +655,7 @@ export function Arena({
         ) : (
           <div className="max-w-2xl mx-auto flex flex-col gap-5">
             {messages.map((msg, i) => (
-              <MessageRow
-                key={i}
-                msg={msg}
-                youLabel={t.YOU}
-                aiLabel={aiLabel}
-              />
+              <MessageRow key={i} msg={msg} youLabel={t.YOU} aiLabel={aiLabel} />
             ))}
             {isSending && (
               <div className="flex flex-col gap-1">
@@ -458,7 +671,7 @@ export function Arena({
         )}
       </div>
 
-      {/* ── Input area ───────────────────────────────────────────────────── */}
+      {/* ── Input area ─────────────────────────────────────────────────────── */}
       <div className="shrink-0 border-t border-white/6 px-4 py-3">
         <div className="max-w-2xl mx-auto flex flex-col gap-2">
           <div className="flex gap-2 items-end">
@@ -481,17 +694,30 @@ export function Arena({
               <Send className="w-4 h-4" />
             </button>
           </div>
+
+          {/* Client mode: explicit outcome buttons */}
+          {role === "client" && !isStarting && messages.length >= 2 && (
+            <ClientOutcomeBar
+              lang={lang}
+              disabled={isEnding || isSending}
+              onOutcome={(outcome) => void handleEnd(outcome)}
+            />
+          )}
+
+          {/* Footer row: hint + end session */}
           <div className="flex justify-between items-center">
             <p className="text-[9px] text-zinc-600 tracking-widest">
               {lang === "es" ? "Enter envía · Shift+Enter nueva línea" : "Enter sends · Shift+Enter new line"}
             </p>
-            <button
-              onClick={() => void handleEnd()}
-              disabled={isEnding || isStarting || messages.length < 2}
-              className="text-[9px] font-mono tracking-widest uppercase text-zinc-500 hover:text-zinc-200 transition-colors disabled:opacity-30 disabled:pointer-events-none"
-            >
-              {isEnding ? <Loader2 className="w-3 h-3 animate-spin inline" /> : t.END}
-            </button>
+            {role === "seller" && (
+              <button
+                onClick={() => void handleEnd("manual_stop")}
+                disabled={isEnding || isStarting || messages.length < 2}
+                className="text-[9px] font-mono tracking-widest uppercase text-zinc-500 hover:text-zinc-200 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+              >
+                {isEnding ? <Loader2 className="w-3 h-3 animate-spin inline" /> : t.END}
+              </button>
+            )}
           </div>
         </div>
       </div>

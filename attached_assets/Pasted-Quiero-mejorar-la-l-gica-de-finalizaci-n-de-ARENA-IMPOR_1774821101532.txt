@@ -1,0 +1,98 @@
+Quiero mejorar la lógica de finalización de ARENA.
+
+IMPORTANTE:
+No quiero que la IA cierre la sesión sola sin control.
+Quiero una detección inteligente de final de sesión, pero con confirmación humana.
+
+OBJETIVO
+Cuando la conversación llegue a un punto de cierre claro, avance claro o pérdida clara, Arena debe detectarlo.
+Pero antes de cerrar de verdad, debe aparecer una confirmación.
+
+CASOS QUE DEBE PODER DETECTAR LA IA
+- compra / cierre conseguido
+- siguiente paso conseguido
+- conversación perdida
+- ruptura de conversación
+
+No hace falta que sea perfecto.
+Hace falta que sea útil y controlable.
+
+REGLA CLAVE
+La IA puede proponer el final, pero no debe imponerlo sin confirmación.
+
+IMPLEMENTACIÓN REQUERIDA
+Cuando el sistema detecte que la sesión probablemente ha terminado, mostrar un modal, popup o capa ligera que diga algo como:
+
+- La sesión parece ganada
+- La IA detecta avance claro
+- La conversación parece perdida
+
+Y ofrecer estas acciones:
+
+1. Confirmar y cerrar
+2. Seguir conversando
+3. Corregir resultado
+
+TIPOS DE RESULTADO A SOPORTAR
+Usar al menos estos outcomes:
+- closed
+- next_step
+- lost
+- broken
+- manual_stop
+
+MODO YO SOY VENDEDOR
+Aquí la IA puede detectar:
+- que el cliente ya ha comprado
+- que ya ha aceptado avanzar
+- que la conversación se ha roto
+- que el cliente se ha perdido
+
+Pero el usuario debe poder corregir el resultado si la IA se ha precipitado.
+
+MODO YO SOY CLIENTE
+Aquí el usuario debe tener control explícito del resultado.
+
+Añadir botones o acciones claras para:
+- Me has vendido
+- Me has hecho avanzar
+- No me has convencido / me has perdido
+
+En este modo, si el usuario pulsa una de esas opciones, la sesión termina directamente con ese resultado.
+
+No dependas solo del juicio automático de la IA en este modo.
+
+PANTALLA FINAL
+Actualizar la pantalla final de Arena para mostrar:
+- outcome final
+- rol del usuario
+- turnos totales
+- contexto
+- export log
+- cerrar y volver
+
+No hace falta meter aún scoring complejo.
+Solo outcome claro y coherente.
+
+ARQUITECTURA
+No romper la estructura actual.
+Haz el cambio mínimo limpio.
+
+Si hace falta:
+- ampliar el estado de ArenaSession
+- ampliar el finish response
+- añadir detección de terminal state en backend
+- añadir modal de confirmación en frontend
+
+CRITERIOS DE ACEPTACIÓN
+Esto estará bien hecho solo si:
+- la IA puede detectar final probable
+- el usuario puede confirmar o seguir
+- en modo “yo soy cliente” el usuario puede cerrar manualmente con resultado explícito
+- el outcome final queda reflejado en la pantalla final y en el log
+- la UX sigue siendo limpia y seria
+
+Al final, explícame brevemente:
+- cómo detectas que una sesión parece terminada
+- dónde se confirma o corrige el resultado
+- qué outcomes finales soporta Arena ahora

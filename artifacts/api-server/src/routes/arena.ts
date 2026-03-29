@@ -6,6 +6,7 @@ const router = Router();
 // ── Types ─────────────────────────────────────────────────────────────────────
 type ArenaRole = "seller" | "client";
 type Lang = "es" | "en";
+export type ArenaOutcome = "closed" | "next_step" | "lost" | "broken" | "manual_stop" | "none";
 
 interface ArenaTurn {
   index: number;
@@ -22,6 +23,7 @@ interface ArenaSession {
   turns: ArenaTurn[];
   createdAt: string;
   closedAt?: string;
+  outcome?: Exclude<ArenaOutcome, "none">;
 }
 
 // ── In-memory session store ───────────────────────────────────────────────────
@@ -34,7 +36,6 @@ function buildSystemPrompt(role: ArenaRole, context: string, lang: Lang): string
     : "Responde solo en español.";
 
   if (role === "seller") {
-    // User is seller → AI plays the client/prospect
     return `Eres el cliente/prospecto en una simulación de conversación de venta.
 
 Contexto de la sesión:
@@ -52,7 +53,6 @@ Reglas:
 - Solo el texto de tu respuesta como cliente.
 ${langRule}`;
   } else {
-    // User is client → AI plays the seller
     return `Eres un vendedor/consultor experto en una simulación de conversación de venta.
 
 Contexto de la sesión:
@@ -75,17 +75,76 @@ function buildOpeningPrompt(role: ArenaRole, context: string, lang: Lang): strin
   const langRule = lang === "en" ? "Write in English." : "Escribe en español.";
 
   if (role === "seller") {
-    // AI (client) opens — sets the scene for the seller (user) to respond
     return `Genera el primer mensaje de un cliente/prospecto que inicia o responde a un primer contacto de venta.
 Contexto: ${context || "conversación de venta genérica"}
 Escribe 1-2 frases naturales como si fueras el cliente iniciando el contacto o respondiendo al vendedor. Sin etiquetas. Solo el texto.
 ${langRule}`;
   } else {
-    // AI (seller) opens — starts the conversation for the client (user) to respond
     return `Genera el primer mensaje de un vendedor experto que inicia una conversación de venta.
 Contexto: ${context || "conversación de venta genérica"}
 Escribe 1-2 frases naturales como si fueras el vendedor iniciando el contacto. Sin etiquetas. Solo el texto.
 ${langRule}`;
+  }
+}
+
+// ── Terminal state detector ───────────────────────────────────────────────────
+// Only runs in seller mode (AI plays client). In client mode, user controls outcome manually.
+// Requires at least 4 turns to have meaningful signal.
+async function detectTerminalState(
+  turns: ArenaTurn[],
+  role: ArenaRole,
+  lang: Lang,
+): Promise<Exclude<ArenaOutcome, "manual_stop">> {
+  if (role === "client") return "none";
+  if (turns.length < 4) return "none";
+
+  const recent = turns.slice(-6).map(t => {
+    const speaker = t.speaker === "user"
+      ? (lang === "es" ? "VENDEDOR" : "SELLER")
+      : (lang === "es" ? "CLIENTE" : "CLIENT");
+    return `${speaker}: ${t.message}`;
+  }).join("\n");
+
+  const prompt = lang === "es"
+    ? `Analiza esta conversación de venta y determina si ha llegado a un estado terminal claro.
+Responde ÚNICAMENTE con una de estas palabras (sin explicación):
+- none — no hay cierre claro todavía, la conversación sigue abierta
+- closed — el cliente ha comprado, aceptado la oferta o cerrado el trato
+- next_step — el cliente ha aceptado avanzar (reunión, demo, propuesta, llamada)
+- lost — la conversación está perdida, el cliente ha rechazado definitivamente
+- broken — ruptura total, conversación imposible o cortada
+
+Conversación reciente:
+${recent}
+
+Responde solo con la palabra:`
+    : `Analyze this sales conversation and determine if it has reached a clear terminal state.
+Reply with ONLY one of these words (no explanation):
+- none — no clear closure yet, conversation is still open
+- closed — client has bought, accepted the offer, or closed the deal
+- next_step — client agreed to move forward (meeting, demo, proposal, call)
+- lost — conversation is lost, client has definitively rejected
+- broken — total breakdown, conversation is impossible or cut off
+
+Recent conversation:
+${recent}
+
+Reply with one word only:`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_tokens: 5,
+      temperature: 0,
+      messages: [{ role: "user", content: prompt }],
+    });
+    const raw = completion.choices[0]?.message?.content?.trim().toLowerCase() ?? "none";
+    if (["closed", "next_step", "lost", "broken", "none"].includes(raw)) {
+      return raw as Exclude<ArenaOutcome, "manual_stop">;
+    }
+    return "none";
+  } catch {
+    return "none";
   }
 }
 
@@ -112,7 +171,6 @@ router.post("/arena/start", async (req, res) => {
     createdAt: new Date().toISOString(),
   };
 
-  // Generate opening message from AI
   let openingMessage = "";
   try {
     const completion = await openai.chat.completions.create({
@@ -155,7 +213,6 @@ router.post("/arena/turn", async (req, res) => {
     return;
   }
 
-  // Add user turn to session
   session.turns.push({
     index: session.turns.length,
     timestamp: new Date().toISOString(),
@@ -163,7 +220,6 @@ router.post("/arena/turn", async (req, res) => {
     message: userMessage.trim(),
   });
 
-  // Build GPT messages from history
   const gptMessages: { role: "system" | "user" | "assistant"; content: string }[] = [
     { role: "system", content: buildSystemPrompt(session.role, session.context, session.lang) },
   ];
@@ -194,12 +250,18 @@ router.post("/arena/turn", async (req, res) => {
     message: aiMessage,
   });
 
-  res.json({ aiMessage });
+  // Detect terminal state (seller mode only, fast classification call)
+  const terminalSignal = await detectTerminalState(session.turns, session.role, session.lang);
+
+  res.json({ aiMessage, terminalSignal });
 });
 
 // ── POST /api/arena/finish ────────────────────────────────────────────────────
 router.post("/arena/finish", async (req, res) => {
-  const { arenaSessionId } = req.body as { arenaSessionId?: string };
+  const { arenaSessionId, outcome } = req.body as {
+    arenaSessionId?: string;
+    outcome?: Exclude<ArenaOutcome, "none">;
+  };
 
   if (!arenaSessionId) {
     res.status(400).json({ error: "arenaSessionId required" });
@@ -213,6 +275,7 @@ router.post("/arena/finish", async (req, res) => {
   }
 
   session.closedAt = new Date().toISOString();
+  session.outcome = outcome ?? "manual_stop";
 
   const userTurns = session.turns.filter(t => t.speaker === "user").length;
 
@@ -226,10 +289,10 @@ router.post("/arena/finish", async (req, res) => {
       userTurns,
       createdAt: session.createdAt,
       closedAt: session.closedAt,
+      outcome: session.outcome,
     },
   });
 
-  // Clean up session from memory after 5 minutes
   setTimeout(() => sessions.delete(arenaSessionId), 5 * 60 * 1000);
 });
 
