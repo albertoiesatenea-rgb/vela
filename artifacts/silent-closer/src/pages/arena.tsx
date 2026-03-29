@@ -113,7 +113,7 @@ const T = {
     CLIENT_SOLD: "Trato hecho ✓",
     CLIENT_ACCEPT: "Ok, acepto →",
     CLIENT_OBJECTION: "Tengo una objeción",
-    CLIENT_ACCEPT_MSG: "Vale, acepto eso. Sigue adelante.",
+    CLIENT_ACCEPT_MSG: "Ok, cuéntame más.",
     CLIENT_OBJECTION_MSG: "Espera, tengo una objeción con eso.",
     // Summary
     OUTCOME_LABEL: "RESULTADO",
@@ -163,7 +163,7 @@ const T = {
     CLIENT_SOLD: "Deal ✓",
     CLIENT_ACCEPT: "OK, I'll take that →",
     CLIENT_OBJECTION: "I have an objection",
-    CLIENT_ACCEPT_MSG: "OK, I'll take that. Keep going.",
+    CLIENT_ACCEPT_MSG: "OK, tell me more.",
     CLIENT_OBJECTION_MSG: "Wait, I have an objection with that.",
     // Summary
     OUTCOME_LABEL: "OUTCOME",
