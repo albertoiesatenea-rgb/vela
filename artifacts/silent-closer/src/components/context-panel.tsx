@@ -58,7 +58,7 @@ function Field({
 }) {
   return (
     <div className="space-y-1">
-      <label className="text-[10px] font-mono tracking-widest uppercase text-zinc-600">
+      <label className="text-[10px] font-mono tracking-widest uppercase text-zinc-400">
         {label}
       </label>
       <input
@@ -171,13 +171,10 @@ export function ContextSetup({
             <h1 className="text-xl font-mono font-semibold text-white mt-1 tracking-tight">
               Prepara la sesión
             </h1>
-            <p className="text-xs font-mono text-zinc-600 mt-0.5">
-              Contexto opcional — arranca en segundos
-            </p>
           </div>
           <button
             onClick={() => onContextReady("")}
-            className="text-[11px] font-mono text-zinc-700 hover:text-zinc-400 transition-colors border border-zinc-800 px-3 py-1.5 rounded-full shrink-0 mt-1"
+            className="text-[11px] font-mono text-zinc-500 hover:text-zinc-200 transition-colors border border-zinc-800 px-3 py-1.5 rounded-full shrink-0 mt-1"
           >
             Saltar →
           </button>
@@ -277,7 +274,7 @@ export function SessionBar({
             Sesión activa
           </span>
           {!expanded && sessionContext && (
-            <span className="text-[10px] font-mono text-zinc-700 truncate ml-1">
+            <span className="text-[10px] font-mono text-zinc-500 truncate ml-1">
               — {sessionContext.split("\n")[0]}
             </span>
           )}
@@ -288,21 +285,21 @@ export function SessionBar({
               e.stopPropagation();
               onClearSession();
             }}
-            className="text-[10px] font-mono text-zinc-700 hover:text-red-400 transition-colors"
+            className="text-[10px] font-mono text-zinc-500 hover:text-red-400 transition-colors"
           >
             Finalizar
           </button>
           {expanded ? (
-            <ChevronUp className="w-3 h-3 text-zinc-700" />
+            <ChevronUp className="w-3 h-3 text-zinc-500" />
           ) : (
-            <ChevronDown className="w-3 h-3 text-zinc-700" />
+            <ChevronDown className="w-3 h-3 text-zinc-500" />
           )}
         </div>
       </div>
 
       {expanded && sessionContext && (
         <div className="px-5 pb-3">
-          <p className="text-[11px] font-mono text-zinc-600 leading-relaxed whitespace-pre-wrap">
+          <p className="text-[11px] font-mono text-zinc-400 leading-relaxed whitespace-pre-wrap">
             {sessionContext}
           </p>
         </div>
