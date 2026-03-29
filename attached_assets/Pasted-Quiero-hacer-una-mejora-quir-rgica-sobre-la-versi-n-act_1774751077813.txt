@@ -1,0 +1,193 @@
+Quiero hacer una mejora quirúrgica sobre la versión actual de “Silent Closer”.
+
+IMPORTANTE:
+- NO quiero rehacer la app
+- NO quiero tocar la estructura general
+- NO quiero cambiar la filosofía visual
+- NO quiero nuevas funciones grandes
+- la base actual ya me gusta mucho
+
+Solo quiero pulir 4 cosas concretas que ahora mismo limitan la calidad del producto.
+
+==================================================
+OBJETIVO DE ESTA ITERACIÓN
+==================================================
+
+Quiero mejorar:
+1. la calidad táctica de SAY NOW
+2. la legibilidad del bloque ARGUMENTO (evitar truncados inútiles)
+3. la redundancia visual entre “SEÑALES” y “SEÑAL”
+4. el texto/contexto de la barra superior para que sea más limpio y útil
+
+No quiero tocar nada más.
+
+==================================================
+PARTE 1 — HACER SAY NOW MÁS FUERTE Y MENOS GENÉRICO
+==================================================
+
+PROBLEMA ACTUAL
+
+SAY NOW ya funciona, pero en algunos casos sigue sonando demasiado genérico o demasiado superficial.
+
+Ejemplo de salida mejorable:
+- “pregunta qué aspectos no le gustan de Dresden”
+
+Eso está bien, pero todavía no me ayuda todo lo que podría en una conversación real de venta.
+
+Quiero que SAY NOW sea más útil, más comercial y más orientado a criterio.
+
+OBJETIVO
+
+Cuando haya una objeción, SAY NOW no debe quedarse en:
+- “qué no te gusta”
+- “explora más”
+- “profundiza”
+- “valida”
+
+Quiero que, siempre que se pueda, baje la objeción a criterios concretos de decisión.
+
+Ejemplos de SAY NOW más útiles:
+- pregunta si teme demanda, salida o reputación
+- baja la objeción a alquiler, reventa o riesgo
+- separa imagen de ciudad y lógica de inversión
+- pide el criterio exacto que le frena
+- confirma si el problema es precio o liquidez
+- detecta si compara por seguridad o familiaridad
+
+REGLA NUEVA
+Si el cliente critica una ciudad, una opción o una propuesta de forma general, el motor debe intentar traducir esa crítica a:
+- demanda
+- liquidez
+- reventa
+- precio
+- riesgo
+- seguridad percibida
+- familiaridad
+- criterio de decisión real
+
+Quiero que SAY NOW tienda menos a “qué no te gusta” y más a “qué criterio concreto te frena”.
+
+==================================================
+PARTE 2 — NO TRUNCAR ARGUMENTO DE FORMA MOLESTA
+==================================================
+
+PROBLEMA ACTUAL
+
+El bloque ARGUMENTO / ENFOQUE a veces se corta con puntos suspensivos y pierde valor.
+Justo esa parte puede ser de las más útiles y no quiero que quede medio amputada.
+
+OBJETIVO
+
+Quiero que ARGUMENTO se pueda leer bien.
+
+Opciones válidas:
+- permitir 2 líneas visibles
+- permitir expansión suave
+- hacer que ajuste mejor el ancho
+- mejorar layout para que no se corte tan rápido
+
+IMPORTANTE:
+- no quiero que se convierta en un bloque enorme
+- no quiero perder limpieza visual
+- solo quiero que el contenido útil no quede mutilado
+
+Elige la solución más limpia y más legible.
+
+==================================================
+PARTE 3 — QUITAR REDUNDANCIA ENTRE “SEÑALES” Y “SEÑAL”
+==================================================
+
+PROBLEMA ACTUAL
+
+Ahora mismo hay dos zonas que repiten prácticamente lo mismo:
+- arriba a la izquierda “SEÑALES” + etiqueta
+- en el centro “SEÑAL” + etiqueta principal
+
+Esto genera redundancia visual.
+
+OBJETIVO
+
+Quiero que decidas cuál de las dos tiene más sentido mantener y elimines o simplifiques la otra.
+
+PREFERENCIA
+La zona principal central ya funciona bien y tiene más fuerza.
+Así que, salvo que veas una razón muy buena, prefiero:
+- mantener la señal principal en el centro
+- y simplificar o eliminar la redundancia superior izquierda
+
+Si quieres mantener algo arriba a la izquierda, que sea muy sutil y claramente distinto, por ejemplo:
+- estado rápido
+- modo activo
+- contexto resumido
+pero no repetir exactamente la misma señal.
+
+==================================================
+PARTE 4 — MEJORAR LA BARRA SUPERIOR DE CONTEXTO
+==================================================
+
+PROBLEMA ACTUAL
+
+La barra superior muestra demasiado texto y queda cortada o demasiado larga.
+Eso visualmente ensucia un poco y no se lee bien.
+
+OBJETIVO
+
+Quiero que la barra superior muestre una versión mucho más limpia y resumida del contexto activo.
+
+No quiero que aparezca todo el contexto completo.
+Quiero una frase corta y escaneable.
+
+Ejemplos de formato deseado:
+- Sesión activa — Venta a inversor escéptico sobre Dresden
+- Sesión activa — Objeción sobre ciudad y reputación
+- Sesión activa — Conversación de venta con cliente analítico
+- Sesión activa — Venta inmobiliaria con dudas sobre ubicación
+
+REGLAS
+- debe ser breve
+- debe leerse de un vistazo
+- no debe parecer un párrafo
+- no debe romper la estética
+- si hace falta, resume automáticamente el contexto largo a una frase más corta
+
+IMPORTANTE
+No quiero quitar la barra superior.
+Solo hacerla más útil y más limpia.
+
+==================================================
+REGLA GENERAL DE ESTA ITERACIÓN
+==================================================
+
+No toques:
+- la estructura principal de la pantalla
+- el bloque central
+- el modo escuchar / escribir
+- el selector AUTO / CLIENTE / YO
+- la filosofía de detalle y memoria
+- la estética base
+
+Solo quiero estos 4 refinamientos:
+1. SAY NOW más táctico y más concreto
+2. ARGUMENTO más legible
+3. menos redundancia en la señal
+4. barra superior resumida y limpia
+
+==================================================
+CRITERIO DE ÉXITO
+==================================================
+
+Cuando termines, la app debería:
+- decirme una jugada más útil de verdad
+- dejarme leer el argumento sin frustración
+- verse más limpia
+- y tener una barra superior más elegante y más profesional
+
+==================================================
+ENTREGABLE
+==================================================
+
+Haz los cambios directamente sobre la versión actual y luego explícame brevemente:
+1. cómo has endurecido la lógica de SAY NOW
+2. cómo has resuelto el truncado de ARGUMENTO
+3. qué hiciste con la redundancia de la señal
+4. cómo resumes ahora el contexto en la barra superior

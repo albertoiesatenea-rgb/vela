@@ -107,7 +107,9 @@ SIGNAL — 2-5 palabras. La señal dominante real, específica, estable.
 
 SAY_NOW — 4-12 palabras. La siguiente jugada táctica concreta. Imperativo, específico.
   BIEN: "pregunta si teme demanda, imagen o reventa", "devuelve la objeción en pregunta", "aterriza la duda a liquidez o salida", "pide el criterio exacto que le frena", "baja presión y escucha", "usa una pregunta cerrada ahora"
-  MAL: "explora sus preocupaciones", "valida sus emociones", "escucha con atención", "profundiza más"
+  MAL: "explora sus preocupaciones", "valida sus emociones", "escucha con atención", "profundiza más", "qué no te gusta de X"
+
+  REGLA CRÍTICA — TRADUCIR A CRITERIO: Cuando haya objeción general sobre ciudad, producto, opción o propuesta, SAY_NOW debe aterrizar esa crítica en criterios de decisión concretos, no explorar la vaguedad. EVITA "qué no te gusta" o "qué te preocupa". PREFIERE: "detecta si compara por seguridad o liquidez", "separa imagen de ciudad de lógica de inversión", "baja la objeción a alquiler o reventa", "confirma si el problema es precio o salida", "pide el criterio exacto que le frena".
 
 AVOID — 2-7 palabras. El error táctico concreto a evitar.
   BIEN: "no defiendas la propuesta aún", "no respondas con datos ya", "no cierres antes de tiempo", "no cambies de frente", "no debatas la alternativa"
@@ -213,6 +215,29 @@ router.post("/copilot/analyze", async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "Error calling OpenAI");
     res.status(500).json({ error: "Error analyzing conversation" });
+  }
+});
+
+// ── Context label — generates a short 4-6 word title for the session bar
+router.post("/copilot/context-label", async (req, res) => {
+  const { context } = req.body as { context?: string };
+  if (!context?.trim()) { res.json({ label: "" }); return; }
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_tokens: 25,
+      messages: [
+        {
+          role: "system",
+          content: `Genera un título de escena de 4-6 palabras en español para la barra de sesión de una herramienta de ventas. Sin comillas, sin puntuación final. Solo el título. Ejemplos: "Venta a inversor escéptico sobre Dresden", "Negociación B2B con CMO reticente", "Cierre con cliente indeciso sobre precio", "Objeción de liquidez en inmobiliario".`,
+        },
+        { role: "user", content: context.trim() },
+      ],
+    });
+    const label = completion.choices[0]?.message?.content?.trim() ?? "";
+    res.json({ label });
+  } catch {
+    res.json({ label: "" });
   }
 });
 

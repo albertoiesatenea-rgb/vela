@@ -239,12 +239,16 @@ export function ContextSetup({
 /** Compact top bar — shown during active session */
 export function SessionBar({
   sessionContext,
+  contextLabel,
   onClearSession,
 }: {
   sessionContext: string;
+  contextLabel?: string;
   onClearSession: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+
+  const displayLabel = contextLabel || sessionContext.split("\n")[0].slice(0, 70);
 
   return (
     <div className="border-b border-white/5 bg-black shrink-0">
@@ -258,11 +262,11 @@ export function SessionBar({
         <div className="flex items-center gap-2 flex-1 min-w-0 pr-4">
           <div className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
           <span className="text-[10px] font-mono tracking-widest uppercase text-zinc-500 shrink-0">
-            Sesión activa
+            Sesión
           </span>
-          {!expanded && sessionContext && (
+          {!expanded && (
             <span className="text-[10px] font-mono text-zinc-400 truncate">
-              — {sessionContext.split("\n")[0]}
+              — {displayLabel}
             </span>
           )}
         </div>

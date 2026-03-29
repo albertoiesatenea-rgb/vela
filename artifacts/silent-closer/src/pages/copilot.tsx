@@ -36,7 +36,7 @@ interface TacticalState {
 const EMPTY_STATE: TacticalState = { signal: "", sayNow: "", avoid: "", detail: null, callMemory: "" };
 
 const SESSION_KEY = "sc_session_context";
-const HISTORY_KEY = "sc_signal_history";
+const LABEL_KEY   = "sc_context_label";
 
 function loadSession(): string | null {
   try { return localStorage.getItem(SESSION_KEY); } catch { return null; }
@@ -47,11 +47,14 @@ function saveSession(ctx: string | null) {
     else localStorage.setItem(SESSION_KEY, ctx);
   } catch { /* ignore */ }
 }
-function loadHistory(): string[] {
-  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) ?? "[]"); } catch { return []; }
+function loadLabel(): string {
+  try { return localStorage.getItem(LABEL_KEY) ?? ""; } catch { return ""; }
 }
-function saveHistory(h: string[]) {
-  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(h)); } catch { /* ignore */ }
+function saveLabel(l: string) {
+  try {
+    if (!l) localStorage.removeItem(LABEL_KEY);
+    else localStorage.setItem(LABEL_KEY, l);
+  } catch { /* ignore */ }
 }
 
 // ── Color config per detail field
@@ -70,7 +73,7 @@ function DetailField({ fieldKey, value }: { fieldKey: FieldKey; value?: string }
   if (!value) return null;
   const cfg = FIELD_CONFIG[fieldKey];
   const isGuion = fieldKey === "GUION";
-  const isLong = fieldKey === "GUION" || fieldKey === "PREGUNTA";
+  const isLong = fieldKey === "GUION" || fieldKey === "PREGUNTA" || fieldKey === "ARGUMENTO";
   return (
     <div className={cn("pl-2.5 border-l-2 flex flex-col gap-0.5", cfg.border)}>
       <span className={cn("text-[8px] font-mono tracking-[0.2em] uppercase", cfg.label)}>{fieldKey}</span>
@@ -137,7 +140,7 @@ export default function CopilotPage() {
   const [simulateText, setSimulateText] = useState("");
   const [sessionContext, setSessionContext] = useState<string | null>(loadSession);
   const [tacticalState, setTacticalState] = useState<TacticalState>(EMPTY_STATE);
-  const [signalHistory, setSignalHistory] = useState<string[]>(loadHistory);
+  const [contextLabel, setContextLabel] = useState<string>(loadLabel);
 
   // Panel state — single source of truth, mutually exclusive
   const [activePanel, setActivePanel] = useState<"detail" | "memory" | null>(null);
@@ -177,13 +180,6 @@ export default function CopilotPage() {
               detail: res.detail ?? null,
               callMemory: res.call_memory ?? "",
             });
-            if (res.signal) {
-              setSignalHistory((prev) => {
-                const next = [...prev.slice(-4), res.signal];
-                saveHistory(next);
-                return next;
-              });
-            }
           },
         }
       );
@@ -213,17 +209,28 @@ export default function CopilotPage() {
     setSessionContext(context);
     saveSession(context);
     setTacticalState(EMPTY_STATE);
-    setSignalHistory([]);
-    saveHistory([]);
+    setContextLabel("");
+    saveLabel("");
     setActivePanel(null);
+    // Generate short context label in background
+    void fetch("/api/copilot/context-label", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ context }),
+    })
+      .then(r => r.json())
+      .then(({ label }: { label: string }) => {
+        if (label) { setContextLabel(label); saveLabel(label); }
+      })
+      .catch(() => {});
   };
 
   const handleClearSession = () => {
     setSessionContext(null);
     saveSession(null);
     setTacticalState(EMPTY_STATE);
-    setSignalHistory([]);
-    saveHistory([]);
+    setContextLabel("");
+    saveLabel("");
     setActivePanel(null);
     if (isListening) stopListening();
     setInputMode("simulate");
@@ -271,7 +278,7 @@ export default function CopilotPage() {
     <div className="fixed inset-0 bg-black text-foreground flex flex-col overflow-hidden font-sans">
 
       {/* Compact session bar */}
-      <SessionBar sessionContext={sessionContext} onClearSession={handleClearSession} />
+      <SessionBar sessionContext={sessionContext} contextLabel={contextLabel} onClearSession={handleClearSession} />
 
       {/* Status pill — top right */}
       <div className="absolute top-10 right-5 flex items-center gap-3 z-10">
@@ -297,27 +304,6 @@ export default function CopilotPage() {
         )}
       </div>
 
-      {/* Signal history — top left */}
-      {signalHistory.length > 0 && (
-        <div className="absolute top-10 left-5 z-10 flex items-center gap-1.5 max-w-[40%]">
-          <span className="text-[9px] font-mono tracking-widest uppercase text-zinc-800 shrink-0">señales</span>
-          <div className="flex items-center gap-1 flex-wrap">
-            {signalHistory.map((s, i) => (
-              <span
-                key={i}
-                className={cn(
-                  "text-[9px] font-mono uppercase tracking-wide px-1.5 py-0.5 rounded",
-                  i === signalHistory.length - 1
-                    ? "text-zinc-300 bg-white/5"
-                    : "text-zinc-800"
-                )}
-              >
-                {s}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* ── Main HUD — flexible, shrinks to give panel room ── */}
       <div className="flex-1 min-h-[220px] relative">
