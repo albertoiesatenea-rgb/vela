@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Loader2, Send } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { WizardIcon } from "@/components/context-panel";
 import { cn } from "@/lib/utils";
 
@@ -760,26 +760,17 @@ export function Arena({
             />
           )}
 
-          <div className="flex gap-2 items-end">
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={t.PLACEHOLDER}
-              rows={2}
-              disabled={isStarting || isSending}
-              autoFocus
-              className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors resize-none leading-relaxed disabled:opacity-40"
-            />
-            <button
-              onClick={() => void handleSend()}
-              disabled={!input.trim() || isSending || isStarting || !arenaSessionId}
-              className="shrink-0 flex items-center justify-center w-10 h-10 bg-white text-black rounded-xl hover:bg-zinc-100 active:scale-[0.97] transition-all disabled:opacity-30 disabled:pointer-events-none self-end"
-            >
-              <Send className="w-4 h-4" />
-            </button>
-          </div>
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={t.PLACEHOLDER}
+            rows={2}
+            disabled={isStarting || isSending}
+            autoFocus
+            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors resize-none leading-relaxed disabled:opacity-40"
+          />
 
           {/* Footer row: hint + end session */}
           <div className="flex justify-between items-center">
