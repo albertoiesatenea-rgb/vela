@@ -76,10 +76,10 @@ function DetailField({ fieldKey, value }: { fieldKey: FieldKey; value?: string }
   const cfg = FIELD_CONFIG[fieldKey];
   const label = fieldKey === "SIGUIENTE" ? "SIGUIENTE MOVIMIENTO" : fieldKey;
   return (
-    <div className="flex flex-col items-center gap-1.5 text-center">
+    <div className="w-full flex flex-col items-center gap-2 text-center">
       <span className={cn("text-[9px] font-mono tracking-[0.22em] uppercase", cfg.label)}>{label}</span>
       <p className={cn(
-        "font-mono leading-snug text-center max-w-sm",
+        "font-mono leading-relaxed text-center w-full",
         cfg.size,
         cfg.content,
         fieldKey === "SIGUIENTE" && "font-medium",
@@ -88,10 +88,10 @@ function DetailField({ fieldKey, value }: { fieldKey: FieldKey; value?: string }
   );
 }
 
-// ── Detail panel — 3 fields, centered
+// ── Detail panel — 3 fields, full-width centered
 function DetailPanel({ detail }: { detail: Detail }) {
   return (
-    <div className="px-6 py-4 flex flex-col items-center gap-5 w-full">
+    <div className="px-8 py-5 flex flex-col items-center gap-6 w-full max-w-2xl mx-auto">
       {detail.reading   && <DetailField fieldKey="LECTURA"   value={detail.reading} />}
       {detail.next_move && <DetailField fieldKey="SIGUIENTE" value={detail.next_move} />}
       {detail.support   && <DetailField fieldKey="APOYO"     value={detail.support} />}
@@ -414,46 +414,50 @@ export default function CopilotPage() {
         </div>{/* end flex-1 relative (tactical display) */}
       </div>{/* end HUD flex-col */}
 
-      {/* ── Detail panel — badge when closed, full content when open ── */}
-      <AnimatePresence mode="wait">
-        {hasDetail && !detailOpen && (
-          <motion.div
-            key="detail-badge"
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0, transition: { duration: 0.18 } }}
-            exit={{ opacity: 0, y: 4, transition: { duration: 0.12 } }}
-            className="shrink-0 flex items-center justify-center py-2 border-t border-white/5"
-          >
-            <button
-              onClick={handleToggleDetail}
-              className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/8 text-zinc-500 hover:text-zinc-200 hover:bg-white/8 hover:border-white/15 text-[10px] font-mono tracking-widest uppercase transition-all"
-            >
-              <Info className="w-3 h-3" />
-              Detalle
-            </button>
-          </motion.div>
-        )}
+      {/* ── Detail panel — CSS transitions only, no layout bounce ── */}
+      {hasDetail && (
+        <div className="shrink-0">
 
-        {hasDetail && detailOpen && (
-          <motion.div
-            key="detail-open"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto", transition: { duration: 0.22 } }}
-            exit={{ opacity: 0, height: 0, transition: { duration: 0.16 } }}
-            onClick={handleToggleDetail}
-            className="shrink-0 overflow-hidden border-t border-white/5 cursor-pointer select-none"
+          {/* Badge — cross-fades out as panel opens */}
+          <div
+            className="overflow-hidden border-t border-white/5"
+            style={{
+              maxHeight: detailOpen ? "0px" : "48px",
+              opacity: detailOpen ? 0 : 1,
+              transition: "max-height 0.22s ease, opacity 0.14s ease",
+              pointerEvents: detailOpen ? "none" : "auto",
+            }}
           >
-            {/* Tap-to-close hint */}
-            <div className="w-full flex items-center justify-center py-1.5 text-zinc-700">
+            <div className="flex items-center justify-center py-2">
+              <button
+                onClick={handleToggleDetail}
+                className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/8 text-zinc-500 hover:text-zinc-200 hover:bg-white/8 hover:border-white/15 text-[10px] font-mono tracking-widest uppercase transition-colors"
+              >
+                <Info className="w-3 h-3" />
+                Detalle
+              </button>
+            </div>
+          </div>
+
+          {/* Full content — slides down when open, click anywhere to close */}
+          <div
+            onClick={handleToggleDetail}
+            className="overflow-hidden border-t border-white/5 cursor-pointer select-none"
+            style={{
+              maxHeight: detailOpen ? "260px" : "0px",
+              transition: "max-height 0.22s ease",
+            }}
+          >
+            <div className="flex items-center justify-center py-1.5 text-zinc-700">
               <ChevronDown className="w-3.5 h-3.5" />
             </div>
-            {/* Detail content — click anywhere to close */}
             <div className="overflow-y-auto border-t border-white/5" style={{ maxHeight: "240px" }}>
               <DetailPanel detail={tacticalState.detail!} />
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+
+        </div>
+      )}
 
       {/* ── Controls — bottom bar ─────────────────── */}
       <div className="shrink-0 border-t border-white/5 bg-black px-6 py-4 flex flex-col items-center gap-3">

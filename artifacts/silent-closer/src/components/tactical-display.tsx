@@ -20,12 +20,12 @@ export function TacticalDisplay({ signal, sayNow, avoid, isPending, isListening 
     <div className="h-full w-full flex flex-col">
 
       {/* ── SEÑAL ──────────────────────────────────── */}
-      <div className="flex flex-col items-center justify-center gap-2 py-5 shrink-0">
-        <div className="h-7 flex items-center">
+      <div className="flex flex-col items-center justify-center gap-2 py-4 shrink-0 px-6">
+        <div className="flex items-center justify-center min-h-[28px]">
           <AnimatePresence mode="wait">
             <motion.div key={signal || "empty-signal"} variants={fade} initial="initial" animate="animate" exit="exit">
               {signal ? (
-                <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-md text-xs font-mono text-zinc-300 uppercase tracking-widest">
+                <span className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-md text-[11px] font-mono text-zinc-300 uppercase tracking-wider text-center leading-snug">
                   {signal}
                 </span>
               ) : (

@@ -110,9 +110,9 @@ Si todavía hay objeción activa, duda difusa, resistencia fuerte o falta de cla
 CAMPOS DEL JSON
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-SIGNAL — 2-5 palabras. La señal dominante real, específica, estable.
-  BIEN: "objeción reputacional", "duda de liquidez", "compara, no compra", "miedo a equivocarse", "momento de cerrar", "desconfianza activa", "objeción falsa", "pide seguridad", "interés real"
-  MAL: "cliente indeciso", "situación compleja", "necesita pensar", "preocupaciones generales"
+SIGNAL — 3-7 palabras. Responde a "¿qué está pasando ahora?" de forma específica y situada. No solo el tipo, sino el tipo + contexto concreto del momento.
+  BIEN: "objeción reputacional sobre la ciudad", "duda de liquidez en la inversión", "comparando opciones sin criterio claro", "miedo a no poder revender", "momento de cierre, pide seguridad", "resistencia emocional ante la propuesta", "interés real, pendiente de criterio"
+  MAL: "objeción", "cliente indeciso", "situación compleja", "necesita pensar", "preocupaciones generales"
   ESTABILIDAD: no cambies signal por matices menores. Solo cambia si cambia la objeción dominante, la fase o el momento táctico.
 
 SAY_NOW — 4-12 palabras. La siguiente jugada táctica concreta. Imperativo, específico.
@@ -153,10 +153,10 @@ EJEMPLO DE SALIDA CORRECTA
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Caso: cliente dice que Dresden tiene mala reputación como inversión.
 
-{"signal":"objeción reputacional","say_now":"pregunta si teme demanda, imagen o reventa","avoid":"no defiendas la ciudad aún","detail":{"reading":"No rechaza el activo; rechaza la ciudad como inversión segura. Usa la reputación como criterio de riesgo.","next_move":"¿Lo que te frena es la imagen de la ciudad o el miedo a no poder alquilar o revender bien?","support":"Lleva la conversación a demanda, liquidez y salida futura. Si tienes datos de alquiler o reventa, úsalos después de concretar la duda."},"journey":{"past":"Propuesta presentada","now":"Manejo de objeción","next":"Aterrizar el criterio"},"call_memory":"- Propuesta presentada\\n- Interés inicial confirmado\\n- Objeción dominante: reputación de Dresden\\n- Tipo: resistencia emocional + criterio de riesgo\\n- Momento: explorando freno real\\n- Objetivo: aterrizar la duda a demanda o liquidez"}
+{"signal":"objeción reputacional sobre la ciudad","say_now":"pregunta si teme demanda, imagen o reventa","avoid":"no defiendas la ciudad aún","detail":{"reading":"No rechaza el activo; rechaza la ciudad como inversión segura. Usa la reputación como criterio de riesgo.","next_move":"¿Lo que te frena es la imagen de la ciudad o el miedo a no poder alquilar o revender bien?","support":"Lleva la conversación a demanda, liquidez y salida futura. Si tienes datos de alquiler o reventa, úsalos después de concretar la duda."},"journey":{"past":"Propuesta presentada","now":"Manejo de objeción","next":"Aterrizar el criterio"},"call_memory":"- Propuesta presentada\\n- Interés inicial confirmado\\n- Objeción dominante: reputación de Dresden\\n- Tipo: resistencia emocional + criterio de riesgo\\n- Momento: explorando freno real\\n- Objetivo: aterrizar la duda a demanda o liquidez"}
 
 Ejemplo 2 — momento sin error táctico (avoid omitido):
-{"signal":"duda abierta","say_now":"concreta si la duda es imagen, liquidez o alquiler","detail":{"reading":"No hay objeción formada aún; el criterio de decisión todavía no está articulado.","next_move":"Antes de defender la ciudad o los datos, dime: ¿qué necesitarías ver para confiar en esta inversión?","support":"No lances datos todavía. Primero concreta cuál es el criterio de duda."},"journey":{"past":"—","now":"Duda sin articular","next":"Explorar criterio real"},"call_memory":"- Apertura iniciada\\n- Cliente analítico, escéptico\\n- Duda todavía abierta, sin criterio definido\\n- Objetivo: concretar qué necesita para evaluar"}
+{"signal":"duda abierta sin criterio definido","say_now":"concreta si la duda es imagen, liquidez o alquiler","detail":{"reading":"No hay objeción formada aún; el criterio de decisión todavía no está articulado.","next_move":"Antes de defender la ciudad o los datos, dime: ¿qué necesitarías ver para confiar en esta inversión?","support":"No lances datos todavía. Primero concreta cuál es el criterio de duda."},"journey":{"past":"—","now":"Duda sin articular","next":"Explorar criterio real"},"call_memory":"- Apertura iniciada\\n- Cliente analítico, escéptico\\n- Duda todavía abierta, sin criterio definido\\n- Objetivo: concretar qué necesita para evaluar"}
 
 Responde SIEMPRE con JSON puro sin markdown ni texto extra.`;
 
