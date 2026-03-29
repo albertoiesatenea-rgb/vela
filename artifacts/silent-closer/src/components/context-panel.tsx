@@ -4,15 +4,16 @@ import { cn } from "@/lib/utils";
 
 // ── Closer Wizard mark: minimal wizard hat silhouette ────────────────────────
 // Two filled shapes, no strokes:
-//   1. Cone — tall triangle, pointed tip
-//   2. Brim — wide ellipse beneath, overlaps cone base for a seamless join
-// Fully scalable SVG, reads cleanly at any size.
+//   1. Cone — tip offset right + left side gently curved inward:
+//      the asymmetry + curve is what makes it read "wizard hat" not "traffic cone"
+//   2. Brim — wide ellipse, overlaps cone base for a seamless join
 function WizardIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 20 20" fill="currentColor" className={className} aria-hidden>
-      {/* Cone body — pointed top, widens toward brim */}
-      <path d="M10 1.5 L4.5 14 L15.5 14 Z" />
-      {/* Brim — wide ellipse, overlaps cone base for seamless join */}
+      {/* Cone — slender (narrow base vs wide brim is what reads "wizard hat"),
+           tip leans slightly right, left side curves gently inward */}
+      <path d="M11.5 1.5 Q8 7 6.5 14 L13.5 14 Z" />
+      {/* Brim — significantly wider than cone base (≈2.5× ratio) */}
       <ellipse cx="10" cy="14.5" rx="9" ry="2.3" />
     </svg>
   );
