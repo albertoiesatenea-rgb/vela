@@ -7,16 +7,10 @@
  */
 
 export interface AnalyzeDetail {
-  /** What the engine is detecting beneath the surface (1 sentence) */
+  /** Richer interpretation of what is happening beneath the surface (1 sentence, not a repeat of signal) */
   reading?: string;
-  /** Tactical reframing line for the conversation (1 line) */
-  argument?: string;
-  /** A slightly longer phrase or mini-script if more support is needed */
-  talk_track?: string;
-  /** A suggested follow-up question to deepen or regain control */
-  question?: string;
-  /** The specific tactical error and its probable consequence (1 line) */
-  risk?: string;
-  /** A brief commercial support note — suggest argument type, not invented facts */
+  /** The single best actionable move — best question, best reframe, best close line. One path only. */
+  next_move?: string;
+  /** Brief tactical reinforcement — reframing criterion, useful data type, or key commercial reminder. Never invent figures. */
   support?: string;
 }

@@ -22,17 +22,11 @@ export interface AnalyzeRequest {
 }
 
 export interface AnalyzeDetail {
-  /** What the engine is detecting beneath the surface (1 sentence) */
+  /** Richer interpretation of what is happening beneath the surface (1 sentence, not a repeat of signal) */
   reading?: string;
-  /** Tactical reframing line for the conversation (1 line) */
-  argument?: string;
-  /** A slightly longer phrase or mini-script if more support is needed */
-  talk_track?: string;
-  /** A suggested follow-up question to deepen or regain control */
-  question?: string;
-  /** The specific tactical error and its probable consequence (1 line) */
-  risk?: string;
-  /** A brief commercial support note — suggest argument type, not invented facts */
+  /** The single best actionable move — best question, best reframe, best close line. One path only. */
+  next_move?: string;
+  /** Brief tactical reinforcement — reframing criterion, useful data type, or key commercial reminder. Never invent figures. */
   support?: string;
 }
 
@@ -41,8 +35,8 @@ export interface AnalyzeResponse {
   signal: string;
   /** Tactical action to take (4-12 words) */
   say_now: string;
-  /** What to avoid doing right now (2-6 words) */
-  avoid: string;
+  /** What to avoid — only when there is a real, probable tactical error. Omit or leave empty if not critical. */
+  avoid?: string;
   detail?: AnalyzeDetail;
   /** Updated accumulated tactical summary of the call so far (4-6 bullet lines) */
   call_memory?: string;

@@ -86,22 +86,13 @@ components:
       properties:
         reading:
           type: string
-          description: What the engine is detecting beneath the surface (1 sentence)
-        argument:
+          description: Richer interpretation of what is happening beneath the surface (1 sentence, not a repeat of signal)
+        next_move:
           type: string
-          description: Tactical reframing line for the conversation (1 line)
-        talk_track:
-          type: string
-          description: A slightly longer phrase or mini-script if more support is needed
-        question:
-          type: string
-          description: A suggested follow-up question to deepen or regain control
-        risk:
-          type: string
-          description: The specific tactical error and its probable consequence (1 line)
+          description: The single best actionable move — best question, best reframe, best close line. One path only.
         support:
           type: string
-          description: A brief commercial support note — suggest argument type, not invented facts
+          description: Brief tactical reinforcement — reframing criterion, useful data type, or key commercial reminder. Never invent figures.
     AnalyzeResponse:
       type: object
       properties:
@@ -113,7 +104,7 @@ components:
           description: Tactical action to take (4-12 words)
         avoid:
           type: string
-          description: What to avoid doing right now (2-6 words)
+          description: What to avoid — only when there is a real, probable tactical error. Omit or leave empty if not critical.
         detail:
           $ref: "#/components/schemas/AnalyzeDetail"
         call_memory:
@@ -122,7 +113,6 @@ components:
       required:
         - signal
         - say_now
-        - avoid
     ErrorResponse:
       type: object
       properties:

@@ -1,0 +1,278 @@
+Quiero hacer una simplificación funcional importante sobre la versión actual de “Silent Closer” sin rehacer la app desde cero.
+
+IMPORTANTE:
+- NO quiero una nueva app
+- NO quiero romper la UI actual
+- NO quiero perder el minimalismo
+- NO quiero más información, quiero mejor información
+- la base visual actual ya me gusta
+- el problema ahora no es la estética, sino que hay demasiadas capas a la vez y parte de la información se pisa o se vuelve redundante
+
+==================================================
+OBJETIVO DE ESTA ITERACIÓN
+==================================================
+
+Quiero optimizar la información que muestra la app para que sea más práctica en uso real.
+
+La regla principal es esta:
+
+No quiero que la app me muestre todo lo que podría saber.
+Quiero que me muestre solo lo mínimo necesario en cada momento.
+
+Ahora mismo siento que hay demasiadas capas o campos al mismo tiempo:
+- SIGNAL
+- SAY NOW
+- AVOID
+- detalle con:
+  - lectura
+  - argumento
+  - guion
+  - pregunta
+  - riesgo
+  - apoyo
+- memoria
+
+Eso es potente, pero en una llamada real puede ser demasiado.
+Hay información redundante o que compite entre sí.
+
+==================================================
+PROBLEMA DE FONDO
+==================================================
+
+Ahora mismo veo estas redundancias o solapes:
+
+1. SIGNAL y LECTURA
+Muchas veces se parecen demasiado:
+- SIGNAL dice qué está pasando
+- LECTURA explica lo mismo con otras palabras
+
+2. AVOID y RIESGO
+Muchas veces:
+- AVOID dice qué no hacer
+- RIESGO explica por qué no hacerlo
+pero ambos compiten entre sí
+
+3. SAY NOW, GUION y PREGUNTA
+A veces:
+- SAY NOW dice qué hacer
+- GUION me da una frase
+- PREGUNTA me da otra vía
+y eso genera demasiado input a la vez
+
+Quiero simplificar esto sin perder potencia.
+
+==================================================
+NUEVA FILOSOFÍA DE INFORMACIÓN
+==================================================
+
+Quiero una estructura de dos niveles:
+
+NIVEL 1 — ULTRARRÁPIDO
+Lo que veo siempre, en grande, sin pensar:
+- SIGNAL
+- SAY NOW
+- AVOID solo si es realmente importante
+
+NIVEL 2 — APOYO
+Lo que solo veo si abro detalle:
+- interpretación
+- siguiente movimiento concreto
+- refuerzo útil
+
+La idea es:
+- en la vista principal leo lo mínimo
+- si necesito más, abro detalle
+- y el detalle no repite lo mismo, sino que me aporta valor nuevo
+
+==================================================
+PARTE 1 — VISTA PRINCIPAL MÁS SIMPLE
+==================================================
+
+Quiero que la vista principal se quede así:
+
+1. SIGNAL
+Pequeño, arriba.
+Etiqueta táctica del momento.
+
+2. SAY NOW
+Grande, protagonista.
+La siguiente mejor jugada.
+
+3. AVOID
+Pequeño y discreto, pero SOLO si de verdad es crítico.
+Si no aporta valor real, prefiero que no se muestre.
+
+REGLA
+AVOID no debe aparecer por sistema siempre.
+Solo debe mostrarse si:
+- hay un error táctico muy probable
+- o realmente necesito freno/advertencia
+
+Si no añade valor claro, mejor ocultarlo y dejar solo:
+- SIGNAL
+- SAY NOW
+
+==================================================
+PARTE 2 — DETALLE DEBE SER MÁS PEQUEÑO Y MÁS ÚTIL
+==================================================
+
+Cuando abra DETALLE, no quiero ver 6 bloques compitiendo.
+Quiero un detalle mucho más simplificado.
+
+Quiero reducirlo a 3 bloques máximo:
+
+1. LECTURA
+Qué está pasando de verdad.
+No repetir exactamente SIGNAL.
+Debe aportar una interpretación breve, útil y más rica.
+
+Ejemplo:
+- No rechaza el activo en sí; teme que la inversión no tenga salida.
+- La duda aún no está cerrada; necesita criterio, no defensa.
+- Está comparando por seguridad, no por precio.
+
+2. SIGUIENTE MOVIMIENTO
+Este es el bloque más importante del detalle.
+
+Quiero fusionar aquí lo que antes estaba separado como:
+- guion
+- pregunta
+- parte del say now
+
+No quiero ver GUION y PREGUNTA a la vez compitiendo.
+
+Quiero un solo bloque llamado:
+SIGUIENTE MOVIMIENTO
+
+Ese bloque debe dar la mejor pieza accionable ampliada:
+- si toca preguntar, da la mejor pregunta
+- si toca reenfocar, da la mejor frase breve
+- si toca cierre, da la mejor formulación de cierre
+- si toca bajar presión, da la frase útil para eso
+
+Regla:
+solo una vía.
+No varias.
+
+3. APOYO
+Una línea breve de refuerzo táctico.
+Puede ser:
+- criterio de reencuadre
+- tipo de dato útil
+- enfoque correcto
+- recordatorio comercial importante
+
+No debe ser largo.
+No debe parecer teoría.
+Debe sumar valor real.
+
+Ejemplo:
+- Lleva la conversación a demanda, liquidez y salida.
+- Si tienes datos reales, úsalos después de concretar la duda.
+- No vendas la ciudad; vende la lógica de inversión.
+
+==================================================
+PARTE 3 — QUÉ QUIERO ELIMINAR O FUSIONAR
+==================================================
+
+Quiero simplificar así:
+
+- SIGNAL se mantiene en la vista principal
+- LECTURA se queda solo en detalle
+- AVOID se queda en la vista principal si es crítico
+- RIESGO desaparece como bloque separado
+  -> si hace falta, se integra dentro de APOYO o de la lógica del detalle
+- GUION y PREGUNTA desaparecen como bloques separados
+  -> se fusionan en SIGUIENTE MOVIMIENTO
+- ARGUMENTO desaparece como bloque separado
+  -> se integra dentro de APOYO o de LECTURA, según convenga
+
+OBJETIVO
+Menos bloques.
+Más claridad.
+Menos competición visual.
+Más utilidad real.
+
+==================================================
+PARTE 4 — CUANDO SE ABRE DETALLE, COMPRIMIR LA VISTA PRINCIPAL
+==================================================
+
+Sí quiero que, cuando abra DETALLE:
+- la vista principal siga ahí
+- pero quede más compacta
+- no haga falta ver todo con el mismo protagonismo
+
+Ejemplo de comportamiento deseado:
+- SIGNAL se mantiene pequeño arriba
+- SAY NOW sigue visible
+- AVOID, si existe, se puede compactar o bajar de peso
+- el espacio ganado se usa para mostrar mejor el detalle
+
+No quiero duplicar la misma información a gran tamaño y luego repetirla abajo.
+
+El detalle debe ganar espacio útil cuando se abre.
+
+==================================================
+PARTE 5 — MEMORIA VA APARTE
+==================================================
+
+MEMORIA no debe mezclarse con DETALLE ni competir con él.
+
+Quiero que MEMORIA siga siendo un bloque aparte, compacto y resumido, con 4–6 líneas máximo.
+
+Formato:
+- Introducción completada
+- Propuesta presentada
+- Interés inicial confirmado
+- Objeción dominante: reputación de Dresden
+- Momento actual: explorando freno real
+- Objetivo: bajar la duda a criterios de inversión
+
+No transcript.
+No log.
+No línea corrida.
+
+==================================================
+PARTE 6 — CRITERIO DE ÉXITO
+==================================================
+
+La nueva versión debe conseguir esto:
+
+- en la vista principal leo solo lo esencial
+- si abro detalle, no veo redundancias, veo ayuda útil
+- no tengo que procesar 6 bloques distintos
+- el ojo entiende muy rápido qué leer
+- la app se vuelve más usable bajo presión real
+- no pierde potencia, pero la organiza mejor
+
+==================================================
+PARTE 7 — REGLA FINAL DE PRODUCTO
+==================================================
+
+No diseñes para mostrar toda la información disponible.
+Diseña para que el usuario lea solo lo mínimo necesario en el momento exacto.
+
+Si dudas entre:
+- más información
+o
+- mejor priorización de la información
+
+elige siempre mejor priorización.
+
+==================================================
+LO QUE QUIERO QUE HAGAS
+==================================================
+
+1. Simplifica la estructura informativa de la app según estas reglas
+2. Mantén la base visual actual
+3. No rehagas el producto
+4. Reduce los bloques del detalle
+5. Fusiona la información redundante
+6. Haz que el detalle aporte valor nuevo, no repetición
+7. Mantén MEMORIA aparte y compacta
+
+Cuando termines, explícamelo brevemente:
+- qué campos has eliminado o fusionado
+- cómo queda ahora la vista principal
+- cómo queda ahora el detalle
+- y por qué ahora debería ser más usable en una conversación real

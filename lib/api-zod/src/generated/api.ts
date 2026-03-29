@@ -35,40 +35,31 @@ export const AnalyzeConversationBody = zod.object({
 export const AnalyzeConversationResponse = zod.object({
   signal: zod.string().describe("Short signal label (2-5 words)"),
   say_now: zod.string().describe("Tactical action to take (4-12 words)"),
-  avoid: zod.string().describe("What to avoid doing right now (2-6 words)"),
+  avoid: zod
+    .string()
+    .optional()
+    .describe(
+      "What to avoid — only when there is a real, probable tactical error. Omit or leave empty if not critical.",
+    ),
   detail: zod
     .object({
       reading: zod
         .string()
         .optional()
         .describe(
-          "What the engine is detecting beneath the surface (1 sentence)",
+          "Richer interpretation of what is happening beneath the surface (1 sentence, not a repeat of signal)",
         ),
-      argument: zod
-        .string()
-        .optional()
-        .describe("Tactical reframing line for the conversation (1 line)"),
-      talk_track: zod
+      next_move: zod
         .string()
         .optional()
         .describe(
-          "A slightly longer phrase or mini-script if more support is needed",
-        ),
-      question: zod
-        .string()
-        .optional()
-        .describe("A suggested follow-up question to deepen or regain control"),
-      risk: zod
-        .string()
-        .optional()
-        .describe(
-          "The specific tactical error and its probable consequence (1 line)",
+          "The single best actionable move — best question, best reframe, best close line. One path only.",
         ),
       support: zod
         .string()
         .optional()
         .describe(
-          "A brief commercial support note — suggest argument type, not invented facts",
+          "Brief tactical reinforcement — reframing criterion, useful data type, or key commercial reminder. Never invent figures.",
         ),
     })
     .optional(),

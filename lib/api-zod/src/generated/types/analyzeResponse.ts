@@ -12,8 +12,8 @@ export interface AnalyzeResponse {
   signal: string;
   /** Tactical action to take (4-12 words) */
   say_now: string;
-  /** What to avoid doing right now (2-6 words) */
-  avoid: string;
+  /** What to avoid — only when there is a real, probable tactical error. Omit or leave empty if not critical. */
+  avoid?: string;
   detail?: AnalyzeDetail;
   /** Updated accumulated tactical summary of the call so far (4-6 bullet lines) */
   call_memory?: string;

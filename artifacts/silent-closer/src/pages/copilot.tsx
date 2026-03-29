@@ -18,22 +18,19 @@ const SPEAKER_ORDER: SpeakerMode[] = ["auto", "client", "me"];
 
 interface Detail {
   reading?: string;
-  argument?: string;
-  talk_track?: string;
-  question?: string;
-  risk?: string;
+  next_move?: string;
   support?: string;
 }
 
 interface TacticalState {
   signal: string;
   sayNow: string;
-  avoid: string;
+  avoid?: string;
   detail: Detail | null;
   callMemory: string;
 }
 
-const EMPTY_STATE: TacticalState = { signal: "", sayNow: "", avoid: "", detail: null, callMemory: "" };
+const EMPTY_STATE: TacticalState = { signal: "", sayNow: "", avoid: undefined, detail: null, callMemory: "" };
 
 const SESSION_KEY = "sc_session_context";
 const LABEL_KEY   = "sc_context_label";
@@ -57,53 +54,40 @@ function saveLabel(l: string) {
   } catch { /* ignore */ }
 }
 
-// ── Color config per detail field
+// ── Color config per detail field (3 fields)
 const FIELD_CONFIG = {
-  LECTURA:    { label: "text-zinc-400",    content: "text-zinc-300",   border: "border-zinc-600",    size: "text-xs" },
-  ARGUMENTO:  { label: "text-blue-400",    content: "text-blue-100",   border: "border-blue-600",    size: "text-xs" },
-  GUION:      { label: "text-zinc-300",    content: "text-white",      border: "border-zinc-400",    size: "text-[13px]" },
-  PREGUNTA:   { label: "text-amber-400",   content: "text-amber-100",  border: "border-amber-600",   size: "text-[13px]" },
-  RIESGO:     { label: "text-red-400",     content: "text-red-200",    border: "border-red-700",     size: "text-xs" },
-  APOYO:      { label: "text-emerald-400", content: "text-emerald-100",border: "border-emerald-700", size: "text-xs" },
+  LECTURA:   { label: "text-zinc-400",    content: "text-zinc-300",    border: "border-zinc-600",    size: "text-[11px]" },
+  SIGUIENTE: { label: "text-white",       content: "text-white",       border: "border-white/40",    size: "text-[13px]" },
+  APOYO:     { label: "text-emerald-400", content: "text-emerald-100", border: "border-emerald-700", size: "text-[11px]" },
 } as const;
 
 type FieldKey = keyof typeof FIELD_CONFIG;
 
-function DetailField({ fieldKey, value }: { fieldKey: FieldKey; value?: string }) {
+function DetailField({ fieldKey, value, clamp = 2 }: { fieldKey: FieldKey; value?: string; clamp?: number }) {
   if (!value) return null;
   const cfg = FIELD_CONFIG[fieldKey];
-  const isGuion = fieldKey === "GUION";
+  const label = fieldKey === "SIGUIENTE" ? "SIGUIENTE MOVIMIENTO" : fieldKey;
   return (
-    <div className={cn("pl-3 border-l-2 flex flex-col gap-1", cfg.border)}>
-      <span className={cn("text-[8px] font-mono tracking-[0.22em] uppercase", cfg.label)}>{fieldKey}</span>
+    <div className={cn("pl-3 border-l-2 flex flex-col gap-1.5", cfg.border)}>
+      <span className={cn("text-[8px] font-mono tracking-[0.22em] uppercase", cfg.label)}>{label}</span>
       <p className={cn(
-        "font-mono leading-snug line-clamp-2",
+        "font-mono leading-snug",
         cfg.size,
         cfg.content,
-        isGuion && "italic",
+        clamp === 3 ? "line-clamp-3" : clamp === 2 ? "line-clamp-2" : "line-clamp-1",
+        fieldKey === "SIGUIENTE" && "font-medium",
       )}>{value}</p>
     </div>
   );
 }
 
-// ── Detail panel — readable grid with breathing room
+// ── Detail panel — 3 fields, clean and scannable
 function DetailPanel({ detail }: { detail: Detail }) {
   return (
-    <div className="px-5 py-3.5 grid grid-cols-2 gap-x-5 gap-y-3.5">
+    <div className="px-5 py-4 flex flex-col gap-4">
       {detail.reading   && <DetailField fieldKey="LECTURA"   value={detail.reading} />}
-      {detail.argument  && <DetailField fieldKey="ARGUMENTO" value={detail.argument} />}
-      {detail.talk_track && (
-        <div className="col-span-2">
-          <DetailField fieldKey="GUION" value={detail.talk_track} />
-        </div>
-      )}
-      {detail.question && (
-        <div className="col-span-2">
-          <DetailField fieldKey="PREGUNTA" value={detail.question} />
-        </div>
-      )}
-      {detail.risk    && <DetailField fieldKey="RIESGO" value={detail.risk} />}
-      {detail.support && <DetailField fieldKey="APOYO"  value={detail.support} />}
+      {detail.next_move && <DetailField fieldKey="SIGUIENTE" value={detail.next_move} clamp={3} />}
+      {detail.support   && <DetailField fieldKey="APOYO"     value={detail.support} />}
     </div>
   );
 }
@@ -176,7 +160,7 @@ export default function CopilotPage() {
             setTacticalState({
               signal: res.signal,
               sayNow: res.say_now,
-              avoid: res.avoid,
+              avoid: res.avoid || undefined,
               detail: res.detail ?? null,
               callMemory: res.call_memory ?? "",
             });

@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 interface TacticalDisplayProps {
   signal: string;
   sayNow: string;
-  avoid: string;
+  avoid?: string;
   isPending?: boolean;
   isListening?: boolean;
 }
@@ -59,23 +59,27 @@ export function TacticalDisplay({ signal, sayNow, avoid, isPending, isListening 
         </AnimatePresence>
       </div>
 
-      {/* ── EVITA ──────────────────────────────────── */}
-      <div className="flex flex-col items-center justify-center gap-2 py-5 shrink-0">
-        <span className="text-[10px] font-mono tracking-[0.3em] text-zinc-300 uppercase">EVITA</span>
-        <div className="h-7 flex items-center">
-          <AnimatePresence mode="wait">
-            <motion.div key={avoid || "empty-avoid"} variants={fade} initial="initial" animate="animate" exit="exit">
-              {avoid ? (
+      {/* ── EVITA — solo si hay algo crítico ────────── */}
+      <AnimatePresence>
+        {avoid ? (
+          <motion.div
+            key="evita"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto", transition: { duration: 0.3 } }}
+            exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
+            className="flex flex-col items-center justify-center gap-2 py-5 shrink-0 overflow-hidden"
+          >
+            <span className="text-[10px] font-mono tracking-[0.3em] text-zinc-300 uppercase">EVITA</span>
+            <AnimatePresence mode="wait">
+              <motion.div key={avoid} variants={fade} initial="initial" animate="animate" exit="exit">
                 <span className="text-sm font-mono text-red-500 uppercase tracking-widest font-semibold">
                   {avoid}
                 </span>
-              ) : (
-                <span className="text-xs font-mono text-zinc-700 uppercase tracking-widest">—</span>
-              )}
-            </motion.div>
-          </AnimatePresence>
-        </div>
-      </div>
+              </motion.div>
+            </AnimatePresence>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
     </div>
   );
