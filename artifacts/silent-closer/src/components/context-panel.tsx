@@ -72,6 +72,8 @@ const CP = {
     ARENA_ROLE_LABEL: "Tu rol en Arena",
     ARENA_SELLER: "Yo soy el vendedor",
     ARENA_CLIENT: "Yo soy el cliente",
+    ARENA_SELLER_SHORT: "Vendedor",
+    ARENA_CLIENT_SHORT: "Cliente",
     ARENA_HINT: "La IA jugará el otro rol",
   },
   en: {
@@ -111,6 +113,8 @@ const CP = {
     ARENA_ROLE_LABEL: "Your role in Arena",
     ARENA_SELLER: "I am the seller",
     ARENA_CLIENT: "I am the client",
+    ARENA_SELLER_SHORT: "Seller",
+    ARENA_CLIENT_SHORT: "Client",
     ARENA_HINT: "The AI will play the other role",
   },
 };
@@ -278,8 +282,10 @@ export function ContextSetup({
         {/* Divider */}
         <div className="border-t border-white/8" />
 
-        {/* ── Controls row — mode + context format in one line ──────────── */}
+        {/* ── Controls row ──────────────────────────────────────────────── */}
         <div className="flex items-center justify-between gap-3">
+
+          {/* Mode pill — expands inline with role options when Arena is active */}
           <div className="flex items-center bg-zinc-950 p-1 rounded-full border border-zinc-800">
             <button
               onClick={() => handleSetAppMode("copilot")}
@@ -291,16 +297,41 @@ export function ContextSetup({
               <Navigation className="w-3 h-3" />
               {t.MODE_COPILOT}
             </button>
-            <button
-              onClick={() => handleSetAppMode("arena")}
-              className={cn(
-                "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono transition-all",
-                appMode === "arena" ? "bg-white text-black" : "text-zinc-300 hover:text-white"
-              )}
-            >
-              <Swords className="w-3 h-3" />
-              {t.MODE_ARENA}
-            </button>
+
+            {appMode === "copilot" ? (
+              /* Copilot active — show plain Arena option */
+              <button
+                onClick={() => handleSetAppMode("arena")}
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono transition-all text-zinc-300 hover:text-white"
+              >
+                <Swords className="w-3 h-3" />
+                {t.MODE_ARENA}
+              </button>
+            ) : (
+              /* Arena active — show role sub-options in place of Arena button */
+              <>
+                <button
+                  onClick={() => setArenaRole("seller")}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono transition-all",
+                    arenaRole === "seller" ? "bg-white text-black" : "text-zinc-300 hover:text-white"
+                  )}
+                >
+                  <Swords className="w-3 h-3" />
+                  {t.ARENA_SELLER_SHORT}
+                </button>
+                <button
+                  onClick={() => setArenaRole("client")}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono transition-all",
+                    arenaRole === "client" ? "bg-white text-black" : "text-zinc-300 hover:text-white"
+                  )}
+                >
+                  <Swords className="w-3 h-3" />
+                  {t.ARENA_CLIENT_SHORT}
+                </button>
+              </>
+            )}
           </div>
 
           {/* Rápido/Avanzado only makes sense in Copilot mode */}
@@ -329,30 +360,6 @@ export function ContextSetup({
             </div>
           )}
         </div>
-
-        {/* ── Arena role pill — only when Arena is active ───────────────── */}
-        {appMode === "arena" && (
-          <div className="flex items-center bg-zinc-950 p-1 rounded-full border border-zinc-800 w-fit">
-            <button
-              onClick={() => setArenaRole("seller")}
-              className={cn(
-                "flex items-center px-4 py-1.5 rounded-full text-xs font-mono transition-all",
-                arenaRole === "seller" ? "bg-white text-black" : "text-zinc-300 hover:text-white"
-              )}
-            >
-              {t.ARENA_SELLER}
-            </button>
-            <button
-              onClick={() => setArenaRole("client")}
-              className={cn(
-                "flex items-center px-4 py-1.5 rounded-full text-xs font-mono transition-all",
-                arenaRole === "client" ? "bg-white text-black" : "text-zinc-300 hover:text-white"
-              )}
-            >
-              {t.ARENA_CLIENT}
-            </button>
-          </div>
-        )}
 
         {/* ── Context input ─────────────────────────────────────────────── */}
         {contextMode === "quick" && (
