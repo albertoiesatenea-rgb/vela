@@ -31,7 +31,7 @@ function DetailRow({ label, value }: { label: string; value?: string }) {
   if (!value) return null;
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-zinc-400">{label}</span>
+      <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-zinc-200">{label}</span>
       <p className="text-xs font-mono text-zinc-200 leading-snug">{value}</p>
     </div>
   );
@@ -117,7 +117,7 @@ export function TacticalDisplay({ signal, sayNow, avoid, detail, callMemory, isP
             {hasDetail && (
               <button
                 onClick={() => { setDetailOpen(v => !v); setMemoryOpen(false); }}
-                className="flex items-center gap-1 text-[10px] font-mono tracking-widest uppercase text-zinc-400 hover:text-white transition-colors"
+                className="flex items-center gap-1 text-[10px] font-mono tracking-widest uppercase text-zinc-200 hover:text-white transition-colors"
               >
                 {detailOpen ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
                 Ver detalle
@@ -126,7 +126,7 @@ export function TacticalDisplay({ signal, sayNow, avoid, detail, callMemory, isP
             {hasMemory && (
               <button
                 onClick={() => { setMemoryOpen(v => !v); setDetailOpen(false); }}
-                className="flex items-center gap-1 text-[10px] font-mono tracking-widest uppercase text-zinc-400 hover:text-white transition-colors"
+                className="flex items-center gap-1 text-[10px] font-mono tracking-widest uppercase text-zinc-200 hover:text-white transition-colors"
               >
                 {memoryOpen ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
                 Memoria
@@ -149,7 +149,7 @@ export function TacticalDisplay({ signal, sayNow, avoid, detail, callMemory, isP
                   <DetailRow label="Enfoque" value={detail?.argument} />
                   {detail?.talk_track && (
                     <div className="sm:col-span-2 flex flex-col gap-0.5">
-                      <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-zinc-400">Guion</span>
+                      <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-zinc-200">Guion</span>
                       <p className="text-xs font-mono text-zinc-200 leading-snug italic">{detail.talk_track}</p>
                     </div>
                   )}

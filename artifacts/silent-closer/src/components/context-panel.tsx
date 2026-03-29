@@ -113,7 +113,7 @@ function GuidedForm({ onSubmit }: { onSubmit: (context: string) => void }) {
               "px-3 py-1 rounded-full text-xs font-mono transition-all",
               type === t.value
                 ? "bg-white text-black"
-                : "bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-700"
+                : "bg-zinc-900 text-zinc-200 hover:text-white border border-zinc-700"
             )}
           >
             {t.label}
@@ -181,7 +181,7 @@ export function ContextSetup({
               "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono transition-all",
               mode === "quick"
                 ? "bg-white text-black"
-                : "text-zinc-500 hover:text-white"
+                : "text-zinc-300 hover:text-white"
             )}
           >
             <Zap className="w-3 h-3" />
@@ -193,7 +193,7 @@ export function ContextSetup({
               "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono transition-all",
               mode === "guided"
                 ? "bg-white text-black"
-                : "text-zinc-500 hover:text-white"
+                : "text-zinc-300 hover:text-white"
             )}
           >
             <AlignLeft className="w-3 h-3" />
@@ -220,7 +220,7 @@ export function ContextSetup({
                   key={chip}
                   type="button"
                   onClick={() => appendChip(chip)}
-                  className="px-2.5 py-1 rounded-full text-[11px] font-mono text-zinc-400 border border-zinc-700 hover:border-zinc-500 hover:text-zinc-100 transition-all"
+                  className="px-2.5 py-1 rounded-full text-[11px] font-mono text-zinc-200 border border-zinc-700 hover:border-zinc-500 hover:text-zinc-100 transition-all"
                 >
                   {chip}
                 </button>
@@ -236,7 +236,7 @@ export function ContextSetup({
 
             <button
               onClick={() => onContextReady("")}
-              className="w-full text-center text-[11px] font-mono text-zinc-500 hover:text-zinc-300 transition-colors py-1"
+              className="w-full text-center text-[11px] font-mono text-zinc-300 hover:text-white transition-colors py-1"
             >
               Continuar sin contexto
             </button>
@@ -246,7 +246,7 @@ export function ContextSetup({
             <GuidedForm onSubmit={onContextReady} />
             <button
               onClick={() => onContextReady("")}
-              className="w-full text-center text-[11px] font-mono text-zinc-500 hover:text-zinc-300 transition-colors py-1"
+              className="w-full text-center text-[11px] font-mono text-zinc-300 hover:text-white transition-colors py-1"
             >
               Continuar sin contexto
             </button>
@@ -278,11 +278,11 @@ export function SessionBar({
       >
         <div className="flex items-center gap-2 min-w-0">
           <div className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
-          <span className="text-[10px] font-mono tracking-widest uppercase text-zinc-400 shrink-0">
+          <span className="text-[10px] font-mono tracking-widest uppercase text-zinc-200 shrink-0">
             Sesión activa
           </span>
           {!expanded && sessionContext && (
-            <span className="text-[10px] font-mono text-zinc-400 truncate ml-1">
+            <span className="text-[10px] font-mono text-zinc-200 truncate ml-1">
               — {sessionContext.split("\n")[0]}
             </span>
           )}
@@ -293,14 +293,14 @@ export function SessionBar({
               e.stopPropagation();
               onClearSession();
             }}
-            className="text-[10px] font-mono text-zinc-400 hover:text-red-400 transition-colors"
+            className="text-[10px] font-mono text-zinc-200 hover:text-red-400 transition-colors"
           >
             Finalizar
           </button>
           {expanded ? (
-            <ChevronUp className="w-3 h-3 text-zinc-400" />
+            <ChevronUp className="w-3 h-3 text-zinc-200" />
           ) : (
-            <ChevronDown className="w-3 h-3 text-zinc-400" />
+            <ChevronDown className="w-3 h-3 text-zinc-200" />
           )}
         </div>
       </div>

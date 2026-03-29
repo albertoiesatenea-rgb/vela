@@ -222,7 +222,7 @@ export default function CopilotPage() {
                 className={cn(
                   "text-[9px] font-mono uppercase tracking-wide px-1.5 py-0.5 rounded",
                   i === signalHistory.length - 1
-                    ? "text-zinc-500 bg-white/5"
+                    ? "text-zinc-300 bg-white/5"
                     : "text-zinc-800"
                 )}
               >
@@ -247,7 +247,7 @@ export default function CopilotPage() {
         {/* Interim text */}
         {inputMode === "listen" && isListening && interimText && (
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 max-w-xl w-full px-6 text-center pointer-events-none">
-            <p className="text-[11px] text-zinc-400 font-mono truncate">{interimText}</p>
+            <p className="text-[11px] text-zinc-200 font-mono truncate">{interimText}</p>
           </div>
         )}
 
@@ -266,7 +266,7 @@ export default function CopilotPage() {
                 <ExternalLink className="w-3.5 h-3.5" />
                 Abrir en pestaña separada
               </button>
-              <p className="text-[10px] text-zinc-400 font-mono text-center">
+              <p className="text-[10px] text-zinc-200 font-mono text-center">
                 O usa el modo Simular para probar la IA ahora
               </p>
             </div>
@@ -277,7 +277,7 @@ export default function CopilotPage() {
         {inputMode === "listen" && !isSupported && !speechError && (
           <div className="absolute inset-0 flex items-center justify-center px-6">
             <div className="bg-zinc-900 border border-white/10 rounded-2xl p-5 max-w-sm w-full">
-              <p className="text-xs font-mono text-zinc-400 text-center leading-relaxed">
+              <p className="text-xs font-mono text-zinc-200 text-center leading-relaxed">
                 Tu navegador no soporta reconocimiento de voz.<br />
                 Usa Chrome o Edge.
               </p>
@@ -342,7 +342,7 @@ export default function CopilotPage() {
               onClick={() => handleModeSwitch("listen")}
               className={cn(
                 "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono font-medium transition-all",
-                inputMode === "listen" ? "bg-white text-black shadow" : "text-zinc-500 hover:text-white"
+                inputMode === "listen" ? "bg-white text-black shadow" : "text-zinc-300 hover:text-white"
               )}
             >
               {isListening ? <Mic className="w-3 h-3 text-red-500" /> : <MicOff className="w-3 h-3" />}
@@ -352,7 +352,7 @@ export default function CopilotPage() {
               onClick={() => handleModeSwitch("simulate")}
               className={cn(
                 "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono font-medium transition-all",
-                inputMode === "simulate" ? "bg-white text-black shadow" : "text-zinc-500 hover:text-white"
+                inputMode === "simulate" ? "bg-white text-black shadow" : "text-zinc-300 hover:text-white"
               )}
             >
               <Keyboard className="w-3 h-3" />
@@ -368,7 +368,7 @@ export default function CopilotPage() {
                 onClick={() => setSpeakerMode(s)}
                 className={cn(
                   "px-3 py-1.5 rounded-full text-[10px] font-mono tracking-widest transition-all",
-                  speakerMode === s ? "bg-white/15 text-white" : "text-zinc-400 hover:text-zinc-100"
+                  speakerMode === s ? "bg-white/15 text-white" : "text-zinc-200 hover:text-zinc-100"
                 )}
               >
                 {SPEAKER_LABELS[s]}
