@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 // ── Types ─────────────────────────────────────────────────────────────────────
 export type ArenaRole = "seller" | "client";
 type Lang = "es" | "en";
+type ConversationState = "favorable" | "tense" | "critical";
 
 interface ArenaMessage {
   index: number;
@@ -21,6 +22,51 @@ interface ArenaSummary {
   userTurns: number;
   createdAt: string;
   closedAt: string;
+}
+
+// ── Conversation state heuristic ──────────────────────────────────────────────
+// Simple keyword-based inference on the last AI message.
+// Checks critical first (strong resistance), then favorable (openness/agreement),
+// defaults to tense (neutral/hesitant) for everything in between.
+
+const CRITICAL_KEYWORDS = {
+  es: [
+    "no me interesa", "no puedo", "absolutamente no", "imposible", "demasiado caro",
+    "no estoy dispuesto", "ya tengo proveedor", "no es para mí", "no voy a",
+    "no tiene sentido", "no lo necesito", "no gracias", "no me convence",
+    "ya tenemos solución", "descartado",
+  ],
+  en: [
+    "not interested", "absolutely not", "impossible", "way too expensive",
+    "already have", "not for me", "won't do", "doesn't make sense",
+    "don't need it", "no thanks", "not convinced", "we already have a solution",
+    "ruled out", "can't do this",
+  ],
+};
+
+const FAVORABLE_KEYWORDS = {
+  es: [
+    "interesante", "me gusta", "podría funcionar", "cuéntame más", "¿cuándo",
+    "de acuerdo", "vamos adelante", "suena bien", "me parece bien", "perfecto",
+    "podría ser", "hay posibilidad", "vale, explícame", "seguimos hablando",
+    "me llama la atención", "podemos avanzar",
+  ],
+  en: [
+    "interesting", "i like", "could work", "tell me more", "when can",
+    "agreed", "let's go", "sounds good", "that works", "perfect",
+    "that could be", "there's a possibility", "okay, explain", "keep talking",
+    "catches my attention", "we can move forward",
+  ],
+};
+
+function inferState(text: string, lang: Lang): ConversationState {
+  const lower = text.toLowerCase();
+  const critical = CRITICAL_KEYWORDS[lang];
+  const favorable = FAVORABLE_KEYWORDS[lang];
+
+  if (critical.some(kw => lower.includes(kw))) return "critical";
+  if (favorable.some(kw => lower.includes(kw))) return "favorable";
+  return "tense";
 }
 
 // ── Translations ──────────────────────────────────────────────────────────────
@@ -46,6 +92,9 @@ const T = {
     EXPORT: "Exportar log (.txt) ↓",
     CLOSE: "Cerrar y volver",
     EXIT: "← Salir",
+    STATE_FAVORABLE: "Favorable",
+    STATE_TENSE: "Tensa",
+    STATE_CRITICAL: "Crítica",
   },
   en: {
     ARENA: "ARENA",
@@ -68,8 +117,40 @@ const T = {
     EXPORT: "Export log (.txt) ↓",
     CLOSE: "Close and exit",
     EXIT: "← Exit",
+    STATE_FAVORABLE: "Favorable",
+    STATE_TENSE: "Tense",
+    STATE_CRITICAL: "Critical",
   },
 };
+
+// ── State indicator ───────────────────────────────────────────────────────────
+const STATE_DOT: Record<ConversationState, string> = {
+  favorable: "bg-emerald-400",
+  tense: "bg-amber-400",
+  critical: "bg-red-400",
+};
+
+const STATE_TEXT: Record<ConversationState, string> = {
+  favorable: "text-emerald-400",
+  tense: "text-amber-400",
+  critical: "text-red-400",
+};
+
+function StateIndicator({ state, lang }: { state: ConversationState | null; lang: Lang }) {
+  if (!state) return null;
+  const t = T[lang];
+  const label = state === "favorable"
+    ? t.STATE_FAVORABLE
+    : state === "tense" ? t.STATE_TENSE : t.STATE_CRITICAL;
+  return (
+    <div className="flex items-center gap-1.5 shrink-0">
+      <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", STATE_DOT[state])} />
+      <span className={cn("text-[9px] font-mono tracking-widest uppercase", STATE_TEXT[state])}>
+        {label}
+      </span>
+    </div>
+  );
+}
 
 // ── Arena component ───────────────────────────────────────────────────────────
 export function Arena({
@@ -95,6 +176,7 @@ export function Arena({
   const [isEnding, setIsEnding] = useState(false);
   const [summary, setSummary] = useState<ArenaSummary | null>(null);
   const [allTurns, setAllTurns] = useState<ArenaMessage[]>([]);
+  const [conversationState, setConversationState] = useState<ConversationState | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -121,6 +203,8 @@ export function Arena({
         if (cancelled) return;
         setArenaSessionId(data.arenaSessionId);
         setMessages([{ index: 0, speaker: "ai", message: data.openingMessage }]);
+        // Infer initial state from opening message
+        setConversationState(inferState(data.openingMessage, lang));
       } catch {
         if (!cancelled) {
           setMessages([{ index: 0, speaker: "ai", message: lang === "en" ? "Ready." : "Listo." }]);
@@ -150,6 +234,8 @@ export function Arena({
       });
       const data = await res.json() as { aiMessage: string };
       setMessages(prev => [...prev, { index: prev.length, speaker: "ai", message: data.aiMessage }]);
+      // Update conversation state after each AI response
+      setConversationState(inferState(data.aiMessage, lang));
     } catch {
       setMessages(prev => [...prev, {
         index: prev.length,
@@ -175,7 +261,6 @@ export function Arena({
       setAllTurns(data.turns);
       setSummary(data.summary);
     } catch {
-      // Fallback: build summary from local state
       const localTurns = messages.map((m, i) => ({ ...m, index: i }));
       setAllTurns(localTurns);
       setSummary({
@@ -249,13 +334,10 @@ export function Arena({
 
   // ── Summary screen ────────────────────────────────────────────────────────
   if (summary) {
-    const roleName = role === "seller"
-      ? (lang === "es" ? t.ROLE_SELLER : t.ROLE_SELLER)
-      : (lang === "es" ? t.ROLE_CLIENT : t.ROLE_CLIENT);
+    const roleName = role === "seller" ? t.ROLE_SELLER : t.ROLE_CLIENT;
     return (
       <div className="fixed inset-0 bg-black flex flex-col items-center justify-center px-6">
         <div className="w-full max-w-sm flex flex-col gap-6">
-          {/* Brand */}
           <div className="flex items-center gap-2">
             <WizardIcon className="w-5 h-5 text-zinc-400" />
             <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-zinc-400">Closer Wizard</span>
@@ -263,7 +345,6 @@ export function Arena({
             <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-zinc-500">{t.ARENA}</span>
           </div>
 
-          {/* Title */}
           <div className="flex flex-col gap-1">
             <p className="text-[10px] font-mono tracking-widest uppercase text-zinc-400">{t.SUMMARY_TITLE}</p>
             <p className="text-2xl font-mono font-bold text-white leading-tight">
@@ -271,7 +352,6 @@ export function Arena({
             </p>
           </div>
 
-          {/* Stats */}
           <div className="flex gap-6 border-t border-white/8 pt-4">
             <div className="flex flex-col gap-0.5">
               <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{t.ROLE_USED}</p>
@@ -283,7 +363,6 @@ export function Arena({
             </div>
           </div>
 
-          {/* Context preview */}
           {summary.context && (
             <div className="border-t border-white/8 pt-4">
               <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500 mb-1.5">
@@ -295,7 +374,6 @@ export function Arena({
             </div>
           )}
 
-          {/* Actions */}
           <div className="flex flex-col gap-2 border-t border-white/8 pt-4">
             <button
               onClick={handleExportLog}
@@ -321,6 +399,7 @@ export function Arena({
 
       {/* ── Top bar ──────────────────────────────────────────────────────── */}
       <div className="shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-white/6">
+        {/* Left cluster */}
         <div className="flex items-center gap-2 min-w-0">
           <WizardIcon className="w-2.5 h-2.5 text-zinc-400 shrink-0" />
           <span className="text-[8px] tracking-[0.25em] uppercase text-zinc-400 shrink-0">Closer Wizard</span>
@@ -335,12 +414,17 @@ export function Arena({
             </>
           )}
         </div>
-        <button
-          onClick={onExit}
-          className="shrink-0 text-[9px] tracking-widest uppercase text-zinc-500 hover:text-zinc-200 transition-colors ml-4"
-        >
-          {t.EXIT}
-        </button>
+
+        {/* Right cluster — state + exit */}
+        <div className="flex items-center gap-3 shrink-0 ml-4">
+          <StateIndicator state={conversationState} lang={lang} />
+          <button
+            onClick={onExit}
+            className="text-[9px] tracking-widest uppercase text-zinc-500 hover:text-zinc-200 transition-colors"
+          >
+            {t.EXIT}
+          </button>
+        </div>
       </div>
 
       {/* ── Message list ─────────────────────────────────────────────────── */}

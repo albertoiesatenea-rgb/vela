@@ -1,0 +1,135 @@
+Quiero una mejora de UX y estructura para la primera versión de ARENA dentro de Closer Wizard.
+
+IMPORTANTE:
+No quiero meter todavía dificultad, hints, perfiles, escenarios aleatorios ni audio.
+Este cambio es solo para mejorar:
+- claridad visual
+- uso del espacio
+- iconografía
+- estado visible de la conversación en Arena
+
+CONTEXTO
+La app actual ya tiene:
+- selector de modo Copiloto / Arena
+- setup rápido / avanzado
+- contexto libre
+- selector de rol en Arena
+- entrar en Arena
+- pantalla básica de conversación
+- pantalla final con export log
+
+No quiero romper nada de eso.
+Solo refinarlo.
+
+CAMBIO 1 — ICONO DE COPILOTO
+El icono actual de Copiloto no debe ser un rayo.
+No me gusta porque:
+- transmite velocidad, no guía táctica
+- visualmente se pisa con la idea de “Rápido”
+- no representa bien el producto
+
+Sustituirlo por un icono más representativo de copiloto táctico / guidance.
+Preferencia:
+- Navigation
+o
+- Compass
+
+Debe mantener el estilo visual premium, limpio y monocromo.
+Arena puede mantener su icono actual si encaja, pero Copiloto no debe usar rayo.
+
+CAMBIO 2 — MEJOR APROVECHAMIENTO DEL SETUP
+La pantalla de setup actual tiene demasiado aire y no aprovecha bien el espacio.
+No quiero mover el textarea largo de contexto a la derecha del selector de modo.
+Eso quedaría peor.
+
+Quiero una reorganización más compacta y elegante del bloque central.
+
+Objetivo:
+- reducir sensación de hueco muerto
+- mejorar jerarquía
+- mantener elegancia minimal
+- hacer la pantalla más densa pero no agobiante
+
+PROPUESTA DE ESTRUCTURA
+Reorganiza el setup con esta lógica:
+
+1. fila superior:
+- logo
+- idioma
+
+2. primer bloque:
+- label MODO
+- segmented control Copiloto / Arena
+
+3. segundo bloque:
+- label DEFINE EL CONTEXTO
+- segmented control Rápido / Avanzado
+
+4. tercer bloque:
+- textarea/contexto
+
+5. cuarto bloque:
+- si Arena está activo, mostrar rol en Arena
+- si Copiloto está activo, no mostrar ese bloque
+
+6. quinto bloque:
+- CTA principal
+
+IMPORTANTE:
+No quiero una pantalla “más ancha”.
+Quiero una pantalla mejor estructurada.
+Mantener el contexto abajo, pero comprimir mejor márgenes, separaciones y ritmo vertical.
+
+CAMBIO 3 — INDICADOR DE ESTADO EN ARENA
+Quiero que Arena tenga un indicador visible del estado de la conversación, igual que el producto principal ya usa momentum verde/ámbar/rojo.
+No inventes otro sistema distinto.
+Reutiliza conceptualmente esa lógica.
+
+Implementar en Arena un estado visible en la barra superior o cabecera de sesión:
+- green = favorable
+- amber = tensa
+- red = crítica
+
+Este indicador debe actualizarse durante la conversación.
+No hace falta que sea perfecto en esta fase.
+Hace falta que sea coherente y útil.
+
+Puede mostrarse como:
+- bolita de color + label
+o
+- bolita sola si queda más elegante
+
+Label sugerido:
+- Favorable
+- Tensa
+- Crítica
+
+No mostrar un panel enorme.
+Solo un indicador claro y discreto.
+
+CAMBIOS DE DISEÑO
+- mantener la estética actual
+- mantener negro puro / gris / blanco
+- mantener tipografía monoespaciada
+- no meter sombras raras
+- no meter estilo SaaS genérico
+- no meter iconos decorativos de más
+
+ENTREGABLES
+1. cambio de icono de Copiloto
+2. layout de setup más compacto y mejor organizado
+3. indicador de estado en Arena
+4. sin romper Copiloto ni Arena actuales
+
+CRITERIOS DE ACEPTACIÓN
+Esto estará bien hecho solo si:
+- Copiloto deja de usar el icono de rayo
+- el setup se siente mejor aprovechado
+- Arena muestra un estado visible de la conversación
+- la interfaz sigue pareciendo Closer Wizard
+- no parece un parche improvisado
+
+Al final, explícame brevemente:
+- qué componentes o pantallas has tocado
+- qué decisiones de layout has tomado
+- cómo calculas el estado favorable / tensa / crítica en esta v1
