@@ -247,7 +247,7 @@ export default function CopilotPage() {
         {/* Interim text */}
         {inputMode === "listen" && isListening && interimText && (
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 max-w-xl w-full px-6 text-center pointer-events-none">
-            <p className="text-[11px] text-zinc-700 font-mono truncate">{interimText}</p>
+            <p className="text-[11px] text-zinc-400 font-mono truncate">{interimText}</p>
           </div>
         )}
 
@@ -266,7 +266,7 @@ export default function CopilotPage() {
                 <ExternalLink className="w-3.5 h-3.5" />
                 Abrir en pestaña separada
               </button>
-              <p className="text-[10px] text-zinc-600 font-mono text-center">
+              <p className="text-[10px] text-zinc-400 font-mono text-center">
                 O usa el modo Simular para probar la IA ahora
               </p>
             </div>
@@ -368,7 +368,7 @@ export default function CopilotPage() {
                 onClick={() => setSpeakerMode(s)}
                 className={cn(
                   "px-3 py-1.5 rounded-full text-[10px] font-mono tracking-widest transition-all",
-                  speakerMode === s ? "bg-white/15 text-white" : "text-zinc-600 hover:text-zinc-400"
+                  speakerMode === s ? "bg-white/15 text-white" : "text-zinc-400 hover:text-zinc-100"
                 )}
               >
                 {SPEAKER_LABELS[s]}

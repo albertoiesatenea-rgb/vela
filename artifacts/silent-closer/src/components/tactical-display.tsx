@@ -31,8 +31,8 @@ function DetailRow({ label, value }: { label: string; value?: string }) {
   if (!value) return null;
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-zinc-500">{label}</span>
-      <p className="text-xs font-mono text-zinc-300 leading-snug">{value}</p>
+      <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-zinc-400">{label}</span>
+      <p className="text-xs font-mono text-zinc-200 leading-snug">{value}</p>
     </div>
   );
 }
@@ -52,7 +52,7 @@ export function TacticalDisplay({ signal, sayNow, avoid, detail, callMemory, isP
 
       {/* ── SEÑAL ──────────────────────────────────── */}
       <div className="flex flex-col items-center justify-center gap-2 py-5 shrink-0">
-        <span className="text-[10px] font-mono tracking-[0.3em] text-zinc-400 uppercase">SEÑAL</span>
+        <span className="text-[10px] font-mono tracking-[0.3em] text-zinc-300 uppercase">SEÑAL</span>
         <div className="h-7 flex items-center">
           <AnimatePresence mode="wait">
             <motion.div key={signal || "empty-signal"} variants={fade} initial="initial" animate="animate" exit="exit">
@@ -72,7 +72,7 @@ export function TacticalDisplay({ signal, sayNow, avoid, detail, callMemory, isP
 
       {/* ── DI AHORA ────────────────────────────────── */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 min-h-0">
-        <span className="text-[10px] font-mono tracking-[0.3em] text-zinc-400 uppercase mb-6">DI AHORA</span>
+        <span className="text-[10px] font-mono tracking-[0.3em] text-zinc-300 uppercase mb-6">DI AHORA</span>
         <AnimatePresence mode="wait">
           <motion.p
             key={sayNow || "empty-say"}
@@ -92,7 +92,7 @@ export function TacticalDisplay({ signal, sayNow, avoid, detail, callMemory, isP
 
       {/* ── EVITA ──────────────────────────────────── */}
       <div className="flex flex-col items-center justify-center gap-2 py-5 shrink-0">
-        <span className="text-[10px] font-mono tracking-[0.3em] text-zinc-400 uppercase">EVITA</span>
+        <span className="text-[10px] font-mono tracking-[0.3em] text-zinc-300 uppercase">EVITA</span>
         <div className="h-7 flex items-center">
           <AnimatePresence mode="wait">
             <motion.div key={avoid || "empty-avoid"} variants={fade} initial="initial" animate="animate" exit="exit">
@@ -117,7 +117,7 @@ export function TacticalDisplay({ signal, sayNow, avoid, detail, callMemory, isP
             {hasDetail && (
               <button
                 onClick={() => { setDetailOpen(v => !v); setMemoryOpen(false); }}
-                className="flex items-center gap-1 text-[10px] font-mono tracking-widest uppercase text-zinc-500 hover:text-zinc-300 transition-colors"
+                className="flex items-center gap-1 text-[10px] font-mono tracking-widest uppercase text-zinc-400 hover:text-white transition-colors"
               >
                 {detailOpen ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
                 Ver detalle
@@ -126,7 +126,7 @@ export function TacticalDisplay({ signal, sayNow, avoid, detail, callMemory, isP
             {hasMemory && (
               <button
                 onClick={() => { setMemoryOpen(v => !v); setDetailOpen(false); }}
-                className="flex items-center gap-1 text-[10px] font-mono tracking-widest uppercase text-zinc-500 hover:text-zinc-300 transition-colors"
+                className="flex items-center gap-1 text-[10px] font-mono tracking-widest uppercase text-zinc-400 hover:text-white transition-colors"
               >
                 {memoryOpen ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
                 Memoria
@@ -149,8 +149,8 @@ export function TacticalDisplay({ signal, sayNow, avoid, detail, callMemory, isP
                   <DetailRow label="Enfoque" value={detail?.argument} />
                   {detail?.talk_track && (
                     <div className="sm:col-span-2 flex flex-col gap-0.5">
-                      <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-zinc-500">Guion</span>
-                      <p className="text-xs font-mono text-zinc-300 leading-snug italic">{detail.talk_track}</p>
+                      <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-zinc-400">Guion</span>
+                      <p className="text-xs font-mono text-zinc-200 leading-snug italic">{detail.talk_track}</p>
                     </div>
                   )}
                   <DetailRow label="Pregunta" value={detail?.question} />
@@ -174,7 +174,7 @@ export function TacticalDisplay({ signal, sayNow, avoid, detail, callMemory, isP
                 <div className="pb-3 pt-1 border-t border-white/5">
                   <ul className="space-y-1.5">
                     {memoryLines.map((line, i) => (
-                      <li key={i} className="text-[11px] font-mono text-zinc-400 leading-snug">
+                      <li key={i} className="text-[11px] font-mono text-zinc-300 leading-snug">
                         {line.startsWith("-") ? line : `- ${line}`}
                       </li>
                     ))}
