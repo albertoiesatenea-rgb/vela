@@ -21,7 +21,6 @@ export function TacticalDisplay({ signal, sayNow, avoid, isPending, isListening 
 
       {/* ── SEÑAL ──────────────────────────────────── */}
       <div className="flex flex-col items-center justify-center gap-2 py-5 shrink-0">
-        <span className="text-[10px] font-mono tracking-[0.3em] text-zinc-300 uppercase">SEÑAL</span>
         <div className="h-7 flex items-center">
           <AnimatePresence mode="wait">
             <motion.div key={signal || "empty-signal"} variants={fade} initial="initial" animate="animate" exit="exit">
@@ -41,7 +40,6 @@ export function TacticalDisplay({ signal, sayNow, avoid, isPending, isListening 
 
       {/* ── DI AHORA ────────────────────────────────── */}
       <div className="flex-1 flex flex-col items-center justify-center px-6">
-        <span className="text-[10px] font-mono tracking-[0.3em] text-zinc-300 uppercase mb-6">DI AHORA</span>
         <AnimatePresence mode="wait">
           <motion.p
             key={sayNow || "empty-say"}
@@ -69,7 +67,6 @@ export function TacticalDisplay({ signal, sayNow, avoid, isPending, isListening 
             exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
             className="flex flex-col items-center justify-center gap-2 py-5 shrink-0 overflow-hidden"
           >
-            <span className="text-[10px] font-mono tracking-[0.3em] text-zinc-300 uppercase">EVITA</span>
             <AnimatePresence mode="wait">
               <motion.div key={avoid} variants={fade} initial="initial" animate="animate" exit="exit">
                 <span className="text-sm font-mono text-red-500 uppercase tracking-widest font-semibold">

@@ -56,25 +56,24 @@ function saveLabel(l: string) {
 
 // ── Color config per detail field — colorblind-safe (blue / white / amber)
 const FIELD_CONFIG = {
-  LECTURA:   { label: "text-sky-400",   content: "text-sky-200",   border: "border-sky-600",   size: "text-[11px]" },
-  SIGUIENTE: { label: "text-white",     content: "text-white",     border: "border-white/70",  size: "text-[13px]" },
-  APOYO:     { label: "text-amber-400", content: "text-amber-200", border: "border-amber-600", size: "text-[11px]" },
+  LECTURA:   { label: "text-sky-400",   content: "text-sky-200",   border: "border-sky-600",   size: "text-[13px]" },
+  SIGUIENTE: { label: "text-white",     content: "text-white",     border: "border-white/70",  size: "text-[15px]" },
+  APOYO:     { label: "text-amber-400", content: "text-amber-200", border: "border-amber-600", size: "text-[13px]" },
 } as const;
 
 type FieldKey = keyof typeof FIELD_CONFIG;
 
-function DetailField({ fieldKey, value, clamp = 2 }: { fieldKey: FieldKey; value?: string; clamp?: number }) {
+function DetailField({ fieldKey, value }: { fieldKey: FieldKey; value?: string }) {
   if (!value) return null;
   const cfg = FIELD_CONFIG[fieldKey];
   const label = fieldKey === "SIGUIENTE" ? "SIGUIENTE MOVIMIENTO" : fieldKey;
   return (
     <div className={cn("pl-3 border-l-2 flex flex-col gap-1.5", cfg.border)}>
-      <span className={cn("text-[8px] font-mono tracking-[0.22em] uppercase", cfg.label)}>{label}</span>
+      <span className={cn("text-[9px] font-mono tracking-[0.22em] uppercase", cfg.label)}>{label}</span>
       <p className={cn(
         "font-mono leading-snug",
         cfg.size,
         cfg.content,
-        clamp === 3 ? "line-clamp-3" : clamp === 2 ? "line-clamp-2" : "line-clamp-1",
         fieldKey === "SIGUIENTE" && "font-medium",
       )}>{value}</p>
     </div>
@@ -86,7 +85,7 @@ function DetailPanel({ detail }: { detail: Detail }) {
   return (
     <div className="px-5 py-4 flex flex-col gap-4">
       {detail.reading   && <DetailField fieldKey="LECTURA"   value={detail.reading} />}
-      {detail.next_move && <DetailField fieldKey="SIGUIENTE" value={detail.next_move} clamp={3} />}
+      {detail.next_move && <DetailField fieldKey="SIGUIENTE" value={detail.next_move} />}
       {detail.support   && <DetailField fieldKey="APOYO"     value={detail.support} />}
     </div>
   );
@@ -380,11 +379,11 @@ export default function CopilotPage() {
           <div
             className="overflow-hidden"
             style={{
-              maxHeight: detailVisible ? "164px" : "0px",
+              maxHeight: detailVisible ? "260px" : "0px",
               transition: "max-height 0.22s ease",
             }}
           >
-            <div className="border-t border-white/5 overflow-y-auto" style={{ maxHeight: "164px" }}>
+            <div className="border-t border-white/5 overflow-y-auto" style={{ maxHeight: "260px" }}>
               {hasDetail && <DetailPanel detail={tacticalState.detail!} />}
             </div>
           </div>
