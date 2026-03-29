@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Zap, SlidersHorizontal, User, Users, Target, Briefcase, ShieldOff, FileText, Swords, Navigation } from "lucide-react";
+import { ChevronDown, ChevronUp, Zap, SlidersHorizontal, User, Users, Target, Briefcase, ShieldOff, FileText, Swords, Navigation, Headphones } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ArenaRole } from "@/pages/arena";
 
@@ -310,7 +310,6 @@ export function ContextSetup({
             ) : (
               /* Arena active — grouped role sub-options with thin divider */
               <>
-                <div className="w-px h-4 bg-zinc-700 mx-0.5 shrink-0" />
                 <button
                   onClick={() => setArenaRole("seller")}
                   className={cn(
@@ -320,7 +319,7 @@ export function ContextSetup({
                       : "bg-zinc-800 text-zinc-300 hover:text-white"
                   )}
                 >
-                  <Briefcase className="w-3 h-3" />
+                  <Headphones className="w-3 h-3" />
                   {t.ARENA_SELLER_SHORT}
                 </button>
                 <button
