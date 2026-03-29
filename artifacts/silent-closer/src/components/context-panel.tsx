@@ -236,6 +236,11 @@ export function ContextSetup({
   const [arenaRole, setArenaRole] = useState<ArenaRole>("seller");
   const [quickText, setQuickText] = useState("");
 
+  const handleSetAppMode = (m: AppMode) => {
+    setAppMode(m);
+    if (m === "arena") setContextMode("quick"); // Advanced form has no meaning in Arena
+  };
+
   const handleSubmit = (ctx: string) => {
     if (!ctx.trim()) return;
     if (appMode === "arena") {
@@ -287,7 +292,7 @@ export function ContextSetup({
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center bg-zinc-950 p-1 rounded-full border border-zinc-800">
             <button
-              onClick={() => setAppMode("copilot")}
+              onClick={() => handleSetAppMode("copilot")}
               className={cn(
                 "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono transition-all",
                 appMode === "copilot" ? "bg-white text-black" : "text-zinc-300 hover:text-white"
@@ -297,7 +302,7 @@ export function ContextSetup({
               {t.MODE_COPILOT}
             </button>
             <button
-              onClick={() => setAppMode("arena")}
+              onClick={() => handleSetAppMode("arena")}
               className={cn(
                 "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono transition-all",
                 appMode === "arena" ? "bg-white text-black" : "text-zinc-300 hover:text-white"
@@ -308,28 +313,31 @@ export function ContextSetup({
             </button>
           </div>
 
-          <div className="flex items-center bg-zinc-950 p-1 rounded-full border border-zinc-800">
-            <button
-              onClick={() => setContextMode("quick")}
-              className={cn(
-                "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono transition-all",
-                contextMode === "quick" ? "bg-white text-black" : "text-zinc-300 hover:text-white"
-              )}
-            >
-              <Zap className="w-3 h-3" />
-              {t.QUICK}
-            </button>
-            <button
-              onClick={() => setContextMode("advanced")}
-              className={cn(
-                "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono transition-all",
-                contextMode === "advanced" ? "bg-white text-black" : "text-zinc-300 hover:text-white"
-              )}
-            >
-              <SlidersHorizontal className="w-3 h-3" />
-              {t.ADVANCED}
-            </button>
-          </div>
+          {/* Rápido/Avanzado only makes sense in Copilot mode */}
+          {appMode === "copilot" && (
+            <div className="flex items-center bg-zinc-950 p-1 rounded-full border border-zinc-800">
+              <button
+                onClick={() => setContextMode("quick")}
+                className={cn(
+                  "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono transition-all",
+                  contextMode === "quick" ? "bg-white text-black" : "text-zinc-300 hover:text-white"
+                )}
+              >
+                <Zap className="w-3 h-3" />
+                {t.QUICK}
+              </button>
+              <button
+                onClick={() => setContextMode("advanced")}
+                className={cn(
+                  "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono transition-all",
+                  contextMode === "advanced" ? "bg-white text-black" : "text-zinc-300 hover:text-white"
+                )}
+              >
+                <SlidersHorizontal className="w-3 h-3" />
+                {t.ADVANCED}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* ── Arena role pill — only when Arena is active ───────────────── */}
