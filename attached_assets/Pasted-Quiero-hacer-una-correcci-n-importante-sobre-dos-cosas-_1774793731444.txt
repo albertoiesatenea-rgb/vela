@@ -1,0 +1,167 @@
+Quiero hacer una corrección importante sobre dos cosas de Closer Wizard:
+
+1. el icono/logo, que sigue sin funcionar
+2. el contraste y legibilidad de los pasos no activos en el modo avanzado
+
+IMPORTANTE:
+- no quiero más parches pequeños
+- no quiero otra versión del mismo triángulo
+- no quiero una explicación conceptual bonita de por qué funciona
+- quiero un resultado visual que de verdad transmita marca y sea usable
+
+==================================================
+PARTE 1 — EL ICONO ACTUAL SIGUE SIN FUNCIONAR
+==================================================
+
+Problema real:
+el icono actual sigue pareciendo un triángulo.
+No transmite wizard, no transmite magia útil, no transmite cierre, no transmite nada memorable.
+Se siente como una forma minimalista vacía.
+
+Esto NO es lo que quiero.
+
+Quiero dejar claras varias reglas:
+
+REGLA 1
+PROHIBIDO usar como base principal un simple triángulo o una silueta que, en pequeño, vuelva a parecer un triángulo cualquiera.
+
+REGLA 2
+No quiero “minimalismo muerto”.
+Quiero un símbolo:
+- simple
+- limpio
+- pequeño
+- pero con carácter y narrativa visual
+
+REGLA 3
+El icono debe parecer una MARCA, no una forma genérica.
+
+REGLA 4
+Tiene que tener al menos dos elementos narrativos claros, no una sola forma abstracta.
+
+==================================================
+DIRECCIÓN NUEVA DEL ICONO
+==================================================
+
+Quiero que explores un icono más expresivo y memorable.
+
+Opciones válidas:
+
+OPCIÓN A — MINI WIZARD / EMBLEMA
+Un pequeño símbolo que sí sugiera wizard:
+- sombrero reconocible
+- varita
+- chispa / destello
+- muy simple, pero claramente identificable
+- no cartoon infantil
+- no recargado
+- con más cuerpo visual
+
+OPCIÓN B — VARITA POTENTE + GESTO DE VALOR / CIERRE
+Una varita mejor diseñada, con mucha más personalidad que la actual, y acompañada de un gesto visual con más fuerza:
+- chispa potente
+- estrella con más carácter
+- mini moneda / spark de valor si queda elegante
+- sensación de acción, no de palo decorativo
+
+OPCIÓN C — MONOGRAMA / EMBLEMA CW CON MAGIA
+Un símbolo más de marca premium, usando CW o una forma con más cuerpo y magia implícita.
+Solo si realmente queda con más personalidad que las otras opciones.
+
+PREFERENCIA
+Prefiero algo que:
+- se sienta un poco más iconográfico
+- tenga más presencia
+- se recuerde mejor
+- y no vuelva a parecer un triángulo minimalista muerto
+
+==================================================
+LO QUE NO QUIERO
+==================================================
+
+- no quiero otro triángulo
+- no quiero otra silueta abstracta que haya que justificar
+- no quiero “sombrero” que en realidad es una forma geométrica sin alma
+- no quiero una varita flácida
+- no quiero algo tan minimalista que deje de significar nada
+
+==================================================
+LO QUE SÍ QUIERO
+==================================================
+
+- más silueta
+- más cuerpo visual
+- más presencia
+- más narrativa
+- más identidad
+- un símbolo que se note que representa Closer Wizard
+
+==================================================
+PARTE 2 — MEJORAR CONTRASTE DE LOS PASOS NO ACTIVOS EN EL MODO AVANZADO
+==================================================
+
+Ahora mismo los pasos no activos del modo avanzado están demasiado oscuros.
+En este fondo casi negro cuesta mucho verlos y cuesta navegar visualmente entre ellos.
+
+Problema real:
+si estoy en “Oferta” o “Rol” y quiero ir a otro paso, los pasos no activos se leen mal y no destacan lo suficiente.
+
+OBJETIVO
+Quiero mejorar la legibilidad general del stepper del modo avanzado.
+
+MEJORAS QUE QUIERO
+
+1. Subir contraste de los pasos inactivos
+No quiero que parezcan apagados hasta casi desaparecer.
+Quiero que sigan siendo secundarios, pero claramente legibles.
+
+2. Mantener bien diferenciado el paso activo
+El activo debe seguir destacando más.
+
+3. Mejorar estados visuales
+Quiero distinguir mejor:
+- activo
+- inactivo
+- hover
+- clicable
+- si existe, completado
+
+4. Mejorar legibilidad general
+Todo el stepper debe poder leerse rápido y sin forzar la vista.
+
+IMPORTANTE
+No quiero romper la estética oscura ni volverlo chillón.
+Solo quiero más contraste útil y mejor visibilidad.
+
+==================================================
+REGLA DE DISEÑO GENERAL
+==================================================
+
+Todo debe seguir sintiéndose:
+- premium
+- limpio
+- oscuro
+- táctico
+- minimalista
+- serio
+
+Pero:
+- minimalista no significa invisible
+- simple no significa sin identidad
+
+==================================================
+ENTREGABLE
+==================================================
+
+Quiero que:
+1. rehagas el icono con una dirección mucho más fuerte y memorable
+2. elimines la dependencia visual del triángulo genérico
+3. mejores el contraste de los pasos no activos del modo avanzado
+4. mantengas el estilo general de la app
+
+Cuando termines, dime brevemente:
+1. qué dirección elegiste para el icono
+2. por qué ya no cae en un triángulo vacío
+3. qué dos o más elementos narrativos tiene el símbolo
+4. cómo mejoraste el contraste de los pasos no activos
+5. y por qué ahora debería verse y sentirse mucho mejor

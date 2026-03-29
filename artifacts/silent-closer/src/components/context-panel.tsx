@@ -2,17 +2,21 @@ import { useState } from "react";
 import { ChevronDown, ChevronUp, Zap, SlidersHorizontal, User, Users, Target, Briefcase, ShieldOff, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// ── Closer Wizard mark: geometric wizard hat ──────────────────────────────────
-// A clean triangle (cone) + wide rounded brim. Two shapes, strong silhouette.
-// No decorations — the geometric precision is the premium signal.
-// Reads clearly at 8px; works as favicon, badge, inline header.
+// ── Closer Wizard mark: bold wand + star ─────────────────────────────────────
+// Three elements = three narrative layers:
+//   1. Rounded handle (the grip — tool, precision, closer)
+//   2. Thick wand shaft (the instrument — direction, action)
+//   3. Large filled 4-point star at the tip (the magic — wizard, outcome)
+// No thin lines. Everything has mass. Reads clearly at 8px in monochrome.
 function WizardIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 16" fill="currentColor" className={className} aria-hidden>
-      {/* Hat cone — medium-angle triangle, not too pointy */}
-      <path d="M10 0.5L18.5 13H1.5Z" />
-      {/* Wide brim — 1.5px wider than cone on each side, rounded ends */}
-      <rect x="0" y="13" width="20" height="3" rx="1.5" />
+    <svg viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
+      {/* Handle — heavy round end, grounds the wand */}
+      <circle cx="2.2" cy="17.5" r="2.2" fill="currentColor" />
+      {/* Wand shaft — thick diagonal, bold enough to read at small sizes */}
+      <line x1="2.2" y1="17.5" x2="9.5" y2="5.5" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" />
+      {/* 4-point star — outer r=5, inner r=2, centered upper-right */}
+      <path d="M14 0.5L15.4 4.1L19 5.5L15.4 6.9L14 10.5L12.6 6.9L9 5.5L12.6 4.1Z" fill="currentColor" />
     </svg>
   );
 }
@@ -136,17 +140,17 @@ function AdvancedForm({ onSubmit, lang }: { onSubmit: (context: string) => void;
               className={cn(
                 "flex-1 flex flex-col items-center gap-1 py-2 px-0.5 rounded-lg transition-all",
                 isCurrent
-                  ? "bg-white/8 border border-white/10"
-                  : "hover:bg-white/4 border border-transparent"
+                  ? "bg-white/8 border border-white/12"
+                  : "hover:bg-white/6 border border-transparent"
               )}
             >
               <Icon className={cn(
                 "w-3 h-3 transition-colors",
-                isCurrent ? "text-white" : isFilled ? "text-zinc-400" : "text-zinc-700"
+                isCurrent ? "text-white" : isFilled ? "text-zinc-300" : "text-zinc-500"
               )} />
               <span className={cn(
                 "text-[7px] font-mono tracking-wider uppercase w-full text-center transition-colors truncate",
-                isCurrent ? "text-white" : isFilled ? "text-zinc-500" : "text-zinc-700"
+                isCurrent ? "text-white" : isFilled ? "text-zinc-400" : "text-zinc-500"
               )}>
                 {label}
               </span>
