@@ -1,0 +1,170 @@
+Quiero hacer una mejora incremental sobre el motor actual de Silent Closer.
+
+NO quiero rehacer la app.
+NO quiero cambiar la UI.
+Solo quiero corregir una lógica táctica importante que todavía falla y mejorar el uso de SUPPORT cuando ya hay datos o argumentos útiles.
+
+==================================================
+PROBLEMA REAL
+==================================================
+
+En simulación, cuando el cliente menciona una alternativa y ya explica por qué le gusta, el motor sigue repitiendo la misma jugada.
+
+Ejemplo real:
+
+1. Cliente: “Me gusta más Colonia para invertir”
+2. La app dice: “pregunta qué valoras más de Colonia”
+3. Cliente: “la universidad, es una ciudad grande y me da más confianza”
+4. La app vuelve a insistir en preguntar qué valora de Colonia
+
+Eso está mal.
+
+Porque después del paso 3, el cliente YA HA RESPONDIDO.
+Ya sabemos qué valora:
+- universidad
+- tamaño de ciudad
+- confianza
+- familiaridad / seguridad percibida
+
+Por tanto, el siguiente movimiento NO puede seguir siendo preguntar lo mismo.
+
+==================================================
+OBJETIVO 1 — REGLA MÁS DURA DE AVANCE TÁCTICO
+==================================================
+
+Quiero una regla nueva y muy clara:
+
+Si la otra parte menciona una alternativa y luego ya enumera atributos concretos de esa alternativa, el motor debe considerar esa fase como RESUELTA.
+
+Esos atributos ya son la respuesta.
+
+En ese momento el motor debe pasar a uno de estos pasos:
+1. traducir esos atributos a criterios de decisión
+2. reenfocar la conversación al activo actual
+3. comprobar si esos criterios también se cumplen en la opción actual
+4. convertir la comparación abstracta en criterios de inversión concretos
+5. cerrar el marco de comparación y recuperar control
+
+REGLA:
+Si el cliente ya nombró atributos como:
+- universidad
+- tamaño
+- seguridad
+- confianza
+- prestigio
+- demanda
+- actividad económica
+- ambiente
+- perfil de inquilino
+entonces el sistema NO puede volver a preguntar “qué valoras de X”.
+
+Eso ya está contestado.
+
+El siguiente movimiento debe ser algo como:
+- confirma si lo que valora es demanda, seguridad o liquidez
+- reenfoca esos atributos hacia criterios de inversión
+- pregunta si busca familiaridad o salida futura
+- vincula esos atributos con la lógica del activo actual
+- contrasta ese criterio con Dresden sin debatir ciudades en abstracto
+
+==================================================
+OBJETIVO 2 — SUPPORT MÁS ÚTIL CUANDO HAYA DATOS O ARGUMENTOS REALES
+==================================================
+
+Ahora SUPPORT empieza a ir por buen camino, pero puede ser mucho más potente.
+
+Ejemplo:
+si el cliente valora Colonia por la universidad, el tamaño o la confianza,
+y el sistema tiene datos reales o argumentos sólidos sobre Dresden,
+quiero que SUPPORT no se quede en algo vago tipo:
+- “Dresden también tiene universidades”
+
+Quiero algo más útil y más aprovechable en conversación.
+
+Ejemplos de mejor SUPPORT:
+- “Si tienes datos de la TU Dresden, úsalos para reforzar demanda estudiantil.”
+- “Reenfoca universidad + tamaño a demanda de alquiler, talento y liquidez.”
+- “Si tienes el ratio estudiantil o datos de Silicon Saxony, este es el momento de usarlo.”
+- “No debatas Colonia; demuestra que Dresden también cumple el criterio que él valora.”
+
+REGLA SOBRE SUPPORT
+1. Si hay datos reales disponibles en contexto o base conectada, SUPPORT debe intentar usarlos de forma más concreta y útil.
+2. Si no hay datos reales disponibles, NO los inventes.
+3. Si no hay datos concretos, SUPPORT debe sugerir exactamente qué tipo de dato o argumento conviene usar.
+4. SUPPORT debe ayudar a vender de verdad, no solo sonar bien.
+
+==================================================
+OBJETIVO 3 — NUEVA JERARQUÍA DE MOVIMIENTO
+==================================================
+
+Cuando la otra parte ya ha dado criterios, el orden correcto debe ser:
+
+FASE A
+descubrir qué valora
+
+FASE B
+traducir eso a criterios de inversión
+
+FASE C
+reenfocar esos criterios sobre la propuesta actual
+
+FASE D
+usar datos o argumentos concretos si ya toca
+
+FASE E
+avanzar a validación o cierre si procede
+
+Quiero que el motor detecte bien en qué fase está y no se quede atrapado en la fase A.
+
+==================================================
+EJEMPLO DE COMPORTAMIENTO CORRECTO
+==================================================
+
+Caso:
+Cliente: “Me gusta más Colonia”
+App: “pregunta qué valora de Colonia”
+Cliente: “la universidad, que es una ciudad grande y me da más confianza”
+
+A partir de aquí, una salida correcta sería algo más parecido a:
+
+SIGNAL:
+criterio de seguridad
+
+SAY_NOW:
+traduce eso a demanda, liquidez o confianza
+
+o
+
+SAY_NOW:
+pregunta si busca seguridad o salida futura
+
+o
+
+SAY_NOW:
+reencuadra universidad y tamaño a demanda real
+
+Y SUPPORT podría ser:
+- “Si tienes datos reales de TU Dresden o perfil universitario, úsalos ahora.”
+- “No compares ciudades en abstracto; compara el criterio que él ya nombró.”
+- “Universidad + tamaño = seguridad percibida y demanda. Lleva eso a Dresden.”
+
+Lo que NO quiero:
+- repetir la misma pregunta
+- seguir en bucle preguntando qué valora
+- desaprovechar los atributos ya revelados
+
+==================================================
+LO QUE QUIERO QUE HAGAS
+==================================================
+
+1. Refuerza la lógica anti-repetición en este caso concreto
+2. Añade una regla explícita para cuando el cliente ya ha enumerado atributos de la alternativa
+3. Haz que el siguiente movimiento avance de fase
+4. Mejora SUPPORT para que sea más útil y más concreto cuando haya argumentos o datos disponibles
+5. Mantén la UI igual
+
+Cuando termines, explícame brevemente:
+- qué regla nueva añadiste
+- cómo detectas ahora que el cliente ya respondió a la pregunta sobre la alternativa
+- cómo haces que el sistema avance al siguiente micro-paso
+- y cómo has mejorado SUPPORT
