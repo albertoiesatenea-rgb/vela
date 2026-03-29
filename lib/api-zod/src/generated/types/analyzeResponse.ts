@@ -9,8 +9,6 @@ import type { AnalyzeDetail } from "./analyzeDetail";
 import type { Journey } from "./journey";
 
 export interface AnalyzeResponse {
-  /** Short signal label (2-5 words) */
-  signal: string;
   /** Tactical action to take (4-12 words) */
   say_now: string;
   /** What to avoid — only when there is a real, probable tactical error. Omit or leave empty if not critical. */

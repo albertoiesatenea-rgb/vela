@@ -86,7 +86,7 @@ components:
       properties:
         reading:
           type: string
-          description: Richer interpretation of what is happening beneath the surface (1 sentence, not a repeat of signal)
+          description: Richer interpretation of what is happening beneath the surface (1 sentence)
         next_move:
           type: string
           description: The single best actionable move — best question, best reframe, best close line. One path only.
@@ -98,13 +98,13 @@ components:
       properties:
         past:
           type: string
-          description: Brief label for what happened before this moment (2-4 words, e.g. "Presentación completada")
+          description: Academic label for the last completed phase (2-4 words, e.g. "Propuesta presentada")
         now:
           type: string
-          description: Brief label for the current moment in the conversation (2-4 words, e.g. "Objeción de precio activa")
+          description: Specific description of what is happening right now — academic phase name + situational context (3-7 words, e.g. "Manejo de objeción reputacional")
         next:
           type: string
-          description: Brief label for where to take the conversation next (2-4 words, e.g. "Aterrizaje de criterio")
+          description: Next step to lead toward the session goal (2-4 words, e.g. "Aterrizar el criterio")
       required:
         - past
         - now
@@ -112,9 +112,6 @@ components:
     AnalyzeResponse:
       type: object
       properties:
-        signal:
-          type: string
-          description: Short signal label (2-5 words)
         say_now:
           type: string
           description: Tactical action to take (4-12 words)
@@ -129,7 +126,6 @@ components:
           type: string
           description: Updated accumulated tactical summary of the call so far (4-6 bullet lines)
       required:
-        - signal
         - say_now
     ErrorResponse:
       type: object

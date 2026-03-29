@@ -7,7 +7,7 @@
  */
 
 export interface AnalyzeDetail {
-  /** Richer interpretation of what is happening beneath the surface (1 sentence, not a repeat of signal) */
+  /** Richer interpretation of what is happening beneath the surface (1 sentence) */
   reading?: string;
   /** The single best actionable move — best question, best reframe, best close line. One path only. */
   next_move?: string;

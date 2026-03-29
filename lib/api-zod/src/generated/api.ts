@@ -33,7 +33,6 @@ export const AnalyzeConversationBody = zod.object({
 });
 
 export const AnalyzeConversationResponse = zod.object({
-  signal: zod.string().describe("Short signal label (2-5 words)"),
   say_now: zod.string().describe("Tactical action to take (4-12 words)"),
   avoid: zod
     .string()
@@ -47,7 +46,7 @@ export const AnalyzeConversationResponse = zod.object({
         .string()
         .optional()
         .describe(
-          "Richer interpretation of what is happening beneath the surface (1 sentence, not a repeat of signal)",
+          "Richer interpretation of what is happening beneath the surface (1 sentence)",
         ),
       next_move: zod
         .string()
@@ -68,17 +67,17 @@ export const AnalyzeConversationResponse = zod.object({
       past: zod
         .string()
         .describe(
-          'Brief label for what happened before this moment (2-4 words, e.g. \"Presentación completada\")',
+          'Academic label for the last completed phase (2-4 words, e.g. \"Propuesta presentada\")',
         ),
       now: zod
         .string()
         .describe(
-          'Brief label for the current moment in the conversation (2-4 words, e.g. \"Objeción de precio activa\")',
+          'Specific description of what is happening right now — academic phase name + situational context (3-7 words, e.g. \"Manejo de objeción reputacional\")',
         ),
       next: zod
         .string()
         .describe(
-          'Brief label for where to take the conversation next (2-4 words, e.g. \"Aterrizaje de criterio\")',
+          'Next step to lead toward the session goal (2-4 words, e.g. \"Aterrizar el criterio\")',
         ),
     })
     .optional(),

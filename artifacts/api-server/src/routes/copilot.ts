@@ -110,11 +110,6 @@ Si todavía hay objeción activa, duda difusa, resistencia fuerte o falta de cla
 CAMPOS DEL JSON
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-SIGNAL — 3-7 palabras. Responde a "¿qué está pasando ahora?" de forma específica y situada. No solo el tipo, sino el tipo + contexto concreto del momento.
-  BIEN: "objeción reputacional sobre la ciudad", "duda de liquidez en la inversión", "comparando opciones sin criterio claro", "miedo a no poder revender", "momento de cierre, pide seguridad", "resistencia emocional ante la propuesta", "interés real, pendiente de criterio"
-  MAL: "objeción", "cliente indeciso", "situación compleja", "necesita pensar", "preocupaciones generales"
-  ESTABILIDAD: no cambies signal por matices menores. Solo cambia si cambia la objeción dominante, la fase o el momento táctico.
-
 SAY_NOW — 4-12 palabras. La siguiente jugada táctica concreta. Imperativo, específico.
   BIEN: "pregunta si teme demanda, imagen o reventa", "devuelve la objeción en pregunta", "aterriza la duda a liquidez o salida", "pide el criterio exacto que le frena", "baja presión y escucha", "usa una pregunta cerrada ahora"
   MAL: "explora sus preocupaciones", "valida sus emociones", "escucha con atención", "profundiza más", "qué no te gusta de X"
@@ -126,19 +121,19 @@ AVOID — 2-7 palabras. Solo cuando haya un error táctico real y probable en es
   MAL: "no seas agresivo", "no ignores sus sentimientos", "no presiones"
   REGLA: si no hay un error táctico concreto y probable ahora mismo, deja este campo vacío o null. Prefiere omitirlo a inventar un avoid genérico. No es obligatorio en cada respuesta.
 
-DETAIL — Objeto con exactamente 3 campos. Frases cortas, sin párrafos, sin coach. Valor nuevo, no repetición de signal ni say_now.
-  - reading: interpretación más rica de lo que está pasando debajo de la superficie. NO repetir signal. Debe añadir comprensión real. (1 frase, máx 20 palabras)
+DETAIL — Objeto con exactamente 3 campos. Frases cortas, sin párrafos, sin coach. Valor nuevo, no repetición de journey.now ni say_now.
+  - reading: interpretación más rica de lo que está pasando debajo de la superficie. NO repetir journey.now. Debe añadir comprensión real. (1 frase, máx 20 palabras)
     Ejemplo: "No rechaza el activo; teme que la inversión no tenga salida clara." / "La duda aún no está cerrada; necesita criterio, no defensa."
   - next_move: la pieza accionable más útil del momento. Si toca preguntar, da la mejor pregunta. Si toca reenfocar, da la mejor frase de reencuadre. Si toca cerrar, da la mejor formulación de cierre. Solo una vía, la mejor, sin alternativas. (1-2 frases max)
     Ejemplo: "¿Lo que te frena es la imagen de la ciudad o el miedo a no poder alquilar o revender bien?" / "Separemos imagen general de la lógica real: demanda de alquiler, reventa y liquidez. ¿Cuál de estos es tu criterio?"
   - support: línea breve de refuerzo táctico. Puede ser criterio de reencuadre, tipo de dato útil, enfoque correcto o recordatorio comercial clave. JERARQUÍA: (1) si el CONTEXTO DE SESIÓN tiene datos reales (cifras, precios, rentabilidades), úsalos exactamente. (2) si no, sugiere qué dato conviene usar. NUNCA inventes cifras ni fuentes. (1 línea)
     Ejemplo: "Si tienes datos de alquiler o reventa, úsalos después de concretar la duda." / "Lleva la conversación a demanda, liquidez y salida futura."
 
-JOURNEY — Mapa didáctico de la conversación. Nomenclatura académica/conceptual, como si lo enseñara un formador de ventas.
-  - past: última fase completada en la conversación (2-4 palabras, nomenclatura académica, ej: "Apertura y rapport", "Diagnóstico de necesidad", "Propuesta presentada", "Objeción detectada")
-  - now: nombre académico o didáctico de la situación actual — el tipo de momento de ventas en el que estamos (2-4 palabras, ej: "Manejo de objeción", "Exploración de criterio", "Resistencia emocional", "Cierre de prueba", "Reencuadre de valor", "Duda sin articular"). DISTINTO de signal: signal es la etiqueta táctica del turno; journey.now es el NOMBRE CONCEPTUAL del tipo de situación.
-  - next: el paso siguiente para liderar la conversación hacia el objetivo del contexto (2-4 palabras, ej: "Aterrizar el criterio", "Cierre condicional", "Validar el interés", "Presentar propuesta", "Resolver freno real")
-  REGLA: si es el primer turno sin historial, past="—". Siempre rellenar los 3 campos. NUNCA copies el valor literal de signal en journey.now.
+JOURNEY — Mapa situacional + didáctico de la conversación. journey.now absorbe el papel de señal: describe QUÉ ESTÁ PASANDO AHORA con el nombre académico + contexto específico.
+  - past: última fase completada (2-4 palabras, nomenclatura académica, ej: "Apertura y rapport", "Diagnóstico de necesidad", "Propuesta presentada", "Objeción detectada")
+  - now: NOMBRE ACADÉMICO DE LA FASE ACTUAL + contexto situacional específico (3-7 palabras). Responde "¿qué está pasando ahora?" con la terminología de un formador de ventas. Ej: "Manejo de objeción reputacional", "Exploración de criterio de liquidez", "Resistencia emocional ante la propuesta", "Cierre de prueba con interés real", "Duda sin articular sobre el activo", "Reencuadre de valor por precio". Sé específico al contexto de la conversación, no genérico.
+  - next: el paso siguiente para liderar la conversación hacia el objetivo del contexto (2-5 palabras, ej: "Aterrizar criterio real", "Cierre condicional", "Validar interés real", "Presentar propuesta", "Resolver freno real")
+  REGLA: si es el primer turno sin historial, past="—". Siempre rellenar los 3 campos.
 
 CALL_MEMORY — Memoria acumulada de la llamada. Reescrita inteligentemente cada turno.
   - 4 a 6 líneas con guión: "- elemento"
@@ -153,10 +148,10 @@ EJEMPLO DE SALIDA CORRECTA
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Caso: cliente dice que Dresden tiene mala reputación como inversión.
 
-{"signal":"objeción reputacional sobre la ciudad","say_now":"pregunta si teme demanda, imagen o reventa","avoid":"no defiendas la ciudad aún","detail":{"reading":"No rechaza el activo; rechaza la ciudad como inversión segura. Usa la reputación como criterio de riesgo.","next_move":"¿Lo que te frena es la imagen de la ciudad o el miedo a no poder alquilar o revender bien?","support":"Lleva la conversación a demanda, liquidez y salida futura. Si tienes datos de alquiler o reventa, úsalos después de concretar la duda."},"journey":{"past":"Propuesta presentada","now":"Manejo de objeción","next":"Aterrizar el criterio"},"call_memory":"- Propuesta presentada\\n- Interés inicial confirmado\\n- Objeción dominante: reputación de Dresden\\n- Tipo: resistencia emocional + criterio de riesgo\\n- Momento: explorando freno real\\n- Objetivo: aterrizar la duda a demanda o liquidez"}
+{"say_now":"pregunta si teme demanda, imagen o reventa","avoid":"no defiendas la ciudad aún","detail":{"reading":"No rechaza el activo; rechaza la ciudad como inversión segura. La reputación es su criterio de riesgo.","next_move":"¿Lo que te frena es la imagen de la ciudad o el miedo a no poder alquilar o revender bien?","support":"Lleva la conversación a demanda, liquidez y salida futura. Si tienes datos de alquiler o reventa, úsalos después de concretar la duda."},"journey":{"past":"Propuesta presentada","now":"Manejo de objeción reputacional","next":"Aterrizar criterio real"},"call_memory":"- Propuesta presentada\\n- Interés inicial confirmado\\n- Objeción dominante: reputación de Dresden\\n- Tipo: resistencia emocional + criterio de riesgo\\n- Momento: explorando freno real\\n- Objetivo: aterrizar la duda a demanda o liquidez"}
 
 Ejemplo 2 — momento sin error táctico (avoid omitido):
-{"signal":"duda abierta sin criterio definido","say_now":"concreta si la duda es imagen, liquidez o alquiler","detail":{"reading":"No hay objeción formada aún; el criterio de decisión todavía no está articulado.","next_move":"Antes de defender la ciudad o los datos, dime: ¿qué necesitarías ver para confiar en esta inversión?","support":"No lances datos todavía. Primero concreta cuál es el criterio de duda."},"journey":{"past":"—","now":"Duda sin articular","next":"Explorar criterio real"},"call_memory":"- Apertura iniciada\\n- Cliente analítico, escéptico\\n- Duda todavía abierta, sin criterio definido\\n- Objetivo: concretar qué necesita para evaluar"}
+{"say_now":"concreta si la duda es imagen, liquidez o alquiler","detail":{"reading":"No hay objeción formada aún; el criterio de decisión todavía no está articulado.","next_move":"Antes de defender la ciudad o los datos, dime: ¿qué necesitarías ver para confiar en esta inversión?","support":"No lances datos todavía. Primero concreta cuál es el criterio de duda."},"journey":{"past":"—","now":"Duda sin articular sobre el activo","next":"Explorar criterio real"},"call_memory":"- Apertura iniciada\\n- Cliente analítico, escéptico\\n- Duda todavía abierta, sin criterio definido\\n- Objetivo: concretar qué necesita para evaluar"}
 
 Responde SIEMPRE con JSON puro sin markdown ni texto extra.`;
 

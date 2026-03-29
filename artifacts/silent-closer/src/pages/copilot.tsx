@@ -30,7 +30,6 @@ interface Journey {
 }
 
 interface TacticalState {
-  signal: string;
   sayNow: string;
   avoid?: string;
   detail: Detail | null;
@@ -38,7 +37,7 @@ interface TacticalState {
   callMemory: string;
 }
 
-const EMPTY_STATE: TacticalState = { signal: "", sayNow: "", avoid: undefined, detail: null, journey: null, callMemory: "" };
+const EMPTY_STATE: TacticalState = { sayNow: "", avoid: undefined, detail: null, journey: null, callMemory: "" };
 
 const SESSION_KEY = "sc_session_context";
 const LABEL_KEY   = "sc_context_label";
@@ -64,9 +63,9 @@ function saveLabel(l: string) {
 
 // ── Color config per detail field — colorblind-safe (blue / white / amber)
 const FIELD_CONFIG = {
-  LECTURA:   { label: "text-sky-400",   content: "text-sky-200",   border: "border-sky-600",   size: "text-[13px]" },
-  SIGUIENTE: { label: "text-white",     content: "text-white",     border: "border-white/70",  size: "text-[15px]" },
-  APOYO:     { label: "text-amber-400", content: "text-amber-200", border: "border-amber-600", size: "text-[13px]" },
+  LECTURA:   { label: "text-sky-400",   content: "text-sky-200",   size: "text-[15px]", prefix: "LEE ·" },
+  SIGUIENTE: { label: "text-white",     content: "text-white",     size: "text-[18px]", prefix: "DI ·"  },
+  APOYO:     { label: "text-amber-400", content: "text-amber-200", size: "text-[15px]", prefix: "APO ·" },
 } as const;
 
 type FieldKey = keyof typeof FIELD_CONFIG;
@@ -74,24 +73,22 @@ type FieldKey = keyof typeof FIELD_CONFIG;
 function DetailField({ fieldKey, value }: { fieldKey: FieldKey; value?: string }) {
   if (!value) return null;
   const cfg = FIELD_CONFIG[fieldKey];
-  const label = fieldKey === "SIGUIENTE" ? "SIGUIENTE MOVIMIENTO" : fieldKey;
   return (
-    <div className="w-full flex flex-col items-center gap-2 text-center">
-      <span className={cn("text-[9px] font-mono tracking-[0.22em] uppercase", cfg.label)}>{label}</span>
-      <p className={cn(
-        "font-mono leading-relaxed text-center w-full",
-        cfg.size,
-        cfg.content,
-        fieldKey === "SIGUIENTE" && "font-medium",
-      )}>{value}</p>
-    </div>
+    <p className={cn("font-mono leading-relaxed w-full text-center", cfg.size, cfg.content,
+      fieldKey === "SIGUIENTE" && "font-semibold"
+    )}>
+      <span className={cn("text-[9px] tracking-[0.2em] uppercase align-middle mr-2 font-normal", cfg.label)}>
+        {cfg.prefix}
+      </span>
+      {value}
+    </p>
   );
 }
 
-// ── Detail panel — 3 fields, full-width centered
+// ── Detail panel — inline labels, full width, big text
 function DetailPanel({ detail }: { detail: Detail }) {
   return (
-    <div className="px-8 py-5 flex flex-col items-center gap-6 w-full max-w-2xl mx-auto">
+    <div className="px-6 py-6 flex flex-col gap-6 w-full">
       {detail.reading   && <DetailField fieldKey="LECTURA"   value={detail.reading} />}
       {detail.next_move && <DetailField fieldKey="SIGUIENTE" value={detail.next_move} />}
       {detail.support   && <DetailField fieldKey="APOYO"     value={detail.support} />}
@@ -130,38 +127,38 @@ function ConversationTimeline({ journey, memoryLines }: { journey: Journey; memo
 
   return (
     <div className="shrink-0">
-      {/* Compact 3-node row */}
+      {/* Compact 3-node row — now node takes flex-1 as it carries the signal role */}
       <button
         onClick={() => setExpanded(p => !p)}
-        className="w-full flex items-start justify-center gap-0 pt-3 pb-2 px-4 group"
+        className="w-full flex items-start gap-0 pt-3 pb-2 px-5 group"
         title={expanded ? "Cerrar historial" : "Ver historial completo"}
       >
         {/* ANTES node */}
-        <div className="flex flex-col items-center gap-1.5 w-24">
-          <div className="w-2 h-2 rounded-full bg-zinc-600 group-hover:bg-zinc-500 transition-colors" />
-          <span className="text-[9px] font-mono text-zinc-500 uppercase tracking-wider text-center leading-tight line-clamp-2">
+        <div className="flex flex-col items-center gap-1.5 w-[72px] shrink-0">
+          <div className="w-1.5 h-1.5 rounded-full bg-zinc-700 group-hover:bg-zinc-600 transition-colors mt-0.5" />
+          <span className="text-[8px] font-mono text-zinc-600 uppercase tracking-wider text-center leading-tight">
             {journey.past}
           </span>
         </div>
 
         {/* Left connector */}
-        <div className="h-px w-6 bg-zinc-700 mt-[4px] shrink-0" />
+        <div className="h-px w-4 bg-zinc-700 mt-[5px] shrink-0" />
 
-        {/* AHORA node — bright */}
-        <div className="flex flex-col items-center gap-1.5 w-28">
-          <div className="w-2.5 h-2.5 rounded-full bg-white" />
-          <span className="text-[9px] font-mono text-zinc-100 uppercase tracking-wider text-center leading-tight font-medium line-clamp-2">
+        {/* AHORA node — flex-1, prominent, carries full signal context */}
+        <div className="flex flex-col items-center gap-1.5 flex-1 min-w-0 px-2">
+          <div className="w-2.5 h-2.5 rounded-full bg-white group-hover:bg-zinc-100 transition-colors" />
+          <span className="text-[11px] font-mono text-white uppercase tracking-wide text-center leading-tight font-semibold">
             {journey.now}
           </span>
         </div>
 
         {/* Right connector */}
-        <div className="h-px w-6 bg-zinc-700 mt-[4px] shrink-0" />
+        <div className="h-px w-4 bg-zinc-700 mt-[5px] shrink-0" />
 
-        {/* DESPUÉS node — dashed future */}
-        <div className="flex flex-col items-center gap-1.5 w-24">
-          <div className="w-2 h-2 rounded-full border border-zinc-500 bg-transparent" />
-          <span className="text-[9px] font-mono text-zinc-500 uppercase tracking-wider text-center leading-tight line-clamp-2">
+        {/* DESPUÉS node — outlined future */}
+        <div className="flex flex-col items-center gap-1.5 w-[72px] shrink-0">
+          <div className="w-1.5 h-1.5 rounded-full border border-zinc-600 bg-transparent mt-0.5" />
+          <span className="text-[8px] font-mono text-zinc-500 uppercase tracking-wider text-center leading-tight">
             {journey.next}
           </span>
         </div>
@@ -225,7 +222,6 @@ export default function CopilotPage() {
         {
           onSuccess: (res) => {
             setTacticalState({
-              signal: res.signal,
               sayNow: res.say_now,
               avoid: res.avoid || undefined,
               detail: res.detail ?? null,
@@ -364,7 +360,6 @@ export default function CopilotPage() {
         {/* Tactical display takes remaining space */}
         <div className="flex-1 relative">
         <TacticalDisplay
-          signal={tacticalState.signal}
           sayNow={tacticalState.sayNow}
           avoid={tacticalState.avoid}
           isPending={isPending}

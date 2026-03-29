@@ -2,7 +2,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 interface TacticalDisplayProps {
-  signal: string;
   sayNow: string;
   avoid?: string;
   isPending?: boolean;
@@ -15,28 +14,9 @@ const fade = {
   exit:    { opacity: 0, filter: "blur(4px)", y: -8, transition: { duration: 0.25, ease: "easeIn" } },
 };
 
-export function TacticalDisplay({ signal, sayNow, avoid, isPending, isListening }: TacticalDisplayProps) {
+export function TacticalDisplay({ sayNow, avoid, isPending, isListening }: TacticalDisplayProps) {
   return (
     <div className="h-full w-full flex flex-col">
-
-      {/* ── SEÑAL ──────────────────────────────────── */}
-      <div className="flex flex-col items-center justify-center gap-2 py-4 shrink-0 px-6">
-        <div className="flex items-center justify-center min-h-[28px]">
-          <AnimatePresence mode="wait">
-            <motion.div key={signal || "empty-signal"} variants={fade} initial="initial" animate="animate" exit="exit">
-              {signal ? (
-                <span className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-md text-[11px] font-mono text-zinc-300 uppercase tracking-wider text-center leading-snug">
-                  {signal}
-                </span>
-              ) : (
-                <span className="text-xs font-mono text-zinc-600 uppercase tracking-widest">
-                  {isPending ? "Analizando..." : "—"}
-                </span>
-              )}
-            </motion.div>
-          </AnimatePresence>
-        </div>
-      </div>
 
       {/* ── DI AHORA ────────────────────────────────── */}
       <div className="flex-1 flex flex-col items-center justify-center px-6">

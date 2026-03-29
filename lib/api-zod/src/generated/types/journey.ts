@@ -7,10 +7,10 @@
  */
 
 export interface Journey {
-  /** Brief label for what happened before this moment (2-4 words, e.g. "Presentación completada") */
+  /** Academic label for the last completed phase (2-4 words, e.g. "Propuesta presentada") */
   past: string;
-  /** Brief label for the current moment in the conversation (2-4 words, e.g. "Objeción de precio activa") */
+  /** Specific description of what is happening right now — academic phase name + situational context (3-7 words, e.g. "Manejo de objeción reputacional") */
   now: string;
-  /** Brief label for where to take the conversation next (2-4 words, e.g. "Aterrizaje de criterio") */
+  /** Next step to lead toward the session goal (2-4 words, e.g. "Aterrizar el criterio") */
   next: string;
 }

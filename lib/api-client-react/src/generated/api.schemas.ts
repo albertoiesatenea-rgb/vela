@@ -22,7 +22,7 @@ export interface AnalyzeRequest {
 }
 
 export interface AnalyzeDetail {
-  /** Richer interpretation of what is happening beneath the surface (1 sentence, not a repeat of signal) */
+  /** Richer interpretation of what is happening beneath the surface (1 sentence) */
   reading?: string;
   /** The single best actionable move — best question, best reframe, best close line. One path only. */
   next_move?: string;
@@ -31,17 +31,15 @@ export interface AnalyzeDetail {
 }
 
 export interface Journey {
-  /** Brief label for what happened before this moment (2-4 words, e.g. "Presentación completada") */
+  /** Academic label for the last completed phase (2-4 words, e.g. "Propuesta presentada") */
   past: string;
-  /** Brief label for the current moment in the conversation (2-4 words, e.g. "Objeción de precio activa") */
+  /** Specific description of what is happening right now — academic phase name + situational context (3-7 words, e.g. "Manejo de objeción reputacional") */
   now: string;
-  /** Brief label for where to take the conversation next (2-4 words, e.g. "Aterrizaje de criterio") */
+  /** Next step to lead toward the session goal (2-4 words, e.g. "Aterrizar el criterio") */
   next: string;
 }
 
 export interface AnalyzeResponse {
-  /** Short signal label (2-5 words) */
-  signal: string;
   /** Tactical action to take (4-12 words) */
   say_now: string;
   /** What to avoid — only when there is a real, probable tactical error. Omit or leave empty if not critical. */
