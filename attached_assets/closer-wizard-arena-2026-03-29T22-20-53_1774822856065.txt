@@ -1,0 +1,28 @@
+CLOSER WIZARD — ARENA SESSION LOG
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Modo: ARENA
+Tu rol: Vendedor
+Resultado: Sesión perdida
+Idioma: ES
+Inicio: 2026-03-29T22:19:58.497Z
+Fin: 2026-03-29T22:20:47.522Z
+
+CONTEXTO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+vender hielo a un esquimal
+
+CONVERSACIÓN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[1] [CLIENTE]: Hola, gracias por contactarme. Aunque aquí tenemos mucho hielo, estoy curioso sobre lo que ofreces y cómo podría ser útil para mí.
+[2] [TÚ]: mira te vendo un hielo que vale 1 millon cada cubito, trato hecho?
+[3] [CLIENTE]: ¡Vaya! Eso suena bastante caro para un cubito de hielo. ¿Qué tiene de especial que justifique ese precio?
+[4] [TÚ]: pues te jodes
+[5] [CLIENTE]: Entiendo que puedas estar frustrado, pero creo que podríamos tener una conversación más productiva. Quizás podrías explicarme más sobre las características de tu hielo.
+[6] [TÚ]: que va no me apetece te jodes
+[7] [CLIENTE]: Entiendo, a veces las cosas no salen como uno espera. Si cambias de opinión y quieres contarme más, estaré aquí.
+
+RESUMEN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Resultado: Sesión perdida
+Turnos totales: 7
+Tus turnos: 3

@@ -40,6 +40,8 @@ const CP = {
     ADVANCED:  "Avanzado",
     START:     "Iniciar copiloto →",
     PLACEHOLDER: "Ej: quiero vender un piso en Dresden a un inversor muy analítico que duda de la ciudad",
+    ARENA_PH_SELLER: "Ej: quiero vender un piso en Dresden a un inversor muy analítico que duda de la ciudad",
+    ARENA_PH_CLIENT: "Ej: soy un inversor analítico al que quieren venderme un piso en Dresden",
     SESSION:   "Sesión",
     END:       "Finalizar",
     SUBTITLE:  "Inteligencia táctica conversacional",
@@ -82,6 +84,8 @@ const CP = {
     ADVANCED:  "Advanced",
     START:     "Start copilot →",
     PLACEHOLDER: "E.g: I want to sell an apartment in Berlin to a very analytical investor who doubts the city",
+    ARENA_PH_SELLER: "E.g: I want to sell an apartment in Berlin to a very analytical investor who doubts the city",
+    ARENA_PH_CLIENT: "E.g: I'm a very analytical investor being pitched an apartment in Berlin",
     SESSION:   "Session",
     END:       "End",
     SUBTITLE:  "Conversational tactical intelligence",
@@ -376,7 +380,11 @@ export function ContextSetup({
                 if (quickText.trim()) handleSubmit(quickText);
               }
             }}
-            placeholder={t.PLACEHOLDER}
+            placeholder={
+              appMode === "arena"
+                ? (arenaRole === "client" ? t.ARENA_PH_CLIENT : t.ARENA_PH_SELLER)
+                : t.PLACEHOLDER
+            }
             rows={3}
             autoFocus
             className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors font-mono resize-none leading-relaxed"
