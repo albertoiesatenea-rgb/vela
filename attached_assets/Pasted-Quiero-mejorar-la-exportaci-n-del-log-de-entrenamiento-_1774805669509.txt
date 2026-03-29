@@ -1,0 +1,182 @@
+Quiero mejorar la exportación del log de entrenamiento de Closer Wizard para que sirva directamente como input de un GPT auditor, sin necesitar contexto adicional fuera del archivo.
+
+Objetivo:
+- Que el usuario pueda subir UN SOLO archivo .txt o .md al GPT auditor.
+- Que ese archivo contenga todo lo necesario para evaluar cómo funcionó la app durante la sesión.
+- Que el GPT pueda juzgar tanto la conversación real como la calidad de la recomendación táctica del sistema en cada turno.
+
+Cambio requerido:
+Rediseña la exportación del training log para que tenga una estructura más completa, estable y fácil de parsear, manteniendo formato legible por humanos.
+
+Requisitos obligatorios del nuevo log:
+
+1. CABECERA DE SESIÓN
+Incluir siempre al principio:
+- session_id
+- exported_at
+- app_version
+- model
+- lang
+- input_mode_used: listen / simulate / mixed
+- speaker_mode_default: auto / cliente / yo
+- context_label
+- session_context (texto completo escrito en setup)
+- declared_goal si existe dentro del setup o flujo
+- declared_outcome final: closed / next_step / follow_up / lost / unclear
+- full_report_included: true/false
+
+2. TIMELINE COMPLETA TURNO A TURNO
+Crear una sección TURN_LOG con un bloque por cada turno analizado.
+
+Cada turno debe incluir exactamente estos campos, aunque alguno sea null:
+
+- turn_index
+- timestamp
+- source_mode: listen / simulate
+- speaker_mode: auto / cliente / yo
+- raw_fragment
+- normalized_fragment
+- inferred_speaker: CLIENTE / YO / UNKNOWN
+- memory_before: array de summary_lines usadas antes de analizar ese turno
+- system_output:
+  - signal
+  - say_now
+  - avoid
+  - detail:
+    - reading
+    - mission
+    - next_move
+    - support
+  - journey:
+    - past
+    - now
+    - next
+  - call_memory:
+    - summary_lines
+  - momentum
+- response_status: ok / error / partial
+- parse_error: null o texto
+- notes: null o texto
+
+3. NO SOLO TRANSCRIPCIÓN
+Mantén una sección de transcripción legible, pero NO debe ser el núcleo del log.
+La pieza central debe ser la secuencia de turnos con:
+entrada → memoria previa → salida del sistema.
+
+4. BLOQUE FINAL DE CIERRE
+Añadir una sección SESSION_SUMMARY con:
+- final_call_memory
+- final_score
+- final_global_state
+- final_result_label
+- final_strengths
+- final_improvements
+- full_report si existe
+
+5. FORMATO ESTABLE Y MUY LEGIBLE
+Usar formato markdown estructurado, no JSON crudo gigante.
+Debe ser fácil de leer por humanos y fácil de parsear por un GPT.
+
+Estructura objetivo:
+
+# CLOSER WIZARD SESSION LOG
+
+## SESSION_META
+campo: valor
+
+## SESSION_CONTEXT
+texto literal del setup
+
+## TURN_LOG
+
+### TURN 1
+timestamp:
+source_mode:
+speaker_mode:
+raw_fragment:
+normalized_fragment:
+inferred_speaker:
+
+memory_before:
+- ...
+- ...
+
+system_output:
+signal:
+say_now:
+avoid:
+reading:
+mission:
+next_move:
+support:
+journey_past:
+journey_now:
+journey_next:
+momentum:
+
+memory_after:
+- ...
+- ...
+
+response_status:
+parse_error:
+notes:
+
+### TURN 2
+...
+
+## READABLE_TRANSCRIPT
+[1] [CLIENTE]: ...
+[2] [YO]: ...
+
+## SESSION_SUMMARY
+declared_outcome:
+final_score:
+final_global_state:
+final_result_label:
+
+strengths:
+- ...
+- ...
+
+improvements:
+- ...
+- ...
+
+final_call_memory:
+- ...
+- ...
+
+full_report:
+...
+
+6. REGLAS IMPORTANTES
+- Si no existe un dato, escribir null. No omitir campos.
+- Conservar el texto literal original del fragmento.
+- Guardar también una versión normalized_fragment si el sistema modifica prefijos o formato.
+- Guardar memory_before y memory_after en cada turno.
+- No exportar solo el último estado; exportar toda la evolución.
+- Asegurar que el orden de turnos sea exacto.
+- No mezclar resumen con transcripción.
+- No perder el output real del sistema.
+
+7. COMPATIBILIDAD HACIA ATRÁS
+Mantén, si hace falta, la exportación actual como “legacy”, pero crea una nueva exportación principal llamada:
+exportSessionAuditLog(session): string
+
+8. CRITERIOS DE ACEPTACIÓN
+La tarea estará bien hecha solo si:
+- El archivo exportado permite evaluar qué dijo el cliente, qué dijo el vendedor y qué recomendó el sistema en cada turno.
+- El archivo permite detectar repetición táctica, mala lectura de señal, mal timing o advice inútil.
+- El archivo puede subirse tal cual a un GPT auditor sin explicaciones extra del usuario.
+- El archivo sigue siendo legible en una sola pasada por un humano.
+
+9. ENTREGA TÉCNICA
+Implementa:
+- la función exportSessionAuditLog(...)
+- el tipado TypeScript del log exportado
+- un ejemplo de archivo exportado con 2 o 3 turnos mock
+- una opción en UI o acción existente para descargar este nuevo log
+
+Haz el cambio mínimo necesario, sin rehacer toda la app.
+Prioriza claridad del log y trazabilidad turno a turno.
