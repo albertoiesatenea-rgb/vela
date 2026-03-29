@@ -235,11 +235,12 @@ export function ContextSetup({
   const [quickText, setQuickText] = useState("");
   const quickRef = useRef<HTMLTextAreaElement>(null);
 
-  // Auto-focus the textarea on mount so the user can type immediately
+  // Auto-focus the textarea on mount and whenever quick mode is activated
   useEffect(() => {
+    if (contextMode !== "quick") return;
     const id = setTimeout(() => quickRef.current?.focus(), 80);
     return () => clearTimeout(id);
-  }, []);
+  }, [contextMode]);
 
   const handleSetAppMode = (m: AppMode) => {
     setAppMode(m);
