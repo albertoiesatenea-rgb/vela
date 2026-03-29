@@ -14,12 +14,12 @@ function WizardIcon({ className }: { className?: string }) {
     <svg viewBox="0 0 20 20" className={className} aria-hidden>
       <defs>
         <mask id="wiz-hat-mask">
-          <polygon points="10,1.5 4.5,13 15.5,13" fill="white" />
-          <line x1="6.5" y1="9" x2="15.5" y2="13" stroke="black" strokeWidth="1.2" />
-          <line x1="13.5" y1="9" x2="4.5"  y2="13" stroke="black" strokeWidth="1.2" />
+          <polygon points="10,1.5 6,13 14,13" fill="white" />
+          <line x1="7.5" y1="9" x2="14"  y2="13" stroke="black" strokeWidth="1.2" />
+          <line x1="12.5" y1="9" x2="6"  y2="13" stroke="black" strokeWidth="1.2" />
         </mask>
       </defs>
-      <polygon points="10,1.5 4.5,13 15.5,13" fill="currentColor" mask="url(#wiz-hat-mask)" />
+      <polygon points="10,1.5 6,13 14,13" fill="currentColor" mask="url(#wiz-hat-mask)" />
       <rect x="1.5" y="14" width="17" height="2.5" rx="1.25" fill="currentColor" />
     </svg>
   );
