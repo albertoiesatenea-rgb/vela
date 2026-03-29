@@ -347,7 +347,7 @@ function ClientOutcomeBar({
           onClick={() => onOutcome(outcome)}
           disabled={disabled}
           className={cn(
-            "flex-1 py-1.5 rounded-lg border text-[9px] font-mono tracking-wide transition-all disabled:opacity-30 disabled:pointer-events-none",
+            "flex-1 py-2 rounded-lg border text-[10px] font-mono tracking-wide transition-all disabled:opacity-30 disabled:pointer-events-none",
             color
           )}
         >
@@ -751,6 +751,15 @@ export function Arena({
       {/* ── Input area ─────────────────────────────────────────────────────── */}
       <div className="shrink-0 border-t border-white/6 px-4 py-3">
         <div className="max-w-2xl mx-auto flex flex-col gap-2">
+          {/* Client mode: explicit outcome buttons — above textarea for easy reach */}
+          {role === "client" && !isStarting && messages.length >= 2 && (
+            <ClientOutcomeBar
+              lang={lang}
+              disabled={isEnding || isSending}
+              onOutcome={(outcome) => void handleEnd(outcome)}
+            />
+          )}
+
           <div className="flex gap-2 items-end">
             <textarea
               ref={textareaRef}
@@ -771,15 +780,6 @@ export function Arena({
               <Send className="w-4 h-4" />
             </button>
           </div>
-
-          {/* Client mode: explicit outcome buttons */}
-          {role === "client" && !isStarting && messages.length >= 2 && (
-            <ClientOutcomeBar
-              lang={lang}
-              disabled={isEnding || isSending}
-              onOutcome={(outcome) => void handleEnd(outcome)}
-            />
-          )}
 
           {/* Footer row: hint + end session */}
           <div className="flex justify-between items-center">
