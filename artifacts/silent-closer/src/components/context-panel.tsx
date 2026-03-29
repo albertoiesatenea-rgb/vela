@@ -26,10 +26,11 @@ const CONVERSATION_TYPES: { value: ConversationType; label: string }[] = [
 const QUICK_CHIPS = [
   "cliente escéptico",
   "objeción de precio",
+  "miedo a equivocarse",
+  "comparando opciones",
   "quiero cerrar hoy",
   "no me cree",
-  "comparando opciones",
-  "miedo a comprometerse",
+  "objeción reputacional",
 ];
 
 function buildContextFromGuided(
@@ -136,7 +137,7 @@ function GuidedForm({ onSubmit }: { onSubmit: (context: string) => void }) {
         type="submit"
         className="w-full bg-white text-black text-sm font-mono font-bold py-3 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all mt-1"
       >
-        Iniciar sesión →
+        Comenzar sesión →
       </button>
     </form>
   );
@@ -206,10 +207,10 @@ export function ContextSetup({
             <textarea
               value={quickText}
               onChange={(e) => setQuickText(e.target.value)}
-              placeholder="Describe la situación en pocas palabras…"
-              rows={3}
+              placeholder="Ej: cliente escéptico, objeción de precio. Quiero cerrar hoy."
+              rows={2}
               autoFocus
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-700 focus:outline-none focus:border-zinc-600 transition-colors font-mono resize-none leading-relaxed"
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors font-mono resize-none leading-relaxed"
             />
 
             {/* Quick chips */}
@@ -230,14 +231,14 @@ export function ContextSetup({
               onClick={() => onContextReady(quickText)}
               className="w-full bg-white text-black text-sm font-mono font-bold py-3.5 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all mt-1"
             >
-              Iniciar sesión →
+              Comenzar sesión →
             </button>
 
             <button
               onClick={() => onContextReady("")}
               className="w-full text-center text-[11px] font-mono text-zinc-500 hover:text-zinc-300 transition-colors py-1"
             >
-              o saltar sin contexto
+              Continuar sin contexto
             </button>
           </div>
         ) : (
@@ -247,7 +248,7 @@ export function ContextSetup({
               onClick={() => onContextReady("")}
               className="w-full text-center text-[11px] font-mono text-zinc-500 hover:text-zinc-300 transition-colors py-1"
             >
-              o saltar sin contexto
+              Continuar sin contexto
             </button>
           </div>
         )}

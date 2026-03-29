@@ -1,0 +1,186 @@
+Quiero hacer una mejora incremental sobre la pantalla inicial actual de “Silent Closer Copilot”.
+
+IMPORTANTE:
+- NO quiero rehacer la app
+- NO quiero cambiar la estética base
+- NO quiero una nueva arquitectura visual
+- NO quiero más complejidad
+- solo quiero pulir la pantalla inicial para que se vea más fina, más clara y más producto
+
+La base actual me gusta:
+- fondo oscuro
+- look minimalista
+- tipografía
+- estructura general
+- modo rápido / guiado
+- chips rápidos
+- CTA principal
+
+Quiero conservar todo eso.
+
+==================================================
+OBJETIVO DE ESTA ITERACIÓN
+==================================================
+
+Quiero que la pantalla inicial se sienta todavía más:
+- premium
+- táctica
+- clara
+- rápida de usar
+- menos “formulario”
+- más “briefing rápido antes de entrar en acción”
+
+No quiero grandes cambios. Solo refinamiento.
+
+==================================================
+CAMBIOS QUE QUIERO
+==================================================
+
+1. CAMBIAR EL TEXTO DEL CTA PRINCIPAL
+
+Ahora mismo “Iniciar sesión” suena demasiado a login o autenticación.
+
+Quiero cambiarlo por un texto más alineado con el producto.
+
+Opciones válidas:
+- Comenzar sesión
+- Iniciar llamada
+- Empezar copiloto
+- Comenzar análisis
+
+Elige la opción que mejor encaje con el tono premium y minimalista actual.
+
+Mi preferencia es:
+COMENZAR SESIÓN
+
+Debe mantener el mismo peso visual del botón principal.
+
+2. MEJORAR EL PLACEHOLDER DEL CAMPO DE CONTEXTO
+
+Ahora mismo el placeholder es demasiado genérico.
+
+Quiero uno más útil y más guiado, que ayude al usuario a entender qué debe poner sin explicarlo demasiado.
+
+Debe orientar al usuario a escribir:
+- con quién habla
+- qué quiere conseguir
+- qué le preocupa
+
+Quiero una opción de placeholder más inteligente y útil.
+Por ejemplo, algo en esta línea:
+- Ej: cliente escéptico con objeción sobre Dresden. Quiero cerrar hoy.
+o
+- ¿Con quién hablas, qué quieres conseguir y qué te preocupa?
+
+Elige la mejor opción según el diseño actual.
+Debe seguir viéndose limpio, corto y elegante.
+
+3. REFINAR LOS CHIPS RÁPIDOS
+
+La idea de los chips me gusta mucho y quiero mantenerla, pero quiero que se sientan más alineados con el producto real.
+
+No quiero chips demasiado genéricos.
+Quiero una mezcla más útil entre:
+- tipo de cliente
+- objeción
+- objetivo
+
+Ejemplos de mejores chips:
+- cliente escéptico
+- objeción de precio
+- duda sobre ciudad
+- comparando opciones
+- miedo a equivocarse
+- quiero cerrar hoy
+- no me cree
+- objeción reputacional
+
+No hace falta meter todos.
+Elige una selección equilibrada y útil para la pantalla inicial.
+Deben seguir viéndose limpios y no recargar visualmente.
+
+4. CAMBIAR EL TEXTO “o saltar sin contexto”
+
+Ahora mismo suena un poco provisional.
+
+Quiero una versión más fina y más propia de producto.
+
+Opciones válidas:
+- Continuar sin contexto
+- Seguir sin contexto
+- Omitir contexto
+
+Mi preferencia es:
+CONTINUAR SIN CONTEXTO
+
+Haz que se vea discreto, elegante y claramente secundario frente al CTA principal.
+
+5. PULIR EL ÁREA DE TEXTO
+
+La altura actual ya está mucho mejor, pero quiero que revises si todavía puede sentirse más como:
+- briefing rápido
+y menos como:
+- caja para redactar mucho
+
+No quiero reducirlo tanto que se vuelva incómodo.
+Solo quiero que tenga la proporción más elegante posible dentro de esta pantalla.
+
+Si ves que con una pequeña reducción de altura o un ajuste de padding queda mejor, aplícalo.
+Si ya está en un punto óptimo, mantenlo.
+
+6. MANTENER LA JERARQUÍA ACTUAL
+
+La lectura ideal de la pantalla debe seguir siendo:
+
+- SILENT CLOSER
+- Prepara la sesión
+- selector rápido / guiado
+- campo de contexto
+- chips
+- CTA principal
+- acción secundaria discreta
+
+No quiero romper esta jerarquía.
+
+7. NO RECARGAR LA PANTALLA
+
+No añadas:
+- nuevas tarjetas
+- ayudas largas
+- textos explicativos
+- tooltips
+- iconos innecesarios
+- más secciones
+
+La mejora debe venir de:
+- mejor copy
+- mejor microcopy
+- mejor proporción
+- mejor sensación de producto
+
+==================================================
+CRITERIOS DE CALIDAD
+==================================================
+
+La nueva versión debe sentirse:
+- más natural
+- más premium
+- más clara
+- más orientada a entrar rápido en acción
+- más producto y menos prototipo
+
+Si dudas entre dos opciones, elige siempre la más simple y elegante.
+
+==================================================
+ENTREGABLES
+==================================================
+
+Quiero que hagas estos cambios directamente sobre la pantalla actual y luego me expliques brevemente:
+
+1. qué copy has cambiado
+2. qué chips has dejado
+3. si has tocado altura/padding del campo
+4. por qué ahora la pantalla debería sentirse mejor
+
+No rehagas nada de cero.
+Solo afina la pantalla inicial.
