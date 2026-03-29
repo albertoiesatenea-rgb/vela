@@ -530,22 +530,6 @@ export default function CopilotPage() {
 
       {/* Status pill — top right */}
       <div className="absolute top-10 right-5 flex items-center gap-3 z-10">
-        {/* Language toggle */}
-        <div className="flex items-center bg-white/5 rounded-full border border-white/8 text-[9px] font-mono overflow-hidden">
-          {(["es", "en"] as Lang[]).map(l => (
-            <button
-              key={l}
-              onClick={() => { setLang(l); saveLang(l); }}
-              className={cn(
-                "px-2.5 py-1 uppercase tracking-widest transition-all",
-                lang === l ? "bg-white/15 text-white" : "text-zinc-500 hover:text-zinc-300"
-              )}
-            >
-              {l}
-            </button>
-          ))}
-        </div>
-
         {isPending && (
           <div className="flex items-center gap-1.5 text-muted-foreground">
             <Loader2 className="w-3 h-3 animate-spin" />
@@ -726,8 +710,24 @@ export default function CopilotPage() {
           </button>
         )}
 
-        {/* Bottom row: mode toggle + speaker mode */}
+        {/* Bottom row: mode toggle + speaker mode + lang */}
         <div className="flex items-center justify-center gap-3 w-full">
+
+          {/* Language toggle */}
+          <div className="flex items-center bg-white/5 p-1 rounded-full border border-white/8 text-[9px] font-mono overflow-hidden">
+            {(["es", "en"] as Lang[]).map(l => (
+              <button
+                key={l}
+                onClick={() => { setLang(l); saveLang(l); }}
+                className={cn(
+                  "px-3 py-1.5 rounded-full uppercase tracking-widest transition-all font-medium",
+                  lang === l ? "bg-white text-black shadow" : "text-zinc-400 hover:text-white"
+                )}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
 
           {/* Input mode toggle */}
           <div className="flex items-center bg-white/5 p-1 rounded-full border border-white/8">
