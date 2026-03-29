@@ -195,7 +195,8 @@ export default function CopilotPage() {
     setTacticalState(EMPTY_STATE);
     setContextLabel("");
     saveLabel("");
-    setActivePanel(null);
+    setDetailOpen(false);
+    setMemoryOpen(false);
     // Generate short context label in background
     void fetch("/api/copilot/context-label", {
       method: "POST",
@@ -215,7 +216,8 @@ export default function CopilotPage() {
     setTacticalState(EMPTY_STATE);
     setContextLabel("");
     saveLabel("");
-    setActivePanel(null);
+    setDetailOpen(false);
+    setMemoryOpen(false);
     if (isListening) stopListening();
     setInputMode("simulate");
     setSpeakerMode("auto");
