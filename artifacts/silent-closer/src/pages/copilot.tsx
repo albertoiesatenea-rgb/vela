@@ -1,5 +1,4 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { AnimatePresence, motion } from "framer-motion";
 import { Mic, Keyboard, Loader2, AlertCircle, ExternalLink, ChevronDown, Info } from "lucide-react";
 import { useAnalyzeConversation } from "@workspace/api-client-react";
 import { useSpeech } from "@/hooks/use-speech";
@@ -53,7 +52,6 @@ const T = {
     autoHint: (l: string) => `último · ${l} (auto) · ← → cambia`,
     OPEN_TAB: "Abrir en pestaña separada",
     NO_SPEECH: "Tu navegador no soporta reconocimiento de voz.\nUsa Chrome o Edge.",
-    OR_TYPE: "O usa el modo Escribir para probar la IA ahora",
     EXIT: "← Salir",
     // End-of-call flow
     OUTCOME_Q: "¿Cómo terminó la llamada?",
@@ -92,7 +90,6 @@ const T = {
     autoHint: (l: string) => `last · ${l} (auto) · ← → change`,
     OPEN_TAB: "Open in separate tab",
     NO_SPEECH: "Your browser does not support speech recognition.\nUse Chrome or Edge.",
-    OR_TYPE: "Or use Type mode to test the AI now",
     EXIT: "← Exit",
     // End-of-call flow
     OUTCOME_Q: "How did the call end?",
@@ -163,10 +160,6 @@ function loadSession(): string | null {
   // Always start from the setup screen — never restore a previous session
   try { localStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
   return null;
-}
-function saveSession(_ctx: string | null) {
-  // Session is not persisted across page loads (intentional — setup screen is always first)
-  try { /* no-op */ } catch { /* ignore */ }
 }
 function loadLabel(): string {
   try { return localStorage.getItem(LABEL_KEY) ?? ""; } catch { return ""; }
@@ -546,7 +539,6 @@ export default function CopilotPage() {
 
   const handleContextReady = (context: string) => {
     setSessionContext(context);
-    saveSession(context);
     setTacticalState(EMPTY_STATE);
     setContextLabel("");
     saveLabel("");
@@ -569,7 +561,6 @@ export default function CopilotPage() {
     setCallOutcome(null);
     setCallSummary(null);
     setSessionContext(null);
-    saveSession(null);
     setTacticalState(EMPTY_STATE);
     setContextLabel("");
     saveLabel("");
@@ -1070,7 +1061,8 @@ export default function CopilotPage() {
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
-                  handleSimulateSubmit(e as any);
+                  handleAnalysis(simulateText);
+                  setSimulateText("");
                 }
               }}
               placeholder={T[lang].PASTE_PLACEHOLDER}

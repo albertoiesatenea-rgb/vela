@@ -417,28 +417,28 @@ IMPROVEMENTS: 2-3 specific, concrete, honest tactical observations. No vague com
 
 ${wantsFullReport ? `FULL REPORT: Write the analysis using EXACTLY this format and section headers (no markdown, no bullet symbols except dashes):
 
-Resumen ejecutivo:
+Executive summary:
 [2-4 sentences describing the call, context, and result]
 
-Lo que se hizo bien:
+What went well:
 - [specific tactical observation]
 - [specific tactical observation]
 - [specific tactical observation]
 
-Lo que se puede mejorar:
+What can be improved:
 - [specific tactical observation]
 - [specific tactical observation]
 
-Objeciones o riesgos detectados:
+Objections or risks detected:
 - [objection detected and how it was handled, or: No significant objections detected]
 
-Control de la conversación:
+Conversation control:
 [1-3 sentences on who controlled the conversation and tactical direction quality]
 
-Cierre / siguiente paso:
+Close / next step:
 [1-3 sentences on close quality or next step achieved]
 
-Recomendación para la próxima llamada:
+Recommendation for next call:
 [1-3 concrete, actionable sentences]
 
 TONE: honest, tactical, useful. No cheap coaching. No artificial inflation.` : "FULL REPORT: null (not requested)."}
