@@ -111,10 +111,16 @@ const T = {
     MODAL_CORRECT_PROMPT: "¿Cuál fue el resultado real?",
     // Client mode outcome buttons
     CLIENT_SOLD: "Trato hecho ✓",
-    CLIENT_ACCEPT: "Ok, acepto →",
-    CLIENT_OBJECTION: "Tengo una objeción",
+    CLIENT_ACCEPT: "Ok, sigue →",
+    CLIENT_OBJECTION: "No estoy de acuerdo",
     CLIENT_ACCEPT_MSG: "Ok, cuéntame más.",
-    CLIENT_OBJECTION_MSG: "Espera, tengo una objeción con eso.",
+    CLIENT_OBJECTION_MSG: "No, eso no me convence.",
+    CLIENT_EXIT_BTN: "Salir",
+    CLIENT_EXIT_TITLE: "¿Por qué terminas?",
+    CLIENT_EXIT_REASON_PH: "Motivo (opcional)",
+    CLIENT_EXIT_LOST: "Me han perdido",
+    CLIENT_EXIT_QUIT: "Solo salir",
+    CLIENT_EXIT_NOTE_LABEL: "MOTIVO DE SALIDA",
     // Summary
     OUTCOME_LABEL: "RESULTADO",
     // Debrief
@@ -161,10 +167,16 @@ const T = {
     MODAL_CORRECT_PROMPT: "What was the actual outcome?",
     // Client mode outcome buttons
     CLIENT_SOLD: "Deal ✓",
-    CLIENT_ACCEPT: "OK, I'll take that →",
-    CLIENT_OBJECTION: "I have an objection",
+    CLIENT_ACCEPT: "OK, keep going →",
+    CLIENT_OBJECTION: "I disagree",
     CLIENT_ACCEPT_MSG: "OK, tell me more.",
-    CLIENT_OBJECTION_MSG: "Wait, I have an objection with that.",
+    CLIENT_OBJECTION_MSG: "No, I'm not convinced by that.",
+    CLIENT_EXIT_BTN: "Exit",
+    CLIENT_EXIT_TITLE: "Why are you leaving?",
+    CLIENT_EXIT_REASON_PH: "Reason (optional)",
+    CLIENT_EXIT_LOST: "You lost me",
+    CLIENT_EXIT_QUIT: "Just leaving",
+    CLIENT_EXIT_NOTE_LABEL: "EXIT REASON",
     // Summary
     OUTCOME_LABEL: "OUTCOME",
     // Debrief
@@ -398,6 +410,9 @@ export function Arena({
   const [isEnding, setIsEnding] = useState(false);
   const [summary, setSummary] = useState<ArenaSummary | null>(null);
   const [allTurns, setAllTurns] = useState<ArenaMessage[]>([]);
+  const [showExitPanel, setShowExitPanel] = useState(false);
+  const [pendingExitReason, setPendingExitReason] = useState("");
+  const [exitNote, setExitNote] = useState<{ text: string; outcome: FinalOutcome } | null>(null);
   const [conversationState, setConversationState] = useState<ConversationState | null>(null);
   // Terminal state detection (seller mode)
   const [pendingOutcome, setPendingOutcome] = useState<Exclude<ArenaOutcome, "none" | "manual_stop"> | null>(null);
@@ -475,6 +490,14 @@ export function Arena({
       setIsEnding(false);
     }
   }, [arenaSessionId, isEnding, messages, role, context, lang]);
+
+  const handleClientExit = useCallback(async (outcome: FinalOutcome) => {
+    const reason = pendingExitReason.trim();
+    setExitNote({ text: reason, outcome });
+    setShowExitPanel(false);
+    setPendingExitReason("");
+    await handleEnd(outcome);
+  }, [pendingExitReason, handleEnd]);
 
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || isSending || !arenaSessionId) return;
@@ -556,6 +579,13 @@ export function Arena({
     lines.push(`${isEs ? "Turnos totales" : "Total turns"}: ${summary.totalTurns}`);
     lines.push(`${isEs ? "Tus turnos" : "Your turns"}: ${summary.userTurns}`);
 
+    if (exitNote?.text) {
+      lines.push(``);
+      lines.push(`${isEs ? "MOTIVO DE SALIDA" : "EXIT REASON"}`);
+      lines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+      lines.push(exitNote.text);
+    }
+
     const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -591,6 +621,14 @@ export function Arena({
             <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{t.OUTCOME_LABEL}</p>
             <p className={cn("text-xl font-mono font-bold", outcomeColor)}>{outcomeName}</p>
           </div>
+
+          {/* Exit note — only for client mode when reason was given */}
+          {exitNote?.text && role === "client" && (
+            <div className="border border-zinc-800 rounded-xl px-4 py-3 flex flex-col gap-1">
+              <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{t.CLIENT_EXIT_NOTE_LABEL}</p>
+              <p className="text-sm font-mono text-zinc-300 leading-relaxed">{exitNote.text}</p>
+            </div>
+          )}
 
           {/* Debrief block — only for lost/broken seller sessions */}
           {isLoss && debrief && (
@@ -767,14 +805,51 @@ export function Arena({
       {/* ── Input area ─────────────────────────────────────────────────────── */}
       <div className="shrink-0 border-t border-white/6 px-4 py-3">
         <div className="max-w-2xl mx-auto flex flex-col gap-2">
-          {/* Client mode: explicit outcome buttons — above textarea for easy reach */}
+          {/* Client mode: outcome shortcuts OR exit panel */}
           {role === "client" && !isStarting && messages.length >= 2 && (
-            <ClientOutcomeBar
-              lang={lang}
-              disabled={isEnding || isSending}
-              onShortcut={(text) => void sendMessage(text)}
-              onOutcome={(outcome) => void handleEnd(outcome)}
-            />
+            showExitPanel ? (
+              <div className="flex flex-col gap-2 px-3 py-3 bg-zinc-950 border border-zinc-800 rounded-xl">
+                <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{t.CLIENT_EXIT_TITLE}</p>
+                <input
+                  type="text"
+                  value={pendingExitReason}
+                  onChange={e => setPendingExitReason(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Escape") setShowExitPanel(false); }}
+                  placeholder={t.CLIENT_EXIT_REASON_PH}
+                  autoFocus
+                  className="w-full bg-transparent border border-zinc-800 rounded-lg px-3 py-2 text-xs font-mono text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => void handleClientExit("lost")}
+                    disabled={isEnding}
+                    className="flex-1 py-1.5 rounded-lg border text-[10px] font-mono tracking-wide transition-all disabled:opacity-30 disabled:pointer-events-none text-amber-400 border-amber-400/30 hover:border-amber-400/60 hover:bg-amber-400/5"
+                  >
+                    {isEnding ? <Loader2 className="w-3 h-3 animate-spin inline" /> : t.CLIENT_EXIT_LOST}
+                  </button>
+                  <button
+                    onClick={() => void handleClientExit("manual_stop")}
+                    disabled={isEnding}
+                    className="flex-1 py-1.5 rounded-lg border text-[10px] font-mono tracking-wide transition-all disabled:opacity-30 disabled:pointer-events-none text-zinc-400 border-zinc-700 hover:border-zinc-500"
+                  >
+                    {t.CLIENT_EXIT_QUIT}
+                  </button>
+                  <button
+                    onClick={() => setShowExitPanel(false)}
+                    className="px-3 py-1.5 rounded-lg border text-[10px] font-mono tracking-wide transition-all text-zinc-600 border-zinc-800 hover:border-zinc-600 hover:text-zinc-400"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <ClientOutcomeBar
+                lang={lang}
+                disabled={isEnding || isSending}
+                onShortcut={(text) => void sendMessage(text)}
+                onOutcome={(outcome) => void handleEnd(outcome)}
+              />
+            )
           )}
 
           <textarea
@@ -801,6 +876,15 @@ export function Arena({
                 className="text-[9px] font-mono tracking-widest uppercase text-zinc-500 hover:text-zinc-200 transition-colors disabled:opacity-30 disabled:pointer-events-none"
               >
                 {isEnding ? <Loader2 className="w-3 h-3 animate-spin inline" /> : t.END}
+              </button>
+            )}
+            {role === "client" && !isStarting && messages.length >= 2 && (
+              <button
+                onClick={() => setShowExitPanel(prev => !prev)}
+                disabled={isEnding}
+                className="text-[9px] font-mono tracking-widest uppercase text-zinc-500 hover:text-zinc-200 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+              >
+                {t.CLIENT_EXIT_BTN}
               </button>
             )}
           </div>
