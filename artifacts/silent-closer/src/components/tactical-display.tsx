@@ -23,10 +23,7 @@ export function TacticalDisplay({
 }: TacticalDisplayProps) {
   const [readingOpen, setReadingOpen] = useState(false);
 
-  // Close reading when a new command arrives
-  useEffect(() => { setReadingOpen(false); }, [sayNow]);
-
-  // Close reading when detail opens
+  // Close reading when detail opens (they're mutually exclusive)
   useEffect(() => { if (detailOpen) setReadingOpen(false); }, [detailOpen]);
 
   const canAct = !!(sayNow);
