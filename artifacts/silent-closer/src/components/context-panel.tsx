@@ -2,16 +2,23 @@ import { useState } from "react";
 import { ChevronDown, ChevronUp, Zap, AlignLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// ── Closer Wizard minimal hat icon ─────────────────────────────────────────
+// ── Closer Wizard icon: pointed hat + 8-arm sparkle ─────────────────────────
 function WizardIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 14 17" fill="currentColor" className={className} aria-hidden>
-      {/* Conical hat */}
-      <polygon points="7,0 12.5,12 1.5,12" />
-      {/* Brim */}
-      <rect x="0.5" y="12.5" width="13" height="2.5" rx="1.25" opacity="0.85" />
-      {/* Tiny star accent on the hat */}
-      <circle cx="7" cy="4.5" r="0.9" fill="black" fillOpacity="0.35" />
+    <svg viewBox="0 0 24 26" fill="currentColor" className={className} aria-hidden>
+      {/* Hat cone — clear pointed silhouette */}
+      <path d="M12 1L20 18H4L12 1Z" />
+      {/* Hat band — subtle accent */}
+      <rect x="4" y="18" width="16" height="1.5" opacity="0.25" />
+      {/* Brim — distinctly wider than cone */}
+      <rect x="0.5" y="19.5" width="23" height="4" rx="2" />
+      {/* 8-arm sparkle — floats upper-right outside the cone */}
+      <g stroke="currentColor" strokeWidth="1" strokeLinecap="round" fill="none" opacity="0.92">
+        <line x1="19" y1="1.5" x2="19" y2="7.5" />
+        <line x1="16" y1="4.5" x2="22" y2="4.5" />
+        <line x1="16.9" y1="2.4" x2="21.1" y2="6.6" />
+        <line x1="21.1" y1="2.4" x2="16.9" y2="6.6" />
+      </g>
     </svg>
   );
 }
@@ -394,7 +401,7 @@ export function SessionBar({
           )}
           <button
             onClick={(e) => { e.stopPropagation(); onClearSession(); }}
-            className="text-[10px] font-mono text-zinc-200 hover:text-red-400 transition-colors"
+            className="text-[10px] font-mono text-zinc-400 hover:text-red-400 px-3 py-2 rounded-lg hover:bg-red-950/25 transition-all -mr-1"
           >
             {t.END}
           </button>

@@ -2,6 +2,8 @@ import { Router, type IRouter } from "express";
 import {
   AnalyzeConversationBody,
   AnalyzeConversationResponse,
+  CallSummarizeBody,
+  CallSummarizeResponse,
 } from "@workspace/api-zod";
 import { openai } from "@workspace/integrations-openai-ai-server";
 
@@ -359,6 +361,119 @@ router.post("/copilot/analyze", async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "Error calling OpenAI");
     res.status(500).json({ error: "Error analyzing conversation" });
+  }
+});
+
+// ── Call summarize — generates post-call analysis and optional full report
+router.post("/copilot/summarize", async (req, res) => {
+  const parseResult = CallSummarizeBody.safeParse(req.body);
+  if (!parseResult.success) { res.status(400).json({ error: "Invalid request body" }); return; }
+
+  const { call_memory, outcome, lang, full_report } = parseResult.data;
+  const isEn = lang === "en";
+
+  const memoryText = call_memory?.length
+    ? call_memory.map(l => `- ${l}`).join("\n")
+    : (isEn ? "(No call data available)" : "(Sin datos de llamada disponibles)");
+
+  const outcomeText = outcome ?? (isEn ? "unclear" : "no claro");
+  const wantsFullReport = !!full_report;
+
+  const systemPrompt = isEn
+    ? `You are an expert sales call analyst. Evaluate a completed sales call based on its tactical memory and the reported outcome.
+
+Return EXACTLY this JSON, no markdown, no extra text:
+{
+  "score": 7.4,
+  "global_state": "strong",
+  "result_label": "Next step agreed",
+  "strengths": ["strength 1", "strength 2", "strength 3"],
+  "improvements": ["improvement 1", "improvement 2"],
+  "full_report": ${wantsFullReport ? '"detailed report text here"' : "null"}
+}
+
+SCORING (0-10):
+10: Perfect close, full control, objections resolved
+8-9: Strong call, clear advance, good tactical work
+6-7: Decent call, some progress, key weaknesses
+4-5: Mixed results, significant gaps
+2-3: Poor direction, major errors, control lost
+0-1: Complete failure or very limited data
+
+SCORE FACTORS: clarity of advance, objection management, conversation control, ability to concretize, tactical direction quality, whether a next step or close was achieved, errors avoided.
+
+GLOBAL STATE: use 1-2 English words (strong / good / workable / weak / blocked / lost / open / advancing)
+
+STRENGTHS: 2-3 specific, concrete, actionable observations. No generic praise.
+IMPROVEMENTS: 2-3 specific, concrete, honest tactical observations. No vague comments.
+
+${wantsFullReport ? `FULL REPORT: Write a detailed 300-500 word tactical analysis including: call summary, detected objections, how they were handled, user strengths, user weaknesses/errors, missed opportunities, conversation control level, close/advance quality, concrete suggestions for next call. Be honest, tactical, direct.` : "FULL REPORT: null (not requested)."}
+
+IMPORTANT: Be honest and tactical. No motivational fluff. No generic phrases. Real sales analysis.`
+    : `Eres un analista experto de llamadas de venta. Evalúa una llamada completada basándote en su memoria táctica y el resultado reportado.
+
+Devuelve EXACTAMENTE este JSON, sin markdown, sin texto extra:
+{
+  "score": 7.4,
+  "global_state": "fuerte",
+  "result_label": "Siguiente paso acordado",
+  "strengths": ["fortaleza 1", "fortaleza 2", "fortaleza 3"],
+  "improvements": ["mejora 1", "mejora 2"],
+  "full_report": ${wantsFullReport ? '"texto del reporte detallado aquí"' : "null"}
+}
+
+PUNTUACIÓN (0-10):
+10: Cierre perfecto, control total, objeciones resueltas
+8-9: Llamada fuerte, avance claro, buen trabajo táctico
+6-7: Llamada decente, algo de progreso, debilidades clave
+4-5: Resultados mixtos, brechas significativas
+2-3: Mala dirección, errores graves, control perdido
+0-1: Fracaso total o datos muy limitados
+
+FACTORES DEL SCORE: claridad del avance, gestión de objeciones, control de conversación, capacidad de concretar, calidad de dirección táctica, si se consiguió siguiente paso o cierre, errores evitados.
+
+ESTADO GLOBAL: usa 1-2 palabras en español (fuerte / buena / trabajable / floja / bloqueada / perdida / abierta / avanzando)
+
+PUNTOS FUERTES: 2-3 observaciones específicas, concretas, accionables. Sin elogios genéricos.
+PUNTOS A MEJORAR: 2-3 observaciones tácticas específicas, concretas, honestas. Sin comentarios vagos.
+
+${wantsFullReport ? `REPORTE COMPLETO: Escribe un análisis táctico detallado de 300-500 palabras que incluya: resumen de la llamada, objeciones detectadas, cómo se gestionaron, puntos fuertes del usuario, debilidades/errores del usuario, oportunidades perdidas, nivel de control de la conversación, calidad del cierre o avance, sugerencias concretas para la próxima llamada. Sé honesto, táctico y directo.` : "REPORTE COMPLETO: null (no solicitado)."}
+
+IMPORTANTE: Sé honesto y táctico. Sin motivación barata. Sin frases genéricas. Análisis de venta real.`;
+
+  const userMessage = `MEMORIA TÁCTICA DE LA LLAMADA:\n${memoryText}\n\nRESULTADO REPORTADO POR EL USUARIO: ${outcomeText}\n\nAnaliza y devuelve el JSON:`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_tokens: wantsFullReport ? 1200 : 400,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userMessage },
+      ],
+    });
+
+    const rawContent = completion.choices[0]?.message?.content ?? "{}";
+    let parsed: unknown;
+    try {
+      const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
+      parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(rawContent);
+    } catch {
+      parsed = {
+        score: 5,
+        global_state: isEn ? "workable" : "trabajable",
+        result_label: outcomeText,
+        strengths: [],
+        improvements: [],
+        full_report: null,
+      };
+    }
+
+    const validated = CallSummarizeResponse.parse(parsed);
+    res.json(validated);
+  } catch (err) {
+    req.log.error({ err }, "Error calling OpenAI for summarize");
+    res.status(500).json({ error: "Error generating call summary" });
   }
 });
 

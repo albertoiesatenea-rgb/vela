@@ -1,0 +1,291 @@
+Quiero hacer una mejora importante sobre la versión actual de “Closer Wizard” sin rehacer la app desde cero.
+
+IMPORTANTE:
+- NO quiero romper la base visual actual
+- NO quiero perder el estilo minimalista
+- NO quiero convertirlo en un software corporativo pesado
+- quiero mejorar branding, usabilidad y cierre de sesión
+- la base actual me gusta, pero quiero subir un nivel claro de producto
+
+==================================================
+PARTE 1 — MEJORAR EL ICONO / LOGO DE CLOSER WIZARD
+==================================================
+
+Ahora mismo el icono no me convence.
+No transmite realmente la idea de “wizard”.
+Se siente demasiado provisional y abstracto.
+
+PROBLEMA
+El símbolo actual parece más un triángulo simple que un mago o una identidad real de marca.
+
+OBJETIVO
+Quiero un icono/logo más alineado con el nombre:
+CLOSER WIZARD
+
+La idea de marca es:
+- mago de las ventas
+- guía táctica
+- inteligencia conversacional
+- ayudante de cierre
+- estética retro/pixel pero premium
+
+REFERENCIA VISUAL
+Quiero algo inspirado en un personaje tipo videojuego recreativo / pixel art, pero:
+- muy simple
+- muy limpio
+- no infantil
+- no cartoon exagerado
+- no demasiado detallado
+- reconocible incluso en pequeño
+
+ELEMENTOS QUE ME GUSTARÍA SUGERIR
+- sombrero de mago claro
+- una pequeña varita
+- quizá un destello / estrella / chispa
+- y si encaja bien, un guiño a ventas o dinero (muy sutil, no cutre)
+
+IMPORTANTE
+No quiero una ilustración compleja.
+Quiero un icono muy simple, elegante y usable como identidad de producto.
+
+REGLAS
+- debe integrarse con la UI actual
+- no debe parecer un juego infantil
+- no debe verse cutre
+- debe sentirse más “sprite premium” que “clipart”
+- puede ser monocromo o con un acento mínimo
+- si encaja, puedes usar pixel art fino o una silueta simple con aire retro
+
+OBJETIVO FINAL
+Quiero que el icono parezca de verdad el símbolo de Closer Wizard, no una forma provisional.
+
+==================================================
+PARTE 2 — HACER EL BOTÓN DE TERMINAR MÁS USABLE
+==================================================
+
+Ahora mismo el botón de terminar/finalizar está demasiado pequeño o poco cómodo.
+En una llamada real quiero poder pulsarlo fácilmente.
+
+OBJETIVO
+Quiero que el control de terminar llamada:
+- tenga más área clicable
+- se vea un poco más claro
+- siga siendo elegante y discreto
+- pero sea mucho más usable
+
+NO quiero:
+- un botón gigante chillón
+- romper la estética
+- una UI tosca
+
+SÍ quiero:
+- mejor padding
+- mejor target táctil
+- más comodidad
+- más claridad visual
+
+Si hace falta, conviértelo en una pill más clara o mejora su hit area sin cambiar demasiado su posición.
+
+==================================================
+PARTE 3 — RESUMEN AL FINALIZAR LA LLAMADA
+==================================================
+
+Quiero añadir una funcionalidad importante al terminar la llamada o sesión.
+
+OBJETIVO
+Cuando el usuario pulse “Finalizar”, no quiero simplemente cerrar.
+Quiero que la app ofrezca una pequeña pantalla o modal de cierre de sesión con feedback útil.
+
+La idea es aprovechar todo lo que la app ha escuchado y analizado durante la conversación.
+
+==================================================
+PARTE 4 — FLUJO DE FINALIZACIÓN
+==================================================
+
+Quiero este flujo al pulsar finalizar:
+
+PASO 1 — RESULTADO DE LA LLAMADA
+La app debe preguntar de forma simple:
+“¿Cómo terminó la llamada?”
+
+Opciones posibles:
+- Cerrada
+- Siguiente paso acordado
+- Seguimiento
+- Perdida
+- No claro
+
+IMPORTANTE
+No quiero un formulario pesado.
+Quiero algo muy simple y rápido.
+
+La IA puede tener una hipótesis de cómo fue la llamada, pero quiero que el usuario pueda confirmarlo o corregirlo.
+
+==================================================
+PARTE 5 — RESUMEN RÁPIDO POR DEFECTO
+==================================================
+
+Después de finalizar, quiero que la app muestre un resumen corto por defecto.
+
+Ese resumen rápido debe incluir algo como:
+
+1. RESULTADO
+Ejemplo:
+- Siguiente paso acordado
+- Cierre logrado
+- Llamada abierta pero sin compromiso
+- Objeción principal no resuelta
+
+2. SCORE / PUNTUACIÓN
+Quiero una puntuación tipo 0–10.
+No como jueguecito absurdo, sino como una medida útil de calidad de la llamada.
+
+Por ejemplo:
+- 8.2 / 10
+- 6.5 / 10
+- 4.9 / 10
+
+3. ESTADO GLOBAL
+Algo corto tipo:
+- fuerte
+- trabajable
+- floja
+- favorable
+- neutral
+- bloqueada
+
+4. PUNTOS FUERTES
+2 o 3 bullets cortos
+
+5. PUNTOS A MEJORAR
+2 o 3 bullets cortos
+
+==================================================
+PARTE 6 — REPORTE COMPLETO OPCIONAL
+==================================================
+
+Además del resumen rápido, quiero un botón opcional como:
+- Generar reporte completo
+o
+- Ver feedback completo
+
+Ese reporte completo debe ser más desarrollado y útil para guardar en notas o incluso copiarlo a otra IA.
+
+Debe incluir, si es posible:
+- resumen de la llamada
+- objeciones detectadas
+- cómo se gestionaron
+- puntos fuertes del usuario
+- puntos débiles o errores
+- oportunidades perdidas
+- nivel de control de la conversación
+- calidad del cierre o del avance
+- sugerencias concretas para la próxima llamada
+
+IMPORTANTE
+No quiero que este reporte se genere automáticamente si ralentiza demasiado.
+Puede ser bajo demanda.
+
+==================================================
+PARTE 7 — BOTONES DE SALIDA ÚTILES
+==================================================
+
+En esa pantalla final, me gustaría tener opciones como:
+- Copiar resumen
+- Generar reporte completo
+- Cerrar
+
+Si encaja bien:
+- Guardar feedback
+o
+- Copiar feedback
+
+La idea es poder usar este output para mi histórico personal o para pegarlo luego en otra IA o en mis notas.
+
+==================================================
+PARTE 8 — SCORE 0 A 10
+==================================================
+
+Quiero que el score tenga sentido y no sea aleatorio.
+
+Debe basarse en cosas como:
+- claridad del avance
+- control de la conversación
+- gestión de objeciones
+- capacidad de concretar
+- calidad de la dirección táctica
+- si hubo o no progreso real
+- si se cerró o se consiguió siguiente paso
+- si el usuario evitó errores graves
+
+No necesito una ciencia perfecta, pero sí una evaluación razonable y útil.
+
+==================================================
+PARTE 9 — TONO DEL FEEDBACK FINAL
+==================================================
+
+Quiero que el feedback final sea:
+- útil
+- honesto
+- táctico
+- breve por defecto
+- más completo solo si lo pido
+
+No quiero:
+- frases vacías
+- motivación barata
+- “buen trabajo” genérico
+- estilo coach
+
+Sí quiero:
+- observaciones concretas
+- puntos accionables
+- lenguaje de venta real
+
+==================================================
+PARTE 10 — REGLAS DE DISEÑO
+==================================================
+
+Todo esto debe seguir sintiéndose:
+- premium
+- limpio
+- táctico
+- minimalista
+- producto serio
+
+No quiero:
+- pantallas recargadas
+- gamificación infantil
+- iconos chillones
+- popups cutres
+
+Sí quiero:
+- mejor identidad visual
+- mejor cierre de experiencia
+- más sensación de producto útil
+
+==================================================
+LO QUE QUIERO QUE HAGAS
+==================================================
+
+1. Mejora el icono/logo de Closer Wizard con una identidad más clara de “wizard táctico”
+2. Haz el botón de finalizar más usable
+3. Añade un flujo de finalización con:
+   - resultado de llamada
+   - resumen corto
+   - score 0–10
+   - puntos fuertes
+   - puntos a mejorar
+4. Añade un botón opcional para generar feedback/reporte más completo
+5. Mantén la estética y la base actual
+
+==================================================
+ENTREGABLE
+==================================================
+
+Cuando termines, dime brevemente:
+1. qué hiciste con el icono/logo
+2. cómo mejoraste el botón de finalizar
+3. cómo funciona el flujo al terminar la llamada
+4. cómo calculas el score
+5. y por qué esto debería mejorar la experiencia real del producto

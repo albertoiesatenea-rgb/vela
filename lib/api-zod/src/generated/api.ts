@@ -86,3 +86,19 @@ export const AnalyzeConversationResponse = zod.object({
       "Global tactical momentum — green (favorable, advancing), amber (neutral/workable), red (resistance, bad direction)",
     ),
 });
+
+export const CallSummarizeBody = zod.object({
+  call_memory: zod.array(zod.string()).optional().describe("Accumulated call memory lines"),
+  outcome: zod.string().optional().describe("Outcome reported by salesperson"),
+  lang: zod.enum(["es", "en"]).optional().describe("Response language"),
+  full_report: zod.boolean().optional().describe("If true, include full detailed report text"),
+});
+
+export const CallSummarizeResponse = zod.object({
+  score: zod.number().describe("Call quality score 0-10"),
+  global_state: zod.string().describe("Global call state in 1-2 words"),
+  result_label: zod.string().describe("Concise result label"),
+  strengths: zod.array(zod.string()).describe("2-3 tactical strengths"),
+  improvements: zod.array(zod.string()).describe("2-3 tactical improvements"),
+  full_report: zod.string().nullish().transform((v) => v ?? undefined).describe("Full detailed report (only when requested)"),
+});

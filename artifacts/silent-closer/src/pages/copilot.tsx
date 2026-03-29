@@ -4,8 +4,20 @@ import { Mic, Keyboard, Loader2, AlertCircle, ExternalLink, ChevronDown, Info } 
 import { useAnalyzeConversation } from "@workspace/api-client-react";
 import { useSpeech } from "@/hooks/use-speech";
 import { TacticalDisplay } from "@/components/tactical-display";
-import { ContextSetup, SessionBar } from "@/components/context-panel";
+import { ContextSetup, SessionBar, WizardIcon } from "@/components/context-panel";
 import { cn } from "@/lib/utils";
+
+// ── Overlay brand header used in end-of-call screens ────────────────────────
+function WizardOverlayHeader() {
+  return (
+    <div className="flex items-center gap-2 mb-1">
+      <WizardIcon className="w-4 h-5 text-zinc-500" />
+      <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-zinc-600">
+        Closer Wizard
+      </span>
+    </div>
+  );
+}
 
 type InputMode = "listen" | "simulate";
 type SpeakerMode = "auto" | "client" | "me";
@@ -42,6 +54,28 @@ const T = {
     OPEN_TAB: "Abrir en pestaña separada",
     NO_SPEECH: "Tu navegador no soporta reconocimiento de voz.\nUsa Chrome o Edge.",
     OR_TYPE: "O usa el modo Escribir para probar la IA ahora",
+    // End-of-call flow
+    OUTCOME_Q: "¿Cómo terminó la llamada?",
+    OUTCOME_CLOSED: "Cerrada",
+    OUTCOME_NEXT: "Siguiente paso acordado",
+    OUTCOME_FOLLOW: "Seguimiento",
+    OUTCOME_LOST: "Perdida",
+    OUTCOME_UNCLEAR: "No claro",
+    SKIP_ANALYSIS: "Saltar análisis y cerrar",
+    CALL_RESULT: "RESULTADO DE LLAMADA",
+    CALL_SCORE: "PUNTUACIÓN",
+    CALL_STATE: "ESTADO",
+    STRENGTHS: "PUNTOS FUERTES",
+    IMPROVEMENTS: "PUNTOS A MEJORAR",
+    GEN_REPORT: "Generar reporte completo",
+    COPY_SUMMARY: "Copiar resumen",
+    COPY_REPORT: "Copiar reporte",
+    CLOSE_SESSION: "Cerrar sesión",
+    FULL_REPORT: "REPORTE COMPLETO",
+    ANALYZING_CALL: "Analizando llamada...",
+    BACK_SUMMARY: "← Volver al resumen",
+    COPIED: "¡Copiado!",
+    NO_MEMORY: "No hay datos suficientes de la llamada para generar un análisis completo.",
   },
   en: {
     LISTEN: "LISTEN", TYPE: "TYPE", ANALYZING: "Analyzing",
@@ -58,6 +92,28 @@ const T = {
     OPEN_TAB: "Open in separate tab",
     NO_SPEECH: "Your browser does not support speech recognition.\nUse Chrome or Edge.",
     OR_TYPE: "Or use Type mode to test the AI now",
+    // End-of-call flow
+    OUTCOME_Q: "How did the call end?",
+    OUTCOME_CLOSED: "Closed",
+    OUTCOME_NEXT: "Next step agreed",
+    OUTCOME_FOLLOW: "Follow-up",
+    OUTCOME_LOST: "Lost",
+    OUTCOME_UNCLEAR: "Unclear",
+    SKIP_ANALYSIS: "Skip analysis and close",
+    CALL_RESULT: "CALL RESULT",
+    CALL_SCORE: "SCORE",
+    CALL_STATE: "STATE",
+    STRENGTHS: "STRENGTHS",
+    IMPROVEMENTS: "IMPROVEMENTS",
+    GEN_REPORT: "Generate full report",
+    COPY_SUMMARY: "Copy summary",
+    COPY_REPORT: "Copy report",
+    CLOSE_SESSION: "Close session",
+    FULL_REPORT: "FULL REPORT",
+    ANALYZING_CALL: "Analyzing call...",
+    BACK_SUMMARY: "← Back to summary",
+    COPIED: "Copied!",
+    NO_MEMORY: "Not enough call data to generate a complete analysis.",
   },
 };
 
@@ -75,6 +131,17 @@ interface Journey {
 }
 
 type Momentum = "red" | "amber" | "green" | undefined;
+type EndStep = "none" | "outcome" | "summary" | "report";
+type CallOutcome = "closed" | "next_step" | "follow_up" | "lost" | "unclear";
+
+interface CallSummary {
+  score: number;
+  globalState: string;
+  resultLabel: string;
+  strengths: string[];
+  improvements: string[];
+  fullReport?: string;
+}
 
 interface TacticalState {
   sayNow: string;
@@ -363,6 +430,14 @@ export default function CopilotPage() {
   // Panel state
   const [detailOpen, setDetailOpen] = useState(false);
 
+  // End-of-call flow
+  const [endStep, setEndStep] = useState<EndStep>("none");
+  const [callOutcome, setCallOutcome] = useState<CallOutcome | null>(null);
+  const [callSummary, setCallSummary] = useState<CallSummary | null>(null);
+  const [isSummarizing, setIsSummarizing] = useState(false);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [copied, setCopied] = useState(false);
+
   // Stable listening-session flag — true from "Iniciar escucha" to "Pausar".
   // Unlike isListening from the hook (which flickers during segment restarts),
   // this only changes when the user explicitly toggles the mic.
@@ -485,7 +560,10 @@ export default function CopilotPage() {
       .catch(() => {});
   };
 
-  const handleClearSession = () => {
+  const handleActuallyClearSession = () => {
+    setEndStep("none");
+    setCallOutcome(null);
+    setCallSummary(null);
     setSessionContext(null);
     saveSession(null);
     setTacticalState(EMPTY_STATE);
@@ -496,6 +574,75 @@ export default function CopilotPage() {
     setIsSessionListening(false);
     setInputMode("simulate");
     setSpeakerMode("auto");
+  };
+
+  const handleClearSession = () => {
+    stopListening();
+    setIsSessionListening(false);
+    setEndStep("outcome");
+  };
+
+  const handleSelectOutcome = async (outcome: CallOutcome) => {
+    setCallOutcome(outcome);
+    setEndStep("summary");
+    setIsSummarizing(true);
+    const memory = tacticalState.callMemory;
+    try {
+      const res = await fetch("/api/copilot/summarize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ call_memory: memory, outcome, lang: langRef.current }),
+      });
+      const data = await res.json() as {
+        score: number; global_state: string; result_label: string;
+        strengths: string[]; improvements: string[]; full_report?: string;
+      };
+      setCallSummary({
+        score: data.score,
+        globalState: data.global_state,
+        resultLabel: data.result_label,
+        strengths: data.strengths ?? [],
+        improvements: data.improvements ?? [],
+      });
+    } catch {
+      setCallSummary({
+        score: 5,
+        globalState: langRef.current === "en" ? "workable" : "trabajable",
+        resultLabel: outcome,
+        strengths: [],
+        improvements: [],
+      });
+    } finally {
+      setIsSummarizing(false);
+    }
+  };
+
+  const handleGenerateReport = async () => {
+    setIsGeneratingReport(true);
+    try {
+      const res = await fetch("/api/copilot/summarize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          call_memory: tacticalState.callMemory,
+          outcome: callOutcome,
+          lang: langRef.current,
+          full_report: true,
+        }),
+      });
+      const data = await res.json() as { full_report?: string };
+      setCallSummary(prev => prev ? { ...prev, fullReport: data.full_report } : prev);
+      setEndStep("report");
+    } catch { /* ignore */ } finally {
+      setIsGeneratingReport(false);
+    }
+  };
+
+  const handleCopyText = (text: string) => {
+    void navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   };
 
   const handleModeSwitch = (newMode: InputMode) => {
@@ -525,9 +672,186 @@ export default function CopilotPage() {
   const memoryLines = tacticalState.callMemory;
   const handleToggleDetail = () => setDetailOpen(p => !p);
 
+  // Helper: build copy text for summary
+  const buildSummaryText = () => {
+    if (!callSummary) return "";
+    const t2 = T[lang];
+    const lines = [
+      `CLOSER WIZARD — ${t2.CALL_RESULT}`,
+      `${t2.CALL_RESULT}: ${callSummary.resultLabel}`,
+      `${t2.CALL_SCORE}: ${callSummary.score.toFixed(1)} / 10`,
+      `${t2.CALL_STATE}: ${callSummary.globalState.toUpperCase()}`,
+      "",
+      `${t2.STRENGTHS}:`,
+      ...callSummary.strengths.map(s => `→ ${s}`),
+      "",
+      `${t2.IMPROVEMENTS}:`,
+      ...callSummary.improvements.map(s => `△ ${s}`),
+    ];
+    return lines.join("\n");
+  };
+
+  const OUTCOME_OPTS: { key: CallOutcome; label: string }[] = [
+    { key: "closed",    label: T[lang].OUTCOME_CLOSED },
+    { key: "next_step", label: T[lang].OUTCOME_NEXT },
+    { key: "follow_up", label: T[lang].OUTCOME_FOLLOW },
+    { key: "lost",      label: T[lang].OUTCOME_LOST },
+    { key: "unclear",   label: T[lang].OUTCOME_UNCLEAR },
+  ];
+
   // Active session layout
   return (
     <div className="fixed inset-0 bg-black text-foreground flex flex-col overflow-hidden font-sans">
+
+      {/* ── End-of-call overlay ─────────────────────────── */}
+      {endStep !== "none" && (
+        <div className="fixed inset-0 bg-black z-50 flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center px-6 py-8">
+
+            {/* ── Outcome picker ── */}
+            {endStep === "outcome" && (
+              <div className="w-full max-w-sm flex flex-col gap-6">
+                <div className="flex flex-col gap-1">
+                  <WizardOverlayHeader />
+                  <p className="text-base font-mono font-semibold text-white tracking-tight mt-4">
+                    {T[lang].OUTCOME_Q}
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {OUTCOME_OPTS.map(opt => (
+                    <button
+                      key={opt.key}
+                      onClick={() => void handleSelectOutcome(opt.key)}
+                      className="w-full text-left px-5 py-3.5 rounded-xl bg-zinc-900 border border-zinc-800 text-sm font-mono text-white hover:bg-zinc-800 hover:border-zinc-600 active:scale-[0.98] transition-all"
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={handleActuallyClearSession}
+                  className="text-[10px] font-mono text-zinc-600 hover:text-zinc-400 transition-colors text-center"
+                >
+                  {T[lang].SKIP_ANALYSIS}
+                </button>
+              </div>
+            )}
+
+            {/* ── Summary screen ── */}
+            {(endStep === "summary" || endStep === "report") && (
+              <div className="w-full max-w-sm flex flex-col gap-5">
+                {isSummarizing ? (
+                  <div className="flex flex-col items-center gap-3 py-12">
+                    <Loader2 className="w-5 h-5 text-zinc-500 animate-spin" />
+                    <p className="text-xs font-mono text-zinc-500 tracking-widest uppercase">{T[lang].ANALYZING_CALL}</p>
+                  </div>
+                ) : callSummary ? (
+                  <>
+                    {endStep === "report" && (
+                      <button
+                        onClick={() => setEndStep("summary")}
+                        className="text-[10px] font-mono text-zinc-500 hover:text-zinc-300 transition-colors text-left"
+                      >
+                        {T[lang].BACK_SUMMARY}
+                      </button>
+                    )}
+
+                    {endStep === "summary" && (
+                      <>
+                        {/* Header */}
+                        <div className="flex flex-col gap-0.5">
+                          <p className="text-[10px] font-mono tracking-widest uppercase text-zinc-600">{T[lang].CALL_RESULT}</p>
+                          <p className="text-lg font-mono font-bold text-white leading-tight">{callSummary.resultLabel}</p>
+                        </div>
+
+                        {/* Score + State row */}
+                        <div className="flex items-center gap-4 border-t border-white/5 pt-4">
+                          <div className="flex flex-col">
+                            <p className="text-[10px] font-mono tracking-widest uppercase text-zinc-600">{T[lang].CALL_SCORE}</p>
+                            <p className="text-3xl font-mono font-bold text-white leading-none mt-0.5">
+                              {callSummary.score.toFixed(1)}<span className="text-zinc-600 text-lg"> / 10</span>
+                            </p>
+                          </div>
+                          <div className="h-8 w-px bg-white/8 shrink-0" />
+                          <div className="flex flex-col">
+                            <p className="text-[10px] font-mono tracking-widest uppercase text-zinc-600">{T[lang].CALL_STATE}</p>
+                            <p className="text-sm font-mono font-semibold text-white uppercase tracking-widest mt-0.5">{callSummary.globalState}</p>
+                          </div>
+                        </div>
+
+                        {/* Strengths */}
+                        {callSummary.strengths.length > 0 && (
+                          <div className="flex flex-col gap-1.5 border-t border-white/5 pt-4">
+                            <p className="text-[10px] font-mono tracking-widest uppercase text-zinc-600">{T[lang].STRENGTHS}</p>
+                            {callSummary.strengths.map((s, i) => (
+                              <p key={i} className="text-xs font-mono text-zinc-300 leading-relaxed">
+                                <span className="text-green-600 mr-1.5">→</span>{s}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Improvements */}
+                        {callSummary.improvements.length > 0 && (
+                          <div className="flex flex-col gap-1.5 border-t border-white/5 pt-4">
+                            <p className="text-[10px] font-mono tracking-widest uppercase text-zinc-600">{T[lang].IMPROVEMENTS}</p>
+                            {callSummary.improvements.map((s, i) => (
+                              <p key={i} className="text-xs font-mono text-zinc-300 leading-relaxed">
+                                <span className="text-amber-600 mr-1.5">△</span>{s}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {/* Full report text */}
+                    {endStep === "report" && callSummary.fullReport && (
+                      <div className="flex flex-col gap-2">
+                        <p className="text-[10px] font-mono tracking-widest uppercase text-zinc-600">{T[lang].FULL_REPORT}</p>
+                        <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 max-h-96 overflow-y-auto">
+                          <p className="text-xs font-mono text-zinc-300 leading-relaxed whitespace-pre-wrap">{callSummary.fullReport}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Action buttons */}
+                    <div className="flex flex-col gap-2 border-t border-white/5 pt-4">
+                      {endStep === "summary" && (
+                        <button
+                          onClick={() => void handleGenerateReport()}
+                          disabled={isGeneratingReport}
+                          className="w-full flex items-center justify-center gap-2 bg-zinc-900 border border-zinc-700 text-white text-xs font-mono font-semibold py-3 rounded-xl hover:bg-zinc-800 hover:border-zinc-500 active:scale-[0.98] transition-all disabled:opacity-50"
+                        >
+                          {isGeneratingReport
+                            ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />{T[lang].ANALYZING_CALL}</>
+                            : T[lang].GEN_REPORT}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleCopyText(
+                          endStep === "report" && callSummary.fullReport
+                            ? callSummary.fullReport
+                            : buildSummaryText()
+                        )}
+                        className="w-full flex items-center justify-center gap-2 bg-white/5 border border-white/10 text-zinc-300 text-xs font-mono py-2.5 rounded-xl hover:bg-white/8 hover:text-white active:scale-[0.98] transition-all"
+                      >
+                        {copied ? T[lang].COPIED : (endStep === "report" ? T[lang].COPY_REPORT : T[lang].COPY_SUMMARY)}
+                      </button>
+                      <button
+                        onClick={handleActuallyClearSession}
+                        className="w-full text-xs font-mono text-zinc-500 hover:text-red-400 py-2.5 rounded-xl hover:bg-red-950/20 transition-all"
+                      >
+                        {T[lang].CLOSE_SESSION}
+                      </button>
+                    </div>
+                  </>
+                ) : null}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Compact session bar */}
       <SessionBar sessionContext={sessionContext} contextLabel={contextLabel} onClearSession={handleClearSession} lang={lang} momentum={tacticalState.momentum} />
