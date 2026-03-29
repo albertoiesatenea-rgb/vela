@@ -1,9 +1,10 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { Mic, MicOff, Keyboard, Loader2, AlertCircle, ExternalLink } from "lucide-react";
+import { Mic, MicOff, Keyboard, Loader2, AlertCircle, ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
 import { useAnalyzeConversation } from "@workspace/api-client-react";
 import { useSpeech } from "@/hooks/use-speech";
 import { TacticalDisplay } from "@/components/tactical-display";
 import { ContextSetup, SessionBar } from "@/components/context-panel";
+import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 type InputMode = "listen" | "simulate";
@@ -19,6 +20,7 @@ const SPEAKER_ORDER: SpeakerMode[] = ["auto", "client", "me"];
 interface Detail {
   reading?: string;
   argument?: string;
+  talk_track?: string;
   question?: string;
   risk?: string;
   support?: string;
@@ -53,14 +55,56 @@ function saveHistory(h: string[]) {
   try { localStorage.setItem(HISTORY_KEY, JSON.stringify(h)); } catch { /* ignore */ }
 }
 
+// ── Detail field label → value row
+function DetailField({ label, value, wide }: { label: string; value?: string; wide?: boolean }) {
+  if (!value) return null;
+  return (
+    <div className={cn("flex flex-col gap-1", wide && "col-span-2")}>
+      <span className="text-[9px] font-mono tracking-[0.22em] uppercase text-zinc-500">{label}</span>
+      <p className={cn("text-xs font-mono text-zinc-200 leading-relaxed", label === "GUION" && "italic")}>{value}</p>
+    </div>
+  );
+}
+
+// ── Persistent detail panel
+function DetailPanel({ detail }: { detail: Detail }) {
+  return (
+    <div className="grid grid-cols-2 gap-x-5 gap-y-3 px-5 py-4">
+      <DetailField label="LECTURA" value={detail.reading} />
+      <DetailField label="ARGUMENTO" value={detail.argument} />
+      <DetailField label="GUION" value={detail.talk_track} wide />
+      <DetailField label="PREGUNTA" value={detail.question} wide />
+      <DetailField label="RIESGO" value={detail.risk} />
+      <DetailField label="APOYO" value={detail.support} />
+    </div>
+  );
+}
+
+// ── Persistent memory panel
+function MemoryPanel({ lines }: { lines: string[] }) {
+  return (
+    <ul className="px-5 py-4 space-y-2">
+      {lines.map((line, i) => (
+        <li key={i} className="flex items-start gap-2 text-[11px] font-mono text-zinc-300 leading-snug">
+          <span className="text-zinc-600 shrink-0 mt-0.5">—</span>
+          <span>{line.replace(/^[-–—]\s*/, "")}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export default function CopilotPage() {
   const [inputMode, setInputMode] = useState<InputMode>("simulate");
   const [speakerMode, setSpeakerMode] = useState<SpeakerMode>("auto");
   const [simulateText, setSimulateText] = useState("");
-  // Restore session from localStorage on mount
   const [sessionContext, setSessionContext] = useState<string | null>(loadSession);
   const [tacticalState, setTacticalState] = useState<TacticalState>(EMPTY_STATE);
   const [signalHistory, setSignalHistory] = useState<string[]>(loadHistory);
+
+  // Panel state — persists independently
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [memoryOpen, setMemoryOpen] = useState(false);
 
   const sessionActive = sessionContext !== null;
   const speakerModeRef = useRef(speakerMode);
@@ -114,28 +158,17 @@ export default function CopilotPage() {
   const { isSupported, isListening, error: speechError, interimText, startListening, stopListening } =
     useSpeech({ onAnalyzeReady: handleAnalysis, analysisIntervalMs: 8000 });
 
-  // ── Keyboard shortcuts (only when session active, not in text inputs) ────────
+  // Keyboard shortcuts
   useEffect(() => {
     if (!sessionActive) return;
-
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
       if (tag === "input" || tag === "textarea" || tag === "button") return;
-
       const idx = SPEAKER_ORDER.indexOf(speakerModeRef.current);
-
-      if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        setSpeakerMode(SPEAKER_ORDER[Math.max(0, idx - 1)]);
-      } else if (e.key === "ArrowRight") {
-        e.preventDefault();
-        setSpeakerMode(SPEAKER_ORDER[Math.min(SPEAKER_ORDER.length - 1, idx + 1)]);
-      } else if (e.key === " ") {
-        e.preventDefault();
-        setSpeakerMode(SPEAKER_ORDER[(idx + 1) % SPEAKER_ORDER.length]);
-      }
+      if (e.key === "ArrowLeft") { e.preventDefault(); setSpeakerMode(SPEAKER_ORDER[Math.max(0, idx - 1)]); }
+      else if (e.key === "ArrowRight") { e.preventDefault(); setSpeakerMode(SPEAKER_ORDER[Math.min(SPEAKER_ORDER.length - 1, idx + 1)]); }
+      else if (e.key === " ") { e.preventDefault(); setSpeakerMode(SPEAKER_ORDER[(idx + 1) % SPEAKER_ORDER.length]); }
     };
-
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [sessionActive]);
@@ -146,6 +179,8 @@ export default function CopilotPage() {
     setTacticalState(EMPTY_STATE);
     setSignalHistory([]);
     saveHistory([]);
+    setDetailOpen(false);
+    setMemoryOpen(false);
   };
 
   const handleClearSession = () => {
@@ -154,6 +189,8 @@ export default function CopilotPage() {
     setTacticalState(EMPTY_STATE);
     setSignalHistory([]);
     saveHistory([]);
+    setDetailOpen(false);
+    setMemoryOpen(false);
     if (isListening) stopListening();
     setInputMode("simulate");
     setSpeakerMode("auto");
@@ -175,12 +212,21 @@ export default function CopilotPage() {
     setSimulateText("");
   };
 
-  // ── SETUP SCREEN ────────────────────────────────────────────────────────────
+  // Setup screen
   if (sessionContext === null) {
     return <ContextSetup onContextReady={handleContextReady} />;
   }
 
-  // ── ACTIVE SESSION ───────────────────────────────────────────────────────────
+  // Derived panel data
+  const hasDetail = tacticalState.detail && Object.values(tacticalState.detail).some(Boolean);
+  const memoryLines = tacticalState.callMemory
+    ? tacticalState.callMemory.split(/\\n|\n/).filter(Boolean)
+    : [];
+  const hasMemory = memoryLines.length > 0;
+  const bothOpen = detailOpen && memoryOpen && hasDetail && hasMemory;
+  const panelVisible = (detailOpen && hasDetail) || (memoryOpen && hasMemory);
+
+  // Active session layout
   return (
     <div className="fixed inset-0 bg-black text-foreground flex flex-col overflow-hidden font-sans">
 
@@ -211,7 +257,7 @@ export default function CopilotPage() {
         )}
       </div>
 
-      {/* Call map — top left, only when there's history */}
+      {/* Signal history — top left */}
       {signalHistory.length > 0 && (
         <div className="absolute top-10 left-5 z-10 flex items-center gap-1.5 max-w-[40%]">
           <span className="text-[9px] font-mono tracking-widest uppercase text-zinc-800 shrink-0">señales</span>
@@ -233,18 +279,16 @@ export default function CopilotPage() {
         </div>
       )}
 
-      {/* Main HUD */}
+      {/* ── Main HUD ─────────────────────────────── */}
       <div className="flex-1 min-h-0 relative">
         <TacticalDisplay
           signal={tacticalState.signal}
           sayNow={tacticalState.sayNow}
           avoid={tacticalState.avoid}
-          detail={tacticalState.detail}
-          callMemory={tacticalState.callMemory}
           isPending={isPending}
         />
 
-        {/* Interim text */}
+        {/* Interim speech text */}
         {inputMode === "listen" && isListening && interimText && (
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 max-w-xl w-full px-6 text-center pointer-events-none">
             <p className="text-[11px] text-zinc-200 font-mono truncate">{interimText}</p>
@@ -286,7 +330,75 @@ export default function CopilotPage() {
         )}
       </div>
 
-      {/* Controls — bottom bar */}
+      {/* ── Panel toggle row — only when panels available ─ */}
+      {(hasDetail || hasMemory) && (
+        <div className="shrink-0 border-t border-white/5">
+          <div className="flex items-center justify-center gap-6 py-2">
+            {hasDetail && (
+              <button
+                onClick={() => setDetailOpen(v => !v)}
+                className="flex items-center gap-1.5 text-[10px] font-mono tracking-widest uppercase transition-colors hover:text-white"
+                style={{ color: detailOpen ? "rgb(228 228 231)" : "rgb(113 113 122)" }}
+              >
+                {detailOpen ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
+                Detalle
+              </button>
+            )}
+            {hasMemory && (
+              <button
+                onClick={() => setMemoryOpen(v => !v)}
+                className="flex items-center gap-1.5 text-[10px] font-mono tracking-widest uppercase transition-colors hover:text-white"
+                style={{ color: memoryOpen ? "rgb(228 228 231)" : "rgb(113 113 122)" }}
+              >
+                {memoryOpen ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
+                Memoria
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Persistent panels — real space, not overlay ── */}
+      <AnimatePresence>
+        {panelVisible && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+            className="shrink-0 border-t border-white/8 overflow-hidden"
+          >
+            <div
+              className={cn(
+                "max-h-[42vh] overflow-y-auto",
+                bothOpen && "flex divide-x divide-white/5"
+              )}
+            >
+              {/* Detail panel */}
+              {detailOpen && hasDetail && (
+                <div className={cn(bothOpen ? "w-1/2" : "w-full")}>
+                  {bothOpen && (
+                    <p className="px-5 pt-3 pb-1 text-[9px] font-mono tracking-[0.22em] uppercase text-zinc-600">Detalle</p>
+                  )}
+                  <DetailPanel detail={tacticalState.detail!} />
+                </div>
+              )}
+
+              {/* Memory panel */}
+              {memoryOpen && hasMemory && (
+                <div className={cn(bothOpen ? "w-1/2" : "w-full")}>
+                  {bothOpen && (
+                    <p className="px-5 pt-3 pb-1 text-[9px] font-mono tracking-[0.22em] uppercase text-zinc-600">Memoria</p>
+                  )}
+                  <MemoryPanel lines={memoryLines} />
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Controls — bottom bar ─────────────────── */}
       <div className="shrink-0 border-t border-white/5 bg-black px-6 py-4 flex flex-col items-center gap-3">
 
         {/* Simulate textarea */}

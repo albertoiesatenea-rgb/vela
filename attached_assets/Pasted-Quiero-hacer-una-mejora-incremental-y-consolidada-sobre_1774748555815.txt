@@ -1,0 +1,517 @@
+Quiero hacer una mejora incremental y consolidada sobre la app actual “Silent Closer”.
+
+IMPORTANTE:
+- NO quiero una nueva app
+- NO quiero rehacer la interfaz desde cero
+- NO quiero romper la base visual actual
+- NO quiero una arquitectura más pesada
+- NO quiero perder el minimalismo
+- NO quiero convertir esto en un CRM ni en un dashboard corporativo
+
+La base actual de la app me gusta:
+- SIGNAL
+- SAY NOW
+- AVOID
+- el bloque de detalle opcional
+- la memoria / resumen de llamada
+- el look oscuro y limpio
+- la sensación de copiloto táctico de segunda pantalla
+
+Quiero conservar todo eso.
+
+==================================================
+OBJETIVO GENERAL
+==================================================
+
+Quiero que la app sea mucho mejor entendiendo conversaciones de venta, objeciones y persuasión en tiempo real.
+
+La idea base del producto es esta:
+
+- Persona A usa la herramienta
+- Persona B es la otra parte de la conversación
+- Persona A tiene un objetivo
+- Persona B puede tener objeciones, dudas, resistencia, miedo, comparación con otras opciones o falta de claridad
+- la herramienta ayuda a Persona A a entender qué está pasando y cuál es la siguiente mejor jugada
+
+Aunque yo la use mucho para ventas inmobiliarias, quiero que la lógica sea general para conversaciones de persuasión y venta.
+Luego, si el contexto es inmobiliario, perfecto.
+Pero el cerebro debe ser lo bastante general para funcionar en otros contextos donde una persona quiera persuadir, avanzar o cerrar algo con otra.
+
+==================================================
+IDEA CENTRAL DEL MOTOR
+==================================================
+
+El motor debe comportarse como un copiloto táctico de conversación y venta.
+
+No es:
+- un chatbot
+- un coach motivacional
+- un resumidor genérico
+- un psicólogo
+- un analista bonito
+- una herramienta de post-llamada
+
+Sí es:
+- un radar táctico
+- un detector de objeciones
+- un lector de momento de venta
+- un asistente de siguiente mejor jugada
+- un apoyo real para persuadir, resolver y cerrar
+
+==================================================
+EL CONTEXTO INICIAL DEBE BASTAR
+==================================================
+
+La app ya recibe o debe recibir contexto de sesión como:
+- quién soy yo
+- a quién me dirijo
+- qué quiero conseguir
+- información relevante
+- posibles objeciones o situación
+- tipo de conversación si aplica
+
+Quiero que el motor use eso como base suficiente para orientarse.
+
+No quiero obligar al usuario a rellenar mil cosas.
+No quiero formularios largos.
+No quiero complejidad extra.
+
+La lógica debe asumir que, si el usuario ya ha dicho:
+- quién es
+- con quién habla
+- qué quiere conseguir
+eso ya debería bastar para empezar a interpretar la conversación correctamente.
+
+El resto debe venir del desarrollo de la conversación, la memoria y los bloques recientes.
+
+==================================================
+PARTE 1 — EL MOTOR DEBE ENTENDER FASES DE VENTA
+==================================================
+
+Quiero que el motor tenga una lectura más clara de en qué fase está la conversación.
+
+Debe ser capaz de distinguir cosas como:
+- apertura / introducción
+- descubrimiento / diagnóstico
+- presentación de producto o propuesta
+- validación de interés
+- objeción
+- resolución de objeción
+- comparación con alternativas
+- cierre o intento de cierre
+- seguimiento
+- bloqueo o resistencia
+- momento de pregunta cerrada
+- momento de bajar presión
+- momento de concretar
+- momento de no empujar aún
+
+Quiero que el motor piense en términos de proceso de venta real.
+
+Ejemplos:
+- si todavía estoy explicando la propuesta, no debe actuar como si ya estuviéramos en cierre
+- si la otra parte está en objeción, no debe sugerir cerrar antes de resolverla
+- si he hecho una pregunta y la otra persona no está preparada para responder, debe entenderlo como falta de preparación o falta de claridad, no como rechazo definitivo
+- si la conversación ya está madura, debe detectar oportunidad de avanzar o de hacer una pregunta cerrada
+
+==================================================
+PARTE 2 — EL MOTOR DEBE ENTENDER OBJECIONES DE VERDAD
+==================================================
+
+Quiero que el motor sea mucho más fino entendiendo objeciones.
+
+Debe distinguir entre:
+- objeción real
+- objeción superficial
+- objeción falsa
+- duda genuina
+- falta de información
+- miedo a equivocarse
+- miedo a comprometerse
+- desconfianza
+- resistencia emocional
+- comparación con otra opción
+- interés real con resistencia de cierre
+- objeción de precio
+- objeción de ciudad / ubicación / reputación
+- objeción de liquidez / reventa / demanda
+- objeción de timing
+
+No quiero respuestas genéricas tipo:
+- explora más
+- valida emociones
+- profundiza en la situación
+- no ignores sus sentimientos
+
+Quiero respuestas como:
+- pregunta qué parte exacta le frena
+- aterriza la duda a demanda, salida o riesgo
+- separa percepción de lógica de inversión
+- valida la duda y concreta el criterio
+- todavía no cierres
+- pide un criterio concreto
+- devuelve la objeción en pregunta
+- usa pregunta cerrada si ya hay claridad
+- no respondas con datos todavía
+- no abras otro frente
+
+==================================================
+PARTE 3 — REGLA GENERAL SOBRE COMPARACIONES Y ALTERNATIVAS
+==================================================
+
+Cuando la otra parte mencione una alternativa, referencia o comparación
+(por ejemplo otra ciudad, otro producto, otra inversión, otro proveedor, otra opción, otra estrategia o cualquier alternativa externa),
+el motor NO debe asumir automáticamente que la mejor jugada es comparar directamente ambas opciones.
+
+Primero debe preguntarse:
+- ¿la alternativa es realmente el tema central?
+- ¿o solo está revelando el criterio de decisión que la otra parte usa para evaluar la opción actual?
+
+En muchos casos, la alternativa no debe convertirse en el nuevo foco de la conversación.
+Debe usarse como pista para descubrir qué atributo valora la otra parte:
+- seguridad
+- demanda
+- liquidez
+- reputación
+- simplicidad
+- precio
+- confianza
+- familiaridad
+- menor riesgo percibido
+- facilidad de salida
+- o cualquier otro criterio decisivo
+
+Por tanto, si aparece una alternativa, el motor debe priorizar:
+1. identificar el criterio subyacente detrás de esa comparación
+2. decidir si conviene mantener el foco en la opción actual
+3. evitar abrir comparaciones grandes o debates innecesarios salvo que de verdad sea la mejor jugada táctica
+
+Regla:
+La alternativa debe leerse primero como una pista sobre el criterio de decisión, no automáticamente como el nuevo centro de la conversación.
+
+==================================================
+PARTE 4 — CAMPOS PRINCIPALES: SIGNAL / SAY NOW / AVOID
+==================================================
+
+Quiero mantener estos tres campos como centro del producto, pero con mucho mejor criterio.
+
+----------------------------------
+SIGNAL
+----------------------------------
+
+SIGNAL debe responder:
+“¿Qué está pasando realmente ahora?”
+
+Debe ser:
+- corto
+- específico
+- táctico
+- 2 a 5 palabras idealmente
+- estable
+- no genérico
+- no emocional en abstracto
+
+Ejemplos buenos:
+- objeción de precio
+- objeción reputacional
+- rechazo a la ubicación
+- miedo a equivocarse
+- compara, no compra
+- interés real
+- desconfianza
+- objeción falsa
+- pide seguridad
+- falta claridad
+- momento de cerrar
+- cierre prematuro
+- pregunta no resuelta
+
+----------------------------------
+SAY NOW
+----------------------------------
+
+SAY NOW debe responder:
+“¿Qué debería hacer o decir ahora mismo?”
+
+Debe ser:
+- una sola acción principal
+- en imperativo o instrucción clara
+- 4 a 12 palabras idealmente
+- útil en llamada real
+- específica
+- no vaga
+- no teórica
+- no decorativa
+
+Ejemplos buenos:
+- pregunta qué parte exacta le frena
+- aterriza la duda a demanda o salida
+- valida y concreta el miedo real
+- devuelve la objeción en pregunta
+- pide el criterio exacto
+- baja presión y escucha
+- usa una pregunta cerrada
+- no cierres todavía
+- confirma si el problema es precio o riesgo
+
+----------------------------------
+AVOID
+----------------------------------
+
+AVOID debe responder:
+“¿Qué error no conviene cometer ahora?”
+
+Debe ser:
+- corto
+- 2 a 7 palabras idealmente
+- concreto
+- táctico
+- no genérico
+
+Ejemplos buenos:
+- no cierres aún
+- no argumentes en largo
+- no respondas con datos ya
+- no cambies de frente
+- no te pongas reactivo
+- no debatas la alternativa
+- no asumas la objeción
+
+----------------------------------
+REGLA DE ORO DEL MOTOR
+----------------------------------
+
+Si una recomendación podría servir igual para 50 objeciones distintas, entonces es demasiado genérica.
+
+==================================================
+PARTE 5 — EL MOTOR DEBE DETECTAR CUÁNDO TOCA PREGUNTA CERRADA
+==================================================
+
+Quiero que el motor entienda cuándo conviene usar una pregunta cerrada.
+
+No quiero que sugiera pregunta cerrada demasiado pronto.
+Solo cuando:
+- la objeción principal ya está suficientemente clara
+- hay interés real
+- no quedan demasiados frentes abiertos
+- la conversación ha madurado
+- el siguiente paso natural es avanzar o comprometer
+
+Ejemplos de momento apto para pregunta cerrada:
+- ya hemos resuelto la duda principal
+- el cliente sigue interesado pero no da el paso
+- la conversación necesita un microcompromiso
+- el siguiente paso debe definirse
+
+Si todavía hay falta de claridad, objeción difusa o resistencia fuerte, entonces NO toca cerrar.
+Toca seguir diagnosticando o concretando.
+
+==================================================
+PARTE 6 — DETALLE OPCIONAL DEBE DAR MUNCIÓN REAL
+==================================================
+
+Quiero mantener una capa opcional de detalle, pero que ayude de verdad.
+
+IMPORTANTE:
+- debe seguir colapsada por defecto
+- no debe robar protagonismo a SAY NOW
+- no debe parecer un dashboard
+- no debe recargar la pantalla
+- debe ser una capa de apoyo real, no decorativa
+
+Quiero que el detalle muestre:
+
+1. READING
+Qué está leyendo realmente el motor.
+
+2. ARGUMENT
+Línea táctica de reenfoque comercial.
+
+3. TALK_TRACK
+Mini guion usable de verdad.
+
+4. QUESTION
+Pregunta potente para profundizar o recuperar control.
+
+5. RISK
+Error táctico real a evitar.
+
+6. SUPPORT
+Palanca útil o tipo de dato/argumento que conviene usar.
+
+IMPORTANTE:
+No inventes fuentes, datos ni referencias.
+SUPPORT no debe alucinar.
+Solo puede:
+- sugerir el tipo de dato útil
+- o recordar la palanca correcta
+
+No quiero detalles tipo coach.
+Quiero munición comercial real.
+
+==================================================
+PARTE 7 — MEMORIA ACUMULADA DE LA LLAMADA
+==================================================
+
+Quiero una memoria viva resumida de la llamada.
+
+No quiero:
+- transcript
+- log infinito
+- línea corrida inusable
+- cronología eterna
+
+Sí quiero:
+- memoria comprimida
+- resumen útil
+- lo importante que ha pasado hasta ahora
+- y el hilo táctico de la llamada
+
+Debe responder a:
+“¿Qué ha pasado hasta ahora y en qué punto útil estamos?”
+
+Formato deseado:
+bullets cortos o líneas separadas, por ejemplo:
+- Introducción completada
+- Propuesta presentada
+- Interés inicial confirmado
+- Objeción dominante: reputación de Dresden
+- Momento actual: explorando freno real
+- Objetivo: bajar la duda a criterios de inversión
+
+Reglas:
+- 4 a 6 líneas
+- reescrita continuamente
+- no infinita
+- no transcript
+- no log técnico
+- muy legible
+- debe ayudarme a comprobar si el sistema está entendiendo bien el hilo
+
+==================================================
+PARTE 8 — DETALLE Y MEMORIA DEBEN PODER QUEDARSE ABIERTOS
+==================================================
+
+Quiero poder dejar abierto:
+- VER DETALLE
+- MEMORIA
+
+y seguir usando la app con normalidad.
+
+No quiero que al abrirlos:
+- me tapen la pantalla principal
+- me bloqueen el input
+- me obliguen a cerrar para seguir trabajando
+- me oculten los controles
+- me rompan el flujo
+
+Quiero que puedan quedarse abiertos mientras sigo:
+- leyendo SIGNAL / SAY NOW / AVOID
+- pegando fragmentos nuevos
+- analizando
+- usando el modo simulación / escucha
+- cambiando AUTO / CLIENTE / YO
+
+Puedo tener:
+- detalle abierto
+- memoria abierta
+- o ambos abiertos
+si visualmente queda limpio y usable.
+
+No quiero modales ni overlays torpes.
+Quiero paneles persistentes, compactos y usables.
+
+==================================================
+PARTE 9 — LEGIBILIDAD Y ESTRUCTURA VISUAL
+==================================================
+
+Quiero mejorar la legibilidad de DETALLE y MEMORIA.
+
+DETALLE debe tener mejor separación entre:
+- LECTURA
+- ARGUMENTO
+- GUION / TALK_TRACK
+- PREGUNTA
+- RIESGO
+- APOYO
+
+Debe escanearse en 1–2 segundos.
+No quiero texto apelotonado ni bloques corridos.
+
+MEMORIA debe verse como bullets o líneas separadas, no como una frase-log.
+
+Todo esto sin romper la base visual actual.
+
+==================================================
+PARTE 10 — SALIDA DEL MOTOR
+==================================================
+
+Quiero que el motor use esta estructura:
+
+{
+  "signal": "texto corto",
+  "say_now": "frase táctica corta",
+  "avoid": "advertencia corta",
+  "detail": {
+    "reading": "lectura breve",
+    "argument": "línea de enfoque",
+    "talk_track": "mini guion útil",
+    "question": "pregunta sugerida",
+    "risk": "riesgo táctico",
+    "support": "apoyo opcional"
+  },
+  "call_memory": {
+    "summary_lines": [
+      "línea breve 1",
+      "línea breve 2",
+      "línea breve 3",
+      "línea breve 4",
+      "línea breve 5",
+      "línea breve 6"
+    ]
+  }
+}
+
+Reglas:
+- siempre JSON válido
+- sin texto extra
+- sin markdown
+- sin campos adicionales
+- detail breve
+- call_memory breve
+- call_memory reescrito, no infinito
+
+==================================================
+PARTE 11 — FALLBACK
+==================================================
+
+Si falta claridad:
+- SIGNAL: falta claridad
+- SAY NOW: haz una pregunta aclaratoria
+- AVOID: no asumas la objeción
+
+==================================================
+PARTE 12 — LO QUE QUIERO QUE HAGAS
+==================================================
+
+Quiero que mejores la implementación actual para que:
+1. el motor entienda mejor fases de venta
+2. detecte mejor objeciones reales
+3. use bien el contexto inicial sin pedir demasiado
+4. trate comparaciones y alternativas con más criterio
+5. sepa cuándo toca pregunta cerrada
+6. dé detalle útil de verdad
+7. mantenga memoria resumida de la llamada
+8. permita dejar DETALLE y MEMORIA abiertos mientras sigo trabajando
+9. mejore legibilidad sin romper la UI actual
+
+NO rehagas la app.
+NO rompas la base visual.
+NO añadas complejidad innecesaria.
+
+Cuando termines, explícame brevemente:
+- qué cambiaste en el motor
+- cómo mejoraste la lectura de objeciones y fases de venta
+- cómo tratas ahora comparaciones y alternativas
+- cómo funciona la memoria resumida
+- y cómo hiciste que detalle y memoria puedan quedarse abiertos sin bloquear la app
