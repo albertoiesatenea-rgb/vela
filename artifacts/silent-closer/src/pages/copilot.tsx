@@ -64,9 +64,9 @@ function saveLabel(l: string) {
 
 // ── Color config per detail field — colorblind-safe (blue / white / amber)
 const FIELD_CONFIG = {
-  LECTURA:   { label: "text-sky-400",   content: "text-sky-200",   size: "text-[15px]", prefix: "LECTURA ·"            },
-  SIGUIENTE: { label: "text-white",     content: "text-white",     size: "text-[18px]", prefix: "MOVIMIENTO ·"            },
-  APOYO:     { label: "text-amber-400", content: "text-amber-200", size: "text-[15px]", prefix: "APOYO ·"               },
+  LECTURA:   { label: "text-sky-400",   content: "text-sky-200",   size: "text-[16px]", prefix: "LECTURA ·"   },
+  SIGUIENTE: { label: "text-white",     content: "text-white",     size: "text-[21px]", prefix: "MOVIMIENTO ·" },
+  APOYO:     { label: "text-amber-400", content: "text-amber-200", size: "text-[16px]", prefix: "APOYO ·"      },
 } as const;
 
 type FieldKey = keyof typeof FIELD_CONFIG;
@@ -86,13 +86,21 @@ function DetailField({ fieldKey, value }: { fieldKey: FieldKey; value?: string }
   );
 }
 
-// ── Detail panel — inline labels, full width, big text
-function DetailPanel({ detail }: { detail: Detail }) {
+// ── Detail panel — inline labels, full width, big text; EVITA at the bottom
+function DetailPanel({ detail, avoid }: { detail: Detail; avoid?: string }) {
   return (
-    <div className="px-6 py-6 flex flex-col gap-6 w-full">
+    <div className="px-6 py-6 flex flex-col gap-7 w-full">
       {detail.reading   && <DetailField fieldKey="LECTURA"   value={detail.reading} />}
       {detail.next_move && <DetailField fieldKey="SIGUIENTE" value={detail.next_move} />}
       {detail.support   && <DetailField fieldKey="APOYO"     value={detail.support} />}
+      {avoid && (
+        <p className="font-mono w-full text-center text-[17px] font-semibold uppercase tracking-wide text-red-500">
+          <span className="text-[9px] tracking-[0.2em] uppercase align-middle mr-2 font-normal text-red-700">
+            EVITA ·
+          </span>
+          {avoid}
+        </p>
+      )}
     </div>
   );
 }
@@ -143,20 +151,20 @@ function ConversationTimeline({ journey, memoryLines }: { journey: Journey; memo
           </div>
         )}
 
-        {/* STATE 1 — 3 nodes, full horizontal width */}
+        {/* STATE 1 — 3 nodes, constrained max-width so nodes stay readable and close */}
         {view === 1 && (
-          <div className="flex items-start pt-6 pb-3 px-6 gap-0">
+          <div className="flex items-start pt-6 pb-3 px-4 max-w-xl mx-auto w-full gap-0">
             {/* ANTES — flex-1 */}
             <div className="flex-1 flex flex-col items-center gap-2 min-w-0">
-              <div className="w-2 h-2 rounded-full bg-zinc-600 group-hover:bg-zinc-500 transition-colors mt-0.5" />
-              <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider text-center leading-tight">
+              <div className="w-2 h-2 rounded-full bg-zinc-500 group-hover:bg-zinc-400 transition-colors mt-0.5" />
+              <span className="text-[11px] font-mono text-zinc-200 uppercase tracking-wider text-center leading-tight">
                 {journey.past}
               </span>
             </div>
             {/* Left connector */}
             <div className="h-px w-6 bg-zinc-600 mt-[5px] shrink-0" />
-            {/* AHORA — slightly wider flex share */}
-            <div className="flex-[1.4] flex flex-col items-center gap-2 min-w-0 px-1">
+            {/* AHORA — slightly wider */}
+            <div className="flex-[1.3] flex flex-col items-center gap-2 min-w-0 px-1">
               <div className="w-3 h-3 rounded-full bg-white group-hover:bg-zinc-100 transition-colors" />
               <span className="text-[13px] font-mono text-white uppercase tracking-wide text-center leading-tight font-semibold">
                 {journey.now}
@@ -164,10 +172,10 @@ function ConversationTimeline({ journey, memoryLines }: { journey: Journey; memo
             </div>
             {/* Right connector */}
             <div className="h-px w-6 bg-zinc-600 mt-[5px] shrink-0" />
-            {/* DESPUÉS — flex-1, same as ANTES but readable */}
+            {/* DESPUÉS — flex-1, legible white tone */}
             <div className="flex-1 flex flex-col items-center gap-2 min-w-0">
               <div className="w-2 h-2 rounded-full border border-zinc-400 bg-transparent mt-0.5" />
-              <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider text-center leading-tight">
+              <span className="text-[11px] font-mono text-zinc-200 uppercase tracking-wider text-center leading-tight">
                 {journey.next}
               </span>
             </div>
@@ -381,7 +389,7 @@ export default function CopilotPage() {
         <TacticalDisplay
           sayNow={tacticalState.sayNow}
           reading={tacticalState.detail?.reading}
-          avoid={tacticalState.avoid}
+          detailOpen={detailOpen}
           isPending={isPending}
           isListening={isListening}
         />
@@ -459,15 +467,15 @@ export default function CopilotPage() {
             onClick={handleToggleDetail}
             className="overflow-hidden border-t border-white/5 cursor-pointer select-none"
             style={{
-              maxHeight: detailOpen ? "260px" : "0px",
+              maxHeight: detailOpen ? "380px" : "0px",
               transition: "max-height 0.22s ease",
             }}
           >
             <div className="flex items-center justify-center py-1.5 text-zinc-700">
               <ChevronDown className="w-3.5 h-3.5" />
             </div>
-            <div className="overflow-y-auto border-t border-white/5" style={{ maxHeight: "240px" }}>
-              <DetailPanel detail={tacticalState.detail!} />
+            <div className="overflow-y-auto border-t border-white/5" style={{ maxHeight: "340px" }}>
+              <DetailPanel detail={tacticalState.detail!} avoid={tacticalState.avoid} />
             </div>
           </div>
 
