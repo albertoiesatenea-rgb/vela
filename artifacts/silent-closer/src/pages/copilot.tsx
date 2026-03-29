@@ -416,41 +416,18 @@ export default function CopilotPage() {
         </div>{/* end flex-1 relative (tactical display) */}
       </div>{/* end HUD flex-col */}
 
-      {/* ── Panel zone — detalle only ── */}
-      {hasDetail && (
-        <div className="shrink-0 border-t border-white/5">
-
-          {/* Single toggle button */}
-          <div className="flex items-center justify-center">
-            <button
-              onClick={handleToggleDetail}
-              className={cn(
-                "flex items-center gap-2 px-5 py-3 text-[11px] font-mono tracking-widest uppercase transition-colors",
-                detailVisible
-                  ? "text-zinc-100"
-                  : "text-zinc-400 hover:text-zinc-200"
-              )}
-            >
-              {detailVisible ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              Detalle
-            </button>
-          </div>
-
-          {/* Detalle — independently animated, scrollable internally */}
-          <div
-            className="overflow-hidden"
-            style={{
-              maxHeight: detailVisible ? "260px" : "0px",
-              transition: "max-height 0.22s ease",
-            }}
-          >
-            <div className="border-t border-white/5 overflow-y-auto" style={{ maxHeight: "260px" }}>
-              {hasDetail && <DetailPanel detail={tacticalState.detail!} />}
-            </div>
-          </div>
-
+      {/* ── Detail panel — slides above controls, no toggle here ── */}
+      <div
+        className="shrink-0 overflow-hidden"
+        style={{
+          maxHeight: detailVisible ? "260px" : "0px",
+          transition: "max-height 0.25s ease",
+        }}
+      >
+        <div className="border-t border-white/5 overflow-y-auto" style={{ maxHeight: "260px" }}>
+          {hasDetail && <DetailPanel detail={tacticalState.detail!} />}
         </div>
-      )}
+      </div>
 
       {/* ── Controls — bottom bar ─────────────────── */}
       <div className="shrink-0 border-t border-white/5 bg-black px-6 py-4 flex flex-col items-center gap-3">
@@ -499,8 +476,8 @@ export default function CopilotPage() {
           </button>
         )}
 
-        {/* Bottom row: mode toggle + speaker mode */}
-        <div className="flex items-center justify-center gap-3 w-full">
+        {/* Bottom row: mode toggle + speaker mode + detail chevron */}
+        <div className="flex items-center justify-center gap-3 w-full relative">
 
           {/* Input mode toggle */}
           <div className="flex items-center bg-white/5 p-1 rounded-full border border-white/8">
@@ -541,6 +518,19 @@ export default function CopilotPage() {
               </button>
             ))}
           </div>
+
+          {/* Detail toggle — always accessible, far right */}
+          {hasDetail && (
+            <button
+              onClick={handleToggleDetail}
+              className={cn(
+                "absolute right-0 flex items-center justify-center w-10 h-10 rounded-full transition-colors",
+                detailVisible ? "text-zinc-100 bg-white/8" : "text-zinc-500 hover:text-zinc-200"
+              )}
+            >
+              {detailVisible ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+            </button>
+          )}
         </div>
 
         {/* Keyboard hint */}

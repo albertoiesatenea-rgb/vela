@@ -134,11 +134,11 @@ DETAIL — Objeto con exactamente 3 campos. Frases cortas, sin párrafos, sin co
   - support: línea breve de refuerzo táctico. Puede ser criterio de reencuadre, tipo de dato útil, enfoque correcto o recordatorio comercial clave. JERARQUÍA: (1) si el CONTEXTO DE SESIÓN tiene datos reales (cifras, precios, rentabilidades), úsalos exactamente. (2) si no, sugiere qué dato conviene usar. NUNCA inventes cifras ni fuentes. (1 línea)
     Ejemplo: "Si tienes datos de alquiler o reventa, úsalos después de concretar la duda." / "Lleva la conversación a demanda, liquidez y salida futura."
 
-JOURNEY — Objeto con 3 nodos que marcan el recorrido táctico de la conversación. Labels cortos, sin artículos innecesarios.
-  - past: qué ha ocurrido ya (2-4 palabras, ej: "Presentación hecha", "Apertura completada", "Interés confirmado")
-  - now: en qué momento estamos ahora (2-4 palabras, ej: "Objeción de precio", "Duda de liquidez", "Comparando opciones")
-  - next: a dónde llevar la conversación después (2-4 palabras, ej: "Aterrizaje de criterio", "Cierre condicional", "Concretar duda")
-  REGLA: si es el primer turno y no hay historial, past="—" o una sola palabra. Siempre rellenar los 3 campos.
+JOURNEY — Arco táctico de la conversación. NO es el estado ni la señal — es lo que HACEMOS, no lo que pasa. Labels cortos, frase verbal o nominal de acción.
+  - past: última acción táctica completada (2-4 palabras, ej: "Propuesta presentada", "Objeción diagnosticada", "Interés confirmado")
+  - now: jugada táctica actual que estamos ejecutando ahora (2-4 palabras, ej: "Concretando criterio real", "Bajando a liquidez", "Aterrizando la duda") — DISTINTO de signal, que describe qué está pasando. Journey.now describe qué estamos haciendo tácticamente.
+  - next: objetivo táctico siguiente (2-4 palabras, ej: "Cierre condicional", "Reencuadre de valor", "Validar interés real")
+  REGLA: si es el primer turno y no hay historial, past="—". Siempre rellenar los 3 campos. NUNCA repitas el valor de signal en journey.now.
 
 CALL_MEMORY — Memoria acumulada de la llamada. Reescrita inteligentemente cada turno.
   - 4 a 6 líneas con guión: "- elemento"
