@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { ChevronDown, ChevronUp, Zap, SlidersHorizontal, User, Users, Target, Briefcase, ShieldOff, FileText, Swords, Navigation, Headphones } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ArenaRole } from "@/pages/arena";
@@ -233,6 +233,13 @@ export function ContextSetup({
   const [appMode, setAppMode] = useState<AppMode>("copilot");
   const [arenaRole, setArenaRole] = useState<ArenaRole>("seller");
   const [quickText, setQuickText] = useState("");
+  const quickRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-focus the textarea on mount so the user can type immediately
+  useEffect(() => {
+    const id = setTimeout(() => quickRef.current?.focus(), 80);
+    return () => clearTimeout(id);
+  }, []);
 
   const handleSetAppMode = (m: AppMode) => {
     setAppMode(m);
@@ -378,6 +385,7 @@ export function ContextSetup({
         {/* ── Context input ─────────────────────────────────────────────── */}
         {contextMode === "quick" && (
           <textarea
+            ref={quickRef}
             value={quickText}
             onChange={(e) => setQuickText(e.target.value)}
             onKeyDown={(e) => {
@@ -392,7 +400,6 @@ export function ContextSetup({
                 : t.PLACEHOLDER
             }
             rows={3}
-            autoFocus
             className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors font-mono resize-none leading-relaxed"
           />
         )}
