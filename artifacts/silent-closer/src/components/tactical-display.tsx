@@ -10,6 +10,7 @@ interface TacticalDisplayProps {
   onCloseDetail?: () => void;
   isPending?: boolean;
   isListening?: boolean;
+  lang?: "es" | "en";
 }
 
 const fade = {
@@ -19,7 +20,7 @@ const fade = {
 };
 
 export function TacticalDisplay({
-  sayNow, reading, avoid, detailOpen, onCloseDetail, isPending, isListening,
+  sayNow, reading, avoid, detailOpen, onCloseDetail, isPending, isListening, lang = "es",
 }: TacticalDisplayProps) {
   const [readingOpen, setReadingOpen] = useState(false);
 
@@ -60,7 +61,7 @@ export function TacticalDisplay({
               canAct && "cursor-pointer active:opacity-70 transition-opacity",
             )}
           >
-            {sayNow || (isListening ? "Escuchando" : "—")}
+            {sayNow || (isListening ? (lang === "en" ? "Listening" : "Escuchando") : "—")}
           </motion.p>
         </AnimatePresence>
 

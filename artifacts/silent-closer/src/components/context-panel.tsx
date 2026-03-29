@@ -2,34 +2,101 @@ import { useState } from "react";
 import { ChevronDown, ChevronUp, Zap, AlignLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+type Lang = "es" | "en";
 type ContextMode = "quick" | "guided";
 
 type ConversationType =
   | "general"
   | "personal"
-  | "negociacion"
-  | "venta"
-  | "videollamada"
-  | "inmobiliaria"
-  | "objeciones";
+  | "negotiation"
+  | "sale"
+  | "videocall"
+  | "realestate"
+  | "objections";
 
-const CONVERSATION_TYPES: { value: ConversationType; label: string }[] = [
-  { value: "general", label: "General" },
-  { value: "personal", label: "Personal" },
-  { value: "negociacion", label: "Negociación" },
-  { value: "venta", label: "Venta" },
-  { value: "videollamada", label: "Videollamada" },
-  { value: "inmobiliaria", label: "Inmobiliaria" },
-  { value: "objeciones", label: "Objeciones" },
-];
+const CONVERSATION_TYPES_MAP: Record<Lang, { value: ConversationType; label: string }[]> = {
+  es: [
+    { value: "general",     label: "General" },
+    { value: "personal",    label: "Personal" },
+    { value: "negotiation", label: "Negociación" },
+    { value: "sale",        label: "Venta" },
+    { value: "videocall",   label: "Videollamada" },
+    { value: "realestate",  label: "Inmobiliaria" },
+    { value: "objections",  label: "Objeciones" },
+  ],
+  en: [
+    { value: "general",     label: "General" },
+    { value: "personal",    label: "Personal" },
+    { value: "negotiation", label: "Negotiation" },
+    { value: "sale",        label: "Sale" },
+    { value: "videocall",   label: "Video call" },
+    { value: "realestate",  label: "Real estate" },
+    { value: "objections",  label: "Objections" },
+  ],
+};
+
+const CP = {
+  es: {
+    DEFINE:      "Define el contexto",
+    QUICK:       "Rápido",
+    GUIDED:      "Guiado",
+    START:       "Iniciar copiloto →",
+    SKIP:        "Continuar sin contexto",
+    PLACEHOLDER: "Ej: quiero vender un piso en Dresden a un inversor muy analítico que duda de la ciudad",
+    SESSION:     "Sesión",
+    END:         "Finalizar",
+    SUBTITLE:    "Inteligencia táctica conversacional",
+    FIELD_WHO:   "Con quién hablo",
+    FIELD_GOAL:  "Qué quiero conseguir",
+    FIELD_FEAR:  "Qué me preocupa",
+    PH_WHO:      "cliente, jefe, inversor…",
+    PH_GOAL:     "cerrar, convencer, acordar…",
+    PH_FEAR:     "que diga que es caro…",
+    FIELD_PROP:  "Inmueble",
+    FIELD_PRICE: "Precio",
+    FIELD_OBJ:   "Objetivo",
+    FIELD_OBJS:  "Objeciones esperadas",
+    PH_PROP:     "3 hab, 85m², Atocha…",
+    PH_PRICE:    "420.000€",
+    PH_OBJ:      "cerrar reserva, 2ª visita…",
+    PH_OBJS:     "precio, comparar, miedo…",
+  },
+  en: {
+    DEFINE:      "Set the context",
+    QUICK:       "Quick",
+    GUIDED:      "Guided",
+    START:       "Start copilot →",
+    SKIP:        "Continue without context",
+    PLACEHOLDER: "E.g: I want to sell an apartment in Berlin to a very analytical investor who doubts the city",
+    SESSION:     "Session",
+    END:         "End",
+    SUBTITLE:    "Conversational tactical intelligence",
+    FIELD_WHO:   "Who I'm talking to",
+    FIELD_GOAL:  "What I want to achieve",
+    FIELD_FEAR:  "What I'm worried about",
+    PH_WHO:      "client, boss, investor…",
+    PH_GOAL:     "close, convince, agree…",
+    PH_FEAR:     "they say it's too expensive…",
+    FIELD_PROP:  "Property",
+    FIELD_PRICE: "Price",
+    FIELD_OBJ:   "Objective",
+    FIELD_OBJS:  "Expected objections",
+    PH_PROP:     "3 bed, 85m², city center…",
+    PH_PRICE:    "$420,000",
+    PH_OBJ:      "close reservation, 2nd visit…",
+    PH_OBJS:     "price, comparing, fear…",
+  },
+};
 
 function buildContextFromGuided(
   type: ConversationType,
-  fields: Record<string, string>
+  fields: Record<string, string>,
+  lang: Lang,
 ): string {
-  const typeName =
-    CONVERSATION_TYPES.find((t) => t.value === type)?.label ?? type;
-  const parts: string[] = [`Tipo: ${typeName}`];
+  const types = CONVERSATION_TYPES_MAP[lang];
+  const typeName = types.find((t) => t.value === type)?.label ?? type;
+  const label = lang === "en" ? "Type" : "Tipo";
+  const parts: string[] = [`${label}: ${typeName}`];
   for (const [key, value] of Object.entries(fields)) {
     if (value.trim()) parts.push(`${key}: ${value.trim()}`);
   }
@@ -37,15 +104,9 @@ function buildContextFromGuided(
 }
 
 function Field({
-  label,
-  value,
-  onChange,
-  placeholder,
+  label, value, onChange, placeholder,
 }: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
+  label: string; value: string; onChange: (v: string) => void; placeholder?: string;
 }) {
   return (
     <div className="space-y-1">
@@ -63,50 +124,48 @@ function Field({
   );
 }
 
-function GuidedForm({ onSubmit }: { onSubmit: (context: string) => void }) {
+function GuidedForm({ onSubmit, lang }: { onSubmit: (context: string) => void; lang: Lang }) {
+  const t = CP[lang];
+  const types = CONVERSATION_TYPES_MAP[lang];
   const [type, setType] = useState<ConversationType>("general");
   const [fields, setFields] = useState<Record<string, string>>({});
-  const set = (key: string, value: string) =>
-    setFields((prev) => ({ ...prev, [key]: value }));
+  const set = (key: string, value: string) => setFields((prev) => ({ ...prev, [key]: value }));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(buildContextFromGuided(type, fields));
+    onSubmit(buildContextFromGuided(type, fields, lang));
   };
 
   const fieldDefs =
-    type === "inmobiliaria"
+    type === "realestate"
       ? [
-          { label: "Inmueble", key: "Inmueble", ph: "3 hab, 85m², Atocha…" },
-          { label: "Precio", key: "Precio", ph: "420.000€" },
-          { label: "Objetivo", key: "Objetivo", ph: "cerrar reserva, 2ª visita…" },
-          { label: "Objeciones esperadas", key: "Objeciones", ph: "precio, comparar, miedo…" },
+          { label: t.FIELD_PROP,  key: t.FIELD_PROP,  ph: t.PH_PROP },
+          { label: t.FIELD_PRICE, key: t.FIELD_PRICE,  ph: t.PH_PRICE },
+          { label: t.FIELD_OBJ,   key: t.FIELD_OBJ,    ph: t.PH_OBJ },
+          { label: t.FIELD_OBJS,  key: t.FIELD_OBJS,   ph: t.PH_OBJS },
         ]
       : [
-          { label: "Con quién hablo", key: "Con quién", ph: "cliente, jefe, inversor…" },
-          { label: "Qué quiero conseguir", key: "Objetivo", ph: "cerrar, convencer, acordar…" },
-          { label: "Qué me preocupa", key: "Preocupación", ph: "que diga que es caro…" },
+          { label: t.FIELD_WHO,  key: t.FIELD_WHO,  ph: t.PH_WHO },
+          { label: t.FIELD_GOAL, key: t.FIELD_GOAL, ph: t.PH_GOAL },
+          { label: t.FIELD_FEAR, key: t.FIELD_FEAR, ph: t.PH_FEAR },
         ];
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="flex flex-wrap gap-1.5">
-        {CONVERSATION_TYPES.map((t) => (
+        {types.map((tp) => (
           <button
-            key={t.value}
+            key={tp.value}
             type="button"
-            onClick={() => {
-              setType(t.value);
-              setFields({});
-            }}
+            onClick={() => { setType(tp.value); setFields({}); }}
             className={cn(
               "px-3 py-1 rounded-full text-xs font-mono transition-all",
-              type === t.value
+              type === tp.value
                 ? "bg-white text-black"
                 : "bg-zinc-900 text-zinc-200 hover:text-white border border-zinc-700"
             )}
           >
-            {t.label}
+            {tp.label}
           </button>
         ))}
       </div>
@@ -127,7 +186,7 @@ function GuidedForm({ onSubmit }: { onSubmit: (context: string) => void }) {
         type="submit"
         className="w-full bg-white text-black text-sm font-mono font-bold py-3 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all mt-1"
       >
-        Iniciar copiloto →
+        {t.START}
       </button>
     </form>
   );
@@ -136,9 +195,14 @@ function GuidedForm({ onSubmit }: { onSubmit: (context: string) => void }) {
 /** Full-screen setup view — shown before session starts */
 export function ContextSetup({
   onContextReady,
+  lang,
+  onLangChange,
 }: {
   onContextReady: (ctx: string) => void;
+  lang: Lang;
+  onLangChange: (l: Lang) => void;
 }) {
+  const t = CP[lang];
   const [mode, setMode] = useState<ContextMode>("quick");
   const [quickText, setQuickText] = useState("");
 
@@ -147,13 +211,30 @@ export function ContextSetup({
       <div className="w-full max-w-lg flex flex-col gap-6">
 
         {/* Brand header */}
-        <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-mono font-bold text-white tracking-[0.12em] uppercase">
-            Silent Closer
-          </h1>
-          <p className="text-[11px] font-mono text-zinc-500 tracking-[0.2em] uppercase">
-            Inteligencia táctica conversacional
-          </p>
+        <div className="flex items-start justify-between">
+          <div className="flex flex-col gap-1">
+            <h1 className="text-3xl font-mono font-bold text-white tracking-[0.12em] uppercase">
+              Silent Closer
+            </h1>
+            <p className="text-[11px] font-mono text-zinc-500 tracking-[0.2em] uppercase">
+              {t.SUBTITLE}
+            </p>
+          </div>
+          {/* Language toggle on setup screen */}
+          <div className="flex items-center bg-white/5 p-1 rounded-full border border-white/8 text-[9px] font-mono overflow-hidden mt-1">
+            {(["es", "en"] as Lang[]).map(l => (
+              <button
+                key={l}
+                onClick={() => onLangChange(l)}
+                className={cn(
+                  "px-3 py-1.5 rounded-full uppercase tracking-widest transition-all font-medium",
+                  lang === l ? "bg-white text-black shadow" : "text-zinc-400 hover:text-white"
+                )}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Divider */}
@@ -162,7 +243,7 @@ export function ContextSetup({
         {/* Functional section */}
         <div className="flex flex-col gap-5">
           <p className="text-[10px] font-mono tracking-[0.25em] uppercase text-zinc-400">
-            Define el contexto
+            {t.DEFINE}
           </p>
 
           {/* Mode toggle */}
@@ -171,25 +252,21 @@ export function ContextSetup({
               onClick={() => setMode("quick")}
               className={cn(
                 "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono transition-all",
-                mode === "quick"
-                  ? "bg-white text-black"
-                  : "text-zinc-300 hover:text-white"
+                mode === "quick" ? "bg-white text-black" : "text-zinc-300 hover:text-white"
               )}
             >
               <Zap className="w-3 h-3" />
-              Rápido
+              {t.QUICK}
             </button>
             <button
               onClick={() => setMode("guided")}
               className={cn(
                 "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono transition-all",
-                mode === "guided"
-                  ? "bg-white text-black"
-                  : "text-zinc-300 hover:text-white"
+                mode === "guided" ? "bg-white text-black" : "text-zinc-300 hover:text-white"
               )}
             >
               <AlignLeft className="w-3 h-3" />
-              Guiado
+              {t.GUIDED}
             </button>
           </div>
 
@@ -199,34 +276,32 @@ export function ContextSetup({
               <textarea
                 value={quickText}
                 onChange={(e) => setQuickText(e.target.value)}
-                placeholder="Ej: quiero vender un piso en Dresden a un inversor muy analítico que duda de la ciudad"
+                placeholder={t.PLACEHOLDER}
                 rows={2}
                 autoFocus
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors font-mono resize-none leading-relaxed"
               />
-
               <button
                 onClick={() => onContextReady(quickText)}
                 className="w-full bg-white text-black text-sm font-mono font-bold py-3.5 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all"
               >
-                Iniciar copiloto →
+                {t.START}
               </button>
-
               <button
                 onClick={() => onContextReady("")}
                 className="w-full text-center text-[11px] font-mono text-zinc-300 hover:text-white transition-colors py-1"
               >
-                Continuar sin contexto
+                {t.SKIP}
               </button>
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              <GuidedForm onSubmit={onContextReady} />
+              <GuidedForm onSubmit={onContextReady} lang={lang} />
               <button
                 onClick={() => onContextReady("")}
                 className="w-full text-center text-[11px] font-mono text-zinc-300 hover:text-white transition-colors py-1"
               >
-                Continuar sin contexto
+                {t.SKIP}
               </button>
             </div>
           )}
@@ -241,13 +316,15 @@ export function SessionBar({
   sessionContext,
   contextLabel,
   onClearSession,
+  lang = "es",
 }: {
   sessionContext: string;
   contextLabel?: string;
   onClearSession: () => void;
+  lang?: Lang;
 }) {
+  const t = CP[lang];
   const [expanded, setExpanded] = useState(false);
-
   const displayLabel = contextLabel || sessionContext.split("\n")[0].slice(0, 70);
 
   return (
@@ -262,7 +339,7 @@ export function SessionBar({
         <div className="flex items-center gap-2 flex-1 min-w-0 pr-4">
           <div className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
           <span className="text-[10px] font-mono tracking-widest uppercase text-zinc-500 shrink-0">
-            Sesión
+            {t.SESSION}
           </span>
           {!expanded && (
             <span className="text-[10px] font-mono text-zinc-400 truncate">
@@ -272,19 +349,14 @@ export function SessionBar({
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onClearSession();
-            }}
+            onClick={(e) => { e.stopPropagation(); onClearSession(); }}
             className="text-[10px] font-mono text-zinc-200 hover:text-red-400 transition-colors"
           >
-            Finalizar
+            {t.END}
           </button>
-          {expanded ? (
-            <ChevronUp className="w-3 h-3 text-zinc-200" />
-          ) : (
-            <ChevronDown className="w-3 h-3 text-zinc-200" />
-          )}
+          {expanded
+            ? <ChevronUp className="w-3 h-3 text-zinc-200" />
+            : <ChevronDown className="w-3 h-3 text-zinc-200" />}
         </div>
       </div>
 

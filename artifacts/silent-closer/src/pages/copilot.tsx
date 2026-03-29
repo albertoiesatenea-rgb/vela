@@ -472,7 +472,7 @@ export default function CopilotPage() {
     void fetch("/api/copilot/context-label", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ context }),
+      body: JSON.stringify({ context, lang: langRef.current }),
     })
       .then(r => r.json())
       .then(({ label }: { label: string }) => {
@@ -512,7 +512,7 @@ export default function CopilotPage() {
 
   // Setup screen
   if (sessionContext === null) {
-    return <ContextSetup onContextReady={handleContextReady} />;
+    return <ContextSetup onContextReady={handleContextReady} lang={lang} onLangChange={(l) => { setLang(l); saveLang(l); }} />;
   }
 
   // Derived panel data
@@ -526,7 +526,7 @@ export default function CopilotPage() {
     <div className="fixed inset-0 bg-black text-foreground flex flex-col overflow-hidden font-sans">
 
       {/* Compact session bar */}
-      <SessionBar sessionContext={sessionContext} contextLabel={contextLabel} onClearSession={handleClearSession} />
+      <SessionBar sessionContext={sessionContext} contextLabel={contextLabel} onClearSession={handleClearSession} lang={lang} />
 
       {/* Status pill — top right */}
       <div className="absolute top-10 right-5 flex items-center gap-3 z-10">
@@ -574,6 +574,7 @@ export default function CopilotPage() {
           onCloseDetail={handleToggleDetail}
           isPending={isPending}
           isListening={isSessionListening}
+          lang={lang}
         />
 
         {/* Interim speech text */}

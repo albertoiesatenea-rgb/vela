@@ -40,7 +40,6 @@ Responde SIEMPRE con este JSON exacto y nada más:
 
 REGLAS ABSOLUTAS:
 - JSON válido siempre, sin markdown, sin texto extra
-- Responde siempre en español
 - Todos los campos: siempre presentes
 - avoid: puede ser null si no hay error táctico concreto y probable
 - call_memory.summary_lines: 4-6 líneas, reescrito inteligentemente cada turno
@@ -270,15 +269,15 @@ Ejemplo turno siguiente — cliente responde "sí, eso me preocupa":
 Responde SIEMPRE con JSON puro sin markdown ni texto extra.`;
 
 function buildSystemPrompt(context?: string, lang?: string): string {
-  const langOverride = lang === "en"
-    ? `\nLANGUAGE OVERRIDE — MANDATORY: All JSON field values must be in English. Respond in English only.\n`
-    : "";
-
   const contextBlock = context?.trim()
     ? `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCONTEXTO DE SESIÓN ACTIVA\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n${context.trim()}\n\nUsa este contexto para orientar el análisis. Si contiene datos concretos (estadísticas, precios, rentabilidades, cifras de mercado), extráelos y úsalos en detail.support cuando sean tácitamente oportunos — nunca antes de concretar la duda.`
     : "";
 
-  return `${langOverride}${BASE_SYSTEM_PROMPT}${contextBlock}`;
+  const langRule = lang === "en"
+    ? `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nLANGUAGE — MANDATORY FINAL RULE\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nThe call is in English. ALL values in every JSON field MUST be in English. No Spanish words anywhere in the output.`
+    : `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nIDIOMA — REGLA FINAL OBLIGATORIA\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nLa llamada es en español. TODOS los valores en cada campo JSON deben estar en español.`;
+
+  return `${BASE_SYSTEM_PROMPT}${contextBlock}${langRule}`;
 }
 
 router.post("/copilot/analyze", async (req, res) => {
@@ -334,8 +333,9 @@ router.post("/copilot/analyze", async (req, res) => {
 
 // ── Context label — generates a short 4-6 word title for the session bar
 router.post("/copilot/context-label", async (req, res) => {
-  const { context } = req.body as { context?: string };
+  const { context, lang } = req.body as { context?: string; lang?: string };
   if (!context?.trim()) { res.json({ label: "" }); return; }
+  const isEn = lang === "en";
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -343,7 +343,9 @@ router.post("/copilot/context-label", async (req, res) => {
       messages: [
         {
           role: "system",
-          content: `Genera un título de escena de 4-6 palabras en español para la barra de sesión de una herramienta de ventas. Sin comillas, sin puntuación final. Solo el título. Ejemplos: "Venta a inversor escéptico sobre Dresden", "Negociación B2B con CMO reticente", "Cierre con cliente indeciso sobre precio", "Objeción de liquidez en inmobiliario".`,
+          content: isEn
+            ? `Generate a 4-6 word scene title in English for the session bar of a sales tool. No quotes, no trailing punctuation. Title only. Examples: "Sale to skeptical Dresden investor", "B2B negotiation with reluctant CMO", "Close with price-hesitant client", "Liquidity objection in real estate".`
+            : `Genera un título de escena de 4-6 palabras en español para la barra de sesión de una herramienta de ventas. Sin comillas, sin puntuación final. Solo el título. Ejemplos: "Venta a inversor escéptico sobre Dresden", "Negociación B2B con CMO reticente", "Cierre con cliente indeciso sobre precio", "Objeción de liquidez en inmobiliario".`,
         },
         { role: "user", content: context.trim() },
       ],
