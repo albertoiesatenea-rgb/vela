@@ -5,7 +5,9 @@ import { cn } from "@/lib/utils";
 interface TacticalDisplayProps {
   sayNow: string;
   reading?: string;
+  avoid?: string;
   detailOpen?: boolean;
+  onCloseDetail?: () => void;
   isPending?: boolean;
   isListening?: boolean;
 }
@@ -16,22 +18,37 @@ const fade = {
   exit:    { opacity: 0, filter: "blur(4px)", y: -8, transition: { duration: 0.25, ease: "easeIn" } },
 };
 
-export function TacticalDisplay({ sayNow, reading, detailOpen, isPending, isListening }: TacticalDisplayProps) {
+export function TacticalDisplay({
+  sayNow, reading, avoid, detailOpen, onCloseDetail, isPending, isListening,
+}: TacticalDisplayProps) {
   const [readingOpen, setReadingOpen] = useState(false);
 
   // Close reading when a new command arrives
   useEffect(() => { setReadingOpen(false); }, [sayNow]);
 
-  // Close reading when detail panel opens
+  // Close reading when detail opens
   useEffect(() => { if (detailOpen) setReadingOpen(false); }, [detailOpen]);
 
-  const canToggle = !!(reading && sayNow);
+  const canAct = !!(sayNow);
+
+  const handleClick = () => {
+    if (!canAct) return;
+    if (detailOpen) {
+      // Detail is open → close it, don't open reading
+      onCloseDetail?.();
+    } else {
+      // Toggle reading + evita inline
+      setReadingOpen(p => !p);
+    }
+  };
+
+  const showInline = readingOpen && !detailOpen && (reading || avoid);
 
   return (
     <div className="h-full w-full flex flex-col">
 
-      {/* ── DI AHORA — click to reveal/hide reading ── */}
-      <div className="flex-1 flex flex-col items-center justify-center px-8 gap-5">
+      {/* ── DI AHORA — always clickable ── */}
+      <div className="flex-1 flex flex-col items-center justify-center px-8 gap-6">
         <AnimatePresence mode="wait">
           <motion.p
             key={sayNow || "empty-say"}
@@ -39,29 +56,36 @@ export function TacticalDisplay({ sayNow, reading, detailOpen, isPending, isList
             initial="initial"
             animate="animate"
             exit="exit"
-            onClick={() => canToggle && setReadingOpen(p => !p)}
+            onClick={handleClick}
             className={cn(
               "text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-center leading-tight select-none",
               sayNow ? "text-white" : "text-zinc-700 font-normal text-3xl sm:text-4xl",
-              canToggle && "cursor-pointer active:opacity-70 transition-opacity",
+              canAct && "cursor-pointer active:opacity-70 transition-opacity",
             )}
           >
             {sayNow || (isListening ? "Escuchando" : "—")}
           </motion.p>
         </AnimatePresence>
 
-        {/* ── LECTURA — visible on tap, sky-blue ── */}
+        {/* ── LECTURA + EVITA inline — toggled by click ── */}
         <div
-          className="overflow-hidden w-full flex justify-center"
+          className="overflow-hidden w-full flex flex-col items-center gap-4"
           style={{
-            maxHeight: readingOpen && reading ? "140px" : "0px",
-            opacity: readingOpen && reading ? 1 : 0,
-            transition: "max-height 0.28s ease, opacity 0.22s ease",
+            maxHeight: showInline ? "200px" : "0px",
+            opacity: showInline ? 1 : 0,
+            transition: "max-height 0.3s ease, opacity 0.22s ease",
           }}
         >
-          <p className="text-[14px] font-mono text-sky-200 text-center leading-relaxed max-w-lg px-4">
-            {reading}
-          </p>
+          {reading && (
+            <p className="text-[14px] font-mono text-sky-200 text-center leading-relaxed max-w-lg px-4">
+              {reading}
+            </p>
+          )}
+          {avoid && (
+            <p className="text-[18px] font-mono text-red-500 uppercase tracking-wide font-semibold text-center">
+              {avoid}
+            </p>
+          )}
         </div>
       </div>
 

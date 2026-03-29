@@ -389,7 +389,9 @@ export default function CopilotPage() {
         <TacticalDisplay
           sayNow={tacticalState.sayNow}
           reading={tacticalState.detail?.reading}
+          avoid={tacticalState.avoid}
           detailOpen={detailOpen}
+          onCloseDetail={handleToggleDetail}
           isPending={isPending}
           isListening={isListening}
         />
