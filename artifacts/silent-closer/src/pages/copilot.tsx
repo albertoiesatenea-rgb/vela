@@ -76,10 +76,10 @@ function DetailField({ fieldKey, value }: { fieldKey: FieldKey; value?: string }
   const cfg = FIELD_CONFIG[fieldKey];
   const label = fieldKey === "SIGUIENTE" ? "SIGUIENTE MOVIMIENTO" : fieldKey;
   return (
-    <div className={cn("pl-3 border-l-2 flex flex-col gap-1.5", cfg.border)}>
+    <div className="flex flex-col items-center gap-1.5 text-center">
       <span className={cn("text-[9px] font-mono tracking-[0.22em] uppercase", cfg.label)}>{label}</span>
       <p className={cn(
-        "font-mono leading-snug",
+        "font-mono leading-snug text-center max-w-sm",
         cfg.size,
         cfg.content,
         fieldKey === "SIGUIENTE" && "font-medium",
@@ -88,10 +88,10 @@ function DetailField({ fieldKey, value }: { fieldKey: FieldKey; value?: string }
   );
 }
 
-// ── Detail panel — 3 fields, clean and scannable
+// ── Detail panel — 3 fields, centered
 function DetailPanel({ detail }: { detail: Detail }) {
   return (
-    <div className="px-5 py-4 flex flex-col gap-4">
+    <div className="px-6 py-4 flex flex-col items-center gap-5 w-full">
       {detail.reading   && <DetailField fieldKey="LECTURA"   value={detail.reading} />}
       {detail.next_move && <DetailField fieldKey="SIGUIENTE" value={detail.next_move} />}
       {detail.support   && <DetailField fieldKey="APOYO"     value={detail.support} />}
@@ -440,16 +440,14 @@ export default function CopilotPage() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto", transition: { duration: 0.22 } }}
             exit={{ opacity: 0, height: 0, transition: { duration: 0.16 } }}
-            className="shrink-0 overflow-hidden border-t border-white/5"
+            onClick={handleToggleDetail}
+            className="shrink-0 overflow-hidden border-t border-white/5 cursor-pointer select-none"
           >
-            {/* Tap-to-close strip */}
-            <button
-              onClick={handleToggleDetail}
-              className="w-full flex items-center justify-center py-1.5 text-zinc-700 hover:text-zinc-500 transition-colors"
-            >
+            {/* Tap-to-close hint */}
+            <div className="w-full flex items-center justify-center py-1.5 text-zinc-700">
               <ChevronDown className="w-3.5 h-3.5" />
-            </button>
-            {/* Scrollable detail content */}
+            </div>
+            {/* Detail content — click anywhere to close */}
             <div className="overflow-y-auto border-t border-white/5" style={{ maxHeight: "240px" }}>
               <DetailPanel detail={tacticalState.detail!} />
             </div>
