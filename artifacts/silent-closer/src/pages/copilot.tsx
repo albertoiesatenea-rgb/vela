@@ -73,24 +73,23 @@ function DetailField({ fieldKey, value }: { fieldKey: FieldKey; value?: string }
   if (!value) return null;
   const cfg = FIELD_CONFIG[fieldKey];
   const isGuion = fieldKey === "GUION";
-  const isLong = fieldKey === "GUION" || fieldKey === "PREGUNTA" || fieldKey === "ARGUMENTO";
   return (
-    <div className={cn("pl-2.5 border-l-2 flex flex-col gap-0.5", cfg.border)}>
-      <span className={cn("text-[8px] font-mono tracking-[0.2em] uppercase", cfg.label)}>{fieldKey}</span>
+    <div className={cn("pl-3 border-l-2 flex flex-col gap-1", cfg.border)}>
+      <span className={cn("text-[8px] font-mono tracking-[0.22em] uppercase", cfg.label)}>{fieldKey}</span>
       <p className={cn(
-        "font-mono leading-tight text-[11px]",
+        "font-mono leading-snug line-clamp-2",
+        cfg.size,
         cfg.content,
         isGuion && "italic",
-        isLong ? "line-clamp-2" : "line-clamp-1"
       )}>{value}</p>
     </div>
   );
 }
 
-// ── Compact detail panel — fits in 176px
+// ── Detail panel — readable grid with breathing room
 function DetailPanel({ detail }: { detail: Detail }) {
   return (
-    <div className="px-4 py-2 grid grid-cols-2 gap-x-4 gap-y-2">
+    <div className="px-5 py-3.5 grid grid-cols-2 gap-x-5 gap-y-3.5">
       {detail.reading   && <DetailField fieldKey="LECTURA"   value={detail.reading} />}
       {detail.argument  && <DetailField fieldKey="ARGUMENTO" value={detail.argument} />}
       {detail.talk_track && (
@@ -109,23 +108,23 @@ function DetailPanel({ detail }: { detail: Detail }) {
   );
 }
 
-// ── Compact memory panel — fits in 176px
+// ── Memory panel — scannable bullets
 function MemoryPanel({ lines }: { lines: string[] }) {
   const visible = lines.slice(-6);
   return (
-    <ul className="px-4 py-2 space-y-1.5">
+    <ul className="px-5 py-3.5 space-y-2.5">
       {visible.map((line, i) => {
         const text = line.replace(/^[-–—]\s*/, "");
         const isLast = i === visible.length - 1;
         return (
-          <li key={i} className="flex items-start gap-2.5">
+          <li key={i} className="flex items-start gap-3">
             <span className={cn(
-              "shrink-0 mt-[5px] w-1 h-1 rounded-full",
-              isLast ? "bg-zinc-300" : "bg-zinc-600"
+              "shrink-0 mt-[5px] w-1.5 h-1.5 rounded-full",
+              isLast ? "bg-zinc-200" : "bg-zinc-600"
             )} />
             <span className={cn(
-              "text-[11px] font-mono leading-tight line-clamp-1",
-              isLast ? "text-zinc-200" : "text-zinc-500"
+              "text-[12px] font-mono leading-snug",
+              isLast ? "text-zinc-200 font-medium" : "text-zinc-500"
             )}>{text}</span>
           </li>
         );
@@ -142,8 +141,9 @@ export default function CopilotPage() {
   const [tacticalState, setTacticalState] = useState<TacticalState>(EMPTY_STATE);
   const [contextLabel, setContextLabel] = useState<string>(loadLabel);
 
-  // Panel state — single source of truth, mutually exclusive
-  const [activePanel, setActivePanel] = useState<"detail" | "memory" | null>(null);
+  // Panel state — independent toggles, can both be open simultaneously
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [memoryOpen, setMemoryOpen] = useState(false);
 
   const sessionActive = sessionContext !== null;
   const speakerModeRef = useRef(speakerMode);
@@ -258,20 +258,17 @@ export default function CopilotPage() {
     return <ContextSetup onContextReady={handleContextReady} />;
   }
 
-  // Derived panel data — single activePanel drives everything
-  const hasDetail = tacticalState.detail && Object.values(tacticalState.detail).some(Boolean);
+  // Derived panel data
+  const hasDetail = !!(tacticalState.detail && Object.values(tacticalState.detail).some(Boolean));
   const memoryLines = tacticalState.callMemory
     ? tacticalState.callMemory.split(/\\n|\n/).filter(Boolean)
     : [];
   const hasMemory = memoryLines.length > 0;
-  const detailOpen = activePanel === "detail" && !!hasDetail;
-  const memoryOpen = activePanel === "memory" && hasMemory;
-  const panelVisible = detailOpen || memoryOpen;
+  const detailVisible = detailOpen && hasDetail;
+  const memoryVisible = memoryOpen && hasMemory;
 
-  const handleToggleDetail = () =>
-    setActivePanel(p => (p === "detail" ? null : "detail"));
-  const handleToggleMemory = () =>
-    setActivePanel(p => (p === "memory" ? null : "memory"));
+  const handleToggleDetail = () => setDetailOpen(p => !p);
+  const handleToggleMemory = () => setMemoryOpen(p => !p);
 
   // Active session layout
   return (
@@ -357,44 +354,58 @@ export default function CopilotPage() {
         )}
       </div>
 
-      {/* ── Panel zone — fixed height, no scroll, no overlap ── */}
+      {/* ── Panel zone — independent toggles, both can be open ── */}
       {(hasDetail || hasMemory) && (
         <div className="shrink-0 border-t border-white/5">
 
-          {/* Toggle row — always visible */}
-          <div className="flex items-center justify-center gap-6 py-2">
+          {/* Toggle row — independent buttons, more breathing room */}
+          <div className="flex items-center justify-center gap-12 py-3">
             {hasDetail && (
               <button
                 onClick={handleToggleDetail}
-                className="flex items-center gap-1.5 text-[10px] font-mono tracking-widest uppercase transition-colors hover:text-white"
-                style={{ color: detailOpen ? "rgb(228 228 231)" : "rgb(113 113 122)" }}
+                className="flex items-center gap-2 text-[11px] font-mono tracking-widest uppercase transition-colors hover:text-white"
+                style={{ color: detailVisible ? "rgb(228 228 231)" : "rgb(82 82 91)" }}
               >
-                {detailOpen ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
+                {detailVisible ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                 Detalle
               </button>
             )}
             {hasMemory && (
               <button
                 onClick={handleToggleMemory}
-                className="flex items-center gap-1.5 text-[10px] font-mono tracking-widest uppercase transition-colors hover:text-white"
-                style={{ color: memoryOpen ? "rgb(228 228 231)" : "rgb(113 113 122)" }}
+                className="flex items-center gap-2 text-[11px] font-mono tracking-widest uppercase transition-colors hover:text-white"
+                style={{ color: memoryVisible ? "rgb(228 228 231)" : "rgb(82 82 91)" }}
               >
-                {memoryOpen ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
+                {memoryVisible ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                 Memoria
               </button>
             )}
           </div>
 
-          {/* Panel content — fixed max-height, no scroll */}
+          {/* Detalle — independently animated, scrollable internally */}
           <div
-            className="overflow-hidden border-t border-white/5"
+            className="overflow-hidden"
             style={{
-              maxHeight: panelVisible ? "176px" : "0px",
-              transition: "max-height 0.2s ease",
+              maxHeight: detailVisible ? "164px" : "0px",
+              transition: "max-height 0.22s ease",
             }}
           >
-            {detailOpen && hasDetail && <DetailPanel detail={tacticalState.detail!} />}
-            {memoryOpen && hasMemory && <MemoryPanel lines={memoryLines} />}
+            <div className="border-t border-white/5 overflow-y-auto" style={{ maxHeight: "164px" }}>
+              {hasDetail && <DetailPanel detail={tacticalState.detail!} />}
+            </div>
+          </div>
+
+          {/* Memoria — independently animated, scrollable internally */}
+          <div
+            className="overflow-hidden"
+            style={{
+              maxHeight: memoryVisible ? "152px" : "0px",
+              transition: "max-height 0.22s ease",
+            }}
+          >
+            <div className="border-t border-white/5 overflow-y-auto" style={{ maxHeight: "152px" }}>
+              {hasMemory && <MemoryPanel lines={memoryLines} />}
+            </div>
           </div>
 
         </div>

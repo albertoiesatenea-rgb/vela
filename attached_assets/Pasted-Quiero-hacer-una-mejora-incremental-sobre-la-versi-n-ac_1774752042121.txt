@@ -1,0 +1,371 @@
+Quiero hacer una mejora incremental sobre la versión actual de “Silent Closer” sin rehacer la app desde cero.
+
+IMPORTANTE:
+- NO quiero una nueva app
+- NO quiero romper la UI actual
+- NO quiero cambiar la filosofía visual
+- la base actual me gusta
+- solo quiero mejorar el criterio del motor y arreglar la usabilidad de DETALLE / MEMORIA
+
+==================================================
+OBJETIVO DE ESTA ITERACIÓN
+==================================================
+
+Quiero consolidar dos mejoras importantes:
+
+1. Mejorar el criterio del motor cuando la conversación empieza con dudas abiertas, falta de familiaridad o preguntas todavía poco definidas, para que no sobrediagnostique demasiado pronto.
+
+2. Arreglar la usabilidad y el layout de DETALLE / MEMORIA:
+- más espacio
+- mejor legibilidad
+- toggles que funcionen de verdad
+- poder dejarlos abiertos y seguir trabajando
+- que no se solapen ni bloqueen la app
+
+Y además quiero endurecer una regla crítica:
+
+3. SOBRE LOS DATOS:
+Quiero que la app me dé datos cuando sea posible, porque eso ayuda mucho en venta.
+Pero:
+- no quiero datos inventados
+- no quiero cifras alucinadas
+- no quiero fuentes falsas
+- tampoco quiero una exigencia absurda tipo “solo usa datos firmados con notario”
+Quiero un punto medio inteligente:
+- usa datos reales cuando estén disponibles
+- si no los tienes de verdad, no inventes
+- y si no hay datos concretos, sugiere qué tipo de dato conviene usar
+
+==================================================
+PARTE 1 — NO SOBREDIAGNOSTICAR DEMASIADO PRONTO
+==================================================
+
+CASO REAL DE PRUEBA
+
+Estoy simulando una conversación donde el contexto es:
+“quiero vender una inversión en Dresden a un cliente muy analítico”.
+
+La primera frase del cliente puede ser algo como:
+- “¿Por qué debo invertir en Dresden? No conozco la ciudad.”
+- “No tengo referencias de Dresden.”
+- “No me inspira confianza porque no la conozco.”
+- “Explícame por qué debería mirar esa ciudad.”
+
+PROBLEMA ACTUAL
+
+El motor a veces interpreta demasiado pronto estas frases como:
+- objeción reputacional fuerte
+- objeción completamente formada
+- o freno ya diagnosticado al detalle
+
+Y eso puede ser precipitado.
+
+OBJETIVO
+
+Quiero que el motor distinga mejor entre:
+
+1. duda abierta todavía poco definida
+2. falta de familiaridad o falta de confianza inicial
+3. objeción ya formada
+4. objeción reputacional real
+5. criterio todavía no identificado
+
+REGLA NUEVA
+
+Si la otra parte dice cosas como:
+- no conozco la ciudad
+- no me suena
+- no la ubico
+- explícame por qué debería invertir ahí
+- no me da confianza todavía
+
+el motor NO debe asumir automáticamente una objeción reputacional fuerte o una objeción totalmente cerrada.
+
+Primero debe considerar señales más suaves como:
+- falta de familiaridad
+- falta de confianza inicial
+- necesidad de criterio
+- duda abierta sobre la ciudad
+- objeción incipiente
+
+OBJETIVO TÁCTICO
+
+En este tipo de primeras intervenciones, el motor debe ayudar a:
+- concretar el criterio de duda
+- descubrir si le preocupa demanda, reventa, liquidez, riesgo, imagen o reputación
+- no cerrar demasiado pronto el diagnóstico
+- no asumir una objeción más avanzada de la que existe
+
+EJEMPLOS DE MEJORES SALIDAS
+
+Buenas señales:
+- falta de familiaridad
+- duda de ciudad
+- necesita criterio
+- falta confianza
+- objeción incipiente
+
+Buenos SAY NOW:
+- pregunta qué le preocupa de invertir allí
+- aclara si duda de demanda, salida o riesgo
+- descubre qué criterio necesita para confiar
+- pregunta si le frena ciudad, demanda o reventa
+- concreta si la duda es imagen, liquidez o alquiler
+
+Buenos AVOID:
+- no presupongas la objeción
+- no dispares datos todavía
+- no defiendas Dresden aún
+- no cierres el diagnóstico
+
+==================================================
+PARTE 2 — LOS DATOS SÍ SON IMPORTANTES, PERO SIN INVENTAR
+==================================================
+
+Esto es muy importante.
+
+No quiero que SUPPORT o el motor en general se vuelvan “timoratos” y nunca den datos.
+Los datos sí aportan mucho valor en venta, especialmente en objeciones sobre:
+- ciudad
+- demanda
+- liquidez
+- reventa
+- empleo
+- rentabilidad
+- revalorización
+- riesgo
+
+Pero quiero un criterio correcto.
+
+REGLA SOBRE DATOS
+
+1. Si el sistema tiene datos reales disponibles, debe poder usarlos.
+Ejemplos de datos válidos:
+- datos incluidos en el contexto de sesión
+- datos guardados en una base de conocimiento conectada
+- datos configurados dentro de la app
+- datos de referencia que el sistema tenga realmente cargados
+- métricas o cifras que la propia app ya reciba como parte del flujo
+
+2. Si hay datos reales disponibles, SUPPORT puede usarlos de forma útil y breve.
+Ejemplos:
+- “Si quieres reforzarlo, usa la tasa de vacancia baja y la liquidez de salida.”
+- “Aquí conviene apoyar con datos de demanda y evolución de precios.”
+- “Usa el dato de revalorización si ya lo tienes cargado.”
+
+3. Si NO hay datos reales disponibles, NO inventes cifras ni estudios.
+No quiero cosas como:
+- “Dresden ha subido un 42%...”
+- “según este estudio...”
+- “la ciudad tiene una demanda del X%...”
+si eso no está realmente en el sistema o en el contexto.
+
+4. Pero tampoco quiero una regla absurda de certeza extrema.
+No hace falta que los datos estén “firmados por un notario”.
+Quiero sentido común:
+- si el dato existe de verdad en la app o en el contexto, úsalo
+- si no existe de verdad, no lo inventes
+- y si no existe, sugiere qué dato convendría usar
+
+REGLA DE SUPPORT
+
+SUPPORT debe seguir esta lógica:
+- si hay dato real disponible → úsalo o menciónalo
+- si no hay dato real disponible → sugiere el tipo de dato útil
+- nunca inventes autoridad falsa
+- nunca cites estudios o fuentes inexistentes
+
+Ejemplos buenos:
+- “Si tienes datos de demanda o reventa, úsalos después de concretar la duda.”
+- “Apóyate en liquidez, alquiler y salida futura.”
+- “Aquí ayudaría un dato real de vacancia o evolución de precios.”
+- “Usa cifras de demanda solo si están verificadas en tu base.”
+
+==================================================
+PARTE 3 — DETALLE Y MEMORIA DEBEN SER PERSISTENTES Y NO MOLESTAR
+==================================================
+
+PROBLEMA ACTUAL
+
+Cuando abro DETALLE o MEMORIA:
+- visualmente interfieren con la zona principal
+- cuestan de usar
+- no siempre puedo dejarlos abiertos con normalidad
+- a veces no puedo cerrarlos o pasar de uno a otro bien
+- los controles están demasiado pegados
+
+OBJETIVO
+
+Quiero que DETALLE y MEMORIA funcionen como paneles persistentes, limpios y utilizables.
+
+COMPORTAMIENTO DESEADO
+
+1. DETALLE debe funcionar como toggle real
+- si está cerrado y lo pulso, se abre
+- si está abierto y lo pulso, se cierra
+
+2. MEMORIA debe funcionar igual
+- si está cerrada y la pulso, se abre
+- si está abierta y la pulso, se cierra
+
+3. Debo poder abrir DETALLE y luego abrir MEMORIA sin bloquearme.
+
+4. Debo poder cerrar cualquiera de los dos en cualquier momento.
+
+5. Debo poder tener:
+- solo DETALLE abierto
+- solo MEMORIA abierta
+- ambos abiertos
+- ambos cerrados
+
+6. Nunca debo quedarme en un estado donde:
+- uno se abre pero ya no se puede cerrar
+- uno bloquea al otro
+- abrir uno impide interactuar con el otro
+- la UI deja de responder correctamente
+
+==================================================
+PARTE 4 — MÁS ESPACIO Y MEJOR JERARQUÍA EN LOS CONTROLES
+==================================================
+
+PROBLEMA ACTUAL
+
+Los controles de:
+- DETALLE
+- MEMORIA
+
+están demasiado pegados y visualmente se sienten apretados.
+
+OBJETIVO
+
+Quiero que esa zona respire más y se vea:
+- más limpia
+- más usable
+- más premium
+- más estable
+
+MEJORAS QUE QUIERO
+
+1. Más espacio entre DETALLE y MEMORIA
+2. Mejor alineación vertical y horizontal
+3. Área clicable más cómoda
+4. Estado abierto/cerrado más claro
+5. Mejor jerarquía visual entre activo e inactivo
+
+No quiero:
+- botones pegados
+- enlaces confusos
+- estados ambiguos
+- sensación de hack visual
+
+==================================================
+PARTE 5 — DETALLE Y MEMORIA DEBEN PODER QUEDARSE ABIERTOS MIENTRAS SIGO TRABAJANDO
+==================================================
+
+Quiero poder dejar abierto:
+- DETALLE
+- MEMORIA
+
+y seguir usando la app con normalidad.
+
+Aunque estén abiertos, quiero seguir pudiendo:
+- ver SIGNAL / SAY NOW / AVOID
+- usar el input
+- pulsar ANALIZAR
+- cambiar AUTO / CLIENTE / YO
+- usar ESCUCHAR / ESCRIBIR
+- seguir trabajando sin tener que cerrar nada
+
+NO quiero:
+- modales
+- overlays
+- paneles que tapen la parte principal
+- paneles que bloqueen el input
+- paneles que obliguen a cerrar para continuar
+
+SOLUCIÓN DESEADA
+
+Haz que DETALLE y MEMORIA vivan como paneles persistentes debajo del área principal, bien separados y con altura razonable.
+
+Si ambos están abiertos:
+- deben apilarse bien
+- o convivir de forma limpia
+- pero no taparse ni desordenarse
+
+==================================================
+PARTE 6 — MEJORAR LA LEGIBILIDAD DEL DETALLE
+==================================================
+
+PROBLEMA ACTUAL
+
+El contenido del detalle existe, pero todavía cuesta leerlo rápido bajo presión.
+
+Quiero que cada bloque se distinga mucho mejor:
+- LECTURA
+- ARGUMENTO
+- GUIÓN / TALK_TRACK
+- PREGUNTA
+- RIESGO
+- APOYO
+
+MEJORAS QUE QUIERO
+
+1. Etiquetas más claras
+2. Más espacio entre bloques
+3. Mejor alineación
+4. Mejor contraste
+5. Anchuras razonables
+6. Line-height cómodo
+
+OBJETIVO
+
+Quiero que DETALLE se escanee en 1–2 segundos.
+No quiero texto apelotonado ni sensación de bloque corrido.
+
+==================================================
+PARTE 7 — MEMORIA MÁS ESCANEABLE
+==================================================
+
+No quiero MEMORIA en una línea corrida tipo log.
+Quiero verla como bullets o líneas cortas.
+
+Formato ideal:
+- Introducción completada
+- Propuesta presentada
+- Interés inicial confirmado
+- Objeción dominante: reputación de Dresden
+- Momento actual: explorando freno real
+- Objetivo: bajar la duda a criterios de inversión
+
+Reglas:
+- máximo 4–6 líneas
+- reescrita continuamente
+- no infinita
+- no transcript
+- no log técnico
+- muy legible
+
+==================================================
+PARTE 8 — OBJETIVO FINAL
+==================================================
+
+Quiero una mejora real, no estética superficial:
+
+1. que el motor no sobrediagnostique demasiado pronto
+2. que sepa manejar mejor dudas abiertas al inicio
+3. que use datos cuando de verdad los tenga
+4. que no invente cifras ni fuentes
+5. que detalle y memoria se puedan abrir y cerrar bien
+6. que ambos puedan quedarse abiertos sin bloquear la app
+7. que la legibilidad general mejore
+
+No rehagas la app.
+No rompas la UI actual.
+No añadas complejidad innecesaria.
+
+Cuando termines, explícamelo brevemente:
+1. qué cambiaste en el motor para distinguir mejor duda abierta vs objeción formada
+2. cómo implementaste la lógica correcta sobre datos y SUPPORT
+3. cómo hiciste persistentes DETALLE y MEMORIA
+4. cómo evitaste bloqueos entre ambos
+5. cómo mejoraste spacing y legibilidad
