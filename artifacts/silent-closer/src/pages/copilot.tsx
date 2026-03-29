@@ -276,6 +276,11 @@ export default function CopilotPage() {
   // Panel state
   const [detailOpen, setDetailOpen] = useState(false);
 
+  // Stable listening-session flag — true from "Iniciar escucha" to "Pausar".
+  // Unlike isListening from the hook (which flickers during segment restarts),
+  // this only changes when the user explicitly toggles the mic.
+  const [isSessionListening, setIsSessionListening] = useState(false);
+
   // AUTO inference state
   const [inferredAutoLabel, setInferredAutoLabel] = useState<string>("");
   const lastAutoSpeakerRef = useRef<"client" | "me" | null>(null);
@@ -393,19 +398,20 @@ export default function CopilotPage() {
     setContextLabel("");
     saveLabel("");
     setDetailOpen(false);
-    if (isListening) stopListening();
+    stopListening();
+    setIsSessionListening(false);
     setInputMode("simulate");
     setSpeakerMode("auto");
   };
 
   const handleModeSwitch = (newMode: InputMode) => {
-    if (newMode === "simulate" && isListening) stopListening();
+    if (newMode === "simulate") { stopListening(); setIsSessionListening(false); }
     setInputMode(newMode);
   };
 
   const handleMicToggle = () => {
-    if (isListening) stopListening();
-    else startListening();
+    if (isSessionListening) { stopListening(); setIsSessionListening(false); }
+    else { startListening(); setIsSessionListening(true); }
   };
 
   const handleSimulateSubmit = (e: React.FormEvent) => {
@@ -445,12 +451,12 @@ export default function CopilotPage() {
             onClick={handleMicToggle}
             className={cn(
               "flex items-center gap-1.5 px-2 py-1 rounded-full transition-colors cursor-pointer",
-              isListening ? "bg-red-500/10 text-red-400" : "text-muted-foreground"
+              isSessionListening ? "bg-red-500/10 text-red-400" : "text-muted-foreground"
             )}
           >
-            <div className={cn("w-2 h-2 rounded-full", isListening ? "bg-red-500 animate-pulse" : "bg-zinc-600")} />
+            <div className={cn("w-2 h-2 rounded-full", isSessionListening ? "bg-red-500 animate-pulse" : "bg-zinc-600")} />
             <span className="text-[10px] font-mono tracking-widest uppercase">
-              {isListening ? "Escuchando" : "Pausado"}
+              {isSessionListening ? "Escuchando" : "Pausado"}
             </span>
           </div>
         )}
@@ -477,11 +483,11 @@ export default function CopilotPage() {
           detailOpen={detailOpen}
           onCloseDetail={handleToggleDetail}
           isPending={isPending}
-          isListening={isListening}
+          isListening={isSessionListening}
         />
 
         {/* Interim speech text */}
-        {inputMode === "listen" && isListening && interimText && (
+        {inputMode === "listen" && isSessionListening && interimText && (
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 max-w-xl w-full px-6 text-center pointer-events-none">
             <p className="text-[11px] text-zinc-200 font-mono truncate">{interimText}</p>
           </div>
@@ -604,12 +610,12 @@ export default function CopilotPage() {
             onClick={handleMicToggle}
             className={cn(
               "px-6 py-2.5 rounded-full font-mono text-xs font-semibold tracking-widest uppercase transition-all flex items-center gap-2",
-              isListening
+              isSessionListening
                 ? "bg-red-500/15 text-red-400 border border-red-500/25 hover:bg-red-500/25"
                 : "bg-white/8 text-white border border-white/15 hover:bg-white/15"
             )}
           >
-            {isListening
+            {isSessionListening
               ? <><div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />Pausar</>
               : <><Mic className="w-3.5 h-3.5" />Iniciar escucha</>}
           </button>
@@ -627,7 +633,7 @@ export default function CopilotPage() {
                 inputMode === "listen" ? "bg-white text-black shadow" : "text-zinc-300 hover:text-white"
               )}
             >
-              {isListening ? <Mic className="w-3 h-3 text-red-500" /> : <MicOff className="w-3 h-3" />}
+              {isSessionListening ? <Mic className="w-3 h-3 text-red-500" /> : <MicOff className="w-3 h-3" />}
               ESCUCHAR
             </button>
             <button
