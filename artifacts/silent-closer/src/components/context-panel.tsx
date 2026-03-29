@@ -445,6 +445,76 @@ function AdvancedForm({ onSubmit, lang, ctaLabel }: { onSubmit: (context: string
   );
 }
 
+// ── Reusable Arena profile + difficulty picker ────────────────────────────────
+function ArenaProfilePicker({
+  arenaRole, lang,
+  clientProfile, setClientProfile,
+  sellerProfile, setSellerProfile,
+  difficulty, setDifficulty,
+}: {
+  arenaRole: ArenaRole; lang: Lang;
+  clientProfile: string | undefined; setClientProfile: (v: string | undefined) => void;
+  sellerProfile: string | undefined; setSellerProfile: (v: string | undefined) => void;
+  difficulty: string; setDifficulty: (v: string) => void;
+}) {
+  const clientItems = CLIENT_PROFILES[lang];
+  const sellerItems = SELLER_PROFILES[lang];
+  const diffItems = DIFFICULTY_LEVELS[lang];
+
+  const chipBase = "font-mono transition-all border text-[10px]";
+  const toggleChip = (active: boolean) => cn(chipBase, "px-3 py-1 rounded-full",
+    active ? "bg-sky-500/20 border-sky-500/60 text-sky-300" : "bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500"
+  );
+  const toggleTeal = (active: boolean) => cn(chipBase, "px-3 py-1 rounded-full",
+    active ? "bg-teal-500/20 border-teal-500/60 text-teal-300" : "bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500"
+  );
+  const diffChip = (active: boolean) => cn(chipBase, "flex-1 py-1 rounded-full",
+    active ? "bg-amber-500/20 border-amber-500/60 text-amber-300" : "bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500"
+  );
+  const label9 = "text-[9px] font-mono text-zinc-500 uppercase tracking-[0.2em]";
+
+  return (
+    <div className="flex flex-col gap-3">
+      {arenaRole === "seller" && (
+        <>
+          <div className="flex flex-col gap-1.5">
+            <p className={label9}>{lang === "es" ? "Perfil del cliente IA" : "AI client profile"}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {clientItems.map(p => (
+                <button key={p.id} onMouseDown={e => e.preventDefault()}
+                  onClick={() => setClientProfile(clientProfile === p.id ? undefined : p.id)}
+                  className={toggleChip(clientProfile === p.id)}>{p.label}</button>
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <p className={label9}>{lang === "es" ? "Dificultad" : "Difficulty"}</p>
+            <div className="flex gap-1.5">
+              {diffItems.map(d => (
+                <button key={d.id} onMouseDown={e => e.preventDefault()}
+                  onClick={() => setDifficulty(d.id)}
+                  className={diffChip(difficulty === d.id)}>{d.label}</button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+      {arenaRole === "client" && (
+        <div className="flex flex-col gap-1.5">
+          <p className={label9}>{lang === "es" ? "Perfil del vendedor IA" : "AI seller profile"}</p>
+          <div className="flex flex-wrap gap-1.5">
+            {sellerItems.map(p => (
+              <button key={p.id} onMouseDown={e => e.preventDefault()}
+                onClick={() => setSellerProfile(sellerProfile === p.id ? undefined : p.id)}
+                className={toggleTeal(sellerProfile === p.id)}>{p.label}</button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── ContextSetup — full-screen setup view ────────────────────────────────────
 export function ContextSetup({
   onContextReady,
@@ -506,11 +576,6 @@ export function ContextSetup({
   };
 
   const ctaLabel = appMode === "arena" ? t.START_ARENA : t.START;
-
-  // Profile chips to show in Arena quick mode
-  const clientProfileItems = CLIENT_PROFILES[lang];
-  const sellerProfileItems = SELLER_PROFILES[lang];
-  const difficultyItems = DIFFICULTY_LEVELS[lang];
 
   return (
     <div className="fixed inset-0 bg-black flex flex-col items-center justify-center px-6 overflow-y-auto py-6">
@@ -677,93 +742,20 @@ export function ContextSetup({
               </div>
             </div>
 
-            {/* ── Arena-only: profile chips ──────────────────────────── */}
+            {/* ── Arena-only: profile + difficulty chips ─────────────── */}
             {appMode === "arena" && (
-              <div className="flex flex-col gap-3">
-                {/* Client profile — shown when user is seller (AI plays client) */}
-                {arenaRole === "seller" && (
-                  <div className="flex flex-col gap-1.5">
-                    <p className="text-[9px] font-mono text-zinc-500 uppercase tracking-[0.2em]">
-                      {lang === "es" ? "Perfil del cliente IA" : "AI client profile"}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {clientProfileItems.map(p => (
-                        <button
-                          key={p.id}
-                          onClick={() => setClientProfile(clientProfile === p.id ? undefined : p.id)}
-                          onMouseDown={e => e.preventDefault()}
-                          className={cn(
-                            "px-3 py-1 rounded-full text-[10px] font-mono transition-all border",
-                            clientProfile === p.id
-                              ? "bg-sky-500/20 border-sky-500/60 text-sky-300"
-                              : "bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500"
-                          )}
-                        >
-                          {p.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Seller profile — shown when user is client (AI plays seller) */}
-                {arenaRole === "client" && (
-                  <div className="flex flex-col gap-1.5">
-                    <p className="text-[9px] font-mono text-zinc-500 uppercase tracking-[0.2em]">
-                      {lang === "es" ? "Perfil del vendedor IA" : "AI seller profile"}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {sellerProfileItems.map(p => (
-                        <button
-                          key={p.id}
-                          onClick={() => setSellerProfile(sellerProfile === p.id ? undefined : p.id)}
-                          onMouseDown={e => e.preventDefault()}
-                          className={cn(
-                            "px-3 py-1 rounded-full text-[10px] font-mono transition-all border",
-                            sellerProfile === p.id
-                              ? "bg-teal-500/20 border-teal-500/60 text-teal-300"
-                              : "bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500"
-                          )}
-                        >
-                          {p.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Difficulty — only when user is seller */}
-                {arenaRole === "seller" && (
-                  <div className="flex flex-col gap-1.5">
-                    <p className="text-[9px] font-mono text-zinc-500 uppercase tracking-[0.2em]">
-                      {lang === "es" ? "Dificultad" : "Difficulty"}
-                    </p>
-                    <div className="flex gap-1.5">
-                      {difficultyItems.map(d => (
-                        <button
-                          key={d.id}
-                          onClick={() => setDifficulty(d.id)}
-                          onMouseDown={e => e.preventDefault()}
-                          className={cn(
-                            "flex-1 py-1 rounded-full text-[10px] font-mono transition-all border",
-                            difficulty === d.id
-                              ? "bg-amber-500/20 border-amber-500/60 text-amber-300"
-                              : "bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500"
-                          )}
-                        >
-                          {d.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+              <ArenaProfilePicker
+                arenaRole={arenaRole} lang={lang}
+                clientProfile={clientProfile} setClientProfile={setClientProfile}
+                sellerProfile={sellerProfile} setSellerProfile={setSellerProfile}
+                difficulty={difficulty} setDifficulty={setDifficulty}
+              />
             )}
 
             {/* CTA */}
             <button
               onClick={() => handleSubmit(quickText)}
-              disabled={!quickText.trim()}
+              disabled={appMode === "arena" && !quickText.trim()}
               className="w-full bg-white text-black text-sm font-mono font-bold py-3.5 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all disabled:opacity-40 disabled:pointer-events-none"
             >
               {ctaLabel}
@@ -779,69 +771,13 @@ export function ContextSetup({
         {/* ── Advanced form — Arena ────────────────────────────────────── */}
         {contextMode === "advanced" && appMode === "arena" && (
           <>
-            <ArenaAdvancedForm
-              role={arenaRole}
-              lang={lang}
-              onSubmit={(ctx) => handleSubmit(ctx)}
+            <ArenaAdvancedForm role={arenaRole} lang={lang} onSubmit={handleSubmit} />
+            <ArenaProfilePicker
+              arenaRole={arenaRole} lang={lang}
+              clientProfile={clientProfile} setClientProfile={setClientProfile}
+              sellerProfile={sellerProfile} setSellerProfile={setSellerProfile}
+              difficulty={difficulty} setDifficulty={setDifficulty}
             />
-
-            {/* Profile/difficulty also available in advanced mode */}
-            <div className="flex flex-col gap-3">
-              {arenaRole === "seller" && (
-                <>
-                  <div className="flex flex-col gap-1.5">
-                    <p className="text-[9px] font-mono text-zinc-500 uppercase tracking-[0.2em]">
-                      {lang === "es" ? "Perfil del cliente IA" : "AI client profile"}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {clientProfileItems.map(p => (
-                        <button key={p.id} onClick={() => setClientProfile(clientProfile === p.id ? undefined : p.id)}
-                          onMouseDown={e => e.preventDefault()}
-                          className={cn("px-3 py-1 rounded-full text-[10px] font-mono transition-all border",
-                            clientProfile === p.id ? "bg-sky-500/20 border-sky-500/60 text-sky-300" : "bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500"
-                          )}>
-                          {p.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <p className="text-[9px] font-mono text-zinc-500 uppercase tracking-[0.2em]">
-                      {lang === "es" ? "Dificultad" : "Difficulty"}
-                    </p>
-                    <div className="flex gap-1.5">
-                      {difficultyItems.map(d => (
-                        <button key={d.id} onClick={() => setDifficulty(d.id)}
-                          onMouseDown={e => e.preventDefault()}
-                          className={cn("flex-1 py-1 rounded-full text-[10px] font-mono transition-all border",
-                            difficulty === d.id ? "bg-amber-500/20 border-amber-500/60 text-amber-300" : "bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500"
-                          )}>
-                          {d.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-              {arenaRole === "client" && (
-                <div className="flex flex-col gap-1.5">
-                  <p className="text-[9px] font-mono text-zinc-500 uppercase tracking-[0.2em]">
-                    {lang === "es" ? "Perfil del vendedor IA" : "AI seller profile"}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {sellerProfileItems.map(p => (
-                      <button key={p.id} onClick={() => setSellerProfile(sellerProfile === p.id ? undefined : p.id)}
-                        onMouseDown={e => e.preventDefault()}
-                        className={cn("px-3 py-1 rounded-full text-[10px] font-mono transition-all border",
-                          sellerProfile === p.id ? "bg-teal-500/20 border-teal-500/60 text-teal-300" : "bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500"
-                        )}>
-                        {p.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
           </>
         )}
 
