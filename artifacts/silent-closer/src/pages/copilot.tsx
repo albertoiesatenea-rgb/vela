@@ -64,7 +64,7 @@ function saveLabel(l: string) {
 // ── Color config per detail field — colorblind-safe (blue / white / amber)
 const FIELD_CONFIG = {
   LECTURA:   { label: "text-sky-400",   content: "text-sky-200",   size: "text-[15px]", prefix: "LECTURA ·"            },
-  SIGUIENTE: { label: "text-white",     content: "text-white",     size: "text-[18px]", prefix: "SIGUIENTE MOVIMIENTO ·" },
+  SIGUIENTE: { label: "text-white",     content: "text-white",     size: "text-[18px]", prefix: "MOVIMIENTO ·"            },
   APOYO:     { label: "text-amber-400", content: "text-amber-200", size: "text-[15px]", prefix: "APOYO ·"               },
 } as const;
 
@@ -131,13 +131,14 @@ function ConversationTimeline({ journey, memoryLines }: { journey: Journey; memo
     <div className="shrink-0">
       <button onClick={cycle} className="w-full group">
 
-        {/* STATE 0 — only NOW, centered */}
+        {/* STATE 0 — only NOW, centered pill box */}
         {view === 0 && (
-          <div className="flex items-center justify-center gap-2 pt-3 pb-2 px-6">
-            <div className="w-2 h-2 rounded-full bg-white group-hover:bg-zinc-100 transition-colors shrink-0" />
-            <span className="text-[12px] font-mono text-white uppercase tracking-wide font-semibold text-center leading-snug">
-              {journey.now}
-            </span>
+          <div className="flex justify-center pt-3 pb-2 px-6">
+            <div className="border border-white/20 rounded px-4 py-1.5 group-hover:border-white/35 transition-colors">
+              <span className="text-[11px] font-mono text-white uppercase tracking-wide font-semibold text-center leading-snug">
+                {journey.now}
+              </span>
+            </div>
           </div>
         )}
 
