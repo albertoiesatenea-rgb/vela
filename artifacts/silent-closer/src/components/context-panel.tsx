@@ -2,17 +2,26 @@ import { useState } from "react";
 import { ChevronDown, ChevronUp, Zap, SlidersHorizontal, User, Users, Target, Briefcase, ShieldOff, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// ── Closer Wizard mark: wizard hat with diagonal notch ───────────────────────
-// Three elements:
-//   1. Cone with fill-rule="evenodd" cutout — the notch slice reads as a hat fold
-//   2. Flat rounded-rect brim, clearly separated from cone by a visible gap
+// ── Closer Wizard mark: cone + cross-band + flat brim ────────────────────────
+// Three layers, one compound path (fill-rule="evenodd"):
+//   Outer cone → white. Two crossing strips → black (cut through). Where strips
+//   overlap each other → white again (evenodd cancels) = bright X center.
+//   Small white flaps remain at lower-left and lower-right corners of the cone.
+//   Flat rounded-rect brim sits below with a visible gap.
 function WizardIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 20 20" fill="currentColor" className={className} aria-hidden>
-      {/* Cone + diagonal notch cut — evenodd punches the inner triangle through */}
-      <path fillRule="evenodd" d="M10 2 L4 13 L16 13 Z M12 9 L15.5 13 L12 13 Z" />
-      {/* Brim — flat pill, gap separates it from cone base */}
-      <rect x="1.5" y="14.5" width="17" height="2.8" rx="1.4" />
+      {/* Cone + X band: outer triangle + two crossing parallelograms */}
+      <path
+        fillRule="evenodd"
+        d={[
+          "M10 1.5 L4.5 13 L15.5 13 Z",          // outer cone
+          "M6 13 L8.5 13 L13.5 9 L11 9 Z",        // strip: bottom-left → top-right
+          "M14 13 L11.5 13 L7 9 L9.5 9 Z",        // strip: bottom-right → top-left
+        ].join(" ")}
+      />
+      {/* Brim — flat pill, separated from cone by a clear gap */}
+      <rect x="1.5" y="14" width="17" height="2.5" rx="1.25" />
     </svg>
   );
 }
