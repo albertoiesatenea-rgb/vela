@@ -293,6 +293,7 @@ export function ContextSetup({
           <div className="flex items-center bg-zinc-950 p-1 rounded-full border border-zinc-800">
             <button
               onClick={() => handleSetAppMode("copilot")}
+              onMouseDown={e => e.preventDefault()}
               className={cn(
                 "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono transition-all",
                 appMode === "copilot" ? "bg-white text-black" : "text-zinc-300 hover:text-white"
@@ -306,16 +307,18 @@ export function ContextSetup({
               /* Copilot active — show plain Arena option */
               <button
                 onClick={() => handleSetAppMode("arena")}
+                onMouseDown={e => e.preventDefault()}
                 className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono transition-all text-zinc-300 hover:text-white"
               >
                 <Swords className="w-3 h-3" />
                 {t.MODE_ARENA}
               </button>
             ) : (
-              /* Arena active — grouped role sub-options with thin divider */
+              /* Arena active — grouped role sub-options */
               <>
                 <button
                   onClick={() => setArenaRole("seller")}
+                  onMouseDown={e => e.preventDefault()}
                   className={cn(
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono transition-all",
                     arenaRole === "seller"
@@ -328,6 +331,7 @@ export function ContextSetup({
                 </button>
                 <button
                   onClick={() => setArenaRole("client")}
+                  onMouseDown={e => e.preventDefault()}
                   className={cn(
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono transition-all",
                     arenaRole === "client"
@@ -347,6 +351,7 @@ export function ContextSetup({
             <div className="flex items-center bg-zinc-950 p-1 rounded-full border border-zinc-800">
               <button
                 onClick={() => setContextMode("quick")}
+                onMouseDown={e => e.preventDefault()}
                 className={cn(
                   "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono transition-all",
                   contextMode === "quick" ? "bg-white text-black" : "text-zinc-300 hover:text-white"
@@ -357,6 +362,7 @@ export function ContextSetup({
               </button>
               <button
                 onClick={() => setContextMode("advanced")}
+                onMouseDown={e => e.preventDefault()}
                 className={cn(
                   "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-mono transition-all",
                   contextMode === "advanced" ? "bg-white text-black" : "text-zinc-300 hover:text-white"
