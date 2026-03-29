@@ -4,7 +4,6 @@ import { useAnalyzeConversation } from "@workspace/api-client-react";
 import { useSpeech } from "@/hooks/use-speech";
 import { TacticalDisplay } from "@/components/tactical-display";
 import { ContextSetup, SessionBar } from "@/components/context-panel";
-import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 type InputMode = "listen" | "simulate";
@@ -140,9 +139,8 @@ export default function CopilotPage() {
   const [tacticalState, setTacticalState] = useState<TacticalState>(EMPTY_STATE);
   const [signalHistory, setSignalHistory] = useState<string[]>(loadHistory);
 
-  // Panel state — persists independently
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [memoryOpen, setMemoryOpen] = useState(false);
+  // Panel state — single source of truth, mutually exclusive
+  const [activePanel, setActivePanel] = useState<"detail" | "memory" | null>(null);
 
   const sessionActive = sessionContext !== null;
   const speakerModeRef = useRef(speakerMode);
@@ -217,8 +215,7 @@ export default function CopilotPage() {
     setTacticalState(EMPTY_STATE);
     setSignalHistory([]);
     saveHistory([]);
-    setDetailOpen(false);
-    setMemoryOpen(false);
+    setActivePanel(null);
   };
 
   const handleClearSession = () => {
@@ -227,8 +224,7 @@ export default function CopilotPage() {
     setTacticalState(EMPTY_STATE);
     setSignalHistory([]);
     saveHistory([]);
-    setDetailOpen(false);
-    setMemoryOpen(false);
+    setActivePanel(null);
     if (isListening) stopListening();
     setInputMode("simulate");
     setSpeakerMode("auto");
@@ -255,22 +251,20 @@ export default function CopilotPage() {
     return <ContextSetup onContextReady={handleContextReady} />;
   }
 
-  // Derived panel data — panels are mutually exclusive
+  // Derived panel data — single activePanel drives everything
   const hasDetail = tacticalState.detail && Object.values(tacticalState.detail).some(Boolean);
   const memoryLines = tacticalState.callMemory
     ? tacticalState.callMemory.split(/\\n|\n/).filter(Boolean)
     : [];
   const hasMemory = memoryLines.length > 0;
-  const panelVisible = (detailOpen && hasDetail) || (memoryOpen && hasMemory);
+  const detailOpen = activePanel === "detail" && !!hasDetail;
+  const memoryOpen = activePanel === "memory" && hasMemory;
+  const panelVisible = detailOpen || memoryOpen;
 
-  const handleToggleDetail = () => {
-    setDetailOpen(v => !v);
-    setMemoryOpen(false);
-  };
-  const handleToggleMemory = () => {
-    setMemoryOpen(v => !v);
-    setDetailOpen(false);
-  };
+  const handleToggleDetail = () =>
+    setActivePanel(p => (p === "detail" ? null : "detail"));
+  const handleToggleMemory = () =>
+    setActivePanel(p => (p === "memory" ? null : "memory"));
 
   // Active session layout
   return (

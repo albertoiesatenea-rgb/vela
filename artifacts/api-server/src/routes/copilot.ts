@@ -119,7 +119,7 @@ DETAIL — Objeto con 6 campos breves. Frases cortas, sin párrafos, sin coach. 
   - talk_track: mini guion usable de verdad en llamada real (2-3 frases max)
   - question: pregunta potente para profundizar o recuperar control
   - risk: error táctico y su consecuencia probable (1 línea)
-  - support: si el CONTEXTO DE SESIÓN contiene datos concretos (estadísticas, rankings, precios, comparativas, ejemplos reales), ÚSALOS aquí. Ejemplo: "Dresden 2ª mayor revalorización en los últimos 5 años según datos de sesión." Si no hay datos en el contexto, sugiere el tipo de argumento o palanca. NUNCA inventes datos que no estén en el contexto.
+  - support: dato concreto y accionable para la conversación. JERARQUÍA: (1) si el CONTEXTO DE SESIÓN tiene estadísticas, cifras o ejemplos, úsalos exactamente. (2) si el dominio es conocido (inmobiliario, finanzas, tecnología, salud...), usa datos reales que puedas afirmar con alta confianza desde tu conocimiento del sector — con cifra concreta cuando sea posible: "Dresden registró revalorización media del 42% entre 2018-2023, una de las más altas del mercado alemán", "alquiler bruto en torno al 4-5% en zonas consolidadas", "liquidez media de reventa: 3-6 meses". NO des palancas genéricas del tipo "usa datos de demanda". Da el dato, no el tipo de dato.
 
 CALL_MEMORY — Memoria acumulada de la llamada. Reescrita inteligentemente cada turno.
   - 4 a 6 líneas con guión: "- elemento"
