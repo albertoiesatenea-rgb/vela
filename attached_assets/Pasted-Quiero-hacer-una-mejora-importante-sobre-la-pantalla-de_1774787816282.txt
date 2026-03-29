@@ -1,0 +1,272 @@
+Quiero hacer una mejora importante sobre la pantalla de entrada y el branding de Closer Wizard, sin rehacer la app desde cero ni romper la estética actual.
+
+IMPORTANTE:
+- NO quiero perder el estilo minimalista
+- NO quiero una interfaz pesada
+- quiero que se vea más premium, más clara y más producto
+- quiero mejorar 4 cosas:
+  1. el modo “guiado”
+  2. la estructura del onboarding/contexto avanzado
+  3. el branding dentro de la conversación
+  4. el icono/logo, que todavía no funciona bien
+
+==================================================
+PARTE 1 — CAMBIAR “GUIADO” POR “AVANZADO”
+==================================================
+
+No quiero que el segundo modo se llame “Guiado”.
+Quiero cambiarlo por:
+
+AVANZADO
+
+OBJETIVO
+“Guiado” suena demasiado básico o tutorial.
+“Avanzado” suena más premium, más útil y más alineado con un briefing más completo.
+
+Haz ese cambio en la UI donde corresponda.
+
+==================================================
+PARTE 2 — REDISEÑAR EL MODO AVANZADO COMO FLUJO PASO A PASO
+==================================================
+
+Ahora mismo no me convence tener varios cuadros de texto pegados en la misma pantalla.
+Se siente seco, poco especial y no aprovecha el valor del modo avanzado.
+
+Quiero transformar el modo avanzado en un flujo paso a paso, más friendly, más claro y más estructurado.
+
+OBJETIVO
+Que el usuario vaya construyendo el contexto poco a poco de forma más natural.
+
+PROPUESTA DE ESTRUCTURA
+
+Paso 1 — QUIÉN ERES
+Ejemplo:
+- asesor
+- comercial
+- inversor
+- fundador
+- comprador
+- hijo
+- etc.
+
+Paso 2 — A QUIÉN TE DIRIGES
+Ejemplo:
+- cliente
+- inversor
+- jefe
+- socio
+- decisor
+- familiar
+- etc.
+
+Paso 3 — QUÉ QUIERES CONSEGUIR
+Ejemplo:
+- cerrar
+- convencer
+- avanzar al siguiente paso
+- resolver objeción
+- negociar
+- acordar algo
+
+Paso 4 — QUÉ OFRECES / QUÉ ESTÁS MOVIENDO
+Ejemplo:
+- un inmueble en Dresden
+- una propuesta comercial
+- un software premium
+- un acuerdo
+- una idea
+- una negociación
+
+Paso 5 — POSIBLES OBJECIONES O FRENOS
+Ejemplo:
+- precio
+- ciudad
+- comparación con otra opción
+- desconfianza
+- timing
+- miedo a equivocarse
+- etc.
+
+Paso 6 — COMENTARIOS ADICIONALES
+Opcional.
+Para matices extra.
+
+==================================================
+PARTE 3 — EXPERIENCIA DEL FLUJO
+==================================================
+
+Quiero que el modo avanzado se sienta como un mini briefing premium, no como un formulario pesado.
+
+DISEÑO DESEADO
+- una tarjeta o bloque principal por paso
+- buen espaciado
+- visual limpio
+- sensación de progreso
+- no demasiados campos a la vez
+
+CONTROLES
+Quiero botones tipo:
+- Atrás
+- Siguiente
+- Omitir
+
+IMPORTANTE
+Cada paso debe poder omitirse.
+No quiero obligar al usuario a rellenarlo todo.
+
+Al final del flujo:
+- Iniciar copiloto
+
+Si el usuario rellena solo parte del flujo, también debe funcionar.
+
+==================================================
+PARTE 4 — ELIMINAR “CONTINUAR SIN CONTEXTO”
+==================================================
+
+No quiero mantener el texto o botón:
+“Continuar sin contexto”
+
+Me parece redundante.
+
+Si el usuario no escribe nada y pulsa:
+“Iniciar copiloto”
+ya es equivalente.
+
+Por tanto:
+- elimina esa opción secundaria
+- simplifica la pantalla
+
+==================================================
+PARTE 5 — BRANDING TAMBIÉN EN LA PANTALLA DE CONVERSACIÓN
+==================================================
+
+Quiero que la marca Closer Wizard no solo se vea en la pantalla de entrada.
+También quiero branding sutil dentro de la pantalla de conversación activa.
+
+OBJETIVO
+Que el producto tenga más identidad y presencia durante el uso real.
+Que se note que es una herramienta con marca propia.
+
+IMPORTANTE
+No quiero un branding gigante ni molesto.
+Quiero algo sutil, limpio y premium.
+
+Opciones válidas:
+- pequeño header o etiqueta superior
+- marca e icono en una esquina
+- presencia sutil en la zona superior
+
+Pero quiero que Closer Wizard esté presente también durante la conversación.
+
+==================================================
+PARTE 6 — REVISAR LA POSICIÓN DEL ICONO RESPECTO AL NOMBRE
+==================================================
+
+Ahora mismo no estoy convencido de la posición del icono.
+
+Quiero que revises si visualmente queda mejor:
+- icono a la izquierda del nombre
+o
+- icono a la derecha del nombre
+
+Mi intuición es que quizá quede mejor:
+- primero leer “Closer Wizard”
+- y luego ver el icono
+
+Pero no estoy seguro.
+
+Quiero que elijas la opción que visualmente quede más elegante, más equilibrada y más propia de marca premium.
+
+No quiero una respuesta teórica.
+Quiero que lo ajustes según lo que quede mejor en el diseño real.
+
+==================================================
+PARTE 7 — EL ICONO ACTUAL NO FUNCIONA
+==================================================
+
+Esto es importante:
+el icono actual no me gusta.
+No transmite nada.
+No parece de verdad un “wizard”.
+No da identidad real a la marca.
+
+PROBLEMA
+Ahora mismo el símbolo se siente demasiado abstracto o flojo.
+No tiene fuerza ni memorabilidad.
+
+OBJETIVO
+Quiero un icono mejor, alineado con:
+CLOSER WIZARD
+
+Quiero explorar una dirección más clara:
+- wizard de verdad
+- estética retro / arcade / pixel art
+- pero elegante y simple
+- no infantil
+- no cutre
+- no recargado
+
+REFERENCIA
+Quiero algo tipo:
+- pequeño wizard pixelado minimalista
+- sombrero reconocible
+- quizá una varita
+- quizá un pequeño destello o estrella
+- muy simple
+- muy usable incluso en pequeño
+
+IMPORTANTE
+No quiero una ilustración compleja.
+No quiero un dibujo caricaturesco.
+Quiero un icono que:
+- sí transmita wizard
+- sí tenga personalidad
+- sí se sienta como una marca real
+- y combine con la estética sobria de la app
+
+Si ves que un wizard literal sigue quedando mal, busca una solución intermedia:
+- más simbólica
+- pero con verdadera identidad
+No quiero otro símbolo genérico que no diga nada.
+
+==================================================
+PARTE 8 — REGLA GENERAL DE DISEÑO
+==================================================
+
+Todo esto debe seguir sintiéndose:
+- premium
+- limpio
+- táctico
+- minimalista
+- producto serio
+- con más personalidad de marca
+
+No quiero:
+- formularios feos
+- onboarding pesado
+- branding caricaturesco
+- elementos chillones
+- demasiadas pantallas raras
+
+==================================================
+LO QUE QUIERO QUE HAGAS
+==================================================
+
+1. Cambia “Guiado” por “Avanzado”
+2. Rediseña el modo avanzado como flujo paso a paso
+3. Quita “Continuar sin contexto”
+4. Añade branding sutil de Closer Wizard dentro de la pantalla de conversación
+5. Revisa la posición del icono respecto al nombre
+6. Mejora de verdad el icono/logo porque el actual no transmite nada
+
+==================================================
+ENTREGABLE
+==================================================
+
+Cuando termines, explícame brevemente:
+1. cómo has rediseñado el modo avanzado
+2. qué pasos has dejado en el flujo
+3. dónde has quitado la opción redundante
+4. cómo has metido el branding en la pantalla de conversación
+5. qué decisión tomaste sobre la posición del icono
+6. y qué nuevo enfoque seguiste para el icono/logo
