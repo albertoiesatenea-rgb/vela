@@ -1,0 +1,114 @@
+## OBJETIVO
+Pulir la UX visual de Arena `client` mode para que se sienta más consistente, más compacta y más coherente con el estilo minimalista del producto, sin rehacer la pantalla ni añadir complejidad innecesaria.
+
+## CONTEXTO
+- Pantalla actual de Arena `client` mode ya incluye:
+  - journey visual arriba,
+  - chat principal,
+  - bloque lateral de coach,
+  - input del usuario,
+  - botón de terminar chat,
+  - y selector final de resultado (`Me has convencido`, `Me has perdido`, `Solo quería acabar`).
+- La funcionalidad base está bien encaminada.
+- El problema actual es de pulido visual, consistencia y jerarquía.
+- Hay varios puntos concretos que rompen la sensación de producto cerrado:
+  - el bloque final de resultado es demasiado grande para su función;
+  - hay inconsistencia visual entre los botones finales;
+  - el bloque lateral usa el label `TÁCTICA` cuando la funcionalidad se llama `COACH`;
+  - la parte inferior de la pantalla tiene demasiados elementos compitiendo por atención;
+  - el coach se siente útil, pero algo accesorio o pegado, no del todo integrado.
+
+Archivos probablemente implicados:
+- `artifacts/silent-closer/src/pages/arena.tsx`
+- componentes relacionados con render de mensajes, coach, journey y cierre de sesión en Arena
+- si existen subcomponentes específicos para outcome picker / coach card / journey tracker, tocarlos de forma focalizada
+
+## RESTRICCIONES
+- No tocar Copiloto
+- No rehacer Arena desde cero
+- No romper el flujo `start / turn / finish`
+- No eliminar la funcionalidad actual
+- No añadir nuevas capas de complejidad visual
+- No instalar dependencias nuevas salvo necesidad real
+- Mantener el estilo minimalista actual
+- No meter más colores ni más cajas de las necesarias
+- No reformatear toda la pantalla sin criterio
+
+## CAMBIO EXACTO
+
+### 1. Compactar el bloque de resultado final
+El bloque que aparece al terminar chat debe ocupar bastante menos espacio visual.
+
+Cambios:
+- reducir padding vertical y altura total del contenedor
+- reducir altura de los 3 botones/opciones
+- hacer que el conjunto se lea como una decisión rápida, no como un formulario grande
+- cambiar el título si hace falta a algo más limpio, por ejemplo `Resultado`
+
+### 2. Unificar iconografía de las opciones finales
+Ahora hay inconsistencia entre opciones.
+
+Regla:
+- o todas las opciones llevan icono
+- o ninguna lleva icono
+
+Quiero la versión más limpia:
+- eliminar el tick de `Me has convencido`
+- no añadir cruz a `Me has perdido`
+- dejar las 3 opciones sin iconos, solo texto
+
+### 3. Cambiar label `TÁCTICA` por `COACH`
+En el bloque lateral o secundario que explica por qué el vendedor dijo algo, cambiar el encabezado visible:
+- de `TÁCTICA`
+- a `COACH`
+
+Debe alinearse con el naming general del producto y con el control que activa/desactiva esa funcionalidad.
+
+### 4. Mejorar integración visual del bloque coach
+Sin rehacerlo entero:
+- mantenerlo ligero
+- hacerlo sentirse más integrado con el turno del vendedor
+- reducir sensación de “tarjeta pegada”
+- mantener la explicación breve y escaneable
+- conservar la utilidad didáctica sin competir con el mensaje principal
+
+### 5. Reducir ruido en la zona inferior
+Revisar la jerarquía visual entre:
+- bloque de resultado
+- input
+- botón de terminar chat
+- pills de `LOG` / `COACH`
+- ayudas de teclado
+
+Objetivo:
+- menos competencia visual
+- más claridad
+- que la acción principal del momento se entienda mejor
+
+### 6. Mantener el journey, pero afinar consistencia si hace falta
+No eliminar el journey.
+Solo ajustar si hace falta:
+- espaciado
+- claridad del paso actual
+- microtexto de apoyo
+- consistencia con el resto del lenguaje visual
+
+## ENTREGABLES
+- [ ] Bloque de resultado final más compacto y limpio
+- [ ] Opciones finales sin iconografía inconsistente
+- [ ] Label `COACH` en lugar de `TÁCTICA`
+- [ ] Coach visualmente mejor integrado
+- [ ] Menos ruido en la parte inferior
+- [ ] Journey mantenido y afinado solo si hace falta
+- [ ] No tocar nada innecesario fuera de Arena `client` mode
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] El bloque final ocupa claramente menos espacio visual que ahora
+- [ ] Las 3 opciones finales son consistentes entre sí
+- [ ] `Me has convencido` ya no muestra un tick aislado
+- [ ] El bloque lateral muestra `COACH` como encabezado
+- [ ] La pantalla se siente más limpia y más coherente
+- [ ] La zona inferior tiene mejor jerarquía visual
+- [ ] El journey sigue siendo útil y no estorba
+- [ ] La app compila sin errores
+- [ ] No hay regresión en Arena

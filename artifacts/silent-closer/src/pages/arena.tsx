@@ -149,8 +149,8 @@ const T = {
     CLIENT_ACCEPT_MSG: "Ok, cuéntame más.",
     CLIENT_OBJECTION_MSG: "No, eso no me convence.",
     CLIENT_END_CHAT: "Terminar chat",
-    CLIENT_EXIT_TITLE: "¿Cómo termina esto?",
-    CLIENT_EXIT_CONVINCED: "Me has convencido ✓",
+    CLIENT_EXIT_TITLE: "Resultado",
+    CLIENT_EXIT_CONVINCED: "Me has convencido",
     CLIENT_EXIT_LOST: "Me has perdido",
     CLIENT_EXIT_QUIT: "Solo quería acabar",
     CLIENT_EXIT_REASON_TITLE: "¿Por qué te han perdido?",
@@ -214,8 +214,8 @@ const T = {
     CLIENT_ACCEPT_MSG: "OK, tell me more.",
     CLIENT_OBJECTION_MSG: "No, I'm not convinced by that.",
     CLIENT_END_CHAT: "End chat",
-    CLIENT_EXIT_TITLE: "How does this end?",
-    CLIENT_EXIT_CONVINCED: "You convinced me ✓",
+    CLIENT_EXIT_TITLE: "Outcome",
+    CLIENT_EXIT_CONVINCED: "You convinced me",
     CLIENT_EXIT_LOST: "You lost me",
     CLIENT_EXIT_QUIT: "I just wanted to stop",
     CLIENT_EXIT_REASON_TITLE: "Why did you lose interest?",
@@ -548,14 +548,11 @@ function Confetti({ active, intensity = "high" }: { active: boolean; intensity?:
 
 function CoachNote({ explanation, lang }: { explanation: string; lang: Lang }) {
   return (
-    <div className="mt-1.5 ml-5 pl-3 border-l-[1.5px] border-teal-500/40">
-      <div className="flex items-center gap-1 mb-1.5">
-        <GraduationCap className="w-2.5 h-2.5 text-teal-400/50 shrink-0" />
-        <span className="text-[7px] font-mono tracking-[0.25em] uppercase text-teal-400/40">
-          {lang === "es" ? "táctica" : "tactic"}
-        </span>
-      </div>
-      <div className="text-[11px] text-zinc-500 leading-[1.55] [&_strong]:text-sky-200 [&_strong]:font-medium [&_ul]:flex [&_ul]:flex-col [&_ul]:gap-0.5 [&_li]:flex [&_li]:gap-1.5 [&_li]:items-start">
+    <div className="mt-1 ml-3 pl-2.5 border-l border-teal-500/35">
+      <span className="text-[7px] font-mono tracking-[0.25em] uppercase text-teal-400/45 block mb-1">
+        coach
+      </span>
+      <div className="text-[10.5px] text-zinc-500 leading-[1.5] [&_strong]:text-sky-200 [&_strong]:font-medium [&_ul]:flex [&_ul]:flex-col [&_ul]:gap-0.5 [&_li]:flex [&_li]:gap-1.5 [&_li]:items-start">
         <RichText text={explanation} />
       </div>
     </div>
@@ -1486,40 +1483,37 @@ export function Arena({
 
           {/* Client mode: exit panel (only shown when active) */}
           {role === "client" && !isStarting && messages.length >= 1 && exitStep !== null && (
-              <div className="flex flex-col gap-2 px-3 py-3 bg-zinc-950 border border-zinc-800 rounded-xl">
+              <div className="flex flex-col gap-1.5 px-2.5 py-2 bg-zinc-950 border border-zinc-800 rounded-xl">
                 {exitStep === "outcomes" ? (
                   /* Step 1 — choose outcome */
                   <>
-                    <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{t.CLIENT_EXIT_TITLE}</p>
-                    <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[8px] font-mono tracking-widest uppercase text-zinc-600">{t.CLIENT_EXIT_TITLE}</p>
+                      <button onClick={() => setExitStep(null)} className="text-[9px] text-zinc-700 hover:text-zinc-400 transition-colors leading-none">✕</button>
+                    </div>
+                    <div className="flex flex-col gap-1">
                       <button
                         onClick={() => void handleClientExit("closed")}
                         disabled={isEnding}
-                        className="w-full py-2 rounded-lg border text-[10px] font-mono tracking-wide transition-all disabled:opacity-30 disabled:pointer-events-none text-emerald-400 border-emerald-400/30 hover:border-emerald-400/60 hover:bg-emerald-400/5"
+                        className="w-full py-1.5 rounded-lg border text-[10px] font-mono tracking-wide transition-all disabled:opacity-30 disabled:pointer-events-none text-teal-400 border-teal-400/30 hover:border-teal-400/60 hover:bg-teal-400/5"
                       >
                         {isEnding ? <Loader2 className="w-3 h-3 animate-spin inline" /> : t.CLIENT_EXIT_CONVINCED}
                       </button>
                       <button
                         onClick={() => setExitStep("reason")}
                         disabled={isEnding}
-                        className="w-full py-2 rounded-lg border text-[10px] font-mono tracking-wide transition-all disabled:opacity-30 disabled:pointer-events-none text-amber-400 border-amber-400/30 hover:border-amber-400/60 hover:bg-amber-400/5"
+                        className="w-full py-1.5 rounded-lg border text-[10px] font-mono tracking-wide transition-all disabled:opacity-30 disabled:pointer-events-none text-amber-400 border-amber-400/30 hover:border-amber-400/60 hover:bg-amber-400/5"
                       >
                         {t.CLIENT_EXIT_LOST}
                       </button>
                       <button
                         onClick={() => void handleClientExit("manual_stop")}
                         disabled={isEnding}
-                        className="w-full py-2 rounded-lg border text-[10px] font-mono tracking-wide transition-all disabled:opacity-30 disabled:pointer-events-none text-zinc-400 border-zinc-700 hover:border-zinc-500"
+                        className="w-full py-1.5 rounded-lg border text-[10px] font-mono tracking-wide transition-all disabled:opacity-30 disabled:pointer-events-none text-zinc-500 border-zinc-800 hover:border-zinc-600 hover:text-zinc-300"
                       >
                         {t.CLIENT_EXIT_QUIT}
                       </button>
                     </div>
-                    <button
-                      onClick={() => setExitStep(null)}
-                      className="text-[9px] font-mono text-zinc-600 hover:text-zinc-400 transition-colors text-center"
-                    >
-                      ✕ cancelar
-                    </button>
                   </>
                 ) : (
                   /* Step 2 — reason for "lost" */
@@ -1663,33 +1657,33 @@ export function Arena({
                 )}
               </div>
               <div className="flex items-center justify-between">
-                <p className="text-[9px] text-zinc-600 tracking-widest">
-                  {lang === "es" ? "↓ Ok, sigue · ↑ No estoy de acuerdo · Enter envía" : "↓ Keep going · ↑ Disagree · Enter sends"}
+                <p className="text-[8px] text-zinc-700 tracking-widest">
+                  {lang === "es" ? "↓ ok · ↑ objeto · Enter envía" : "↓ ok · ↑ object · Enter sends"}
                 </p>
                 <div className="flex items-center gap-1.5">
                   {messages.some(m => m.speaker === "user") && (
                     <button
                       onClick={handleMidSessionDownload}
                       onMouseDown={e => e.preventDefault()}
-                      title={lang === "es" ? "Descargar log de conversación" : "Download conversation log"}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[8px] font-mono tracking-widest uppercase border transition-all text-zinc-600 border-zinc-800 hover:text-zinc-400 hover:border-zinc-600"
+                      title={lang === "es" ? "Descargar log" : "Download log"}
+                      className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-mono tracking-widest uppercase border transition-all text-zinc-700 border-zinc-800/70 hover:text-zinc-400 hover:border-zinc-600"
                     >
-                      <Download className="w-2.5 h-2.5" />
+                      <Download className="w-2 h-2" />
                       log
                     </button>
                   )}
                   <button
                     onClick={() => setCoachOn(prev => !prev)}
                     onMouseDown={e => e.preventDefault()}
-                    title={lang === "es" ? "Activar anotaciones de táctica" : "Toggle tactical notes"}
+                    title={lang === "es" ? "Anotaciones coach" : "Coach annotations"}
                     className={cn(
-                      "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[8px] font-mono tracking-widest uppercase border transition-all",
+                      "flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-mono tracking-widest uppercase border transition-all",
                       coachOn
-                        ? "text-teal-300 border-teal-500/50 bg-teal-500/10"
-                        : "text-zinc-600 border-zinc-800 hover:text-zinc-400 hover:border-zinc-600"
+                        ? "text-teal-300 border-teal-500/40 bg-teal-500/8"
+                        : "text-zinc-700 border-zinc-800/70 hover:text-zinc-400 hover:border-zinc-600"
                     )}
                   >
-                    <GraduationCap className="w-2.5 h-2.5" />
+                    <GraduationCap className="w-2 h-2" />
                     coach
                   </button>
                 </div>
