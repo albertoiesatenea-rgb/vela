@@ -464,11 +464,11 @@ function ArenaProfilePicker({
   const sellerItems = SELLER_PROFILES[lang];
   const diffItems = DIFFICULTY_LEVELS[lang];
 
-  const chipBase = "font-mono transition-all border text-[10px]";
-  const toggleChip = (active: boolean) => cn(chipBase, "px-3 py-1 rounded-full",
+  const chipBase = "font-mono transition-all border text-[9px]";
+  const toggleChip = (active: boolean) => cn(chipBase, "px-2 py-0.5 rounded-full",
     active ? "bg-sky-500/20 border-sky-500/60 text-sky-300" : "bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500"
   );
-  const toggleTeal = (active: boolean) => cn(chipBase, "px-3 py-1 rounded-full",
+  const toggleTeal = (active: boolean) => cn(chipBase, "px-2 py-0.5 rounded-full",
     active ? "bg-teal-500/20 border-teal-500/60 text-teal-300" : "bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500"
   );
   const diffChip = (active: boolean) => cn(chipBase, "flex-1 py-1 rounded-full",

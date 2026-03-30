@@ -1424,6 +1424,16 @@ export default function CopilotPage() {
             </button>
           </div>
 
+          {/* End call — visible once real conversation starts */}
+          {hasRealConversation && (
+            <button
+              onClick={handleClearSession}
+              className="px-3 py-1.5 rounded-full text-[10px] font-mono font-semibold tracking-widest uppercase text-orange-400 border border-orange-500/30 bg-orange-950/20 hover:bg-orange-950/40 hover:border-orange-500/50 transition-all active:scale-95"
+            >
+              {lang === "es" ? "Fin" : "End"}
+            </button>
+          )}
+
           {/* Speaker mode toggle */}
           <div className="flex items-center bg-white/5 p-1 rounded-full border border-white/8">
             {SPEAKER_ORDER.map((s) => (
