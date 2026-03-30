@@ -799,27 +799,33 @@ export default function CopilotPage() {
   // Setup screen
   if (sessionContext === null) {
     return (
-      <ContextSetup
-        onContextReady={handleContextReady}
-        onArenaReady={handleArenaReady}
-        lang={lang}
-        onLangChange={(l) => { setLang(l); saveLang(l); }}
-      />
+      <>
+        <ContextSetup
+          onContextReady={handleContextReady}
+          onArenaReady={handleArenaReady}
+          lang={lang}
+          onLangChange={(l) => { setLang(l); saveLang(l); }}
+        />
+        <DebugPanel sessionId={null} />
+      </>
     );
   }
 
   if (arenaRole !== null) {
     return (
-      <Arena
-        key={arenaKey}
-        context={sessionContext}
-        contextLabel={contextLabel}
-        role={arenaRole}
-        lang={lang}
-        arenaConfig={arenaConfig}
-        onExit={handleActuallyClearSession}
-        onRetry={() => setArenaKey(k => k + 1)}
-      />
+      <>
+        <Arena
+          key={arenaKey}
+          context={sessionContext}
+          contextLabel={contextLabel}
+          role={arenaRole}
+          lang={lang}
+          arenaConfig={arenaConfig}
+          onExit={handleActuallyClearSession}
+          onRetry={() => setArenaKey(k => k + 1)}
+        />
+        <DebugPanel sessionId={null} />
+      </>
     );
   }
 

@@ -107,17 +107,17 @@ export function DebugPanel({ sessionId }: { sessionId?: string | null }) {
 
   return (
     <>
-      {/* Trigger button — bottom-right, very small */}
+      {/* Trigger button — bottom-right */}
       <button
         onClick={() => setOpen(o => !o)}
         className={cn(
-          "fixed bottom-3 right-3 z-40 text-[8px] font-mono tracking-widest uppercase",
-          "text-zinc-700 hover:text-zinc-400 transition-colors select-none",
-          open && "text-zinc-400",
+          "fixed bottom-3 right-3 z-40 text-[9px] font-mono tracking-widest uppercase px-2 py-1 rounded",
+          "text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all select-none border border-transparent hover:border-zinc-700",
+          open && "text-white bg-zinc-800 border-zinc-700",
         )}
-        title="Debug panel (Ctrl+Shift+D)"
+        title="Panel de uso AI (Ctrl+Shift+D)"
       >
-        ⚙
+        AI $
       </button>
 
       {/* Panel */}
