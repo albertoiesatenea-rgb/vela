@@ -1,0 +1,49 @@
+## OBJETIVO
+Corregir el vendedor IA de Arena `client` mode para que, cuando ya alcanza una conclusión correcta, no siga hablando de más ni repita la misma idea, y para que cierre con más autoridad cuando una operación no encaja para el cliente.
+
+## CONTEXTO
+- Archivo principal: `artifacts/api-server/src/routes/arena.ts`
+- Documentación relevante: `docs/04-prompts.md` y `docs/05-arena-logic.md`
+- El comportamiento actual ha mejorado:
+  - detecta mejor el bloqueo real del cliente;
+  - ya puede admitir que una operación no encaja.
+- Pero sigue teniendo dos fallos claros:
+  1. la primera respuesta aún arranca a veces con argumentos que el cliente ya no compra;
+  2. cuando llega a la conclusión buena, no se detiene y repite la misma idea en varios mensajes seguidos.
+- Caso observado:
+  - el cliente deja claro que no quiere largo plazo ni ventaja fiscal como justificación del esfuerzo mensual;
+  - el vendedor finalmente reconoce que la operación no encaja;
+  - pero luego sigue mandando más mensajes repitiendo lo mismo con otras palabras.
+
+## RESTRICCIONES
+- No tocar Copiloto
+- No cambiar seller mode
+- No rehacer Arena
+- No romper `start / turn / suggest / finish`
+- No cambiar rutas API
+- No tocar UI en este cambio
+- No instalar dependencias nuevas
+- Tocar solo el prompt/comportamiento del vendedor IA en `client` mode y un ajuste mínimo si de verdad hace falta
+
+## CAMBIO EXACTO
+Reescribir o reforzar la instrucción del vendedor IA en `client` mode para que:
+1. si el cliente rechaza explícitamente largo plazo, revalorización o ventaja fiscal como respuesta a su objeción principal, no vuelva a usar esos marcos;
+2. cuando la conversación ya ha llegado a una conclusión clara y útil, no genere más variaciones de la misma idea;
+3. si la conclusión honesta es que la operación no encaja para ese cliente, lo diga con autoridad y de forma breve;
+4. reduzca la inercia de seguir explicando después de haber dado una respuesta suficiente;
+5. prefiera una sola intervención fuerte y final frente a varias respuestas redundantes;
+6. mantenga tono humano, directo y creíble.
+
+## ENTREGABLES
+- [ ] Ajuste del prompt del vendedor IA en `artifacts/api-server/src/routes/arena.ts`
+- [ ] Ajuste mínimo de tokens solo si ayuda a evitar sobre-respuestas sin romper casos buenos
+- [ ] Actualización de `docs/04-prompts.md`
+- [ ] No tocar nada innecesario fuera de ese flujo
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] Si el cliente rechaza explícitamente cierto marco argumental, el vendedor no vuelve a insistir por ahí
+- [ ] Si la conversación ya llegó a una conclusión útil, el vendedor no manda más mensajes redundantes
+- [ ] El vendedor puede descartar una operación con autoridad y brevedad
+- [ ] El tono se siente más senior, más limpio y menos insistente
+- [ ] No hay regresión en `POST /api/arena/turn`
+- [ ] La app compila sin errores
