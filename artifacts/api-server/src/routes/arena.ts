@@ -28,6 +28,7 @@ interface ArenaSession {
   clientProfile?: string;
   sellerProfile?: string;
   difficulty?: string;
+  forceTerminal?: boolean;
 }
 
 // ── In-memory session store ───────────────────────────────────────────────────
@@ -317,12 +318,13 @@ async function detectTerminalState(
   role: ArenaRole,
   lang: Lang,
   sessionId?: string,
+  force?: boolean,
 ): Promise<Exclude<ArenaOutcome, "manual_stop">> {
   if (role === "client") return "none";
 
   // Skip if terminal check not warranted (saves the extra API call in most turns)
-  if (USE_OPTIMIZED_ARENA && !shouldCheckTerminal(turns, lang)) return "none";
-  if (turns.length < 4) return "none";
+  if (!force && USE_OPTIMIZED_ARENA && !shouldCheckTerminal(turns, lang)) return "none";
+  if (turns.length < (force ? 2 : 4)) return "none";
 
   const recent = turns.slice(-6).map(t => {
     const speaker = t.speaker === "user"
@@ -400,13 +402,14 @@ One word only:`;
 
 // ── POST /api/arena/start ─────────────────────────────────────────────────────
 router.post("/arena/start", async (req, res) => {
-  const { role, lang = "es", context = "", clientProfile, sellerProfile, difficulty } = req.body as {
+  const { role, lang = "es", context = "", clientProfile, sellerProfile, difficulty, forceTerminal } = req.body as {
     role?: ArenaRole;
     lang?: Lang;
     context?: string;
     clientProfile?: string;
     sellerProfile?: string;
     difficulty?: string;
+    forceTerminal?: boolean;
   };
 
   if (!role || !["seller", "client"].includes(role)) {
@@ -424,6 +427,7 @@ router.post("/arena/start", async (req, res) => {
     turns: [],
     createdAt: new Date().toISOString(),
     clientProfile: resolvedClientProfile, sellerProfile, difficulty,
+    forceTerminal: forceTerminal === true,
   };
 
   let openingMessage = "";
@@ -549,7 +553,7 @@ router.post("/arena/turn", async (req, res) => {
 
   // ── Conditional terminal detection ────────────────────────────────────────
   const terminalSignal = await detectTerminalState(
-    session.turns, session.role, session.lang, arenaSessionId,
+    session.turns, session.role, session.lang, arenaSessionId, session.forceTerminal,
   );
 
   res.json({ aiMessage, terminalSignal });

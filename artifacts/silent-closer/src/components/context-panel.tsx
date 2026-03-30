@@ -8,6 +8,7 @@ export interface ArenaConfig {
   clientProfile?: string;
   sellerProfile?: string;
   difficulty?: string;
+  forceTerminal?: boolean;
 }
 
 type AppMode = "copilot" | "arena";
@@ -139,8 +140,11 @@ function buildContextFromAdvanced(answers: string[], lang: Lang): string {
 }
 
 // ── Arena profiles & difficulty ──────────────────────────────────────────────
+const REAL_PROFILES = ["analytical", "emotional", "skeptical", "cautious", "dominant", "indecisive", "negotiator"];
+
 const CLIENT_PROFILES = {
   es: [
+    { id: "random",      label: "Aleatorio" },
     { id: "analytical",  label: "Analítico" },
     { id: "emotional",   label: "Emocional" },
     { id: "skeptical",   label: "Escéptico" },
@@ -150,6 +154,7 @@ const CLIENT_PROFILES = {
     { id: "negotiator",  label: "Negociador" },
   ],
   en: [
+    { id: "random",      label: "Random" },
     { id: "analytical",  label: "Analytical" },
     { id: "emotional",   label: "Emotional" },
     { id: "skeptical",   label: "Skeptical" },
@@ -539,9 +544,10 @@ export function ContextSetup({
   const [isRandomCtx, setIsRandomCtx] = useState(false);
 
   // Arena profile/difficulty state
-  const [clientProfile, setClientProfile] = useState<string | undefined>(undefined);
+  const [clientProfile, setClientProfile] = useState<string | undefined>("random");
   const [sellerProfile, setSellerProfile] = useState<string | undefined>(undefined);
   const [difficulty, setDifficulty] = useState<string>("normal");
+  const [showAdvancedOpts, setShowAdvancedOpts] = useState(false);
 
   const quickRef = useRef<HTMLTextAreaElement>(null);
 
@@ -559,7 +565,16 @@ export function ContextSetup({
   const handleSubmit = (ctx: string) => {
     if (!ctx.trim()) return;
     if (appMode === "arena") {
-      onArenaReady(ctx, arenaRole, { clientProfile, sellerProfile, difficulty });
+      const isRandom = clientProfile === "random" || clientProfile === undefined;
+      const resolvedProfile = isRandom
+        ? REAL_PROFILES[Math.floor(Math.random() * REAL_PROFILES.length)]
+        : clientProfile;
+      onArenaReady(ctx, arenaRole, {
+        clientProfile: resolvedProfile,
+        sellerProfile,
+        difficulty,
+        forceTerminal: isRandom,
+      });
     } else {
       onContextReady(ctx);
     }
@@ -760,14 +775,28 @@ export function ContextSetup({
               </div>
             </div>
 
-            {/* ── Arena-only: profile + difficulty chips ─────────────── */}
+            {/* ── Arena-only: profile + difficulty chips (collapsible) ── */}
             {appMode === "arena" && (
-              <ArenaProfilePicker
-                arenaRole={arenaRole} lang={lang}
-                clientProfile={clientProfile} setClientProfile={setClientProfile}
-                sellerProfile={sellerProfile} setSellerProfile={setSellerProfile}
-                difficulty={difficulty} setDifficulty={setDifficulty}
-              />
+              <div className="flex flex-col gap-2">
+                <button
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={() => setShowAdvancedOpts(v => !v)}
+                  className="self-start flex items-center gap-1.5 text-[10px] font-mono text-zinc-500 hover:text-zinc-300 transition-colors"
+                >
+                  {showAdvancedOpts
+                    ? <><ChevronUp className="w-3 h-3" />{lang === "es" ? "Ocultar opciones" : "Hide options"}</>
+                    : <><ChevronDown className="w-3 h-3" />{lang === "es" ? "Perfil y dificultad" : "Profile & difficulty"}</>
+                  }
+                </button>
+                {showAdvancedOpts && (
+                  <ArenaProfilePicker
+                    arenaRole={arenaRole} lang={lang}
+                    clientProfile={clientProfile} setClientProfile={setClientProfile}
+                    sellerProfile={sellerProfile} setSellerProfile={setSellerProfile}
+                    difficulty={difficulty} setDifficulty={setDifficulty}
+                  />
+                )}
+              </div>
             )}
 
             {/* CTA */}
