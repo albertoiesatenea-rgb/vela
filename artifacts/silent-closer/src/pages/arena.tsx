@@ -897,9 +897,11 @@ export function Arena({
   };
 
   const handleMidSessionDownload = useCallback(() => {
-    if (allTurns.length === 0) return;
+    // Use live messages (not allTurns — that's only set on session end)
+    const liveTurns = messages.filter(m => m.speaker === "user" || m.speaker === "ai");
+    if (liveTurns.length === 0) return;
     const now = new Date().toISOString();
-    const userTurns = allTurns.filter(t => t.speaker === "user").length;
+    const userTurns = liveTurns.filter(t => t.speaker === "user").length;
     const log = buildArenaAuditLog({
       sessionId: arenaSessionId,
       lang,
@@ -907,17 +909,17 @@ export function Arena({
       context,
       outcome: "in_progress",
       outcomeSource: "system",
-      totalTurns: allTurns.length,
+      totalTurns: liveTurns.length,
       userTurns,
       createdAt: now,
       closedAt: now,
-      allMessages: allTurns,
+      allMessages: liveTurns,
       exitNote: null,
       debrief: null,
       runtimeInstructions: sellerNotes.length > 0 ? sellerNotes : undefined,
     });
     triggerAuditLogDownload(log, arenaSessionId);
-  }, [allTurns, arenaSessionId, lang, role, context, sellerNotes]);
+  }, [messages, arenaSessionId, lang, role, context, sellerNotes]);
 
   const handleDownloadReport = () => {
     if (!summary) return;
@@ -1310,7 +1312,9 @@ export function Arena({
             role === "client" && coachOn ? "max-w-4xl" : "max-w-2xl"
           )}>
             {messages.map((msg, i) => {
-              const showCoachSlot = role === "client" && coachOn && msg.speaker === "ai";
+              // Only show coach slot (spacer + note) when there's actual coach data for this message.
+              // This prevents a blank 240px spacer from appearing on the opening AI message (index 0).
+              const showCoachSlot = role === "client" && coachOn && msg.speaker === "ai" && !!coachLiteMap[msg.index];
               if (msg.speaker === "note") {
                 return (
                   <div key={i} className="flex items-center gap-2 py-0.5">
@@ -1563,8 +1567,8 @@ export function Arena({
             </>
           )}
 
-          {/* Download log — visible for both roles once there are turns */}
-          {allTurns.length > 0 && (
+          {/* Download log — visible for both roles once user has sent at least one message */}
+          {messages.some(m => m.speaker === "user") && (
             <div className="flex justify-end">
               <button
                 onClick={handleMidSessionDownload}
