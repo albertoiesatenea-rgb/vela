@@ -865,7 +865,7 @@ export function Arena({
 
           {/* Hero verdict */}
           <div className={cn(
-            "rounded-2xl px-5 flex items-center justify-between gap-4",
+            "rounded-2xl px-5 flex items-center gap-5",
             isClosed ? "py-6" : "py-4",
             outcomeBg,
             isWin && "ring-1 ring-white/10",
