@@ -690,7 +690,7 @@ export function Arena({
   const [pendingOutcome, setPendingOutcome] = useState<Exclude<ArenaOutcome, "none" | "manual_stop"> | null>(null);
   // Suggested response
   const [isSuggesting, setIsSuggesting] = useState(false);
-  const [isShortcutPending, setIsShortcutPending] = useState(false);
+  const [shortcutPhase, setShortcutPhase] = useState<"client" | "vendor" | null>(null);
   // Early exit prompt (no user turns yet)
   const [showEarlyExit, setShowEarlyExit] = useState(false);
   // Seller notes (client mode only)
@@ -809,7 +809,7 @@ export function Arena({
     setIsStarting(true);
     setIsEnding(false);
     setIsSending(false);
-    setIsShortcutPending(false);
+    setShortcutPhase(null);
     setCoachLiteMap({});
     setLatestJourney(null);
     setConversationState(null);
@@ -886,13 +886,13 @@ export function Arena({
   }, [isSending, arenaSessionId, messages.length, lang]);
 
   // Comodín shortcut: AI generates a contextual client response in the given direction.
-  // Uses isShortcutPending (not isSending) so no loading indicator fires before the client message appears.
+  // Uses shortcutPhase (not isSending) so no loading indicator fires before the client message appears.
   const sendShortcut = useCallback(async (direction: "agree" | "object") => {
-    if (isSending || isShortcutPending || !arenaSessionId) return;
+    if (isSending || shortcutPhase !== null || !arenaSessionId) return;
     const expectedUserIdx = messages.length;
     const expectedAiIdx = messages.length + 1;
 
-    setIsShortcutPending(true);
+    setShortcutPhase("client");
     try {
       const res = await fetch("/api/arena/turn", {
         method: "POST",
@@ -907,6 +907,8 @@ export function Arena({
       };
       // Show the actual contextual client message first
       setMessages(prev => [...prev, { index: expectedUserIdx, speaker: "user" as const, message: data.generatedUserMessage }]);
+      // Switch to vendor phase — dots move to the vendor side
+      setShortcutPhase("vendor");
       // Natural beat — let the client message settle before vendor responds
       await new Promise<void>(r => setTimeout(r, 820));
       // Then show vendor
@@ -925,17 +927,17 @@ export function Arena({
         message: lang === "en" ? "(Connection error)" : "(Error de conexión)",
       }]);
     } finally {
-      setIsShortcutPending(false);
+      setShortcutPhase(null);
       setTimeout(() => textareaRef.current?.focus(), 50);
     }
-  }, [isSending, isShortcutPending, arenaSessionId, messages.length, lang]);
+  }, [isSending, shortcutPhase, arenaSessionId, messages.length, lang]);
 
   // Arrow key shortcuts for client mode (↓ = agree comodín, ↑ = object comodín)
   useEffect(() => {
     if (role !== "client" || isStarting || isSending || isEnding) return;
     const handler = (e: KeyboardEvent) => {
       if (document.activeElement === textareaRef.current && input.trim() !== "") return;
-      if (exitStep !== null || isExitHovered) return;
+      if (exitStep !== null || isExitHovered || shortcutPhase !== null) return;
       if (e.key === "ArrowDown") {
         e.preventDefault();
         void sendShortcut("agree");
@@ -946,7 +948,7 @@ export function Arena({
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [role, isStarting, isSending, isEnding, exitStep, isExitHovered, input, sendShortcut]);
+  }, [role, isStarting, isSending, isEnding, exitStep, isExitHovered, shortcutPhase, input, sendShortcut]);
 
   const handleSend = useCallback(() => {
     void sendMessage(input);
@@ -1536,15 +1538,27 @@ export function Arena({
                 </div>
               </div>
             )}
-            {isShortcutPending && (
-              <div className="flex items-center gap-4 py-1">
-                {role === "client" && coachOn && <div className="w-44 shrink-0" />}
-                <div className="flex items-center gap-1.5 px-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 animate-bounce" style={{ animationDelay: "0ms" }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 animate-bounce" style={{ animationDelay: "160ms" }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 animate-bounce" style={{ animationDelay: "320ms" }} />
+            {shortcutPhase !== null && (
+              shortcutPhase === "client" ? (
+                /* Client is thinking → right side (same alignment as user messages) */
+                <div className="flex justify-end py-1">
+                  <div className="flex items-center gap-1.5 px-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 animate-bounce" style={{ animationDelay: "160ms" }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 animate-bounce" style={{ animationDelay: "320ms" }} />
+                  </div>
                 </div>
-              </div>
+              ) : (
+                /* Vendor is thinking → left side (same alignment as AI messages) */
+                <div className="flex items-center gap-4 py-1">
+                  {role === "client" && coachOn && <div className="w-44 shrink-0" />}
+                  <div className="flex items-center gap-1.5 px-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 animate-bounce" style={{ animationDelay: "160ms" }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 animate-bounce" style={{ animationDelay: "320ms" }} />
+                  </div>
+                </div>
+              )
             )}
             <div ref={messagesEndRef} />
           </div>
