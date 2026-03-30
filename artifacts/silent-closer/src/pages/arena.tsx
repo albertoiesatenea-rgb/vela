@@ -23,6 +23,15 @@ interface ArenaDebrief {
   critique: string[];
 }
 
+interface CoachLite {
+  signal: string;
+  mission: string;
+  next_move: string;
+  reading: string;
+  why_this_response: string;
+  alternative: string;
+}
+
 interface ArenaSummary {
   role: ArenaRole;
   context: string;
@@ -72,6 +81,22 @@ function inferState(text: string, lang: Lang): ConversationState {
   if (FAVORABLE_KEYWORDS[lang].some(kw => lower.includes(kw))) return "favorable";
   return "tense";
 }
+
+// ── CoachLite loading messages ────────────────────────────────────────────────
+const COACH_LOADING: Record<Lang, string[]> = {
+  es: [
+    "detectando señal principal...",
+    "evaluando si la objeción es real...",
+    "eligiendo el mejor movimiento...",
+    "preparando respuesta táctica...",
+  ],
+  en: [
+    "detecting main signal...",
+    "evaluating whether objection is real...",
+    "choosing the best move...",
+    "preparing tactical response...",
+  ],
+};
 
 // ── Translations ──────────────────────────────────────────────────────────────
 const T = {
@@ -553,6 +578,56 @@ function Confetti({ active, intensity = "high" }: { active: boolean; intensity?:
   );
 }
 
+// ── CoachBox component ────────────────────────────────────────────────────────
+function CoachBox({
+  data,
+  isOpen,
+  onToggle,
+  lang,
+}: {
+  data: CoachLite;
+  isOpen: boolean;
+  onToggle: () => void;
+  lang: Lang;
+}) {
+  const lbl = lang === "es"
+    ? { signal: "señal", mission: "misión", move: "movim.", strategy: "ver estrategia", hide: "ocultar", reading: "lectura", why: "por qué", alt: "alternativa" }
+    : { signal: "signal", mission: "mission", move: "move", strategy: "show strategy", hide: "hide", reading: "reading", why: "why", alt: "alternative" };
+
+  return (
+    <div className="ml-0 max-w-xs flex flex-col gap-1 mt-0.5">
+      <div className="flex flex-col gap-1 px-3 py-2 rounded-lg bg-zinc-900/70 border border-zinc-800/60">
+        <div className="grid gap-x-2.5 gap-y-0.5" style={{ gridTemplateColumns: "46px 1fr" }}>
+          <span className="text-[8px] font-mono tracking-widest uppercase text-sky-400/60 pt-0.5">{lbl.signal}</span>
+          <span className="text-[11px] text-zinc-300 leading-snug">{data.signal}</span>
+          <span className="text-[8px] font-mono tracking-widest uppercase text-sky-400/60 pt-0.5">{lbl.mission}</span>
+          <span className="text-[11px] text-zinc-300 leading-snug">{data.mission}</span>
+          <span className="text-[8px] font-mono tracking-widest uppercase text-sky-400/60 pt-0.5">{lbl.move}</span>
+          <span className="text-[11px] text-zinc-300 leading-snug">{data.next_move}</span>
+        </div>
+        <button
+          onClick={onToggle}
+          className="mt-0.5 text-[8px] font-mono text-zinc-600 hover:text-zinc-400 transition-colors text-left"
+        >
+          {isOpen ? `▴ ${lbl.hide}` : `▾ ${lbl.strategy}`}
+        </button>
+      </div>
+      {isOpen && (
+        <div className="flex flex-col gap-1 px-3 py-2 rounded-lg bg-zinc-900/40 border border-zinc-800/40">
+          <div className="grid gap-x-2.5 gap-y-0.5" style={{ gridTemplateColumns: "46px 1fr" }}>
+            <span className="text-[8px] font-mono tracking-widest uppercase text-zinc-600 pt-0.5">{lbl.reading}</span>
+            <span className="text-[11px] text-zinc-400 leading-snug">{data.reading}</span>
+            <span className="text-[8px] font-mono tracking-widest uppercase text-zinc-600 pt-0.5">{lbl.why}</span>
+            <span className="text-[11px] text-zinc-400 leading-snug">{data.why_this_response}</span>
+            <span className="text-[8px] font-mono tracking-widest uppercase text-zinc-600 pt-0.5">{lbl.alt}</span>
+            <span className="text-[11px] text-zinc-400 leading-snug italic">{data.alternative}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Arena component ───────────────────────────────────────────────────────────
 export function Arena({
   context,
@@ -597,6 +672,10 @@ export function Arena({
   const [noteText, setNoteText] = useState("");
   const [noteCount, setNoteCount] = useState(0);
   const [sellerNotes, setSellerNotes] = useState<string[]>([]);
+  // CoachLite (client mode only): coach data per message index + strategy toggle state
+  const [coachLiteMap, setCoachLiteMap] = useState<Record<number, CoachLite>>({});
+  const [strategyOpen, setStrategyOpen] = useState<Set<number>>(new Set());
+  const [loadingPhase, setLoadingPhase] = useState(0);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -607,6 +686,13 @@ export function Arena({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Cycle loading phrases while waiting for AI in client mode
+  useEffect(() => {
+    if (!isSending || role !== "client") { setLoadingPhase(0); return; }
+    const id = setInterval(() => setLoadingPhase(p => (p + 1) % COACH_LOADING[lang].length), 1800);
+    return () => clearInterval(id);
+  }, [isSending, role, lang]);
 
   // Focus textarea as soon as the session finishes loading
   useEffect(() => {
@@ -684,6 +770,7 @@ export function Arena({
     if (!text.trim() || isSending || !arenaSessionId) return;
 
     const userMsg: ArenaMessage = { index: messages.length, speaker: "user", message: text.trim() };
+    const expectedAiIndex = messages.length + 1;
     setMessages(prev => [...prev, userMsg]);
     setInput("");
     setIsSending(true);
@@ -694,9 +781,12 @@ export function Arena({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ arenaSessionId, userMessage: text.trim() }),
       });
-      const data = await res.json() as { aiMessage: string; terminalSignal?: ArenaOutcome };
+      const data = await res.json() as { aiMessage: string; terminalSignal?: ArenaOutcome; coachLite?: CoachLite };
       setMessages(prev => [...prev, { index: prev.length, speaker: "ai", message: data.aiMessage }]);
       setConversationState(inferState(data.aiMessage, lang));
+      if (data.coachLite) {
+        setCoachLiteMap(prev => ({ ...prev, [expectedAiIndex]: data.coachLite! }));
+      }
       if (data.terminalSignal && data.terminalSignal !== "none" && data.terminalSignal !== "manual_stop") {
         setPendingOutcome(data.terminalSignal as Exclude<ArenaOutcome, "none" | "manual_stop">);
       }
@@ -1209,17 +1299,43 @@ export function Arena({
                   <div className="flex-1 h-px bg-zinc-800" />
                 </div>
               ) : (
-                <MessageRow key={i} msg={msg} youLabel={t.YOU} aiLabel={aiLabel} />
+                <div key={i} className="flex flex-col gap-1.5">
+                  <MessageRow msg={msg} youLabel={t.YOU} aiLabel={aiLabel} />
+                  {role === "client" && msg.speaker === "ai" && coachLiteMap[msg.index] && (
+                    <CoachBox
+                      data={coachLiteMap[msg.index]}
+                      isOpen={strategyOpen.has(msg.index)}
+                      onToggle={() => setStrategyOpen(prev => {
+                        const next = new Set(prev);
+                        if (next.has(msg.index)) next.delete(msg.index); else next.add(msg.index);
+                        return next;
+                      })}
+                      lang={lang}
+                    />
+                  )}
+                </div>
               )
             ))}
             {isSending && (
-              <div className="flex flex-col gap-1">
-                <span className="text-[9px] tracking-widest uppercase text-zinc-600">{aiLabel}</span>
-                <div className="flex items-center gap-1.5 text-zinc-600">
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  <span className="text-xs">{t.SENDING}</span>
+              role === "client" ? (
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[9px] tracking-widest uppercase text-sky-400/70">{aiLabel}</span>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-sky-400/60 animate-pulse shrink-0" />
+                    <span className="text-[11px] font-mono text-zinc-500 italic">
+                      {COACH_LOADING[lang][loadingPhase]}
+                    </span>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="flex flex-col gap-1">
+                  <span className="text-[9px] tracking-widest uppercase text-zinc-600">{aiLabel}</span>
+                  <div className="flex items-center gap-1.5 text-zinc-600">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span className="text-xs">{t.SENDING}</span>
+                  </div>
+                </div>
+              )
             )}
             <div ref={messagesEndRef} />
           </div>

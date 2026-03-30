@@ -103,6 +103,16 @@ function shouldCheckTerminal(turns: ArenaTurn[], lang: Lang): boolean {
   return TERMINAL_HINTS[lang].some(kw => lastMsg.includes(kw));
 }
 
+// ── CoachLite types ───────────────────────────────────────────────────────────
+interface CoachLite {
+  signal: string;
+  mission: string;
+  next_move: string;
+  reading: string;
+  why_this_response: string;
+  alternative: string;
+}
+
 // ── Prompt builders ───────────────────────────────────────────────────────────
 function buildSystemPrompt(
   role: ArenaRole,
@@ -471,6 +481,86 @@ router.post("/arena/start", async (req, res) => {
   res.json({ arenaSessionId: id, openingMessage });
 });
 
+// ── CoachLite generator ───────────────────────────────────────────────────────
+function buildCoachLitePrompt(
+  userMessage: string,
+  aiMessage: string,
+  context: string,
+  lang: Lang,
+): string {
+  if (lang === "en") {
+    return `You are a sales coach analyzing a simulation. The AI seller just responded to the trainee (who plays the client).
+
+Context: ${context || "Generic sale"}
+Client (trainee) said: "${userMessage}"
+Seller (AI) responded: "${aiMessage}"
+
+Reply ONLY with valid JSON, no extra text. Max 10 words per field:
+{
+  "signal": "main signal detected in client's message",
+  "mission": "tactical objective for this seller turn",
+  "next_move": "the move chosen by the seller",
+  "reading": "what seller detected in client's behavior or mindset",
+  "why_this_response": "why this response was the best choice",
+  "alternative": "one alternative move with a different nuance"
+}`;
+  }
+  return `Eres un coach de ventas analizando una simulación. El vendedor IA acaba de responder al alumno (que hace de cliente).
+
+Contexto: ${context || "Venta genérica"}
+Cliente (alumno) dijo: "${userMessage}"
+Vendedor (IA) respondió: "${aiMessage}"
+
+Responde SOLO con JSON válido, sin texto adicional. Máx 10 palabras por campo:
+{
+  "signal": "señal principal detectada en el mensaje del cliente",
+  "mission": "objetivo táctico de este turno del vendedor",
+  "next_move": "movimiento elegido por el vendedor",
+  "reading": "qué detectó el vendedor en el comportamiento o mentalidad del cliente",
+  "why_this_response": "por qué esta respuesta fue la mejor elección",
+  "alternative": "un movimiento alternativo con otro matiz"
+}`;
+}
+
+async function generateCoachLite(
+  userMessage: string,
+  aiMessage: string,
+  context: string,
+  lang: Lang,
+  sessionId: string,
+): Promise<CoachLite | null> {
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_tokens: 280,
+      temperature: 0,
+      messages: [{ role: "user", content: buildCoachLitePrompt(userMessage, aiMessage, context, lang) }],
+    });
+    const latencyMs = 0;
+    const usage = completion.usage;
+    if (usage) {
+      logAICall({
+        route: "arena/turn",
+        endpoint: "coach-lite",
+        sessionId,
+        mode: "arena",
+        model: "gpt-4o-mini",
+        maxTokensConfigured: 280,
+        promptTokens: usage.prompt_tokens,
+        completionTokens: usage.completion_tokens,
+        latencyMs,
+        status: "ok",
+      });
+    }
+    const raw = completion.choices[0]?.message?.content?.trim() ?? "";
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+    return JSON.parse(jsonMatch[0]) as CoachLite;
+  } catch {
+    return null;
+  }
+}
+
 // ── POST /api/arena/turn ──────────────────────────────────────────────────────
 router.post("/arena/turn", async (req, res) => {
   const { arenaSessionId, userMessage } = req.body as {
@@ -558,12 +648,15 @@ router.post("/arena/turn", async (req, res) => {
     message: aiMessage,
   });
 
-  // ── Conditional terminal detection ────────────────────────────────────────
-  const terminalSignal = await detectTerminalState(
-    session.turns, session.role, session.lang, arenaSessionId, session.forceTerminal,
-  );
+  // ── Run terminal detection + coachLite in parallel ────────────────────────
+  const [terminalSignal, coachLite] = await Promise.all([
+    detectTerminalState(session.turns, session.role, session.lang, arenaSessionId, session.forceTerminal),
+    session.role === "client"
+      ? generateCoachLite(userMessage.trim(), aiMessage, session.context, session.lang, arenaSessionId)
+      : Promise.resolve(null),
+  ]);
 
-  res.json({ aiMessage, terminalSignal });
+  res.json({ aiMessage, terminalSignal, ...(coachLite ? { coachLite } : {}) });
 });
 
 // ── POST /api/arena/finish ────────────────────────────────────────────────────

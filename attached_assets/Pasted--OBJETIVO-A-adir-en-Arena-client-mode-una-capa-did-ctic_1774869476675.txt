@@ -1,0 +1,79 @@
+## OBJETIVO
+Añadir en Arena `client` mode una capa didáctica en vivo que muestre la señal actual de la conversación y la decisión táctica del vendedor, sin ensuciar la experiencia ni mostrar razonamientos largos.
+
+## CONTEXTO
+- Arena ya tiene dos modos:
+  - `seller`: el usuario vende y la IA juega de cliente
+  - `client`: el usuario hace de cliente y la IA juega de vendedor
+- Hoy en `client` mode solo se ve el mensaje final del vendedor.
+- Quiero que el usuario aprenda mejor viendo:
+  1. la señal principal que el vendedor detecta,
+  2. el objetivo táctico del turno,
+  3. el movimiento elegido,
+  4. una explicación opcional breve de por qué respondió así.
+- No quiero copiar el “thinking” de ChatGPT de forma literal ni mostrar razonamiento largo.
+- Quiero una UX limpia, rápida y didáctica.
+- Archivos probablemente implicados:
+  - `artifacts/silent-closer/src/pages/arena.tsx`
+  - `artifacts/api-server/src/routes/arena.ts`
+  - `docs/04-prompts.md`
+  - `docs/05-arena-logic.md`
+
+## RESTRICCIONES
+- No tocar Copiloto
+- No cambiar nada en `seller` mode
+- No rehacer Arena desde cero
+- No romper `start / turn / suggest / finish`
+- No mostrar chain-of-thought largo ni razonamiento interno extenso
+- No mezclar explicación larga dentro del mensaje principal del vendedor
+- No instalar dependencias nuevas salvo necesidad real
+- Mantener la respuesta del vendedor limpia y conversacional
+
+## CAMBIO EXACTO
+Quiero añadir solo en `client` mode estas 3 capas:
+
+### 1. Mini box fijo visible en cada turno
+Debajo o junto al mensaje del vendedor mostrar un bloque pequeño con:
+- `signal`: señal principal detectada en la conversación actual
+- `mission`: objetivo táctico del turno
+- `next_move`: movimiento elegido
+
+Ejemplos:
+- señal: `objeción de precio`
+- misión: `detectar si el problema es precio real o falta de valor`
+- next_move: `preguntar qué tendría que ver para que el precio tuviera sentido`
+
+Este bloque debe ser muy corto, visual y estable.
+
+### 2. Texto efímero mientras la IA genera
+Mientras se espera la respuesta del vendedor en `client` mode, mostrar una línea temporal que simule lectura táctica, con mensajes cortos como:
+- `detectando señal principal...`
+- `evaluando si la objeción es real o superficial...`
+- `eligiendo el mejor movimiento...`
+
+Ese texto desaparece cuando llega la respuesta final.
+No debe parecer razonamiento largo ni un stream infinito.
+
+### 3. Toggle opcional “Ver estrategia”
+Después de la respuesta, añadir un desplegable opcional con un bloque breve:
+- `reading`: qué ha detectado el vendedor en el cliente
+- `why_this_response`: por qué eligió esa respuesta
+- `alternative`: una alternativa válida con otro matiz
+
+Este bloque debe ser corto, táctico y específico a la conversación.
+
+## BACKEND
+En `client` mode, `POST /api/arena/turn` debe poder devolver además de `aiMessage`:
+```json
+{
+  "aiMessage": "respuesta natural del vendedor",
+  "terminalSignal": "none",
+  "coachLite": {
+    "signal": "string",
+    "mission": "string",
+    "next_move": "string",
+    "reading": "string",
+    "why_this_response": "string",
+    "alternative": "string"
+  }
+}
