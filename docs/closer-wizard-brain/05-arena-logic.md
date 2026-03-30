@@ -155,8 +155,30 @@ Esto significa que suggest cuenta como dos llamadas API — una para la sugerenc
 
 Generado al final de sesión para sesiones de seller con al menos un turno del usuario.
 
-- Score: 1–10 (honesto, ponderado por resultado — cerrada contra cliente difícil → mín 7; perdida → máx 6)
-- Critique: exactamente 3 frases cortas accionables en imperativo, específicas a esta conversación
+Recibe `clientProfile` de la sesión y lo usa para evaluación sensible al perfil.
+
+### Rúbrica de puntuación
+
+1. **Peso doble**: outcome Y calidad de ejecución se pesan por igual.
+2. **Techo duro**: score ≤ 7 si el comprador repite una demanda central (datos, evidencia, método, precio concreto) dos o más veces y el vendedor no la resuelve con concreción en esa conversación — aunque el outcome sea `next_step`.
+3. **Penalizaciones** (−1 a −2 c/u):
+   - Vendedor propone reunión/llamada/cierre antes de resolver la objeción principal.
+   - Siguiente paso queda ambiguo, abierto o sin acción/fecha concreta.
+   - Vendedor repite la misma estructura de respuesta sin adaptarse al comprador.
+4. **Sensibilidad al perfil**: el prompt incluye el criterio específico del `clientProfile` para que el evaluador juzgue si el vendedor respondió correctamente a ese tipo de comprador.
+
+### Referencias de score
+
+| Situación | Score |
+|-----------|-------|
+| Closed vs cliente difícil | mín 8 |
+| Next_step + buena ejecución | hasta 8 |
+| Next_step + ejecución débil | 5–6 |
+| Lost / broken | máx 5 |
+| Comprador repite demanda central sin resolver | máx 7 (techo duro) |
+
+- Critique: exactamente 3 frases cortas accionables en imperativo, específicas a esta conversación.
+- temperature=0.2 (más estricto y consistente que el valor anterior 0.4).
 
 El debrief se muestra en la pantalla post-sesión de Arena y se incluye en el audit log.
 

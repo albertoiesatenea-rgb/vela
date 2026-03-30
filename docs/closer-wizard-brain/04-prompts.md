@@ -185,25 +185,52 @@ Responde SOLO con el mensaje exacto, sin explicaciones ni etiquetas.
 
 Análisis de coaching post-sesión. Solo para sesiones de seller con al menos un turno del usuario.
 
+Recibe `clientProfile` como parámetro adicional para evaluación sensible al perfil.
+
 ```
-Eres coach de ventas experto. Evalúa al vendedor con precisión y sin rodeos.
+Eres coach de ventas experto. Evalúa al vendedor con rigor. No inflés la nota.
 
 Contexto: {context}
+Perfil del comprador: {descripción del clientProfile con criterio de evaluación específico}
 Resultado: {outcome label}
 [nota de windowing si turns > 15]
 
 Conversación:
 {transcript — últimos 15 turnos máx}
 
+RÚBRICA:
+1. Pesa outcome Y calidad de ejecución por igual.
+2. TECHO DURO: score ≤ 7 si el comprador repite una demanda central (datos, evidencia,
+   método, precio concreto) dos o más veces y el vendedor no la resuelve con concreción
+   en esa conversación, aunque el outcome sea next_step.
+3. PENALIZACIONES (−1 a −2 c/u):
+   · vendedor propone reunión/llamada/cierre antes de resolver la objeción principal
+   · siguiente paso queda ambiguo o sin acción/fecha concreta
+   · vendedor repite la misma estructura de respuesta sin adaptarse
+4. SENSIBILIDAD AL PERFIL: aplica el criterio del perfil indicado arriba para juzgar
+   si el vendedor respondió correctamente.
+5. Referencias: closed vs cliente difícil → mín 8; lost/broken → máx 5;
+   next_step buena ejecución → hasta 8; next_step ejecución débil → 5–6.
+
 Responde SOLO con JSON válido:
 {"score":<1-10>,"critique":["frase 1","frase 2","frase 3"]}
 
-Reglas: score honesto pesando el resultado (cerrada contra cliente difícil → mínimo 7;
-perdida → máximo 6). critique: exactamente 3 frases cortas accionables, imperativo
-(Escucha, Controla, Adapta...), específicas a esta conversación.
+critique: exactamente 3 frases, imperativo, accionables, específicas a esta conversación.
+Sin texto fuera del JSON.
 ```
 
-`max_tokens=300`, temperature=0.4.
+`max_tokens=300`, temperature=0.2.
+
+**Perfiles de comprador y su criterio de evaluación:**
+
+| Perfil | Criterio exigido al vendedor |
+|--------|------------------------------|
+| `analytical` | Precisión, evidencia, metodología y respuestas directas a preguntas técnicas |
+| `emotional` | Conexión personal, empatía y construcción de confianza |
+| `insecure` | Validación constante y reducción del riesgo percibido |
+| `dominant` | Mantener control, claridad y firmeza sin ceder la dirección |
+| `indecisive` | Guía clara, pasos simples y reducción de fricción |
+| `hard_negotiator` | Anclar valor antes de cualquier conversación de precio |
 
 ---
 

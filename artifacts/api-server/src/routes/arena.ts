@@ -175,6 +175,7 @@ async function generateDebrief(
   lang: Lang,
   outcome: Exclude<ArenaOutcome, "none">,
   sessionId?: string,
+  clientProfile?: string,
 ): Promise<{ score: number; critique: string[] } | null> {
   // Limit transcript to avoid bloated debrief inputs on long sessions
   const relevantTurns = USE_OPTIMIZED_ARENA && turns.length > DEBRIEF_MAX_TURNS
@@ -199,40 +200,81 @@ async function generateDebrief(
     ? `Resultado: ${outcomeLabels[outcome]?.es ?? outcome}`
     : `Result: ${outcomeLabels[outcome]?.en ?? outcome}`;
 
+  const profileDescEs: Record<string, string> = {
+    analytical:      "Analítico — exige datos, evidencia, metodología y respuestas directas. Penaliza si el vendedor no responde con concreción cuando el cliente pide pruebas o cifras.",
+    emotional:       "Emocional — exige conexión personal, empatía y construcción de confianza. Penaliza argumentos fríos o transaccionales.",
+    insecure:        "Inseguro — exige validación constante y reducción del riesgo percibido. Penaliza si el vendedor presiona en vez de tranquilizar.",
+    dominant:        "Dominante — exige que el vendedor mantenga el control, sea claro y firme. Penaliza si el vendedor cede la dirección de la conversación.",
+    indecisive:      "Indeciso — exige guía clara, pasos simples y reducción de fricción. Penaliza si el vendedor deja opciones abiertas o ambigüedad.",
+    hard_negotiator: "Negociador duro — exige que el vendedor ancle valor antes de hablar de precio. Penaliza concesiones tempranas o descuentos sin contraprestación.",
+  };
+  const profileDescEn: Record<string, string> = {
+    analytical:      "Analytical — demands data, evidence, methodology, and direct answers. Penalize if the seller fails to respond concretely when the client requests proof or numbers.",
+    emotional:       "Emotional — demands personal connection, empathy, and trust-building. Penalize cold or transactional arguments.",
+    insecure:        "Insecure — demands constant validation and reduction of perceived risk. Penalize if the seller pushes instead of reassuring.",
+    dominant:        "Dominant — demands the seller stays in control, clear and firm. Penalize if the seller cedes the direction of the conversation.",
+    indecisive:      "Indecisive — demands clear guidance, simple steps, and reduced friction. Penalize open options or ambiguity.",
+    hard_negotiator: "Hard negotiator — demands the seller anchors value before discussing price. Penalize early concessions or discounts without a trade-off.",
+  };
+
+  const profileLine = lang === "es"
+    ? (clientProfile && profileDescEs[clientProfile] ? profileDescEs[clientProfile] : "No especificado.")
+    : (clientProfile && profileDescEn[clientProfile] ? profileDescEn[clientProfile] : "Not specified.");
+
+  const windowNote = turns.length > DEBRIEF_MAX_TURNS
+    ? (lang === "es"
+        ? `[Conversación de ${turns.length} turnos; se analizan los últimos ${relevantTurns.length}]\n`
+        : `[Conversation had ${turns.length} turns; analyzing last ${relevantTurns.length}]\n`)
+    : "";
+
   const prompt = lang === "es"
-    ? `Eres coach de ventas experto. Evalúa al vendedor con precisión y sin rodeos.
+    ? `Eres coach de ventas experto. Evalúa al vendedor con rigor. No inflés la nota.
 
 Contexto: ${context || "venta genérica"}
+Perfil del comprador: ${profileLine}
 ${outcomeLine}
-${turns.length > DEBRIEF_MAX_TURNS ? `[Conversación de ${turns.length} turnos; se analizan los últimos ${relevantTurns.length}]` : ""}
-
+${windowNote}
 Conversación:
 ${transcript}
+
+RÚBRICA:
+1. Pesa outcome Y calidad de ejecución por igual.
+2. TECHO DURO: score ≤ 7 si el comprador repite una demanda central (datos, evidencia, método, precio concreto) dos o más veces y el vendedor no la resuelve con concreción en esa conversación, aunque el outcome sea next_step.
+3. PENALIZACIONES (−1 a −2 c/u): vendedor propone reunión/llamada/cierre antes de resolver la objeción principal · siguiente paso queda ambiguo o sin acción/fecha concreta · vendedor repite la misma estructura de respuesta sin adaptarse.
+4. SENSIBILIDAD AL PERFIL: aplica el criterio del perfil indicado arriba para juzgar si el vendedor respondió correctamente.
+5. Referencias: closed vs cliente difícil → mín 8; lost/broken → máx 5; next_step buena ejecución → hasta 8; next_step ejecución débil → 5–6.
 
 Responde SOLO con JSON válido:
 {"score":<1-10>,"critique":["frase 1","frase 2","frase 3"]}
 
-Reglas: score honesto pesando el resultado (cerrada contra cliente difícil → mínimo 7; perdida → máximo 6). critique: exactamente 3 frases cortas accionables, imperativo (Escucha, Controla, Adapta...), específicas a esta conversación.`
-    : `You are an expert sales coach. Evaluate the seller honestly and directly.
+critique: exactamente 3 frases, imperativo, accionables, específicas a esta conversación. Sin texto fuera del JSON.`
+    : `You are an expert sales coach. Evaluate the seller rigorously. Do not inflate the score.
 
 Context: ${context || "generic sale"}
+Buyer profile: ${profileLine}
 ${outcomeLine}
-${turns.length > DEBRIEF_MAX_TURNS ? `[Conversation had ${turns.length} turns; analyzing last ${relevantTurns.length}]` : ""}
-
+${windowNote}
 Conversation:
 ${transcript}
+
+RUBRIC:
+1. Weight outcome AND execution quality equally.
+2. HARD CAP: score ≤ 7 if the buyer repeats a core demand (data, evidence, method, specific price) two or more times and the seller never addresses it concretely in this conversation — even if outcome is next_step.
+3. PENALTIES (−1 to −2 each): seller proposes meeting/call/close before resolving main objection · next step is ambiguous or lacks a concrete action/date · seller repeats the same response structure without adapting.
+4. PROFILE SENSITIVITY: apply the buyer profile criterion above to judge whether the seller responded correctly.
+5. Score references: closed vs tough client → min 8; lost/broken → max 5; next_step good execution → up to 8; next_step weak execution → 5–6.
 
 Reply ONLY with valid JSON:
 {"score":<1-10>,"critique":["point 1","point 2","point 3"]}
 
-Rules: honest score weighted by result (closed vs tough client → min 7; lost → max 6). critique: exactly 3 short actionable sentences, imperative (Listen, Control, Adapt...), specific to this conversation.`;
+critique: exactly 3 sentences, imperative, actionable, specific to this conversation. No text outside the JSON.`;
 
   const t0 = Date.now();
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       max_tokens: 300,
-      temperature: 0.4,
+      temperature: 0.2,
       messages: [{ role: "user", content: prompt }],
     });
     const latencyMs = Date.now() - t0;
@@ -531,7 +573,7 @@ router.post("/arena/finish", async (req, res) => {
   const userTurns = session.turns.filter(t => t.speaker === "user").length;
   const needsDebrief = session.role === "seller" && userTurns > 0;
   const debrief = needsDebrief
-    ? await generateDebrief(session.turns, session.context, session.lang, session.outcome ?? "manual_stop", arenaSessionId)
+    ? await generateDebrief(session.turns, session.context, session.lang, session.outcome ?? "manual_stop", arenaSessionId, session.clientProfile)
     : null;
 
   // Close session — logs totals, keeps record 10 min for debug panel

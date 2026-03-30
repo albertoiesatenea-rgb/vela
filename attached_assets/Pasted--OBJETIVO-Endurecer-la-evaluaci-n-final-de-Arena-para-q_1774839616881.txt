@@ -1,0 +1,54 @@
+## OBJETIVO
+Endurecer la evaluación final de Arena para que no dé notas infladas cuando el vendedor no responde la objeción central, repite cierres prematuros o deja un siguiente paso ambiguo.
+
+## CONTEXTO
+- Archivo principal: `artifacts/api-server/src/routes/arena.ts`
+- Documentación relevante: `docs/04-prompts.md` y `docs/05-arena-logic.md`
+- Hoy Arena genera un debrief post-sesión en seller mode con este output JSON:
+  `{"score":<1-10>,"critique":["frase 1","frase 2","frase 3"]}`
+- El problema actual es que el debrief está siendo demasiado blando y premia conversaciones mediocres solo porque terminan en “avance” o “next step”.
+- Quiero que el score refleje calidad real de venta, no solo outcome superficial.
+
+## RESTRICCIONES
+- No tocar Copiloto
+- No tocar el flujo `start / turn / suggest / finish`
+- No modificar la detección terminal
+- No cambiar el schema JSON del debrief
+- No instalar dependencias nuevas
+- No rehacer Arena ni refactorizar módulos enteros
+- Tocar solo lo necesario para mejorar la rúbrica y el prompt del debrief
+- Mantener exactamente 3 frases en `critique`
+
+## CAMBIO EXACTO
+Modifica el prompt de debrief de Arena para que:
+1. evalúe la calidad de ejecución además del outcome;
+2. use explícitamente el `clientProfile` como criterio de evaluación;
+3. penalice con fuerza estos fallos:
+   - el comprador pide evidencia, cifras, metodología o prueba dos o más veces y el vendedor no responde con concreción;
+   - el vendedor pide reunión, llamada o cierre antes de resolver la objeción principal;
+   - el siguiente paso queda ambiguo, abierto o sin fecha clara;
+   - el vendedor repite la misma estructura de respuesta sin adaptarse al comprador;
+4. no permita score mayor que 7 cuando el comprador repite una demanda central y el vendedor no la resuelve en la propia conversación, aunque el outcome sea `next_step`;
+5. mantenga las 3 frases de `critique` cortas, accionables, específicas y en imperativo;
+6. haga la evaluación sensible al perfil:
+   - `analytical`: exigir precisión, evidencia, método y respuesta directa;
+   - `emotional`: exigir conexión, empatía y confianza;
+   - `dominant`: exigir control, claridad y firmeza;
+   - `indecisive`: exigir guía clara y reducción de fricción;
+   - `skeptical` o equivalente: exigir credibilidad, pruebas y promesas sobrias;
+   - `cautious` o equivalente: exigir reducción de riesgo y pasos reversibles;
+   - `negotiator` o equivalente: exigir manejo de valor antes de precio.
+
+## ENTREGABLES
+- [ ] Ajustar el prompt de debrief en `artifacts/api-server/src/routes/arena.ts`
+- [ ] Actualizar `docs/04-prompts.md` para reflejar la nueva lógica de evaluación
+- [ ] Actualizar `docs/05-arena-logic.md` solo si hace falta para documentar la nueva rúbrica del debrief
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] `POST /api/arena/finish` sigue devolviendo JSON válido con `score` y exactamente 3 frases en `critique`
+- [ ] El debrief ya no pone notas altas a conversaciones con avance débil pero mala ejecución
+- [ ] Si un cliente analítico pide datos o metodología varias veces y no los recibe, el score no supera 7
+- [ ] Si el vendedor intenta cerrar antes de resolver la objeción principal, la crítica lo señala explícitamente
+- [ ] Si el siguiente paso queda abierto o ambiguo, eso baja la nota
+- [ ] La app compila sin errores
+- [ ] No hay regresión en el resto de Arena
