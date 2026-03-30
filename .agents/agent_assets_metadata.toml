@@ -60,3 +60,69 @@ id = "BJg8Hey81IT8Li1pGGOtB"
 uri = "file://docs/feature-flags.md"
 type = "text"
 title = "Feature Flags"
+
+[[outputs]]
+id = "wC3hDOgYIhLmnWAjHM-Aq"
+uri = "file://closer-wizard-brain-docs.zip"
+type = "unspecified"
+title = "closer-wizard-brain-docs.zip"
+
+[[outputs]]
+id = "fwJJ85cLxEYOLyxT94JRN"
+uri = "file://docs/closer-wizard-brain/00-index.md"
+type = "text"
+title = "00-index.md"
+
+[[outputs]]
+id = "L2BtYykzL3LBVVkvzDPQC"
+uri = "file://docs/closer-wizard-brain/01-current-state.md"
+type = "text"
+title = "01-current-state.md"
+
+[[outputs]]
+id = "aOxTJoX4fpVqfAZBtQ7aC"
+uri = "file://docs/closer-wizard-brain/02-architecture.md"
+type = "text"
+title = "02-architecture.md"
+
+[[outputs]]
+id = "uPof1u3bBQscvTVZA4ZU_"
+uri = "file://docs/closer-wizard-brain/03-api-routes.md"
+type = "text"
+title = "03-api-routes.md"
+
+[[outputs]]
+id = "57vokM3lh6y70JHKk-PTq"
+uri = "file://docs/closer-wizard-brain/04-prompts.md"
+type = "text"
+title = "04-prompts.md"
+
+[[outputs]]
+id = "pFZZpPm47gQ90-QH_CZNT"
+uri = "file://docs/closer-wizard-brain/05-arena-logic.md"
+type = "text"
+title = "05-arena-logic.md"
+
+[[outputs]]
+id = "N5a-jnIShJgQWyfTZckZH"
+uri = "file://docs/closer-wizard-brain/06-ai-tracking.md"
+type = "text"
+title = "06-ai-tracking.md"
+
+[[outputs]]
+id = "48bpN9rc_TbSlMnPyPFO_"
+uri = "file://docs/closer-wizard-brain/07-audit-log.md"
+type = "text"
+title = "07-audit-log.md"
+
+[[outputs]]
+id = "LiYrok08P_5YhdNiS-EFJ"
+uri = "file://docs/closer-wizard-brain/08-debug-panel.md"
+type = "text"
+title = "08-debug-panel.md"
+
+[[outputs]]
+id = "s9b990Qelw3Lp9aA5UMch"
+uri = "file://docs/closer-wizard-brain/09-feature-flags.md"
+type = "text"
+title = "09-feature-flags.md"
