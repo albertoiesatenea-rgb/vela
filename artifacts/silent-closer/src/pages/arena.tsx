@@ -1346,7 +1346,7 @@ export function Arena({
       <div className="shrink-0 border-t border-white/6 px-4 py-3">
         <div className="max-w-2xl mx-auto flex flex-col gap-2">
           {/* Client mode: outcome shortcuts OR exit panel */}
-          {role === "client" && !isStarting && messages.length >= 2 && (
+          {role === "client" && !isStarting && messages.length >= 1 && (
             exitStep !== null ? (
               <div className="flex flex-col gap-2 px-3 py-3 bg-zinc-950 border border-zinc-800 rounded-xl">
                 {exitStep === "outcomes" ? (
