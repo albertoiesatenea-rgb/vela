@@ -565,7 +565,7 @@ export function ContextSetup({
   };
 
   const handleSubmit = (ctx: string) => {
-    if (!ctx.trim()) return;
+    if (appMode === "arena" && !ctx.trim()) return;
     if (appMode === "arena") {
       const isRandom = clientProfile === "random" || clientProfile === undefined;
       const resolvedProfile = isRandom
@@ -808,7 +808,7 @@ export function ContextSetup({
             {/* CTA */}
             <button
               onClick={() => handleSubmit(quickText)}
-              disabled={!quickText.trim()}
+              disabled={appMode === "arena" && !quickText.trim()}
               className="w-full bg-white text-black text-sm font-mono font-bold py-3.5 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all disabled:opacity-40 disabled:pointer-events-none"
             >
               {ctaLabel}
