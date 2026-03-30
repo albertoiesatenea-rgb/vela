@@ -738,7 +738,7 @@ export function Arena({
   };
 
   const fetchSuggestion = useCallback(async () => {
-    if (!arenaSessionId || isSuggesting || messages.length < 1) return;
+    if (!arenaSessionId || isSuggesting || isSending || messages.length < 1) return;
     setIsSuggesting(true);
     try {
       const res = await fetch("/api/arena/suggest", {
@@ -748,15 +748,14 @@ export function Arena({
       });
       const data = await res.json() as { suggestion?: string };
       if (data.suggestion) {
-        setInput(data.suggestion);
-        setTimeout(() => textareaRef.current?.focus(), 50);
+        await sendMessage(data.suggestion);
       }
     } catch {
       // silently ignore
     } finally {
       setIsSuggesting(false);
     }
-  }, [arenaSessionId, isSuggesting, messages.length, lang]);
+  }, [arenaSessionId, isSuggesting, isSending, messages.length, lang, sendMessage]);
 
   const handleExportLog = () => {
     if (!summary) return;
@@ -1271,7 +1270,7 @@ export function Arena({
                   onClick={() => void fetchSuggestion()}
                   disabled={isSuggesting || isStarting || isSending || messages.length < 1}
                   onMouseDown={e => e.preventDefault()}
-                  title={lang === "es" ? "Respuesta ideal" : "Ideal response"}
+                  title={lang === "es" ? "Enviar respuesta ideal" : "Send ideal response"}
                   className="absolute top-2 right-2 p-1.5 rounded-lg text-zinc-500 hover:text-sky-400 hover:bg-white/8 transition-all disabled:opacity-25 disabled:pointer-events-none"
                 >
                   {isSuggesting
