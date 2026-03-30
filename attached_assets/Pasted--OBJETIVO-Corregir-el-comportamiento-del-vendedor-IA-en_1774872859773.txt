@@ -1,0 +1,54 @@
+## OBJETIVO
+Corregir el comportamiento del vendedor IA en Arena `client` mode para que deje de repetir validaciones vacías, deje de reargumentar por los lados cuando el cliente ya ha identificado su único bloqueo, y converse con más precisión, honestidad y foco.
+
+## CONTEXTO
+- Archivo principal: `artifacts/api-server/src/routes/arena.ts`
+- Documentación relevante: `docs/04-prompts.md` y `docs/05-arena-logic.md`
+- Hoy el vendedor IA en `client` mode tiende a:
+  - repetir aperturas como “entiendo tu preocupación”;
+  - volver una y otra vez a beneficios laterales ya aceptados por el cliente;
+  - hacer preguntas genéricas de relleno;
+  - no adaptarse cuando el cliente repite varias veces la misma objeción central.
+- Caso observado: un cliente repitió muchas veces que su único problema eran 650 € negativos al mes. El vendedor siguió hablando de largo plazo, ubicación, revalorización y gestión, sin diagnosticar mejor ni admitir con honestidad que quizá la operación no encajaba.
+
+## RESTRICCIONES
+- No tocar Copiloto
+- No cambiar seller mode
+- No rehacer Arena
+- No romper `start / turn / suggest / finish`
+- No cambiar rutas API
+- No tocar UI ni frontend en este cambio
+- No instalar dependencias nuevas
+- Tocar solo el prompt/comportamiento del vendedor IA en `client` mode y, solo si hace falta, un ajuste mínimo de tokens
+
+## CAMBIO EXACTO
+Reescribir la instrucción del vendedor IA en `client` mode` para que:
+1. detecte cuando el cliente repite la misma objeción dos o más veces;
+2. deje de usar beneficios laterales ya aceptados como argumento principal;
+3. evite aperturas repetitivas tipo “entiendo tu preocupación”;
+4. elija solo uno de estos movimientos por turno:
+   - diagnosticar con una pregunta precisa,
+   - responder breve y directo,
+   - admitir honestamente que la operación puede no encajar;
+5. evite preguntas genéricas de relleno;
+6. hable en lenguaje normal, claro y creíble;
+7. sea conciso por defecto, pero sin convertir esto en una regla rígida de longitud;
+8. si el cliente ya aceptó la tesis de largo plazo, no vuelva a vender largo plazo como si fuera la objeción principal;
+9. si el bloqueo es un esfuerzo mensual concreto, intente identificar el umbral o la condición real que haría aceptable la operación;
+10. si no puede resolver honestamente el bloqueo, no insista de forma pesada.
+
+## ENTREGABLES
+- [ ] Ajuste del prompt del vendedor IA en `artifacts/api-server/src/routes/arena.ts`
+- [ ] Ajuste mínimo de `max_tokens` solo si ayuda de verdad a evitar ladrillos sin ahogar respuestas necesarias
+- [ ] Actualización de `docs/04-prompts.md` para reflejar la nueva lógica conversacional del vendedor IA en `client` mode
+- [ ] No tocar nada innecesario fuera de ese flujo
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] El vendedor IA deja de repetir “entiendo tu preocupación” o equivalentes de forma mecánica
+- [ ] Si el cliente repite la misma objeción, el vendedor deja de responder con argumentos laterales ya aceptados
+- [ ] El vendedor IA hace menos preguntas genéricas y más preguntas diagnósticas reales
+- [ ] El vendedor IA puede responder directo sin preguntar cuando eso sea lo correcto
+- [ ] El vendedor IA puede admitir que una operación no encaja si el bloqueo central no se resuelve
+- [ ] El tono se siente más humano, directo y menos político
+- [ ] No hay regresión en `POST /api/arena/turn`
+- [ ] La app compila sin errores
