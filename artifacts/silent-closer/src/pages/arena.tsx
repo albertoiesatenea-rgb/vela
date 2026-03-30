@@ -455,8 +455,6 @@ export function Arena({
   const [conversationState, setConversationState] = useState<ConversationState | null>(null);
   // Terminal state detection (seller mode)
   const [pendingOutcome, setPendingOutcome] = useState<Exclude<ArenaOutcome, "none" | "manual_stop"> | null>(null);
-  // Manual end modal
-  const [showManualEndModal, setShowManualEndModal] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -628,7 +626,6 @@ export function Arena({
     const outcomeName = getOutcomeLabel(summary.outcome, t);
     const outcomeColor = getOutcomeColor(summary.outcome);
     const outcomeBg = getOutcomeBg(summary.outcome);
-    const isLoss = ["lost", "broken"].includes(summary.outcome) && role === "seller";
     const debrief = summary.debrief;
 
     return (
@@ -656,8 +653,8 @@ export function Arena({
             </div>
           )}
 
-          {/* Debrief block — only for lost/broken seller sessions */}
-          {isLoss && debrief && (
+          {/* Debrief block — all seller sessions */}
+          {role === "seller" && debrief && (
             <div className="flex flex-col gap-4 border border-zinc-800 rounded-xl px-4 py-4 bg-zinc-950">
 
               {/* Score */}
@@ -754,8 +751,8 @@ export function Arena({
 
           {/* Actions */}
           <div className="flex flex-col gap-2 border-t border-white/8 pt-4">
-            {/* Retry — primary CTA for losses and all client sessions */}
-            {(isLoss || role === "client") && onRetry && (
+            {/* Retry */}
+            {onRetry && (
               <button
                 onClick={onRetry}
                 className="w-full bg-white text-black text-xs font-mono font-bold py-3 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all"
@@ -768,7 +765,7 @@ export function Arena({
               onClick={handleExportLog}
               className={cn(
                 "w-full text-xs font-mono font-bold py-3 rounded-xl active:scale-[0.98] transition-all",
-                (isLoss || role === "client") && onRetry
+                onRetry
                   ? "border border-zinc-800 text-zinc-300 hover:border-zinc-600 hover:text-white"
                   : "bg-white text-black hover:bg-zinc-100"
               )}
@@ -802,14 +799,6 @@ export function Arena({
         />
       )}
 
-      {/* Outcome picker — manual end (seller presses "Terminar sesión") */}
-      {showManualEndModal && (
-        <OutcomeModal
-          lang={lang}
-          onConfirm={(outcome) => { setShowManualEndModal(false); void handleEnd(outcome); }}
-          onContinue={() => setShowManualEndModal(false)}
-        />
-      )}
 
       {/* ── Top bar ────────────────────────────────────────────────────────── */}
       <div className="shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-white/6">
@@ -973,7 +962,7 @@ export function Arena({
             className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors resize-none leading-relaxed disabled:opacity-40"
           />
 
-          {/* Footer row: hint + end session */}
+          {/* Footer row: hint */}
           <div className="flex justify-between items-center">
             <p className="text-[9px] text-zinc-600 tracking-widest">
               {role === "client"
@@ -981,16 +970,19 @@ export function Arena({
                 : (lang === "es" ? "Enter envía · Shift+Enter nueva línea" : "Enter sends · Shift+Enter new line")
               }
             </p>
-            {role === "seller" && (
-              <button
-                onClick={() => setShowManualEndModal(true)}
-                disabled={isEnding || isStarting || messages.length < 2}
-                className="text-[9px] font-mono tracking-widest uppercase text-zinc-500 hover:text-zinc-200 transition-colors disabled:opacity-30 disabled:pointer-events-none"
-              >
-                {isEnding ? <Loader2 className="w-3 h-3 animate-spin inline" /> : t.END}
-              </button>
-            )}
           </div>
+
+          {/* End session button — seller only */}
+          {role === "seller" && (
+            <button
+              onClick={() => void handleEnd("manual_stop")}
+              disabled={isEnding || isStarting || messages.length < 2}
+              onMouseDown={e => e.preventDefault()}
+              className="w-full py-2 rounded-xl border border-zinc-700 text-zinc-300 text-[10px] font-mono tracking-widest uppercase hover:border-zinc-500 hover:text-white active:scale-[0.99] transition-all disabled:opacity-30 disabled:pointer-events-none"
+            >
+              {isEnding ? <Loader2 className="w-3 h-3 animate-spin inline" /> : t.END}
+            </button>
+          )}
         </div>
       </div>
 

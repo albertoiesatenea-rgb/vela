@@ -416,8 +416,8 @@ router.post("/arena/finish", async (req, res) => {
 
   const userTurns = session.turns.filter(t => t.speaker === "user").length;
 
-  // Generate debrief for seller sessions that ended in loss/breakdown
-  const needsDebrief = session.role === "seller" && ["lost", "broken"].includes(session.outcome);
+  // Generate debrief for all seller sessions
+  const needsDebrief = session.role === "seller";
   const debrief = needsDebrief
     ? await generateDebrief(session.turns, session.context, session.lang)
     : null;
