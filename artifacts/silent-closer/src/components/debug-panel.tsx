@@ -175,8 +175,8 @@ export function DebugPanel({ sessionId }: { sessionId?: string | null }) {
       <button
         onClick={() => setOpen(!open)}
         className={cn(
-          "fixed bottom-3 right-3 z-40 font-mono text-[9px] tracking-widest uppercase",
-          "px-2.5 py-1 rounded border transition-all select-none",
+          "fixed bottom-3 right-3 z-40 font-mono text-[9px] tracking-wider uppercase",
+          "px-2.5 py-1 rounded border transition-all select-none whitespace-nowrap tabular-nums",
           open
             ? "text-white bg-zinc-800 border-zinc-600"
             : "text-zinc-500 border-zinc-800 hover:text-zinc-300 hover:border-zinc-600",
