@@ -507,11 +507,6 @@ function ArenaProfilePicker({
                   className={toggleChip(clientProfile === p.id)}>{p.label}</button>
               ))}
             </div>
-            {!clientProfile && (
-              <p className="text-[9px] font-mono text-zinc-600">
-                {lang === "es" ? "Sin selección → perfil aleatorio" : "No selection → random profile"}
-              </p>
-            )}
           </div>
           <div className="flex flex-col gap-1.5">
             <p className={label9}>{lang === "es" ? "Dificultad" : "Difficulty"}</p>
