@@ -547,7 +547,9 @@ export function ContextSetup({
   const [clientProfile, setClientProfile] = useState<string | undefined>("random");
   const [sellerProfile, setSellerProfile] = useState<string | undefined>(undefined);
   const [difficulty, setDifficulty] = useState<string>("normal");
-  const [showAdvancedOpts, setShowAdvancedOpts] = useState(false);
+  const [showAdvancedOpts, setShowAdvancedOpts] = useState(
+    () => localStorage.getItem("arena_opts_open") === "1"
+  );
 
   const quickRef = useRef<HTMLTextAreaElement>(null);
 
@@ -780,7 +782,11 @@ export function ContextSetup({
               <div className="flex flex-col gap-2">
                 <button
                   onMouseDown={e => e.preventDefault()}
-                  onClick={() => setShowAdvancedOpts(v => !v)}
+                  onClick={() => setShowAdvancedOpts(v => {
+                    const next = !v;
+                    localStorage.setItem("arena_opts_open", next ? "1" : "0");
+                    return next;
+                  })}
                   className="self-start flex items-center gap-1.5 text-[10px] font-mono text-zinc-500 hover:text-zinc-300 transition-colors"
                 >
                   {showAdvancedOpts
