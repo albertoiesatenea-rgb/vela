@@ -119,7 +119,7 @@ Crea una sesión de Arena nueva y devuelve el mensaje de apertura de la IA.
   "role": "seller | client",
   "lang": "es | en",
   "context": "string",
-  "clientProfile": "analytical | emotional | insecure | dominant | indecisive | hard_negotiator",
+  "clientProfile": "analytical | emotional | skeptical | cautious | dominant | indecisive | negotiator",
   "sellerProfile": "communicative | authoritative | technical | passive | aggressive | consultive",
   "difficulty": "easy | normal | hard | brutal"
 }

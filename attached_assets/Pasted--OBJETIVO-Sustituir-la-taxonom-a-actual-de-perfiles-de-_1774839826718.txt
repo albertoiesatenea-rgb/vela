@@ -1,0 +1,78 @@
+## OBJETIVO
+Sustituir la taxonomía actual de perfiles de cliente de Arena por una versión más limpia y más útil para venta: añadir el perfil `skeptical`, reemplazar `insecure` por `cautious`, reemplazar `hard_negotiator` por `negotiator`, y mostrar labels cortos en UI en español.
+
+## CONTEXTO
+- Arena existe ya y hoy permite configurar `clientProfile` en `POST /api/arena/start`.
+- Los perfiles actuales documentados son: `analytical | emotional | insecure | dominant | indecisive | hard_negotiator`.
+- El prompt de Arena seller mode usa una descripción por perfil (`CLIENT_PROFILE_DESC[clientProfile]`) para que la IA juegue de prospecto con esa personalidad.
+- La app ya funciona; no quiero un rediseño ni un refactor grande. Quiero un cambio focalizado y seguro.
+
+Archivos relevantes:
+- `artifacts/silent-closer/src/pages/arena.tsx`
+- `artifacts/api-server/src/routes/arena.ts`
+- `docs/03-api-routes.md`
+- `docs/05-arena-logic.md`
+- `docs/04-prompts.md`
+
+## CAMBIO EXACTO
+Quiero que los perfiles de cliente queden así:
+
+Claves internas:
+- `analytical`
+- `emotional`
+- `skeptical`
+- `cautious`
+- `dominant`
+- `indecisive`
+- `negotiator`
+
+Labels visibles en UI:
+- `analytical` → `Analítico`
+- `emotional` → `Emocional`
+- `skeptical` → `Escéptico`
+- `cautious` → `Cauto`
+- `dominant` → `Dominante`
+- `indecisive` → `Indeciso`
+- `negotiator` → `Negociador`
+
+Descripciones funcionales del prospecto:
+- `analytical`: necesita datos, precisión, proceso y evidencia antes de decidir; hace preguntas técnicas; rechaza vaguedades.
+- `emotional`: decide por confianza, conexión y sensación personal; le influyen historias reales y empatía.
+- `skeptical`: desconfía por defecto; cuestiona promesas, testimonios genéricos y claims inflados; necesita pruebas concretas y consistencia.
+- `cautious`: teme equivocarse; busca seguridad, validación externa y pasos reversibles; posterga si percibe riesgo alto.
+- `dominant`: quiere control, velocidad y autoridad; interrumpe, marca el ritmo y castiga la debilidad.
+- `indecisive`: le cuesta comprometerse; da vueltas, cambia de opinión y necesita guía clara para decidir.
+- `negotiator`: presiona precio, compara alternativas, pide concesiones y usa la negociación como palanca principal.
+
+## RESTRICCIONES
+- No rehacer Arena desde cero.
+- No tocar Copiloto.
+- No instalar dependencias nuevas.
+- Mantener intacto el flujo actual de sesión: start / turn / suggest / finish.
+- Mantener intacta la detección terminal.
+- Mantener el comportamiento actual de prompts salvo el cambio de taxonomía y descripción de perfiles.
+- Hacer compatibilidad hacia atrás en el backend: si entra `insecure`, normalizarlo a `cautious`; si entra `hard_negotiator`, normalizarlo a `negotiator`.
+- No cambiar nombres de rutas API.
+- No tocar seller profiles.
+- No reformatear archivos enteros sin necesidad.
+
+## ENTREGABLES
+- [ ] `artifacts/silent-closer/src/pages/arena.tsx` actualizado con los 7 perfiles nuevos y labels cortos en UI
+- [ ] `artifacts/api-server/src/routes/arena.ts` actualizado para aceptar las nuevas claves y normalizar aliases legacy (`insecure` → `cautious`, `hard_negotiator` → `negotiator`)
+- [ ] Mapa de descripciones de `clientProfile` actualizado para usar los nuevos perfiles en el prompt de Arena
+- [ ] `docs/03-api-routes.md` actualizado con el nuevo union type de `clientProfile`
+- [ ] `docs/05-arena-logic.md` actualizado con la nueva tabla de perfiles
+- [ ] `docs/04-prompts.md` actualizado donde corresponda para reflejar la nueva taxonomía
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] En la UI de Arena aparecen exactamente estos labels: Analítico, Emocional, Escéptico, Cauto, Dominante, Indeciso, Negociador
+- [ ] El frontend envía una de estas claves: `analytical | emotional | skeptical | cautious | dominant | indecisive | negotiator`
+- [ ] Si el backend recibe `insecure`, lo trata como `cautious` sin error
+- [ ] Si el backend recibe `hard_negotiator`, lo trata como `negotiator` sin error
+- [ ] La IA en seller mode responde de forma consistente con el nuevo perfil `skeptical`
+- [ ] La IA en seller mode responde de forma consistente con el nuevo perfil `cautious`
+- [ ] No hay regresión en `POST /api/arena/start`
+- [ ] No hay regresión en `POST /api/arena/turn`
+- [ ] No hay regresión en `POST /api/arena/suggest`
+- [ ] No hay regresión en `POST /api/arena/finish`
+- [ ] La app compila sin errores

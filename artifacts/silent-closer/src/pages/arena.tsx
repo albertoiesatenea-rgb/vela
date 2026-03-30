@@ -422,12 +422,13 @@ function ClientOutcomeBar({
 
 // ── Profile label translations ────────────────────────────────────────────────
 const CLIENT_PROFILE_LABEL: Record<string, Record<"es"|"en", string>> = {
-  analytical:      { es: "Analítico",          en: "Analytical" },
-  emotional:       { es: "Emocional",           en: "Emotional" },
-  insecure:        { es: "Inseguro",            en: "Insecure" },
-  dominant:        { es: "Dominante",           en: "Dominant" },
-  indecisive:      { es: "Indeciso",            en: "Indecisive" },
-  hard_negotiator: { es: "Negociador duro",     en: "Hard negotiator" },
+  analytical:  { es: "Analítico",   en: "Analytical" },
+  emotional:   { es: "Emocional",   en: "Emotional" },
+  skeptical:   { es: "Escéptico",   en: "Skeptical" },
+  cautious:    { es: "Cauto",       en: "Cautious" },
+  dominant:    { es: "Dominante",   en: "Dominant" },
+  indecisive:  { es: "Indeciso",    en: "Indecisive" },
+  negotiator:  { es: "Negociador",  en: "Negotiator" },
 };
 const DIFFICULTY_LABEL: Record<string, Record<"es"|"en", string>> = {
   easy:   { es: "Fácil",   en: "Easy" },

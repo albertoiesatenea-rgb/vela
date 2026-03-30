@@ -141,20 +141,22 @@ function buildContextFromAdvanced(answers: string[], lang: Lang): string {
 // ── Arena profiles & difficulty ──────────────────────────────────────────────
 const CLIENT_PROFILES = {
   es: [
-    { id: "analytical",      label: "Analítico" },
-    { id: "emotional",       label: "Emocional" },
-    { id: "insecure",        label: "Inseguro" },
-    { id: "dominant",        label: "Dominante" },
-    { id: "indecisive",      label: "Indeciso" },
-    { id: "hard_negotiator", label: "Duro" },
+    { id: "analytical",  label: "Analítico" },
+    { id: "emotional",   label: "Emocional" },
+    { id: "skeptical",   label: "Escéptico" },
+    { id: "cautious",    label: "Cauto" },
+    { id: "dominant",    label: "Dominante" },
+    { id: "indecisive",  label: "Indeciso" },
+    { id: "negotiator",  label: "Negociador" },
   ],
   en: [
-    { id: "analytical",      label: "Analytical" },
-    { id: "emotional",       label: "Emotional" },
-    { id: "insecure",        label: "Insecure" },
-    { id: "dominant",        label: "Dominant" },
-    { id: "indecisive",      label: "Indecisive" },
-    { id: "hard_negotiator", label: "Hard" },
+    { id: "analytical",  label: "Analytical" },
+    { id: "emotional",   label: "Emotional" },
+    { id: "skeptical",   label: "Skeptical" },
+    { id: "cautious",    label: "Cautious" },
+    { id: "dominant",    label: "Dominant" },
+    { id: "indecisive",  label: "Indecisive" },
+    { id: "negotiator",  label: "Negotiator" },
   ],
 };
 

@@ -46,12 +46,13 @@ const SUGGEST_MAX_TURNS    = 10;
 
 // ── Personality & difficulty descriptors (compact) ────────────────────────────
 const CLIENT_PROFILE_DESC: Record<string, string> = {
-  analytical:      "Analítico: necesitas datos y evidencia antes de decidir. Haces preguntas técnicas. Los argumentos emocionales no te convencen.",
-  emotional:       "Emocional: decides por confianza y relación personal. Te influyen testimonios y la conexión con el vendedor.",
-  insecure:        "Inseguro: muchas dudas, miedo a equivocarte, necesitas validación constante. Postpones y buscas opiniones externas.",
-  dominant:        "Dominante: tomas el control, interrumpes, marcas tú los tiempos. Necesitas sentir que tienes el poder.",
-  indecisive:      "Indeciso: cambias de opinión, dices 'me lo pienso' repetidamente, difícil que te comprometas.",
-  hard_negotiator: "Negociador duro: presionas siempre en precio, pides descuentos agresivos, comparas con competencia, amenazas con no cerrar.",
+  analytical:  "Analítico: necesitas datos, precisión, proceso y evidencia antes de decidir. Haces preguntas técnicas. Rechazas vaguedades y argumentos emocionales.",
+  emotional:   "Emocional: decides por confianza, conexión y sensación personal. Te influyen historias reales y la empatía del vendedor.",
+  skeptical:   "Escéptico: desconfías por defecto. Cuestionas promesas, testimonios genéricos y claims inflados. Solo te convencen pruebas concretas y consistencia entre lo que se dice y lo que se demuestra.",
+  cautious:    "Cauto: temes equivocarte. Buscas seguridad, validación externa y pasos reversibles. Pospones si percibes riesgo alto. La presión te aleja.",
+  dominant:    "Dominante: quieres control, velocidad y autoridad. Interrumpes, marcas el ritmo y castigas la debilidad o la indecisión.",
+  indecisive:  "Indeciso: te cuesta comprometerte. Das vueltas, cambias de opinión y necesitas guía clara para decidir.",
+  negotiator:  "Negociador: presionas en precio, comparas alternativas, pides concesiones y usas la negociación como palanca principal.",
 };
 
 const SELLER_PROFILE_DESC: Record<string, string> = {
@@ -201,20 +202,22 @@ async function generateDebrief(
     : `Result: ${outcomeLabels[outcome]?.en ?? outcome}`;
 
   const profileDescEs: Record<string, string> = {
-    analytical:      "Analítico — exige datos, evidencia, metodología y respuestas directas. Penaliza si el vendedor no responde con concreción cuando el cliente pide pruebas o cifras.",
-    emotional:       "Emocional — exige conexión personal, empatía y construcción de confianza. Penaliza argumentos fríos o transaccionales.",
-    insecure:        "Inseguro — exige validación constante y reducción del riesgo percibido. Penaliza si el vendedor presiona en vez de tranquilizar.",
-    dominant:        "Dominante — exige que el vendedor mantenga el control, sea claro y firme. Penaliza si el vendedor cede la dirección de la conversación.",
-    indecisive:      "Indeciso — exige guía clara, pasos simples y reducción de fricción. Penaliza si el vendedor deja opciones abiertas o ambigüedad.",
-    hard_negotiator: "Negociador duro — exige que el vendedor ancle valor antes de hablar de precio. Penaliza concesiones tempranas o descuentos sin contraprestación.",
+    analytical:  "Analítico — exige datos, evidencia, metodología y respuestas directas. Penaliza si el vendedor no responde con concreción cuando el cliente pide pruebas o cifras.",
+    emotional:   "Emocional — exige conexión personal, empatía y construcción de confianza. Penaliza argumentos fríos o transaccionales.",
+    skeptical:   "Escéptico — exige pruebas concretas y consistencia entre lo que se promete y lo que se demuestra. Penaliza claims genéricos, testimonios vagos o inconsistencias.",
+    cautious:    "Cauto — exige reducción de riesgo percibido, validación externa y pasos reversibles. Penaliza presión o urgencia artificial.",
+    dominant:    "Dominante — exige que el vendedor mantenga el control, sea claro y firme. Penaliza si el vendedor cede la dirección de la conversación.",
+    indecisive:  "Indeciso — exige guía clara, pasos simples y reducción de fricción. Penaliza si el vendedor deja opciones abiertas o ambigüedad.",
+    negotiator:  "Negociador — exige que el vendedor ancle valor antes de hablar de precio. Penaliza concesiones tempranas o descuentos sin contraprestación.",
   };
   const profileDescEn: Record<string, string> = {
-    analytical:      "Analytical — demands data, evidence, methodology, and direct answers. Penalize if the seller fails to respond concretely when the client requests proof or numbers.",
-    emotional:       "Emotional — demands personal connection, empathy, and trust-building. Penalize cold or transactional arguments.",
-    insecure:        "Insecure — demands constant validation and reduction of perceived risk. Penalize if the seller pushes instead of reassuring.",
-    dominant:        "Dominant — demands the seller stays in control, clear and firm. Penalize if the seller cedes the direction of the conversation.",
-    indecisive:      "Indecisive — demands clear guidance, simple steps, and reduced friction. Penalize open options or ambiguity.",
-    hard_negotiator: "Hard negotiator — demands the seller anchors value before discussing price. Penalize early concessions or discounts without a trade-off.",
+    analytical:  "Analytical — demands data, evidence, methodology, and direct answers. Penalize if the seller fails to respond concretely when the client requests proof or numbers.",
+    emotional:   "Emotional — demands personal connection, empathy, and trust-building. Penalize cold or transactional arguments.",
+    skeptical:   "Skeptical — demands concrete proof and consistency between claims and demonstrated facts. Penalize generic promises, vague testimonials, or inconsistencies.",
+    cautious:    "Cautious — demands risk reduction, external validation, and reversible steps. Penalize pressure tactics or artificial urgency.",
+    dominant:    "Dominant — demands the seller stays in control, clear and firm. Penalize if the seller cedes the direction of the conversation.",
+    indecisive:  "Indecisive — demands clear guidance, simple steps, and reduced friction. Penalize open options or ambiguity.",
+    negotiator:  "Negotiator — demands the seller anchors value before discussing price. Penalize early concessions or discounts without a trade-off.",
   };
 
   const profileLine = lang === "es"
@@ -411,13 +414,16 @@ router.post("/arena/start", async (req, res) => {
     return;
   }
 
+  const PROFILE_ALIASES: Record<string, string> = { insecure: "cautious", hard_negotiator: "negotiator" };
+  const resolvedClientProfile = clientProfile ? (PROFILE_ALIASES[clientProfile] ?? clientProfile) : undefined;
+
   const id = crypto.randomUUID();
   const session: ArenaSession = {
     id, role, lang,
     context: context.trim(),
     turns: [],
     createdAt: new Date().toISOString(),
-    clientProfile, sellerProfile, difficulty,
+    clientProfile: resolvedClientProfile, sellerProfile, difficulty,
   };
 
   let openingMessage = "";

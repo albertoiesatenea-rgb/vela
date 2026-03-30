@@ -227,10 +227,11 @@ Sin texto fuera del JSON.
 |--------|------------------------------|
 | `analytical` | Precisión, evidencia, metodología y respuestas directas a preguntas técnicas |
 | `emotional` | Conexión personal, empatía y construcción de confianza |
-| `insecure` | Validación constante y reducción del riesgo percibido |
+| `skeptical` | Pruebas concretas, consistencia entre claims y hechos; rechaza promesas genéricas |
+| `cautious` | Reducción de riesgo percibido, validación externa y pasos reversibles; penaliza presión |
 | `dominant` | Mantener control, claridad y firmeza sin ceder la dirección |
 | `indecisive` | Guía clara, pasos simples y reducción de fricción |
-| `hard_negotiator` | Anclar valor antes de cualquier conversación de precio |
+| `negotiator` | Anclar valor antes de cualquier conversación de precio; penaliza concesiones tempranas |
 
 ---
 

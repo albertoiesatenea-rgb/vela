@@ -42,12 +42,15 @@ En seller mode la IA juega de prospecto realista y la detección terminal está 
 
 | Clave | Descripción |
 |-------|-------------|
-| `analytical` | Necesitas datos y evidencia antes de decidir. Haces preguntas técnicas. Los argumentos emocionales no convencen. |
-| `emotional` | Decides por confianza y relación personal. Te influyen testimonios y la conexión con el vendedor. |
-| `insecure` | Muchas dudas, miedo a equivocarte, necesitas validación constante. Postpones y buscas opiniones externas. |
-| `dominant` | Tomas el control, interrumpes, marcas los tiempos. Necesitas sentir que tienes el poder. |
-| `indecisive` | Cambias de opinión, dices "me lo pienso" repetidamente, difícil que te comprometas. |
-| `hard_negotiator` | Presionas siempre en precio, pides descuentos agresivos, comparas con competencia, amenazas con no cerrar. |
+| `analytical` | Necesitas datos, precisión, proceso y evidencia antes de decidir. Haces preguntas técnicas. Rechazas vaguedades. |
+| `emotional` | Decides por confianza, conexión y sensación personal. Te influyen historias reales y la empatía del vendedor. |
+| `skeptical` | Desconfías por defecto. Cuestionas promesas y claims inflados. Solo te convencen pruebas concretas y consistencia. |
+| `cautious` | Temes equivocarte. Buscas seguridad, validación externa y pasos reversibles. La presión te aleja. |
+| `dominant` | Quieres control, velocidad y autoridad. Interrumpes, marcas el ritmo y castigas la debilidad. |
+| `indecisive` | Te cuesta comprometerte. Das vueltas, cambias de opinión y necesitas guía clara para decidir. |
+| `negotiator` | Presionas en precio, comparas alternativas, pides concesiones y usas la negociación como palanca principal. |
+
+**Compatibilidad hacia atrás (backend):** Los valores legacy `insecure` y `hard_negotiator` son normalizados automáticamente a `cautious` y `negotiator` respectivamente en `/api/arena/start`.
 
 ---
 
