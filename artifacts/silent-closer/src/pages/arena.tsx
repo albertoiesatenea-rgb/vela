@@ -759,10 +759,13 @@ export function Arena({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ arenaSessionId, outcome }),
       });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json() as { turns: ArenaMessage[]; summary: ArenaSummary };
+      if (!data.turns || !data.summary) throw new Error("Invalid response");
       setAllTurns(data.turns);
       setSummary(data.summary);
     } catch {
+      // Fallback: build summary from local state (handles server restarts, 404s, etc.)
       const localTurns = messages.map((m, i) => ({ ...m, index: i }));
       setAllTurns(localTurns);
       setSummary({
