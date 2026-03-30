@@ -1088,7 +1088,7 @@ export function Arena({
 
           {role === "seller" ? (
             /* Seller: textarea (with sparkles icon) + end button side by side */
-            <div className="flex gap-2 items-stretch">
+            <div className="flex gap-2 items-start">
               <div className="relative flex-1">
                 <textarea
                   ref={textareaRef}
