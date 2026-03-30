@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Loader2, Sun, Moon, Sparkles, Trophy, TrendingUp, StickyNote, GraduationCap } from "lucide-react";
+import { Loader2, Sun, Moon, Sparkles, Trophy, TrendingUp, StickyNote, GraduationCap, Download } from "lucide-react";
 import { WizardIcon } from "@/components/context-panel";
 import { cn } from "@/lib/utils";
 import { buildArenaAuditLog, triggerAuditLogDownload } from "@/lib/audit-log";
@@ -896,6 +896,29 @@ export function Arena({
     triggerAuditLogDownload(log, arenaSessionId);
   };
 
+  const handleMidSessionDownload = useCallback(() => {
+    if (allTurns.length === 0) return;
+    const now = new Date().toISOString();
+    const userTurns = allTurns.filter(t => t.speaker === "user").length;
+    const log = buildArenaAuditLog({
+      sessionId: arenaSessionId,
+      lang,
+      role,
+      context,
+      outcome: "in_progress",
+      outcomeSource: "system",
+      totalTurns: allTurns.length,
+      userTurns,
+      createdAt: now,
+      closedAt: now,
+      allMessages: allTurns,
+      exitNote: null,
+      debrief: null,
+      runtimeInstructions: sellerNotes.length > 0 ? sellerNotes : undefined,
+    });
+    triggerAuditLogDownload(log, arenaSessionId);
+  }, [allTurns, arenaSessionId, lang, role, context, sellerNotes]);
+
   const handleDownloadReport = () => {
     if (!summary) return;
     const isEs = lang === "es";
@@ -1520,20 +1543,33 @@ export function Arena({
                 <p className="text-[9px] text-zinc-600 tracking-widest">
                   {lang === "es" ? "↓ Ok, sigue · ↑ No estoy de acuerdo · Enter envía" : "↓ Keep going · ↑ Disagree · Enter sends"}
                 </p>
-                <button
-                  onClick={() => setCoachOn(prev => !prev)}
-                  onMouseDown={e => e.preventDefault()}
-                  title={lang === "es" ? "Activar anotaciones de táctica" : "Toggle tactical notes"}
-                  className={cn(
-                    "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[8px] font-mono tracking-widest uppercase border transition-all",
-                    coachOn
-                      ? "text-teal-300 border-teal-500/50 bg-teal-500/10"
-                      : "text-zinc-600 border-zinc-800 hover:text-zinc-400 hover:border-zinc-600"
+                <div className="flex items-center gap-1.5">
+                  {allTurns.length > 0 && (
+                    <button
+                      onClick={handleMidSessionDownload}
+                      onMouseDown={e => e.preventDefault()}
+                      title={lang === "es" ? "Descargar log de conversación" : "Download conversation log"}
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[8px] font-mono tracking-widest uppercase border transition-all text-zinc-600 border-zinc-800 hover:text-zinc-400 hover:border-zinc-600"
+                    >
+                      <Download className="w-2.5 h-2.5" />
+                      log
+                    </button>
                   )}
-                >
-                  <GraduationCap className="w-2.5 h-2.5" />
-                  coach
-                </button>
+                  <button
+                    onClick={() => setCoachOn(prev => !prev)}
+                    onMouseDown={e => e.preventDefault()}
+                    title={lang === "es" ? "Activar anotaciones de táctica" : "Toggle tactical notes"}
+                    className={cn(
+                      "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[8px] font-mono tracking-widest uppercase border transition-all",
+                      coachOn
+                        ? "text-teal-300 border-teal-500/50 bg-teal-500/10"
+                        : "text-zinc-600 border-zinc-800 hover:text-zinc-400 hover:border-zinc-600"
+                    )}
+                  >
+                    <GraduationCap className="w-2.5 h-2.5" />
+                    coach
+                  </button>
+                </div>
               </div>
             </>
           )}
