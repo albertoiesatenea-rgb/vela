@@ -784,8 +784,8 @@ export function ContextSetup({
                   className="self-start flex items-center gap-1.5 text-[10px] font-mono text-zinc-500 hover:text-zinc-300 transition-colors"
                 >
                   {showAdvancedOpts
-                    ? <><ChevronUp className="w-3 h-3" />{lang === "es" ? "Ocultar opciones" : "Hide options"}</>
-                    : <><ChevronDown className="w-3 h-3" />{lang === "es" ? "Perfil y dificultad" : "Profile & difficulty"}</>
+                    ? <><ChevronUp className="w-3 h-3" />{lang === "es" ? "Ocultar" : "Hide"}</>
+                    : <><ChevronDown className="w-3 h-3" />{lang === "es" ? "Opciones" : "Options"}</>
                   }
                 </button>
                 {showAdvancedOpts && (
