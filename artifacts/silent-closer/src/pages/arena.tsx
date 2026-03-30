@@ -1308,6 +1308,11 @@ export function Arena({
   return (
     <div className="fixed inset-0 bg-black flex flex-col font-mono overflow-hidden">
 
+      {/* Backdrop — closes exit panel when clicking outside */}
+      {exitStep !== null && (
+        <div className="fixed inset-0 z-10" onClick={() => setExitStep(null)} />
+      )}
+
       {/* Early exit — no user turns yet */}
       {showEarlyExit && (
         <div className="fixed inset-0 bg-black/90 flex items-center justify-center px-6 z-50">
@@ -1483,7 +1488,7 @@ export function Arena({
 
           {/* Client mode: exit panel (only shown when active) */}
           {role === "client" && !isStarting && messages.length >= 1 && exitStep !== null && (
-              <div className="flex flex-col gap-1.5 px-2.5 py-2 bg-zinc-950 border border-zinc-800 rounded-xl">
+              <div className="relative z-20 flex flex-col gap-1.5 px-2.5 py-2 bg-zinc-950 border border-zinc-800 rounded-xl">
                 {exitStep === "outcomes" ? (
                   /* Step 1 — choose outcome */
                   <>
