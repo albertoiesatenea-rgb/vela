@@ -347,7 +347,7 @@ function ArenaAdvancedForm({
           onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); goNext(); } }}
           placeholder={placeholders[step]}
           autoFocus
-          className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-700 focus:outline-none focus:border-zinc-600 transition-colors font-mono"
+          className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors font-mono"
         />
       </div>
 
@@ -431,7 +431,7 @@ function AdvancedForm({ onSubmit, lang, ctaLabel }: { onSubmit: (context: string
           onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); goNext(); } }}
           placeholder={t.ADV_PH[step]}
           autoFocus
-          className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-700 focus:outline-none focus:border-zinc-600 transition-colors font-mono"
+          className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors font-mono"
         />
       </div>
 

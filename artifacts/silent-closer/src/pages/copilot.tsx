@@ -1315,7 +1315,7 @@ export default function CopilotPage() {
               transition: "max-height 0.22s ease",
             }}
           >
-            <div className="flex items-center justify-center py-1.5 text-zinc-700">
+            <div className="flex items-center justify-center py-1.5 text-zinc-500">
               <ChevronDown className="w-3.5 h-3.5" />
             </div>
             <div className="overflow-y-auto border-t border-white/5" style={{ maxHeight: "460px" }}>

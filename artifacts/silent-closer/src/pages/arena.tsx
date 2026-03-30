@@ -1188,7 +1188,7 @@ function MessageRow({
     <div className={cn("flex flex-col gap-1", isUser ? "items-end" : "items-start")}>
       <span className={cn(
         "text-[9px] tracking-widest uppercase",
-        isUser ? "text-zinc-500" : "text-sky-700"
+        isUser ? "text-zinc-500" : "text-sky-400"
       )}>
         {isUser ? youLabel : aiLabel}
       </span>

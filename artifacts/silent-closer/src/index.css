@@ -53,6 +53,13 @@
   
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 98%;
+
+  /* ── Dark mode legibility: bump zinc grays so text is readable on black ── */
+  /* Standard zinc-500 (#71717a) is only 3.2:1 on black — WCAG fail for small text */
+  /* Standard zinc-600 (#52525b) is only 2.3:1 on black — too dark               */
+  --color-zinc-500: #a1a1aa;  /* ↑ from #71717a → 5.9:1 on black ✓ */
+  --color-zinc-600: #71717a;  /* ↑ from #52525b → 3.2:1 on black (decorative uses only) */
+  --color-zinc-700: #52525b;  /* ↑ from #3f3f46 → 2.3:1 on black (borders / separators only) */
 }
 
 /* ── Light theme ──────────────────────────────────────────────────── */
