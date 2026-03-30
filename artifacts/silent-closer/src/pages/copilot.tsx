@@ -4,7 +4,7 @@ import { useAnalyzeConversation } from "@workspace/api-client-react";
 import { useSpeech } from "@/hooks/use-speech";
 import { TacticalDisplay } from "@/components/tactical-display";
 import { ContextSetup, SessionBar, WizardIcon } from "@/components/context-panel";
-import type { ArenaConfig } from "@/components/context-panel";
+import type { ArenaConfig, AppMode } from "@/components/context-panel";
 import { Arena } from "@/pages/arena";
 import type { ArenaRole } from "@/pages/arena";
 import { cn } from "@/lib/utils";
@@ -455,6 +455,8 @@ export default function CopilotPage() {
   const [arenaRole, setArenaRole] = useState<ArenaRole | null>(null);
   const [arenaConfig, setArenaConfig] = useState<ArenaConfig>({});
   const [arenaKey, setArenaKey] = useState(0);
+  const [initMode, setInitMode] = useState<AppMode | undefined>(undefined);
+  const [initRole, setInitRole] = useState<ArenaRole | undefined>(undefined);
   const [tacticalState, setTacticalState] = useState<TacticalState>(EMPTY_STATE);
   const [contextLabel, setContextLabel] = useState<string>(loadLabel);
 
@@ -704,6 +706,19 @@ export default function CopilotPage() {
     setTurnLog([]);
     setSessionId("");
     turnCountRef.current = 0;
+    setInitMode(undefined);
+    setInitRole(undefined);
+  };
+
+  const handleGoArena = () => {
+    handleActuallyClearSession();
+    setInitMode("arena");
+  };
+
+  const handleGoArenaRole = () => {
+    handleActuallyClearSession();
+    setInitMode("arena");
+    setInitRole(arenaRole ?? undefined);
   };
 
   const handleClearSession = () => {
@@ -805,6 +820,8 @@ export default function CopilotPage() {
           onArenaReady={handleArenaReady}
           lang={lang}
           onLangChange={(l) => { setLang(l); saveLang(l); }}
+          initialMode={initMode}
+          initialRole={initRole}
         />
         <DebugPanel sessionId={null} />
       </>
@@ -822,6 +839,8 @@ export default function CopilotPage() {
           lang={lang}
           arenaConfig={arenaConfig}
           onExit={handleActuallyClearSession}
+          onGoArena={handleGoArena}
+          onGoArenaRole={handleGoArenaRole}
           onRetry={() => setArenaKey(k => k + 1)}
         />
         <DebugPanel sessionId={null} />

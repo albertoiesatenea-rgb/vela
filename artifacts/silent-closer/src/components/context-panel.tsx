@@ -11,7 +11,7 @@ export interface ArenaConfig {
   forceTerminal?: boolean;
 }
 
-type AppMode = "copilot" | "arena";
+export type AppMode = "copilot" | "arena";
 
 // ── Closer Wizard mark: cone + crossing lines + flat brim ────────────────────
 // SVG mask approach: white cone polygon masked by two black diagonal lines that
@@ -529,17 +529,21 @@ export function ContextSetup({
   onArenaReady,
   lang,
   onLangChange,
+  initialMode,
+  initialRole,
 }: {
   onContextReady: (ctx: string) => void;
   onArenaReady: (ctx: string, role: ArenaRole, config: ArenaConfig) => void;
   lang: Lang;
   onLangChange: (l: Lang) => void;
+  initialMode?: AppMode;
+  initialRole?: ArenaRole;
 }) {
   const t = CP[lang];
   const { theme, toggleTheme } = useTheme();
   const [contextMode, setContextMode] = useState<ContextMode>("quick");
-  const [appMode, setAppMode] = useState<AppMode>("copilot");
-  const [arenaRole, setArenaRole] = useState<ArenaRole>("seller");
+  const [appMode, setAppMode] = useState<AppMode>(initialMode ?? "copilot");
+  const [arenaRole, setArenaRole] = useState<ArenaRole>(initialRole ?? "seller");
   const [quickText, setQuickText] = useState("");
   const [isRandomCtx, setIsRandomCtx] = useState(false);
 

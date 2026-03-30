@@ -656,6 +656,8 @@ export function Arena({
   lang,
   arenaConfig = {},
   onExit,
+  onGoArena,
+  onGoArenaRole,
   onRetry,
 }: {
   context: string;
@@ -664,6 +666,8 @@ export function Arena({
   lang: Lang;
   arenaConfig?: { clientProfile?: string; sellerProfile?: string; difficulty?: string };
   onExit: () => void;
+  onGoArena?: () => void;
+  onGoArenaRole?: () => void;
   onRetry?: () => void;
 }) {
   const t = T[lang];
@@ -1353,9 +1357,19 @@ export function Arena({
             <span className="text-[8px] tracking-[0.25em] uppercase text-zinc-400 group-hover:text-white transition-colors">Closer Wizard</span>
           </button>
           <div className="w-px h-2.5 bg-zinc-800 shrink-0" />
-          <span className="text-[10px] tracking-widest uppercase text-sky-400 font-semibold shrink-0">{t.ARENA}</span>
+          <button
+            onClick={onGoArena ?? onExit}
+            className="text-[10px] tracking-widest uppercase text-sky-400 font-semibold shrink-0 hover:text-sky-200 transition-colors"
+          >
+            {t.ARENA}
+          </button>
           <div className="w-px h-2.5 bg-zinc-800 shrink-0" />
-          <span className="text-[8px] tracking-widest uppercase text-zinc-500 shrink-0">{roleTag}</span>
+          <button
+            onClick={onGoArenaRole ?? onGoArena ?? onExit}
+            className="text-[8px] tracking-widest uppercase text-zinc-500 hover:text-zinc-300 transition-colors shrink-0"
+          >
+            {roleTag}
+          </button>
           {contextLabel && (
             <>
               <div className="w-px h-2.5 bg-zinc-800 shrink-0" />
