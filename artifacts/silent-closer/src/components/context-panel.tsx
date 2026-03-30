@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, type ReactNode } from "react";
 import { ChevronDown, ChevronUp, Zap, SlidersHorizontal, User, Users, Target, Briefcase, ShieldOff, FileText, Swords, Navigation, Headphones, Shuffle, X, Package, Building, Lightbulb, MessageSquare, Sun, Moon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/use-theme";
@@ -259,10 +259,12 @@ function ArenaAdvancedForm({
   role,
   lang,
   onSubmit,
+  children,
 }: {
   role: ArenaRole;
   lang: Lang;
   onSubmit: (ctx: string) => void;
+  children?: ReactNode;
 }) {
   const isSeller = role === "seller";
 
@@ -357,6 +359,8 @@ function ArenaAdvancedForm({
           className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors font-mono"
         />
       </div>
+
+      {children}
 
       <button
         onClick={() => onSubmit(buildCtx(answers))}
@@ -834,15 +838,14 @@ export function ContextSetup({
 
         {/* ── Advanced form — Arena ────────────────────────────────────── */}
         {contextMode === "advanced" && appMode === "arena" && (
-          <>
-            <ArenaAdvancedForm role={arenaRole} lang={lang} onSubmit={handleSubmit} />
+          <ArenaAdvancedForm role={arenaRole} lang={lang} onSubmit={handleSubmit}>
             <ArenaProfilePicker
               arenaRole={arenaRole} lang={lang}
               clientProfile={clientProfile} setClientProfile={setClientProfile}
               sellerProfile={sellerProfile} setSellerProfile={setSellerProfile}
               difficulty={difficulty} setDifficulty={setDifficulty}
             />
-          </>
+          </ArenaAdvancedForm>
         )}
 
       </div>
