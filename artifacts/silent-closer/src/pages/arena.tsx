@@ -682,8 +682,8 @@ export function Arena({
           {role === "seller" && debrief && (
             <div className="flex flex-col gap-4 border border-zinc-800 rounded-xl px-4 py-4 bg-zinc-950">
 
-              {/* Score */}
-              <div className="flex items-end gap-2">
+              {/* Score + outcome verdict */}
+              <div className="flex items-end justify-between gap-2">
                 <div className="flex flex-col gap-0.5">
                   <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{t.DEBRIEF_SCORE}</p>
                   <div className="flex items-baseline gap-1">
@@ -698,6 +698,42 @@ export function Arena({
                     </span>
                     <span className="text-lg font-mono text-zinc-600">/ 10</span>
                   </div>
+                </div>
+                {/* Outcome verdict stamp */}
+                <div className={cn(
+                  "flex flex-col items-center justify-center border rounded-lg px-3 py-2 min-w-[72px]",
+                  summary.outcome === "closed"    ? "border-emerald-500/40 bg-emerald-500/8"
+                  : summary.outcome === "next_step" ? "border-sky-500/40 bg-sky-500/8"
+                  : summary.outcome === "lost"      ? "border-amber-500/40 bg-amber-500/8"
+                  : "border-zinc-700 bg-zinc-900"
+                )}>
+                  <span className={cn(
+                    "text-[8px] font-mono tracking-[0.2em] uppercase font-bold",
+                    summary.outcome === "closed"    ? "text-emerald-400"
+                    : summary.outcome === "next_step" ? "text-sky-400"
+                    : summary.outcome === "lost"       ? "text-amber-400"
+                    : "text-zinc-500"
+                  )}>
+                    {summary.outcome === "closed"
+                      ? (lang === "es" ? "CERRADO" : "CLOSED")
+                      : summary.outcome === "next_step"
+                        ? (lang === "es" ? "AVANCE" : "PROGRESS")
+                        : summary.outcome === "lost"
+                          ? (lang === "es" ? "PERDIDO" : "LOST")
+                          : (lang === "es" ? "PARADO" : "STOPPED")}
+                  </span>
+                  <span className={cn(
+                    "text-lg leading-none mt-0.5",
+                    summary.outcome === "closed"    ? "text-emerald-400"
+                    : summary.outcome === "next_step" ? "text-sky-400"
+                    : summary.outcome === "lost"       ? "text-amber-400"
+                    : "text-zinc-600"
+                  )}>
+                    {summary.outcome === "closed" ? "✓"
+                      : summary.outcome === "next_step" ? "→"
+                      : summary.outcome === "lost" ? "✗"
+                      : "·"}
+                  </span>
                 </div>
               </div>
 

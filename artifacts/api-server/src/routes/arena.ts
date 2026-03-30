@@ -149,6 +149,7 @@ async function generateDebrief(
   turns: ArenaTurn[],
   context: string,
   lang: Lang,
+  outcome: Exclude<ArenaOutcome, "none">,
 ): Promise<{ score: number; critique: string[] } | null> {
   const transcript = turns.map(t => {
     const sp = t.speaker === "user"
@@ -157,10 +158,26 @@ async function generateDebrief(
     return `${sp}: ${t.message}`;
   }).join("\n");
 
+  const outcomeLineEs = {
+    closed:      "Resultado final: VENTA CERRADA (el vendedor ganó).",
+    next_step:   "Resultado final: AVANCE CONSEGUIDO (paso adelante logrado).",
+    lost:        "Resultado final: VENTA PERDIDA (el cliente se fue sin comprar).",
+    broken:      "Resultado final: CONVERSACIÓN ROTA (el cliente cortó el contacto).",
+    manual_stop: "Resultado final: SESIÓN TERMINADA MANUALMENTE (sin resultado definitivo).",
+  }[outcome];
+  const outcomeLineEn = {
+    closed:      "Final result: SALE CLOSED (seller won).",
+    next_step:   "Final result: NEXT STEP ACHIEVED (progress made).",
+    lost:        "Final result: SALE LOST (client left without buying).",
+    broken:      "Final result: CONVERSATION BROKEN (client cut contact).",
+    manual_stop: "Final result: SESSION ENDED MANUALLY (no definitive outcome).",
+  }[outcome];
+
   const prompt = lang === "es"
     ? `Eres un coach de ventas experto. Analiza esta conversación de venta y evalúa al vendedor con precisión y sin rodeos.
 
 Contexto de la sesión: ${context || "venta genérica"}
+${outcomeLineEs}
 
 Conversación:
 ${transcript}
@@ -172,7 +189,7 @@ Responde ÚNICAMENTE con un JSON válido con este formato:
 }
 
 Reglas:
-- score: puntuación honesta del vendedor (1=desastre, 5=mediocre, 8=bueno, 10=perfecto)
+- score: puntuación honesta del vendedor teniendo muy en cuenta el resultado final (1=desastre, 5=mediocre, 8=bueno, 10=perfecto). Si la venta se cerró contra un cliente difícil, la nota mínima es 7. Si se perdió, la nota máxima es 6.
 - critique: exactamente 3 frases cortas y accionables con lo más concreto que el vendedor debe mejorar para la próxima vez
 - Comienza cada frase con un verbo en imperativo (Escucha, Controla, Adapta, Gestiona, Presenta...)
 - Sé específico con la conversación real, no genérico
@@ -180,6 +197,7 @@ Reglas:
     : `You are an expert sales coach. Analyze this sales conversation and evaluate the seller honestly and directly.
 
 Session context: ${context || "generic sale"}
+${outcomeLineEn}
 
 Conversation:
 ${transcript}
@@ -191,7 +209,7 @@ Reply ONLY with valid JSON in this exact format:
 }
 
 Rules:
-- score: honest seller rating (1=disaster, 5=mediocre, 8=good, 10=perfect)
+- score: honest seller rating that heavily weighs the final result (1=disaster, 5=mediocre, 8=good, 10=perfect). If the sale was closed against a tough client, minimum score is 7. If lost, maximum score is 6.
 - critique: exactly 3 short actionable sentences with the most concrete things the seller must improve next time
 - Start each sentence with an imperative verb (Listen, Control, Adapt, Handle, Present...)
 - Be specific to the actual conversation, not generic
@@ -419,7 +437,7 @@ router.post("/arena/finish", async (req, res) => {
   // Generate debrief for seller sessions that had actual user participation
   const needsDebrief = session.role === "seller" && userTurns > 0;
   const debrief = needsDebrief
-    ? await generateDebrief(session.turns, session.context, session.lang)
+    ? await generateDebrief(session.turns, session.context, session.lang, session.outcome ?? "manual_stop")
     : null;
 
   res.json({
