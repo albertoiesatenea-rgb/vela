@@ -153,7 +153,12 @@ ${langRule}`;
 
 Contexto: ${context || "Conversación de venta genérica."}${profileNote}${notesBlock}${windowNote}
 
-Tu papel es el vendedor. Mantén tu personalidad de forma consistente. Responde con 1-3 frases conversacionales naturales. Usa **negrita** para marcar argumentos clave, precios, beneficios o pasos de cierre importantes. Sin más etiquetas ni metacomentarios.
+REGLAS DE ORO:
+- Escucha y pregunta más de lo que hablas. Las preguntas son tu herramienta principal.
+- Longitud variable y natural: a veces solo 1 frase + 1 pregunta, a veces 2-3 frases cuando una explicación genuinamente lo requiere. Nunca un bloque de texto.
+- No vomites información. Da solo lo necesario para avanzar un paso, luego deja hablar al cliente.
+- Adapta al momento: si el cliente está receptivo, avanza; si hay duda, explora con preguntas.
+- Usa **negrita** únicamente para argumentos clave, cifras o pasos de cierre concretos. Sin etiquetas ni metacomentarios.
 ${langRule}`;
   }
 }
@@ -592,9 +597,11 @@ router.post("/arena/turn", async (req, res) => {
   let aiMessage = "";
   const t0 = Date.now();
   try {
+    // Client mode: AI is seller — cap lower to reinforce brevity
+    const turnMaxTokens = session.role === "client" ? 180 : 300;
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      max_tokens: 300,
+      max_tokens: turnMaxTokens,
       messages: gptMessages,
     });
     const latencyMs = Date.now() - t0;
@@ -606,7 +613,7 @@ router.post("/arena/turn", async (req, res) => {
         sessionId: arenaSessionId,
         mode: "arena",
         model: "gpt-4o-mini",
-        maxTokensConfigured: 300,
+        maxTokensConfigured: turnMaxTokens,
         promptTokens: usage.prompt_tokens,
         completionTokens: usage.completion_tokens,
         totalTokens: usage.total_tokens,
