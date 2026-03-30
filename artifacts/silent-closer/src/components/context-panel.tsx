@@ -829,7 +829,7 @@ export function ContextSetup({
                 rows={3}
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 pr-12 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors font-mono resize-none leading-relaxed"
               />
-              {/* Shuffle (Arena only) + Clear (whenever there's text) */}
+              {/* Shuffle (Arena only) + Options (Copilot) + Clear (whenever there's text) */}
               <div className="absolute top-2 right-2 flex flex-col gap-0.5">
                 {appMode === "arena" && (
                   <button
@@ -839,6 +839,21 @@ export function ContextSetup({
                     className="p-1.5 rounded-lg text-zinc-500 hover:text-white hover:bg-white/8 transition-all"
                   >
                     <Shuffle className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {appMode === "copilot" && (
+                  <button
+                    onMouseDown={e => e.preventDefault()}
+                    onClick={() => setShowCopilotOpts(v => !v)}
+                    title={lang === "es" ? "Perfil del cliente" : "Client profile"}
+                    className={cn(
+                      "p-1.5 rounded-lg transition-all",
+                      showCopilotOpts || copilotClientProfile
+                        ? "text-sky-400 bg-sky-500/10"
+                        : "text-zinc-500 hover:text-white hover:bg-white/8"
+                    )}
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5" />
                   </button>
                 )}
                 {quickText && (
@@ -854,27 +869,13 @@ export function ContextSetup({
               </div>
             </div>
 
-            {/* ── Copilot-only: client profile hint (collapsible) ── */}
-            {appMode === "copilot" && (
-              <div className="flex flex-col gap-2">
-                <button
-                  onMouseDown={e => e.preventDefault()}
-                  onClick={() => setShowCopilotOpts(v => !v)}
-                  className="self-start flex items-center gap-1.5 text-[10px] font-mono text-zinc-500 hover:text-zinc-300 transition-colors"
-                >
-                  {showCopilotOpts
-                    ? <><ChevronUp className="w-3 h-3" />{lang === "es" ? "Ocultar" : "Hide"}</>
-                    : <><ChevronDown className="w-3 h-3" />{lang === "es" ? "Opciones" : "Options"}</>
-                  }
-                </button>
-                {showCopilotOpts && (
-                  <CopilotClientPicker
-                    lang={lang}
-                    value={copilotClientProfile}
-                    onChange={setCopilotClientProfile}
-                  />
-                )}
-              </div>
+            {/* ── Copilot-only: client profile chips — expands below textarea ── */}
+            {appMode === "copilot" && showCopilotOpts && (
+              <CopilotClientPicker
+                lang={lang}
+                value={copilotClientProfile}
+                onChange={setCopilotClientProfile}
+              />
             )}
 
             {/* ── Arena-only: profile + difficulty chips (collapsible) ── */}
