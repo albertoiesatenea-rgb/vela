@@ -206,11 +206,11 @@ PROHIBIDO:
 — Repetir en el siguiente turno una conclusión que ya dijiste de forma clara en el anterior
 
 FORMATO:
-— Separa con una línea en blanco la idea principal, la aclaración y la pregunta final. No las pegues en un bloque corrido.
+— Separa con una línea en blanco la idea principal, la aclaración y la pregunta. No las pegues en un bloque corrido.
 — Si hay 2 o 3 opciones o condiciones, ponlas en lista con guión: "- **Opción:** descripción breve"
-— La pregunta final siempre en su propia línea, separada del párrafo anterior.
 — Frases cortas. Si la frase supera 20 palabras, córtala.
 — No uses listas por sistema. Solo cuando enumeres opciones reales.
+— Si el mensaje contiene una pregunta, escríbela ENTERA en negrita: **¿texto completo de la pregunta?**
 
 TONO: conversacional, claro, creíble. Como una persona, no como un chatbot.
 Usa **negrita** para cifras, condiciones clave, conclusiones directas y cualquier término que el lector deba captar de un vistazo. Úsala con criterio — no en cada frase, pero sí donde aporte claridad.
@@ -238,14 +238,12 @@ function buildOpeningPrompt(
 
   if (lang === "en") {
     if (role === "client") {
-      // AI plays the expert seller — opening must be 1 sentence, hook-first, with a real invented name+company
-      return `You are an expert seller opening a sales conversation. Context: ${context || "generic sale"}${profileHint}. Invent a specific real-sounding name and company for yourself (e.g. "I'm Sara Voss from Clearpath Advisory" — no placeholders, no brackets). Write EXACTLY ONE sentence. It must be a hook, a provocative question, or a brief concrete reference to the prospect's pain — not a product explanation. Use **bold** for the most important word or number. No labels. Text only. ${langRule}`;
+      return `You are an expert seller opening a sales conversation. Context: ${context || "generic sale"}${profileHint}. Invent a specific real-sounding name and company for yourself (e.g. "I'm Sara Voss from Clearpath Advisory" — no placeholders, no brackets). Write EXACTLY ONE sentence. Do what a top-tier seller would genuinely do to open: a precise observation, a direct reference to the prospect's situation, a short hook, or a well-placed question — vary the approach, never explain the product. Use **bold** on the most important word or number if relevant. No labels. Text only. ${langRule}`;
     }
     return `Generate the opening message of a ${whoEn} starting a sales conversation. Context: ${context || "generic sale"}${profileHint}. Write 1 short natural sentence as that person. No labels. Text only. ${langRule}`;
   }
   if (role === "client") {
-    // AI plays the expert seller — opening must be 1 sentence, hook-first, with a real invented name+company
-    return `Eres un vendedor experto que abre una conversación de ventas. Contexto: ${context || "venta genérica"}${profileHint}. Invéntate un nombre y empresa reales y concretos (ej: "Soy Marcos Reina de Solvinova" — sin corchetes, sin variables). Escribe EXACTAMENTE UNA frase. Tiene que ser un gancho, una pregunta provocadora o una referencia concreta al dolor del prospecto — no una explicación del producto. Usa **negrita** para la palabra o cifra más importante. Sin etiquetas. Solo el texto. ${langRule}`;
+    return `Eres un vendedor experto que abre una conversación de ventas. Contexto: ${context || "venta genérica"}${profileHint}. Invéntate un nombre y empresa reales y concretos (ej: "Soy Marcos Reina de Solvinova" — sin corchetes, sin variables). Escribe EXACTAMENTE UNA frase. Haz lo que haría un vendedor de primer nivel: puede ser una observación directa, una referencia al problema del prospecto, un gancho potente, o una pregunta bien colocada — varía el enfoque, nunca expliques el producto. Usa **negrita** en la palabra o cifra más importante si aporta. Sin etiquetas. Solo el texto. ${langRule}`;
   }
   return `Genera el primer mensaje de un ${who} que inicia una conversación de venta. Contexto: ${context || "venta genérica"}${profileHint}. Escribe 1 frase corta y natural como esa persona. Sin etiquetas. Solo el texto. ${langRule}`;
 }

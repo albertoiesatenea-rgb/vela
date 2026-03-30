@@ -1393,12 +1393,16 @@ export function Arena({
             <span className="text-xs tracking-widest uppercase">{t.STARTING}</span>
           </div>
         ) : (
-          <div className="mx-auto flex flex-col gap-5 max-w-2xl">
+          <div className={cn(
+            "mx-auto flex flex-col gap-5 transition-[max-width] duration-300",
+            role === "client" && coachOn ? "max-w-3xl" : "max-w-2xl"
+          )}>
             {messages.map((msg, i) => {
-              const showCoachNote = role === "client" && coachOn && msg.speaker === "ai" && !!coachLiteMap[msg.index];
+              const showCoachSlot = role === "client" && coachOn && msg.speaker === "ai" && !!coachLiteMap[msg.index];
               if (msg.speaker === "note") {
                 return (
                   <div key={i} className="flex items-center gap-2 py-0.5">
+                    {role === "client" && coachOn && <div className="w-44 shrink-0" />}
                     <div className="flex-1 h-px bg-zinc-800" />
                     <span className="text-[8px] font-mono tracking-widest uppercase text-zinc-600 shrink-0 flex items-center gap-1">
                       <StickyNote className="w-2.5 h-2.5" />
@@ -1409,36 +1413,49 @@ export function Arena({
                 );
               }
               return (
-                <div key={i} className="flex flex-col">
-                  <MessageRow msg={msg} youLabel={t.YOU} aiLabel={aiLabel} />
-                  {showCoachNote && (
-                    <CoachNote explanation={coachLiteMap[msg.index]!.explanation} lang={lang} />
+                <div key={i} className="flex items-start gap-4">
+                  {/* Left coach column — only renders when there's actual data */}
+                  {role === "client" && coachOn && (
+                    <div className="w-44 shrink-0 self-start pt-5">
+                      {showCoachSlot
+                        ? <CoachNote explanation={coachLiteMap[msg.index]!.explanation} lang={lang} />
+                        : null}
+                    </div>
                   )}
+                  <div className="flex-1 min-w-0">
+                    <MessageRow msg={msg} youLabel={t.YOU} aiLabel={aiLabel} />
+                  </div>
                 </div>
               );
             })}
             {isSending && (
-              <div className="flex flex-col">
-                {role === "client" ? (
-                  <div className="flex flex-col gap-1.5">
-                    <span className="text-[9px] tracking-widest uppercase text-sky-400/70">{aiLabel}</span>
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-sky-400/60 animate-pulse shrink-0" />
-                      <span className="text-[11px] font-mono text-zinc-500 italic">
-                        {COACH_LOADING[lang][loadingPhase]}
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[9px] tracking-widest uppercase text-zinc-600">{aiLabel}</span>
-                    <div className="flex items-center gap-1.5 text-zinc-600">
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      <span className="text-xs">{t.SENDING}</span>
-                    </div>
+              <div className="flex items-start gap-4">
+                {role === "client" && coachOn && (
+                  <div className="w-44 shrink-0 self-start pt-5">
+                    <CoachNoteSkeleton />
                   </div>
                 )}
-                {role === "client" && coachOn && <CoachNoteSkeleton />}
+                <div className="flex-1 min-w-0">
+                  {role === "client" ? (
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[9px] tracking-widest uppercase text-sky-400/70">{aiLabel}</span>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-1.5 h-1.5 rounded-full bg-sky-400/60 animate-pulse shrink-0" />
+                        <span className="text-[11px] font-mono text-zinc-500 italic">
+                          {COACH_LOADING[lang][loadingPhase]}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[9px] tracking-widest uppercase text-zinc-600">{aiLabel}</span>
+                      <div className="flex items-center gap-1.5 text-zinc-600">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        <span className="text-xs">{t.SENDING}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -1684,10 +1701,19 @@ function BoldText({ text, className }: { text?: string; className?: string }) {
   );
 }
 
+// Auto-bold any line that is a full question (ends with ?) and isn't already bolded
+function autoHighlightQuestions(text: string): string {
+  return text.split("\n").map(line => {
+    const t = line.trim();
+    if (t.endsWith("?") && !t.includes("**")) return `**${t}**`;
+    return line;
+  }).join("\n");
+}
+
 // ── Rich text renderer (for AI seller messages) ───────────────────────────────
 // Handles: **bold**, paragraph breaks (\n\n), line breaks (\n), bullet lists (- item)
 function RichText({ text }: { text?: string }) {
-  const raw = (text ?? "").trim();
+  const raw = autoHighlightQuestions((text ?? "").trim());
   const blocks = raw.split(/\n\n+/);
 
   return (
