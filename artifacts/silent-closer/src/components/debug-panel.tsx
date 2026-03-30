@@ -148,11 +148,10 @@ export function DebugPanel({ sessionId }: { sessionId?: string | null }) {
     return () => window.removeEventListener("keydown", h);
   }, [open, pinned]);
 
-  // Auto-poll every 5s while open
+  // Auto-poll every 5s while open, every 12s while closed (for button cost)
   useEffect(() => {
-    if (!open) return;
     fetchData();
-    const id = setInterval(fetchData, 5000);
+    const id = setInterval(fetchData, open ? 5000 : 12000);
     return () => clearInterval(id);
   }, [open, fetchData]);
 
@@ -163,6 +162,12 @@ export function DebugPanel({ sessionId }: { sessionId?: string | null }) {
   const filteredSessions = data?.sessions.filter(s => mode === "all" || s.mode === mode) ?? [];
   const filteredRoutes   = data?.routes.filter(r => mode === "all" || r.route.startsWith(mode)) ?? [];
   const filteredCalls    = data?.recentCalls.filter(c => mode === "all" || c.mode === mode) ?? [];
+
+  // Button label: prefer current session cost, fall back to global, else bare "AI $"
+  const displayCost = session?.totalCostUsd ?? null;
+  const buttonCostLabel = displayCost !== null && displayCost > 0
+    ? `AI ${fmt$(displayCost)}`
+    : "AI $";
 
   return (
     <>
@@ -178,7 +183,7 @@ export function DebugPanel({ sessionId }: { sessionId?: string | null }) {
         )}
         title="AI Monitor (Ctrl+Shift+D)"
       >
-        AI $
+        {buttonCostLabel}
       </button>
 
       {/* ── Click-away backdrop (only when not pinned) ───────────────────── */}
