@@ -612,8 +612,17 @@ export function ContextSetup({
   // Copilot client-profile hint
   const [copilotClientProfile, setCopilotClientProfile] = useState<string | undefined>(undefined);
   const [showCopilotOpts, setShowCopilotOpts] = useState(false);
+  const copilotHoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const quickRef = useRef<HTMLTextAreaElement>(null);
+
+  const copilotOptsShow = () => {
+    if (copilotHoverTimer.current) clearTimeout(copilotHoverTimer.current);
+    setShowCopilotOpts(true);
+  };
+  const copilotOptsHide = () => {
+    copilotHoverTimer.current = setTimeout(() => setShowCopilotOpts(false), 180);
+  };
 
   // Auto-focus the textarea on mount and whenever quick mode is activated
   useEffect(() => {
@@ -829,22 +838,42 @@ export function ContextSetup({
                 rows={3}
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 pr-12 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors font-mono resize-none leading-relaxed"
               />
-              {/* Shuffle (Arena only) + Options (Copilot) + Clear (whenever there's text) */}
+              {/* Shuffle + Sliders (Arena) | Sliders-hover (Copilot) | Clear */}
               <div className="absolute top-2 right-2 flex flex-col gap-0.5">
                 {appMode === "arena" && (
-                  <button
-                    onClick={handleRandomContext}
-                    onMouseDown={e => e.preventDefault()}
-                    title={lang === "es" ? "Contexto aleatorio" : "Random context"}
-                    className="p-1.5 rounded-lg text-zinc-500 hover:text-white hover:bg-white/8 transition-all"
-                  >
-                    <Shuffle className="w-3.5 h-3.5" />
-                  </button>
+                  <>
+                    <button
+                      onClick={handleRandomContext}
+                      onMouseDown={e => e.preventDefault()}
+                      title={lang === "es" ? "Contexto aleatorio" : "Random context"}
+                      className="p-1.5 rounded-lg text-zinc-500 hover:text-white hover:bg-white/8 transition-all"
+                    >
+                      <Shuffle className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={() => setShowAdvancedOpts(v => {
+                        const next = !v;
+                        localStorage.setItem("arena_opts_open", next ? "1" : "0");
+                        return next;
+                      })}
+                      title={lang === "es" ? "Perfil y dificultad" : "Profile & difficulty"}
+                      className={cn(
+                        "p-1.5 rounded-lg transition-all",
+                        showAdvancedOpts || clientProfile || sellerProfile
+                          ? "text-sky-400 bg-sky-500/10"
+                          : "text-zinc-500 hover:text-white hover:bg-white/8"
+                      )}
+                    >
+                      <SlidersHorizontal className="w-3.5 h-3.5" />
+                    </button>
+                  </>
                 )}
                 {appMode === "copilot" && (
                   <button
                     onMouseDown={e => e.preventDefault()}
-                    onClick={() => setShowCopilotOpts(v => !v)}
+                    onMouseEnter={copilotOptsShow}
+                    onMouseLeave={copilotOptsHide}
                     title={lang === "es" ? "Perfil del cliente" : "Client profile"}
                     className={cn(
                       "p-1.5 rounded-lg transition-all",
@@ -869,41 +898,25 @@ export function ContextSetup({
               </div>
             </div>
 
-            {/* ── Copilot-only: client profile chips — expands below textarea ── */}
+            {/* ── Copilot: profile chips on hover — wraps to keep mouse path connected ── */}
             {appMode === "copilot" && showCopilotOpts && (
-              <CopilotClientPicker
-                lang={lang}
-                value={copilotClientProfile}
-                onChange={setCopilotClientProfile}
-              />
+              <div onMouseEnter={copilotOptsShow} onMouseLeave={copilotOptsHide}>
+                <CopilotClientPicker
+                  lang={lang}
+                  value={copilotClientProfile}
+                  onChange={setCopilotClientProfile}
+                />
+              </div>
             )}
 
-            {/* ── Arena-only: profile + difficulty chips (collapsible) ── */}
-            {appMode === "arena" && (
-              <div className="flex flex-col gap-2">
-                <button
-                  onMouseDown={e => e.preventDefault()}
-                  onClick={() => setShowAdvancedOpts(v => {
-                    const next = !v;
-                    localStorage.setItem("arena_opts_open", next ? "1" : "0");
-                    return next;
-                  })}
-                  className="self-start flex items-center gap-1.5 text-[10px] font-mono text-zinc-500 hover:text-zinc-300 transition-colors"
-                >
-                  {showAdvancedOpts
-                    ? <><ChevronUp className="w-3 h-3" />{lang === "es" ? "Ocultar" : "Hide"}</>
-                    : <><ChevronDown className="w-3 h-3" />{lang === "es" ? "Opciones" : "Options"}</>
-                  }
-                </button>
-                {showAdvancedOpts && (
-                  <ArenaProfilePicker
-                    arenaRole={arenaRole} lang={lang}
-                    clientProfile={clientProfile} setClientProfile={setClientProfile}
-                    sellerProfile={sellerProfile} setSellerProfile={setSellerProfile}
-                    difficulty={difficulty} setDifficulty={setDifficulty}
-                  />
-                )}
-              </div>
+            {/* ── Arena: profile + difficulty chips (click toggle in overlay icon) ── */}
+            {appMode === "arena" && showAdvancedOpts && (
+              <ArenaProfilePicker
+                arenaRole={arenaRole} lang={lang}
+                clientProfile={clientProfile} setClientProfile={setClientProfile}
+                sellerProfile={sellerProfile} setSellerProfile={setSellerProfile}
+                difficulty={difficulty} setDifficulty={setDifficulty}
+              />
             )}
 
             {/* CTA */}
