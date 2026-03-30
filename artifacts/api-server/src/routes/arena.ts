@@ -554,25 +554,29 @@ function buildCoachLitePrompt(
   lang: Lang,
 ): string {
   if (lang === "en") {
-    return `You are a sales professor annotating a live simulation for the class. Third person, present simple tense. Max 4 lines. Use **bold** for tactical terms, numbers, and key conclusions — not decoratively, only where it adds clarity. If there are 2 or more distinct elements, use a dash list: "- **Term:** brief explanation". Never end two consecutive lines with a period. No filler, no praise.
+    return `You are a sales professor annotating a live simulation. MANDATORY FORMAT — exactly 3 lines, nothing else:
 
-Structure: what the seller detects → what move they execute → why it works.
+Line 1: **Tactical name** (2–4 words in bold only, no period)
+Line 2: - what the seller does or detects (≤7 words, no period)
+Line 3: - why it works / what goal it achieves (≤7 words, no period)
 
 Context: ${context || "Generic sale"}
 Client said: "${userMessage}"
 Seller responded: "${aiMessage}"
 
-Reply ONLY with the annotation. No quotes, no labels.`;
+3 lines only. No intro, no extra sentences, no praise.`;
   }
-  return `Eres un profesor de ventas que anota un momento clave de la simulación. Tercera persona, presente simple. Máximo 4 líneas. Usa **negrita** para términos tácticos, cifras y conclusiones directas — no como decoración, solo donde aporte claridad. Si hay 2 o más elementos distintos, usa lista con guión: "- **Término:** explicación breve". Nunca termines dos líneas consecutivas con punto. Sin rodeos, sin elogios.
+  return `Eres un profesor de ventas anotando la simulación. FORMATO OBLIGATORIO — exactamente 3 líneas, nada más:
 
-Estructura: qué detecta el vendedor → qué movimiento ejecuta → por qué funciona.
+Línea 1: **Nombre táctico** (2–4 palabras en negrita, sin punto)
+Línea 2: - qué hace o detecta el vendedor (≤7 palabras, sin punto)
+Línea 3: - por qué funciona o qué objetivo consigue (≤7 palabras, sin punto)
 
 Contexto: ${context || "Venta genérica"}
 Cliente dijo: "${userMessage}"
 Vendedor respondió: "${aiMessage}"
 
-Responde SOLO con la anotación. Sin comillas, sin etiquetas.`;
+3 líneas exactas. Sin introducción, sin frases extra, sin elogios.`;
 }
 
 async function generateCoachLite(

@@ -548,29 +548,29 @@ function Confetti({ active, intensity = "high" }: { active: boolean; intensity?:
 
 function CoachNote({ explanation, lang }: { explanation: string; lang: Lang }) {
   return (
-    <div className="mt-2 ml-[18px] px-3 py-2.5 rounded-lg bg-teal-950/20 border border-teal-500/12">
-      <div className="flex items-center gap-1.5 mb-2">
-        <GraduationCap className="w-3 h-3 text-teal-400/55 shrink-0" />
-        <span className="text-[8px] font-mono tracking-[0.2em] uppercase text-teal-400/50">
+    <div className="mt-1.5 ml-5 pl-3 border-l-[1.5px] border-teal-500/40">
+      <div className="flex items-center gap-1 mb-1.5">
+        <GraduationCap className="w-2.5 h-2.5 text-teal-400/50 shrink-0" />
+        <span className="text-[7px] font-mono tracking-[0.25em] uppercase text-teal-400/40">
           {lang === "es" ? "táctica" : "tactic"}
         </span>
       </div>
-      <div className="text-[11.5px] text-zinc-300 leading-[1.65] font-light [&_strong]:text-white">
+      <div className="text-[11px] text-zinc-500 leading-[1.55] [&_strong]:text-sky-200 [&_strong]:font-medium [&_ul]:flex [&_ul]:flex-col [&_ul]:gap-0.5 [&_li]:flex [&_li]:gap-1.5 [&_li]:items-start">
         <RichText text={explanation} />
       </div>
     </div>
   );
 }
 
-// ── CoachNote skeleton — shown while AI + coach are loading ───────────────────
+// ── CoachNote skeleton ────────────────────────────────────────────────────────
 function CoachNoteSkeleton() {
   return (
-    <div className="mt-2 ml-[18px] px-3 py-2.5 rounded-lg bg-teal-950/10 border border-teal-500/8">
-      <div className="w-12 h-2 bg-teal-500/15 rounded animate-pulse mb-3" />
+    <div className="mt-1.5 ml-5 pl-3 border-l-[1.5px] border-teal-500/20">
+      <div className="w-10 h-1.5 bg-teal-500/15 rounded animate-pulse mb-2" />
       <div className="flex flex-col gap-1.5">
-        <div className="w-full h-2 bg-zinc-800/60 rounded animate-pulse" />
-        <div className="w-full h-2 bg-zinc-800/60 rounded animate-pulse" />
-        <div className="w-3/4 h-2 bg-zinc-800/40 rounded animate-pulse" />
+        <div className="w-28 h-2 bg-zinc-800/70 rounded animate-pulse" />
+        <div className="w-full h-1.5 bg-zinc-800/50 rounded animate-pulse" />
+        <div className="w-4/5 h-1.5 bg-zinc-800/40 rounded animate-pulse" />
       </div>
     </div>
   );
@@ -1715,11 +1715,20 @@ function RichText({ text }: { text?: string }) {
           return <p key={bi}><BoldText text={lines[0]} /></p>;
         }
 
+        // Mixed block (e.g. heading + bullets) — render each line individually
         return (
           <div key={bi} className="flex flex-col gap-0.5">
-            {lines.map((line, li) => (
-              <p key={li}><BoldText text={line} /></p>
-            ))}
+            {lines.map((line, li) => {
+              if (/^[ \t]*-[ \t]/.test(line)) {
+                return (
+                  <p key={li} className="flex gap-2 items-start">
+                    <span className="shrink-0 mt-px select-none opacity-40">—</span>
+                    <span><BoldText text={line.replace(/^[ \t]*-[ \t]*/, "")} /></span>
+                  </p>
+                );
+              }
+              return <p key={li}><BoldText text={line} /></p>;
+            })}
           </div>
         );
       })}
