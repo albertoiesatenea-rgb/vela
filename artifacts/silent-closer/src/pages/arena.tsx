@@ -1290,16 +1290,6 @@ export function Arena({
           >
             {theme === "dark" ? <Sun className="w-3 h-3" /> : <Moon className="w-3 h-3" />}
           </button>
-          {messages.some(m => m.speaker === "user") && (
-            <button
-              onClick={handleMidSessionDownload}
-              onMouseDown={e => e.preventDefault()}
-              title={lang === "es" ? "Descargar log de conversación" : "Download conversation log"}
-              className="text-zinc-500 hover:text-zinc-200 transition-colors"
-            >
-              <Download className="w-3 h-3" />
-            </button>
-          )}
           <button
             onClick={onExit}
             className="text-[9px] tracking-widest uppercase text-zinc-500 hover:text-zinc-200 transition-colors"
@@ -1394,6 +1384,22 @@ export function Arena({
       {/* ── Input area ─────────────────────────────────────────────────────── */}
       <div className="shrink-0 border-t border-white/6 px-4 py-3">
         <div className="max-w-2xl mx-auto flex flex-col gap-2">
+
+          {/* Download log — floats above the typing area, right-aligned */}
+          {messages.some(m => m.speaker === "user") && (
+            <div className="flex justify-end">
+              <button
+                onClick={handleMidSessionDownload}
+                onMouseDown={e => e.preventDefault()}
+                title={lang === "es" ? "Descargar log de conversación" : "Download conversation log"}
+                className="flex items-center gap-1.5 text-[9px] font-mono tracking-widest uppercase text-zinc-600 hover:text-zinc-300 transition-colors"
+              >
+                <Download className="w-3 h-3" />
+                {lang === "es" ? "descargar log" : "download log"}
+              </button>
+            </div>
+          )}
+
           {/* Client mode: outcome shortcuts OR exit panel */}
           {role === "client" && !isStarting && messages.length >= 1 && (
             exitStep !== null ? (
