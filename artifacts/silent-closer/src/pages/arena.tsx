@@ -950,38 +950,50 @@ export function Arena({
             )
           )}
 
-          <textarea
-            ref={textareaRef}
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={t.PLACEHOLDER}
-            rows={2}
-            disabled={isStarting || isSending}
-            autoFocus
-            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors resize-none leading-relaxed disabled:opacity-40"
-          />
-
-          {/* Footer row: hint */}
-          <div className="flex justify-between items-center">
-            <p className="text-[9px] text-zinc-600 tracking-widest">
-              {role === "client"
-                ? (lang === "es" ? "↓ Ok, sigue · ↑ No estoy de acuerdo · Enter envía" : "↓ Keep going · ↑ Disagree · Enter sends")
-                : (lang === "es" ? "Enter envía · Shift+Enter nueva línea" : "Enter sends · Shift+Enter new line")
-              }
-            </p>
-          </div>
-
-          {/* End session button — seller only */}
-          {role === "seller" && (
-            <button
-              onClick={() => void handleEnd("manual_stop")}
-              disabled={isEnding || isStarting || messages.length < 2}
-              onMouseDown={e => e.preventDefault()}
-              className="w-full py-2 rounded-xl border border-zinc-700 text-zinc-300 text-[10px] font-mono tracking-widest uppercase hover:border-zinc-500 hover:text-white active:scale-[0.99] transition-all disabled:opacity-30 disabled:pointer-events-none"
-            >
-              {isEnding ? <Loader2 className="w-3 h-3 animate-spin inline" /> : t.END}
-            </button>
+          {role === "seller" ? (
+            /* Seller: textarea + end button side by side */
+            <div className="flex gap-2 items-stretch">
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={t.PLACEHOLDER}
+                rows={3}
+                disabled={isStarting || isSending}
+                autoFocus
+                className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors resize-none leading-relaxed disabled:opacity-40"
+              />
+              <button
+                onClick={() => void handleEnd("manual_stop")}
+                disabled={isEnding || isStarting || messages.length < 2}
+                onMouseDown={e => e.preventDefault()}
+                className="w-20 shrink-0 rounded-xl border border-zinc-700 text-zinc-300 text-[9px] font-mono tracking-wider uppercase leading-snug hover:border-zinc-400 hover:text-white active:scale-[0.98] transition-all disabled:opacity-25 disabled:pointer-events-none flex items-center justify-center text-center px-1"
+              >
+                {isEnding
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : <span>{lang === "es" ? "Terminar sesión" : "End session"}</span>
+                }
+              </button>
+            </div>
+          ) : (
+            /* Client: textarea alone */
+            <>
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={t.PLACEHOLDER}
+                rows={2}
+                disabled={isStarting || isSending}
+                autoFocus
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors resize-none leading-relaxed disabled:opacity-40"
+              />
+              <p className="text-[9px] text-zinc-600 tracking-widest">
+                {lang === "es" ? "↓ Ok, sigue · ↑ No estoy de acuerdo · Enter envía" : "↓ Keep going · ↑ Disagree · Enter sends"}
+              </p>
+            </>
           )}
         </div>
       </div>
