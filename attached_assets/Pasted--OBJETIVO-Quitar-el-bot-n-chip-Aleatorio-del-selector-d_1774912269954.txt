@@ -1,0 +1,89 @@
+## OBJETIVO
+Quitar el botón/chip `Aleatorio` del selector de perfiles de cliente en Arena y convertir el comportamiento aleatorio en el fallback por defecto cuando el usuario no seleccione ningún perfil concreto.
+
+## CONTEXTO
+- En la UI actual de Arena aparecen chips de perfil de cliente como:
+  - Analítico
+  - Emocional
+  - Escéptico
+  - Cauto
+  - Dominante
+  - Indeciso
+  - Negociador
+  - y también `Aleatorio`
+- El problema es que `Aleatorio` no es un perfil de cliente real; es una modalidad de selección por defecto.
+- Mezclar `Aleatorio` con perfiles reales ensucia la taxonomía visual y conceptual de la pantalla.
+- Quiero una UI más limpia:
+  - si el usuario elige un perfil, se usa ese;
+  - si no elige ninguno, el sistema usa uno aleatorio automáticamente.
+- No quiero cambiar la lógica profunda de Arena. Solo limpiar esta parte de la UX y mantener el comportamiento útil de random como fallback.
+- Archivos probablemente implicados:
+  - `artifacts/silent-closer/src/pages/arena.tsx`
+  - cualquier componente del setup de Arena donde se rendericen los chips de `clientProfile`
+  - si hace falta, validación mínima en backend en `artifacts/api-server/src/routes/arena.ts`
+  - `docs/03-api-routes.md`
+  - `docs/05-arena-logic.md`
+
+## RESTRICCIONES
+- No tocar Copiloto
+- No rehacer Arena
+- No romper `POST /api/arena/start`
+- No eliminar el comportamiento aleatorio; solo quitarlo como opción visible de perfil
+- No convertir esto en un rediseño del setup
+- No tocar los perfiles reales existentes
+- No instalar dependencias nuevas
+- Tocar solo lo necesario
+
+## CAMBIO EXACTO
+Quiero este comportamiento:
+
+### UI
+- Quitar el chip/botón visible `Aleatorio` del grupo de perfiles de cliente
+- Dejar visibles solo los perfiles reales:
+  - Analítico
+  - Emocional
+  - Escéptico
+  - Cauto
+  - Dominante
+  - Indeciso
+  - Negociador
+
+### Comportamiento
+- Si el usuario selecciona uno de esos perfiles, se envía ese perfil
+- Si el usuario no selecciona ninguno, Arena debe usar un perfil aleatorio automáticamente
+- La UI debe dejar claro que no seleccionar nada es válido
+
+### Ayuda visual
+Añadir una ayuda discreta en el setup, algo tipo:
+- `Si no seleccionas perfil, se elegirá uno aleatorio`
+o
+- `Perfil opcional — si no eliges uno, se usará uno aleatorio`
+
+No quiero ruido visual ni un bloque grande. Solo una pista breve y clara.
+
+### Backend
+- Si el frontend envía `null`, `undefined` o ausencia de `clientProfile`, el backend debe resolverlo de forma segura a un perfil aleatorio válido
+- Mantener compatibilidad si todavía queda algún sitio legacy que envíe `random` o `aleatorio`; en ese caso normalizarlo también a selección aleatoria real
+- No romper sesiones existentes ni la API actual
+
+### Documentación
+Actualizar la documentación mínima necesaria para reflejar:
+- que los perfiles visibles son solo los reales
+- que el comportamiento aleatorio sigue existiendo como fallback cuando no se elige perfil
+
+## ENTREGABLES
+- [ ] Chip/botón `Aleatorio` eliminado de la UI de perfiles
+- [ ] Fallback aleatorio funcionando cuando no hay perfil seleccionado
+- [ ] Texto de ayuda discreto en el setup
+- [ ] Compatibilidad segura con posibles valores legacy de random
+- [ ] Docs actualizados solo donde haga falta
+- [ ] App compilando sin errores
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] `Aleatorio` ya no aparece como perfil visible
+- [ ] El usuario puede arrancar Arena sin seleccionar perfil
+- [ ] Si no selecciona perfil, se usa uno aleatorio automáticamente
+- [ ] Si selecciona un perfil concreto, se usa ese perfil
+- [ ] No hay regresión en `POST /api/arena/start`
+- [ ] La UI queda más limpia y más coherente
+- [ ] La app compila sin errores

@@ -496,8 +496,12 @@ router.post("/arena/start", async (req, res) => {
     return;
   }
 
-  const PROFILE_ALIASES: Record<string, string> = { insecure: "cautious", hard_negotiator: "negotiator" };
-  const resolvedClientProfile = clientProfile ? (PROFILE_ALIASES[clientProfile] ?? clientProfile) : undefined;
+  const PROFILE_ALIASES: Record<string, string> = {
+    insecure: "cautious", hard_negotiator: "negotiator",
+    random: "", aleatorio: "",
+  };
+  const _rawProfile = clientProfile ? (PROFILE_ALIASES[clientProfile] ?? clientProfile) : undefined;
+  const resolvedClientProfile = _rawProfile || undefined; // normalize empty string (legacy random) to undefined
 
   const id = crypto.randomUUID();
   const session: ArenaSession = {

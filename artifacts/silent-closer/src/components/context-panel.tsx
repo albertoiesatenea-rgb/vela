@@ -478,7 +478,7 @@ function ArenaProfilePicker({
   sellerProfile: string | undefined; setSellerProfile: (v: string | undefined) => void;
   difficulty: string; setDifficulty: (v: string) => void;
 }) {
-  const clientItems = CLIENT_PROFILES[lang];
+  const clientItems = CLIENT_PROFILES[lang].filter(p => p.id !== "random");
   const sellerItems = SELLER_PROFILES[lang];
   const diffItems = DIFFICULTY_LEVELS[lang];
 
@@ -507,6 +507,11 @@ function ArenaProfilePicker({
                   className={toggleChip(clientProfile === p.id)}>{p.label}</button>
               ))}
             </div>
+            {!clientProfile && (
+              <p className="text-[9px] font-mono text-zinc-600">
+                {lang === "es" ? "Sin selección → perfil aleatorio" : "No selection → random profile"}
+              </p>
+            )}
           </div>
           <div className="flex flex-col gap-1.5">
             <p className={label9}>{lang === "es" ? "Dificultad" : "Difficulty"}</p>
@@ -602,7 +607,7 @@ export function ContextSetup({
   const [isRandomCtx, setIsRandomCtx] = useState(false);
 
   // Arena profile/difficulty state
-  const [clientProfile, setClientProfile] = useState<string | undefined>("random");
+  const [clientProfile, setClientProfile] = useState<string | undefined>(undefined);
   const [sellerProfile, setSellerProfile] = useState<string | undefined>(undefined);
   const [difficulty, setDifficulty] = useState<string>("normal");
   const [showAdvancedOpts, setShowAdvancedOpts] = useState(
