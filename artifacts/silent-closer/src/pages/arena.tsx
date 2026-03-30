@@ -687,6 +687,7 @@ export function Arena({
   const [pendingOutcome, setPendingOutcome] = useState<Exclude<ArenaOutcome, "none" | "manual_stop"> | null>(null);
   // Suggested response
   const [isSuggesting, setIsSuggesting] = useState(false);
+  const [isShortcutPending, setIsShortcutPending] = useState(false);
   // Early exit prompt (no user turns yet)
   const [showEarlyExit, setShowEarlyExit] = useState(false);
   // Seller notes (client mode only)
@@ -831,17 +832,14 @@ export function Arena({
     }
   }, [isSending, arenaSessionId, messages.length, lang]);
 
-  // Comodín shortcut: AI generates a contextual client response in the given direction
+  // Comodín shortcut: AI generates a contextual client response in the given direction.
+  // Uses isShortcutPending (not isSending) so no loading indicator fires before the client message appears.
   const sendShortcut = useCallback(async (direction: "agree" | "object") => {
-    if (isSending || !arenaSessionId) return;
+    if (isSending || isShortcutPending || !arenaSessionId) return;
     const expectedUserIdx = messages.length;
     const expectedAiIdx = messages.length + 1;
 
-    // Client message appears immediately; loading indicator for vendor shows in same render
-    const cannedMsg = direction === "agree" ? t.CLIENT_ACCEPT_MSG : t.CLIENT_OBJECTION_MSG;
-    setMessages(prev => [...prev, { index: expectedUserIdx, speaker: "user" as const, message: cannedMsg }]);
-    setIsSending(true);
-
+    setIsShortcutPending(true);
     try {
       const res = await fetch("/api/arena/turn", {
         method: "POST",
@@ -854,11 +852,12 @@ export function Arena({
         terminalSignal?: ArenaOutcome;
         coachLite?: CoachLite;
       };
-      setMessages(prev => {
-        const updated = [...prev];
-        updated[expectedUserIdx] = { index: expectedUserIdx, speaker: "user" as const, message: data.generatedUserMessage };
-        return [...updated, { index: expectedAiIdx, speaker: "ai" as const, message: data.aiMessage }];
-      });
+      // Show the actual contextual client message first
+      setMessages(prev => [...prev, { index: expectedUserIdx, speaker: "user" as const, message: data.generatedUserMessage }]);
+      // Natural beat — let the client message settle before vendor responds
+      await new Promise<void>(r => setTimeout(r, 820));
+      // Then show vendor
+      setMessages(prev => [...prev, { index: expectedAiIdx, speaker: "ai" as const, message: data.aiMessage }]);
       setConversationState(inferState(data.aiMessage, lang));
       if (data.coachLite) {
         setCoachLiteMap(prev => ({ ...prev, [expectedAiIdx]: data.coachLite! }));
@@ -873,10 +872,10 @@ export function Arena({
         message: lang === "en" ? "(Connection error)" : "(Error de conexión)",
       }]);
     } finally {
-      setIsSending(false);
+      setIsShortcutPending(false);
       setTimeout(() => textareaRef.current?.focus(), 50);
     }
-  }, [isSending, arenaSessionId, messages.length, lang, t]);
+  }, [isSending, isShortcutPending, arenaSessionId, messages.length, lang]);
 
   // Arrow key shortcuts for client mode (↓ = agree comodín, ↑ = object comodín)
   useEffect(() => {
