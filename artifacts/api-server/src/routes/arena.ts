@@ -29,6 +29,7 @@ interface ArenaSession {
   sellerProfile?: string;
   difficulty?: string;
   forceTerminal?: boolean;
+  sellerNotes: string[];
 }
 
 // ── In-memory session store ───────────────────────────────────────────────────
@@ -111,6 +112,7 @@ function buildSystemPrompt(
   clientProfile?: string,
   sellerProfile?: string,
   difficulty?: string,
+  sellerNotes?: string[],
 ): string {
   const langRule = lang === "en" ? "Respond only in English." : "Responde solo en español.";
 
@@ -138,10 +140,13 @@ ${langRule}`;
     const profileNote = sellerProfile && SELLER_PROFILE_DESC[sellerProfile]
       ? `\nPERSONALIDAD: ${SELLER_PROFILE_DESC[sellerProfile]}`
       : "";
+    const notesBlock = sellerNotes && sellerNotes.length > 0
+      ? `\nRESTRICCIONES DEL VENDEDOR (aplica SIEMPRE — no negociable, sin excepciones):\n${sellerNotes.map((n, i) => `${i + 1}. ${n}`).join("\n")}`
+      : "";
 
     return `Eres el vendedor/consultor en una simulación de conversación de venta.
 
-Contexto: ${context || "Conversación de venta genérica."}${profileNote}${windowNote}
+Contexto: ${context || "Conversación de venta genérica."}${profileNote}${notesBlock}${windowNote}
 
 Tu papel es el vendedor. Mantén tu personalidad de forma consistente. Responde con 1-3 frases conversacionales naturales. Usa **negrita** para marcar argumentos clave, precios, beneficios o pasos de cierre importantes. Sin más etiquetas ni metacomentarios.
 ${langRule}`;
@@ -428,6 +433,7 @@ router.post("/arena/start", async (req, res) => {
     createdAt: new Date().toISOString(),
     clientProfile: resolvedClientProfile, sellerProfile, difficulty,
     forceTerminal: forceTerminal === true,
+    sellerNotes: [],
   };
 
   let openingMessage = "";
@@ -503,6 +509,7 @@ router.post("/arena/turn", async (req, res) => {
         session.role, session.context, session.lang,
         historyLen,
         session.clientProfile, session.sellerProfile, session.difficulty,
+        session.sellerNotes,
       ),
     },
   ];
@@ -605,6 +612,22 @@ router.post("/arena/finish", async (req, res) => {
   });
 
   setTimeout(() => sessions.delete(arenaSessionId), 5 * 60 * 1000);
+});
+
+// ── POST /api/arena/note ──────────────────────────────────────────────────────
+router.post("/arena/note", (req, res) => {
+  const { arenaSessionId, note } = req.body as { arenaSessionId?: string; note?: string };
+  if (!arenaSessionId || !note?.trim()) {
+    res.status(400).json({ error: "arenaSessionId and note required" });
+    return;
+  }
+  const session = sessions.get(arenaSessionId);
+  if (!session) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+  session.sellerNotes.push(note.trim());
+  res.json({ ok: true, noteCount: session.sellerNotes.length });
 });
 
 // ── POST /api/arena/suggest ───────────────────────────────────────────────────

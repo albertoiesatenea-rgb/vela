@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Loader2, Sun, Moon, Sparkles, Trophy, TrendingUp } from "lucide-react";
+import { Loader2, Sun, Moon, Sparkles, Trophy, TrendingUp, StickyNote } from "lucide-react";
 import { WizardIcon } from "@/components/context-panel";
 import { cn } from "@/lib/utils";
 import { buildArenaAuditLog, triggerAuditLogDownload } from "@/lib/audit-log";
@@ -593,6 +593,10 @@ export function Arena({
   const [isSuggesting, setIsSuggesting] = useState(false);
   // Early exit prompt (no user turns yet)
   const [showEarlyExit, setShowEarlyExit] = useState(false);
+  // Seller notes (client mode only)
+  const [showNotePanel, setShowNotePanel] = useState(false);
+  const [noteText, setNoteText] = useState("");
+  const [noteCount, setNoteCount] = useState(0);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -730,6 +734,21 @@ export function Arena({
   const handleSend = useCallback(() => {
     void sendMessage(input);
   }, [input, sendMessage]);
+
+  const submitNote = useCallback(async () => {
+    if (!noteText.trim() || !arenaSessionId) return;
+    try {
+      await fetch("/api/arena/note", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ arenaSessionId, note: noteText.trim() }),
+      });
+      setNoteCount(c => c + 1);
+    } catch { /* silent */ }
+    setNoteText("");
+    setShowNotePanel(false);
+    setTimeout(() => textareaRef.current?.focus(), 50);
+  }, [noteText, arenaSessionId]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -1299,8 +1318,56 @@ export function Arena({
               </button>
             </div>
           ) : (
-            /* Client: textarea alone */
+            /* Client: seller notes + textarea */
             <>
+              {!isStarting && (
+                showNotePanel ? (
+                  <div className="flex flex-col gap-1.5 p-3 bg-zinc-950 border border-zinc-800 rounded-xl">
+                    <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">
+                      {lang === "es" ? "Instrucción al vendedor IA" : "Seller AI instruction"}
+                    </p>
+                    <textarea
+                      value={noteText}
+                      onChange={e => setNoteText(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void submitNote(); }
+                        if (e.key === "Escape") { setShowNotePanel(false); setNoteText(""); }
+                      }}
+                      placeholder={lang === "es" ? "Ej: los precios no son negociables" : "e.g. prices are non-negotiable"}
+                      autoFocus
+                      rows={2}
+                      className="w-full bg-transparent border border-zinc-800 rounded-lg px-3 py-2 text-xs font-mono text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors resize-none"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => { setShowNotePanel(false); setNoteText(""); }}
+                        className="px-3 py-1.5 rounded-lg text-[10px] font-mono text-zinc-600 hover:text-zinc-300 transition-colors"
+                      >
+                        {lang === "es" ? "Cancelar" : "Cancel"}
+                      </button>
+                      <button
+                        onClick={() => void submitNote()}
+                        disabled={!noteText.trim()}
+                        className="flex-1 py-1.5 rounded-lg border border-sky-500/30 text-sky-400 text-[10px] font-mono hover:bg-sky-500/10 disabled:opacity-30 disabled:pointer-events-none transition-all"
+                      >
+                        {lang === "es" ? "Añadir" : "Add"}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowNotePanel(true)}
+                    onMouseDown={e => e.preventDefault()}
+                    className="self-start flex items-center gap-1.5 text-[9px] font-mono text-zinc-600 hover:text-zinc-300 transition-colors"
+                  >
+                    <StickyNote className="w-3 h-3" />
+                    {lang === "es" ? "Instrucción al vendedor" : "Seller instruction"}
+                    {noteCount > 0 && (
+                      <span className="bg-sky-500/15 text-sky-400 px-1.5 py-0 rounded-full text-[8px] font-mono tabular-nums">{noteCount}</span>
+                    )}
+                  </button>
+                )
+              )}
               <textarea
                 ref={textareaRef}
                 value={input}
