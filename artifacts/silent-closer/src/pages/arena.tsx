@@ -836,7 +836,15 @@ export function Arena({
     if (isSending || !arenaSessionId) return;
     const expectedUserIdx = messages.length;
     const expectedAiIdx = messages.length + 1;
+
+    // Show client message immediately — don't wait for the API
+    const immediateMsg = direction === "agree" ? t.CLIENT_ACCEPT_MSG : t.CLIENT_OBJECTION_MSG;
+    setMessages(prev => [
+      ...prev,
+      { index: expectedUserIdx, speaker: "user" as const, message: immediateMsg },
+    ]);
     setIsSending(true);
+
     try {
       const res = await fetch("/api/arena/turn", {
         method: "POST",
@@ -849,11 +857,12 @@ export function Arena({
         terminalSignal?: ArenaOutcome;
         coachLite?: CoachLite;
       };
-      setMessages(prev => [
-        ...prev,
-        { index: expectedUserIdx, speaker: "user" as const, message: data.generatedUserMessage },
-        { index: expectedAiIdx,   speaker: "ai"   as const, message: data.aiMessage },
-      ]);
+      // Replace client message with actual generated one, then append vendor message
+      setMessages(prev => {
+        const updated = [...prev];
+        updated[expectedUserIdx] = { index: expectedUserIdx, speaker: "user" as const, message: data.generatedUserMessage };
+        return [...updated, { index: expectedAiIdx, speaker: "ai" as const, message: data.aiMessage }];
+      });
       setConversationState(inferState(data.aiMessage, lang));
       if (data.coachLite) {
         setCoachLiteMap(prev => ({ ...prev, [expectedAiIdx]: data.coachLite! }));
@@ -871,7 +880,7 @@ export function Arena({
       setIsSending(false);
       setTimeout(() => textareaRef.current?.focus(), 50);
     }
-  }, [isSending, arenaSessionId, messages.length, lang]);
+  }, [isSending, arenaSessionId, messages.length, lang, t]);
 
   // Arrow key shortcuts for client mode (↓ = agree comodín, ↑ = object comodín)
   useEffect(() => {
@@ -1728,21 +1737,31 @@ function autoHighlightQuestions(text: string): string {
 
 // ── Rich text renderer (for AI seller messages) ───────────────────────────────
 // Handles: **bold**, paragraph breaks (\n\n), line breaks (\n), bullet lists (- item)
+// Final question block (ends with ?) gets extra visual separation when it's the last block.
 function RichText({ text }: { text?: string }) {
-  const raw = autoHighlightQuestions((text ?? "").trim());
-  const blocks = raw.split(/\n\n+/);
+  const cleaned = (text ?? "").trim();
+  // Filter out empty blocks first so isLast detection is accurate
+  const rawBlocks = cleaned.split(/\n\n+/).filter(b => b.trim() !== "");
 
   return (
     <div className="flex flex-col gap-2">
-      {blocks.map((block, bi) => {
-        const lines = block.split("\n").filter(l => l.trim() !== "");
+      {rawBlocks.map((block, bi) => {
+        const isLast = bi === rawBlocks.length - 1;
+        // Detect question block from original text (before auto-bold adds **)
+        const strippedBlock = block.replace(/\*\*/g, "").trim();
+        const isQuestionBlock = strippedBlock.endsWith("?");
+        const showDivider = isLast && isQuestionBlock && rawBlocks.length > 1;
+
+        const processed = autoHighlightQuestions(block);
+        const lines = processed.split("\n").filter(l => l.trim() !== "");
         if (lines.length === 0) return null;
 
         const allBullets = lines.every(l => /^[ \t]*-[ \t]/.test(l));
+        const dividerClass = showDivider ? "mt-1 pt-2.5 border-t border-white/[0.06]" : undefined;
 
         if (allBullets) {
           return (
-            <ul key={bi} className="flex flex-col gap-1">
+            <ul key={bi} className={cn("flex flex-col gap-1", dividerClass)}>
               {lines.map((line, li) => (
                 <li key={li} className="flex gap-2 items-start">
                   <span className="text-zinc-500 shrink-0 mt-px select-none">—</span>
@@ -1754,12 +1773,16 @@ function RichText({ text }: { text?: string }) {
         }
 
         if (lines.length === 1) {
-          return <p key={bi}><BoldText text={lines[0]} /></p>;
+          return (
+            <p key={bi} className={dividerClass}>
+              <BoldText text={lines[0]} />
+            </p>
+          );
         }
 
         // Mixed block (e.g. heading + bullets) — render each line individually
         return (
-          <div key={bi} className="flex flex-col gap-0.5">
+          <div key={bi} className={cn("flex flex-col gap-0.5", dividerClass)}>
             {lines.map((line, li) => {
               if (/^[ \t]*-[ \t]/.test(line)) {
                 return (
@@ -1800,8 +1823,8 @@ function MessageRow({
       <div className={cn(
         "px-4 py-2.5 rounded-xl text-sm leading-relaxed",
         isUser
-          ? "max-w-[80%] bg-zinc-800 border border-zinc-700 text-zinc-300 text-right"
-          : "max-w-[90%] bg-zinc-950 border border-zinc-700 text-zinc-300 text-left"
+          ? "max-w-[80%] bg-zinc-900 border border-zinc-800 text-zinc-300 text-right"
+          : "max-w-[90%] bg-zinc-950 border border-zinc-800/60 text-zinc-300 text-left"
       )}>
         {isUser
           ? <BoldText text={msg.message} />

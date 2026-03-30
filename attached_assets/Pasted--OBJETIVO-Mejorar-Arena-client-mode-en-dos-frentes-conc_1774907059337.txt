@@ -1,0 +1,147 @@
+## OBJETIVO
+Mejorar Arena `client` mode en dos frentes concretos:
+1. hacer que los mensajes del vendedor y del comprador sean mucho más fáciles de leer y escanear;
+2. corregir la coreografía temporal del auto-turno favorable (flecha abajo) para que se sienta como una conversación real y no como dos mensajes que aparecen casi juntos tras una espera torpe.
+
+## CONTEXTO
+- En Arena `client` mode el usuario actúa como cliente y la IA responde como vendedor.
+- La pantalla ya tiene bastante funcionalidad útil, pero todavía falla en dos cosas importantes:
+  - la legibilidad de los mensajes no es lo bastante consistente;
+  - el ritmo del auto-turno favorable se siente artificial.
+- Problemas observados:
+  - el vendedor puede hacer una pregunta importante y esta queda enterrada dentro del bloque de texto;
+  - las preguntas no siempre se separan visualmente del resto;
+  - el resaltado de ideas clave sigue siendo insuficiente;
+  - la bubble del comprador no termina de sentirse fina ni del todo coherente visualmente;
+  - al pulsar la flecha abajo, el sistema espera, y luego aparecen muy rápido el mensaje automático del cliente y la respuesta del vendedor, en vez de seguir un ritmo conversacional natural.
+
+Archivos probablemente implicados:
+- `artifacts/silent-closer/src/pages/arena.tsx`
+- componentes de render de mensajes de Arena
+- cualquier helper que formatee o pinte bubbles
+- lógica de auto-turno favorable / flecha abajo
+- si hace falta, prompt del vendedor IA en `artifacts/api-server/src/routes/arena.ts`
+
+## RESTRICCIONES
+- No tocar Copiloto
+- No rehacer Arena desde cero
+- No romper `start / turn / finish`
+- No eliminar la vista actual
+- No meter formatos recargados ni UI barroca
+- No depender solo del prompt para separar preguntas; quiero consistencia real
+- No instalar dependencias nuevas salvo necesidad real
+- Mantener el estilo minimalista del producto
+
+## CAMBIO EXACTO
+
+### PARTE 1 — REGLAS DE LEGIBILIDAD DE MENSAJES
+
+#### 1. Separar siempre la pregunta final
+Cuando un mensaje del vendedor termine en una pregunta o contenga una pregunta final clara:
+- esa pregunta debe renderizarse separada del resto del texto;
+- debe tener más espacio antes;
+- debe verse como el cierre principal del turno.
+
+Ejemplo visual deseado:
+- bloque principal arriba
+- pregunta final separada abajo
+
+No quiero que quede enterrada dentro de un párrafo corrido.
+
+#### 2. No confiar solo en el prompt
+Implementar esto por dos capas:
+- mejorar prompt del vendedor para que estructure mejor;
+- pero además, en frontend o en el render del mensaje, detectar la última frase interrogativa y separarla visualmente si aplica.
+
+La separación de preguntas debe ser robusta y consistente.
+
+#### 3. Mejorar jerarquía visual del contenido
+Resaltar mejor:
+- cifras
+- condiciones
+- objeción principal
+- conclusión útil
+- pregunta final
+
+No hacer negrita aleatoria. Hacer negrita útil.
+
+#### 4. Hacer los mensajes más escaneables
+- más aire entre ideas
+- menos bloque uniforme
+- mejor separación entre afirmación y pregunta
+- si hay 2 ideas claras, partirlas en líneas o párrafos breves
+
+#### 5. Revisar estilo de bubble del comprador
+La bubble del comprador debe diferenciarse del vendedor, pero con más fineza.
+Objetivo:
+- menos sensación de bloque pesado
+- mejor contraste
+- más coherencia con la estética general
+
+No usar color fuerte.
+Buscar una solución más sobria:
+- fondo más suave
+- mejor equilibrio entre relleno, borde y contraste del texto
+
+#### 6. Mantener coherencia entre vendedor y comprador
+Quiero que ambos se lean mejor:
+- vendedor: claro, aireado, con pregunta muy visible
+- comprador: firme, legible, menos pesado visualmente
+
+### PARTE 2 — COREOGRAFÍA DEL AUTO-TURNO FAVORABLE
+
+#### Problema actual
+Cuando el usuario pulsa flecha abajo:
+- el sistema se queda pensando;
+- después mete muy rápido el mensaje automático del cliente;
+- y casi seguido mete la respuesta del vendedor.
+
+Eso se siente artificial.
+
+#### Comportamiento correcto
+Quiero esta secuencia:
+
+1. El usuario pulsa flecha abajo
+2. El mensaje favorable automático del cliente aparece **inmediatamente**
+3. La UI muestra que el vendedor está preparando respuesta
+4. Tras un beat corto y natural, aparece el mensaje del vendedor
+
+#### Regla de ritmo
+- el mensaje automático del cliente debe salir primero, sin espera torpe
+- la respuesta del vendedor debe aparecer después con un pequeño delay intencional
+- ese delay debe hacer que se note la secuencia, no que se sienta lenta
+- objetivo: conversación más real, menos sensación de batch
+
+#### Implementación
+- revisar la lógica actual del auto-turno favorable
+- separar visual y temporalmente la inserción del mensaje del cliente y la llegada del mensaje del vendedor
+- usar un micro-delay controlado para el vendedor si hace falta
+- no mostrar ambos casi pegados después de una espera vacía
+
+### PARTE 3 — SI HACE FALTA, AJUSTAR EL PROMPT DEL VENDEDOR
+Si el prompt actual sigue generando bloques demasiado compactos:
+- pedir frases más limpias;
+- separar mejor la pregunta final;
+- evitar enterrar la acción principal del turno.
+
+Pero esto debe ser complemento, no única solución.
+
+## ENTREGABLES
+- [ ] Preguntas finales del vendedor separadas visualmente del cuerpo del mensaje
+- [ ] Mejor jerarquía visual en cifras, objeciones y conclusiones
+- [ ] Mensajes más fáciles de escanear
+- [ ] Bubble del comprador visualmente más fina y coherente
+- [ ] Auto-turno favorable con secuencia correcta: cliente primero, vendedor después
+- [ ] Si hace falta, ajuste del prompt del vendedor para mejorar estructura
+- [ ] No tocar nada innecesario fuera de Arena `client` mode
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] Si un mensaje del vendedor contiene una pregunta final, esa pregunta se ve separada y clara
+- [ ] La pregunta ya no queda enterrada al final de un bloque uniforme
+- [ ] Las cifras e ideas clave se entienden más rápido
+- [ ] La bubble del comprador se siente más ligera y más coherente con la UI
+- [ ] Al pulsar flecha abajo, el mensaje automático favorable del cliente aparece primero
+- [ ] La respuesta del vendedor llega después con un ritmo más natural
+- [ ] Ya no se siente que ambos mensajes aparecen en batch tras una espera rara
+- [ ] La app compila sin errores
+- [ ] No hay regresión en Arena
