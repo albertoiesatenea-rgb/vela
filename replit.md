@@ -31,6 +31,12 @@ A single-screen, ultraminimalist sales call assistant for use on a second screen
 - **Arena profiles**: Client personality profiles (analítico, emocional, inseguro, arrogante, indeciso, duro) when user is seller. Seller profiles (comunicativo, autoritario, técnico, pasivo, agresivo, consultivo) when user is client. Difficulty levels (fácil, normal, difícil, brutal) for seller role. Random context generator (shuffle button). ArenaAdvancedForm with role-specific step questions. Profiles/difficulty injected into system prompts on the backend.
 - **Unified Audit Log**: `artifacts/silent-closer/src/lib/audit-log.ts` — shared module for both Copiloto and Arena. Types: AuditLog, SessionMeta, SessionContext, SessionConfig, AuditTurn, CopilotTurnData, ArenaTurnData, SessionSummary, AuditHints. Functions: buildCopilotAuditLog(), buildArenaAuditLog(), renderAuditLogMarkdown(), triggerAuditLogDownload(). Output: forensic markdown (.md) compatible with Closer Wizard Auditor GPT.
 
+### Codebase notes
+- `src/components/ui/` only contains the 4 components actually used: `card.tsx`, `toast.tsx`, `toaster.tsx`, `tooltip.tsx`. All other shadcn/ui scaffolding was removed.
+- `src/hooks/` only contains `use-speech.ts`, `use-theme.ts`, `use-toast.ts`. `use-mobile.tsx` was removed (had no live references).
+- `api-server/src/lib/ai-tracker.ts` — exports: `estimateModelCost`, `logAICall`, `closeSession`, `getSessionStats`, `getUsageSnapshot`. Deprecated aliases `estimateCost` / `logSessionTotal` removed.
+- Copilot page: `DOWNLOAD_TRAINING` key and `buildTrainingTranscript` / `handleDownloadTraining` dead code removed. The `.md` audit log download (`DOWNLOAD_AUDIT`) is the only download action.
+
 ### Known limitations (first MVP)
 - Mic mode requires Chrome/Edge (Web Speech API)
 - Mic requires HTTPS in production (works in deployed app, may not work in Replit iframe preview)

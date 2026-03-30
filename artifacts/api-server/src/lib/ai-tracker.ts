@@ -88,11 +88,6 @@ export function estimateModelCost(
        + (completionTokens / 1000) * pricing.output;
 }
 
-/** Convenience alias kept for backward compatibility */
-export function estimateCost(promptTokens: number, completionTokens: number): number {
-  return estimateModelCost("gpt-4o-mini", promptTokens, completionTokens) ?? 0;
-}
-
 // ── Core registration ─────────────────────────────────────────────────────────
 export interface LogAICallParams {
   route:               string;
@@ -219,11 +214,6 @@ export function closeSession(sessionId: string): void {
   }, `[AI SESSION END] ${sessionId} | ${ss.calls} calls | ${ss.totalTokens} tok | $${ss.totalCostUsd.toFixed(6)}`);
   // Keep in store for debug panel — remove after 10 min
   setTimeout(() => sessionStore.delete(sessionId), 10 * 60 * 1000);
-}
-
-/** @deprecated use closeSession */
-export function logSessionTotal(sessionId: string): void {
-  closeSession(sessionId);
 }
 
 export function getSessionStats(sessionId: string): SessionUsageSummary | undefined {

@@ -80,7 +80,6 @@ const T = {
     BACK_SUMMARY: "← Volver al resumen",
     COPIED: "¡Copiado!",
     NO_MEMORY: "No hay datos suficientes de la llamada para generar un análisis completo.",
-    DOWNLOAD_TRAINING: "Descargar datos de entrenamiento ↓",
     DOWNLOAD_AUDIT: "Descargar audit log (.md) ↓",
   },
   en: {
@@ -120,7 +119,6 @@ const T = {
     BACK_SUMMARY: "← Back to summary",
     COPIED: "Copied!",
     NO_MEMORY: "Not enough call data to generate a complete analysis.",
-    DOWNLOAD_TRAINING: "Download training data ↓",
     DOWNLOAD_AUDIT: "Download audit log (.md) ↓",
   },
 };
@@ -889,94 +887,6 @@ export default function CopilotPage() {
       "",
     ].join("\n");
     return header + callSummary.fullReport;
-  };
-
-  // Helper: build full training transcript (context + convo + memory + analysis)
-  const buildTrainingTranscript = () => {
-    const isEs = lang === "es";
-    const now = new Date().toISOString().replace("T", " ").substring(0, 19);
-    const sep = "═".repeat(50);
-    const div = "─".repeat(40);
-
-    const sections: string[] = [
-      `CLOSER WIZARD — ${isEs ? "DATOS DE ENTRENAMIENTO" : "TRAINING DATA"}`,
-      `${isEs ? "Fecha" : "Date"}: ${now}`,
-      `${isEs ? "Idioma" : "Language"}: ${lang.toUpperCase()}`,
-      "",
-      sep,
-      `${isEs ? "CONTEXTO DE LA LLAMADA" : "CALL CONTEXT"}`,
-      sep,
-      sessionContext ?? "(sin contexto)",
-      "",
-    ];
-
-    if (conversationLog.length > 0) {
-      sections.push(sep);
-      sections.push(isEs ? "TRANSCRIPCIÓN DE CONVERSACIÓN" : "CONVERSATION TRANSCRIPT");
-      sections.push(sep);
-      conversationLog.forEach((entry, i) => {
-        sections.push(`[${i + 1}] ${entry}`);
-      });
-      sections.push("");
-    }
-
-    const memory = tacticalState.callMemory;
-    if (memory.length > 0) {
-      sections.push(sep);
-      sections.push(isEs ? "MEMORIA TÁCTICA ACUMULADA" : "ACCUMULATED TACTICAL MEMORY");
-      sections.push(`(${isEs ? "última actualización del modelo" : "last model update"})`);
-      sections.push(div);
-      memory.forEach(line => sections.push(`• ${line}`));
-      sections.push("");
-    }
-
-    if (callSummary) {
-      sections.push(sep);
-      sections.push(isEs ? "ANÁLISIS FINAL DE LLAMADA" : "FINAL CALL ANALYSIS");
-      sections.push(sep);
-      sections.push(`${isEs ? "Resultado" : "Result"}: ${callSummary.resultLabel}`);
-      sections.push(`Score: ${callSummary.score.toFixed(1)} / 10`);
-      sections.push(`${isEs ? "Estado global" : "Global state"}: ${callSummary.globalState}`);
-      if (callSummary.strengths.length > 0) {
-        sections.push("");
-        sections.push(isEs ? "Puntos fuertes:" : "Strengths:");
-        callSummary.strengths.forEach(s => sections.push(`  → ${s}`));
-      }
-      if (callSummary.improvements.length > 0) {
-        sections.push("");
-        sections.push(isEs ? "Puntos a mejorar:" : "Improvements:");
-        callSummary.improvements.forEach(s => sections.push(`  △ ${s}`));
-      }
-      sections.push("");
-    }
-
-    if (callSummary?.fullReport) {
-      sections.push(sep);
-      sections.push(isEs ? "REPORTE COMPLETO" : "FULL REPORT");
-      sections.push(sep);
-      sections.push(callSummary.fullReport);
-      sections.push("");
-    }
-
-    sections.push(sep);
-    sections.push(isEs
-      ? "FIN DE DATOS — Pega este archivo en ChatGPT para analizar y mejorar el prompt de Closer Wizard."
-      : "END OF DATA — Paste this file into ChatGPT to analyze and improve the Closer Wizard prompt."
-    );
-
-    return sections.join("\n");
-  };
-
-  const handleDownloadTraining = () => {
-    const text = buildTrainingTranscript();
-    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    const ts = new Date().toISOString().replace(/[:.]/g, "-").substring(0, 19);
-    a.download = `closer-wizard-training-${ts}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
   const handleDownloadAuditLog = () => {
