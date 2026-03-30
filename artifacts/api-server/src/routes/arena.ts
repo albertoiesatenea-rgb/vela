@@ -416,8 +416,8 @@ router.post("/arena/finish", async (req, res) => {
 
   const userTurns = session.turns.filter(t => t.speaker === "user").length;
 
-  // Generate debrief for all seller sessions
-  const needsDebrief = session.role === "seller";
+  // Generate debrief for seller sessions that had actual user participation
+  const needsDebrief = session.role === "seller" && userTurns > 0;
   const debrief = needsDebrief
     ? await generateDebrief(session.turns, session.context, session.lang)
     : null;

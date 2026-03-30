@@ -457,6 +457,8 @@ export function Arena({
   const [pendingOutcome, setPendingOutcome] = useState<Exclude<ArenaOutcome, "none" | "manual_stop"> | null>(null);
   // Suggested response
   const [isSuggesting, setIsSuggesting] = useState(false);
+  // Early exit prompt (no user turns yet)
+  const [showEarlyExit, setShowEarlyExit] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -812,6 +814,29 @@ export function Arena({
   return (
     <div className="fixed inset-0 bg-black flex flex-col font-mono overflow-hidden">
 
+      {/* Early exit — no user turns yet */}
+      {showEarlyExit && (
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center px-6 z-50">
+          <div className="w-full max-w-xs flex flex-col gap-3">
+            <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">
+              {lang === "es" ? "No has practicado nada todavía" : "You haven't practiced yet"}
+            </p>
+            <button
+              onClick={() => setShowEarlyExit(false)}
+              className="w-full py-3 rounded-xl bg-white text-black text-xs font-mono font-bold hover:bg-zinc-100 active:scale-[0.98] transition-all"
+            >
+              {lang === "es" ? "Cancelar" : "Cancel"}
+            </button>
+            <button
+              onClick={onExit}
+              className="w-full py-3 rounded-xl border border-zinc-800 text-zinc-300 text-xs font-mono hover:border-zinc-600 hover:text-white active:scale-[0.98] transition-all"
+            >
+              {lang === "es" ? "Volver al menú" : "Back to menu"}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Outcome confirmation modal — AI-detected */}
       {pendingOutcome && (
         <OutcomeModal
@@ -989,7 +1014,11 @@ export function Arena({
                   className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors resize-none leading-relaxed disabled:opacity-40"
                 />
                 <button
-                  onClick={() => void handleEnd("manual_stop")}
+                  onClick={() => {
+                    const hasUserTurns = messages.some(m => m.speaker === "user");
+                    if (!hasUserTurns) { setShowEarlyExit(true); }
+                    else { void handleEnd("manual_stop"); }
+                  }}
                   disabled={isEnding || isStarting}
                   onMouseDown={e => e.preventDefault()}
                   className="w-20 shrink-0 rounded-xl border border-zinc-700 text-zinc-300 text-[9px] font-mono tracking-wider uppercase leading-snug hover:border-zinc-400 hover:text-white active:scale-[0.98] transition-all disabled:opacity-25 disabled:pointer-events-none flex items-center justify-center text-center px-1"
