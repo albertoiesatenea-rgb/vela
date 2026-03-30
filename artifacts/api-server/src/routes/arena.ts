@@ -130,7 +130,7 @@ function buildSystemPrompt(
 
 Contexto: ${context || "Conversación de venta genérica."}${profileNote}${diffNote}${windowNote}
 
-Tu papel es la otra parte. Mantén tu personalidad de forma consistente. Responde con 1-3 frases conversacionales naturales. Sin etiquetas ni metacomentarios. Solo el texto.
+Tu papel es la otra parte. Mantén tu personalidad de forma consistente. Responde con 1-3 frases conversacionales naturales. Usa **negrita** para marcar objeciones clave, precios, plazos o compromisos importantes. Sin más etiquetas ni metacomentarios.
 ${langRule}`;
   } else {
     const profileNote = sellerProfile && SELLER_PROFILE_DESC[sellerProfile]
@@ -141,7 +141,7 @@ ${langRule}`;
 
 Contexto: ${context || "Conversación de venta genérica."}${profileNote}${windowNote}
 
-Tu papel es el vendedor. Mantén tu personalidad de forma consistente. Responde con 1-3 frases conversacionales naturales. Sin etiquetas ni metacomentarios. Solo el texto.
+Tu papel es el vendedor. Mantén tu personalidad de forma consistente. Responde con 1-3 frases conversacionales naturales. Usa **negrita** para marcar argumentos clave, precios, beneficios o pasos de cierre importantes. Sin más etiquetas ni metacomentarios.
 ${langRule}`;
   }
 }

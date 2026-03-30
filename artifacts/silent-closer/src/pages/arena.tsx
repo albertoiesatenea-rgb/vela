@@ -991,7 +991,7 @@ export function Arena({
                             ? "bg-zinc-800 text-white text-right"
                             : "bg-zinc-900 text-zinc-200 text-left border border-zinc-700/60"
                         )}>
-                          {turn.message}
+                          <BoldText text={turn.message} />
                         </p>
                       </div>
                     );
@@ -1323,6 +1323,20 @@ export function Arena({
   );
 }
 
+// ── Bold markdown renderer ────────────────────────────────────────────────────
+function BoldText({ text, className }: { text: string; className?: string }) {
+  const parts = text.split(/\*\*(.+?)\*\*/g);
+  return (
+    <span className={className}>
+      {parts.map((part, i) =>
+        i % 2 === 1
+          ? <strong key={i} className="font-bold text-white">{part}</strong>
+          : part
+      )}
+    </span>
+  );
+}
+
 // ── Message row ───────────────────────────────────────────────────────────────
 function MessageRow({
   msg,
@@ -1348,7 +1362,7 @@ function MessageRow({
           ? "bg-zinc-800 border border-zinc-700 text-white text-right"
           : "bg-zinc-950 border border-zinc-700 text-zinc-100 text-left"
       )}>
-        {msg.message}
+        <BoldText text={msg.message} />
       </div>
     </div>
   );
