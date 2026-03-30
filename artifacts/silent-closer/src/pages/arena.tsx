@@ -450,6 +450,14 @@ const CLIENT_PROFILE_LABEL: Record<string, Record<"es"|"en", string>> = {
   indecisive:  { es: "Indeciso",    en: "Indecisive" },
   negotiator:  { es: "Negociador",  en: "Negotiator" },
 };
+const SELLER_PROFILE_LABEL: Record<string, Record<"es"|"en", string>> = {
+  communicative: { es: "Comunicativo",  en: "Communicative" },
+  authoritative: { es: "Autoritario",   en: "Authoritative" },
+  technical:     { es: "Técnico",       en: "Technical" },
+  passive:       { es: "Pasivo",        en: "Passive" },
+  aggressive:    { es: "Agresivo",      en: "Aggressive" },
+  consultive:    { es: "Consultivo",    en: "Consultive" },
+};
 const DIFFICULTY_LABEL: Record<string, Record<"es"|"en", string>> = {
   easy:   { es: "Fácil",   en: "Easy" },
   normal: { es: "Normal",  en: "Normal" },
@@ -1114,19 +1122,29 @@ export function Arena({
 
           {/* Session info — compact grid */}
           <div className="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-white/8 pt-3">
-            {arenaConfig.clientProfile && (
+            {/* Seller mode: show AI client profile + difficulty */}
+            {role === "seller" && arenaConfig.clientProfile && (
               <div className="flex flex-col gap-0">
-                <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{lang === "es" ? "CLIENTE" : "CLIENT"}</p>
+                <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{lang === "es" ? "CLIENTE IA" : "AI CLIENT"}</p>
                 <p className="text-xs font-mono font-semibold text-white">
                   {CLIENT_PROFILE_LABEL[arenaConfig.clientProfile]?.[lang] ?? arenaConfig.clientProfile.replace(/_/g, " ")}
                 </p>
               </div>
             )}
-            {arenaConfig.difficulty && (
+            {role === "seller" && arenaConfig.difficulty && (
               <div className="flex flex-col gap-0">
                 <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{lang === "es" ? "DIFICULTAD" : "DIFFICULTY"}</p>
                 <p className="text-xs font-mono font-semibold text-white">
                   {DIFFICULTY_LABEL[arenaConfig.difficulty]?.[lang] ?? arenaConfig.difficulty}
+                </p>
+              </div>
+            )}
+            {/* Client mode: show AI seller profile if configured */}
+            {role === "client" && arenaConfig.sellerProfile && (
+              <div className="flex flex-col gap-0">
+                <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{lang === "es" ? "VENDEDOR IA" : "AI SELLER"}</p>
+                <p className="text-xs font-mono font-semibold text-white">
+                  {SELLER_PROFILE_LABEL[arenaConfig.sellerProfile]?.[lang] ?? arenaConfig.sellerProfile.replace(/_/g, " ")}
                 </p>
               </div>
             )}

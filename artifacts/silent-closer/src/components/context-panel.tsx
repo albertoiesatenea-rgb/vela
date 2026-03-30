@@ -567,16 +567,23 @@ export function ContextSetup({
   const handleSubmit = (ctx: string) => {
     if (appMode === "arena" && !ctx.trim()) return;
     if (appMode === "arena") {
-      const isRandom = clientProfile === "random" || clientProfile === undefined;
-      const resolvedProfile = isRandom
-        ? REAL_PROFILES[Math.floor(Math.random() * REAL_PROFILES.length)]
-        : clientProfile;
-      onArenaReady(ctx, arenaRole, {
-        clientProfile: resolvedProfile,
-        sellerProfile,
-        difficulty,
-        forceTerminal: isRandom,
-      });
+      if (arenaRole === "seller") {
+        // Seller mode: user sells, AI plays the client → clientProfile + difficulty matter
+        const isRandom = clientProfile === "random" || clientProfile === undefined;
+        const resolvedProfile = isRandom
+          ? REAL_PROFILES[Math.floor(Math.random() * REAL_PROFILES.length)]
+          : clientProfile;
+        onArenaReady(ctx, arenaRole, {
+          clientProfile: resolvedProfile,
+          difficulty,
+          forceTerminal: isRandom,
+        });
+      } else {
+        // Client mode: user IS the client, AI plays the seller → only sellerProfile matters
+        onArenaReady(ctx, arenaRole, {
+          sellerProfile,
+        });
+      }
     } else {
       onContextReady(ctx);
     }
