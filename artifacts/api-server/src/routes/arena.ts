@@ -103,9 +103,20 @@ function shouldCheckTerminal(turns: ArenaTurn[], lang: Lang): boolean {
   return TERMINAL_HINTS[lang].some(kw => lastMsg.includes(kw));
 }
 
-// ── CoachLite types ───────────────────────────────────────────────────────────
+// ── CoachLite + Journey types ─────────────────────────────────────────────────
+type JourneyStatus = "done" | "current" | "upcoming";
+type StageId = "context" | "problem" | "blocker" | "fit" | "advance" | "close";
+
+interface JourneyData {
+  stages: Record<StageId, JourneyStatus>;
+  now_help: string;
+  next_help: string;
+  premature_close_risk: "low" | "medium" | "high";
+}
+
 interface CoachLite {
   explanation: string;
+  journey?: JourneyData;
 }
 
 // ── Prompt builders ───────────────────────────────────────────────────────────
@@ -589,6 +600,123 @@ async function generateCoachLite(
   }
 }
 
+// ── Journey generator (client mode only) ─────────────────────────────────────
+const JOURNEY_STAGE_IDS: StageId[] = ["context", "problem", "blocker", "fit", "advance", "close"];
+
+function buildJourneyPrompt(
+  turns: ArenaTurn[],
+  context: string,
+  lang: Lang,
+): string {
+  const recent = turns.slice(-10).map(t =>
+    `${t.speaker === "ai" ? "VENDEDOR" : "CLIENTE"}: ${t.message}`
+  ).join("\n");
+
+  if (lang === "en") {
+    return `You are analyzing a sales conversation to determine the seller's current stage in the sales process.
+
+Stages (in order):
+- context: seller has established what they sell and the conversation frame
+- problem: seller has identified a need or friction the client has
+- blocker: seller has identified what is blocking the decision (cost, risk, competition, etc.)
+- fit: seller has connected their solution to the specific blocker
+- advance: client has shown real interest or agreed to a concrete next step
+- close: client has made a firm buying decision or firm commitment
+
+Assign to each stage: "done" (completed), "current" (where we are now), "upcoming" (not yet reached).
+Exactly ONE stage must be "current". All "done" stages must precede "current".
+
+Also provide:
+- now_help: in one short sentence, what the seller is trying to achieve RIGHT NOW
+- next_help: in one short sentence, what needs to happen to advance to the next stage
+- premature_close_risk: "low" | "medium" | "high" — whether the seller is trying to close too early
+
+Sale context: ${context || "Generic sale"}
+
+Last conversation turns:
+${recent}
+
+Return ONLY valid JSON, no markdown:
+{"stages":{"context":"...","problem":"...","blocker":"...","fit":"...","advance":"...","close":"..."},"now_help":"...","next_help":"...","premature_close_risk":"..."}`;
+  }
+
+  return `Analiza esta conversación de venta e indica en qué etapa del proceso está el vendedor.
+
+Etapas (en orden):
+- context: el vendedor ha establecido qué vende y el marco de la conversación
+- problem: el vendedor ha identificado una necesidad o fricción del cliente
+- blocker: el vendedor ha identificado qué frena la decisión (coste, riesgo, competencia, etc.)
+- fit: el vendedor ha conectado su solución con el bloqueo concreto
+- advance: el cliente ha mostrado interés real o acordado un paso concreto
+- close: el cliente ha tomado una decisión firme de compra o compromiso claro
+
+Asigna a cada etapa: "done" (completada), "current" (donde estamos ahora), "upcoming" (aún no alcanzada).
+Exactamente UNA etapa debe ser "current". Las etapas "done" deben preceder al "current".
+
+También:
+- now_help: en 1 frase corta, qué intenta conseguir el vendedor AHORA MISMO
+- next_help: en 1 frase corta, qué necesita ocurrir para avanzar a la siguiente etapa
+- premature_close_risk: "low"|"medium"|"high" — si el vendedor intenta cerrar demasiado pronto
+
+Contexto de la venta: ${context || "Venta genérica"}
+
+Últimos turnos de conversación:
+${recent}
+
+Devuelve SOLO JSON válido, sin markdown:
+{"stages":{"context":"...","problem":"...","blocker":"...","fit":"...","advance":"...","close":"..."},"now_help":"...","next_help":"...","premature_close_risk":"..."}`;
+}
+
+function isValidJourney(obj: unknown): obj is JourneyData {
+  if (!obj || typeof obj !== "object") return false;
+  const j = obj as Record<string, unknown>;
+  if (!j["stages"] || typeof j["stages"] !== "object") return false;
+  const stages = j["stages"] as Record<string, unknown>;
+  if (!JOURNEY_STAGE_IDS.every(id => ["done", "current", "upcoming"].includes(stages[id] as string))) return false;
+  const currentCount = JOURNEY_STAGE_IDS.filter(id => stages[id] === "current").length;
+  if (currentCount !== 1) return false;
+  if (typeof j["now_help"] !== "string" || typeof j["next_help"] !== "string") return false;
+  if (!["low", "medium", "high"].includes(j["premature_close_risk"] as string)) return false;
+  return true;
+}
+
+async function generateJourney(
+  turns: ArenaTurn[],
+  context: string,
+  lang: Lang,
+  sessionId: string,
+): Promise<JourneyData | null> {
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_tokens: 200,
+      temperature: 0,
+      messages: [{ role: "user", content: buildJourneyPrompt(turns, context, lang) }],
+    });
+    const usage = completion.usage;
+    if (usage) {
+      logAICall({
+        route: "arena/turn",
+        endpoint: "journey",
+        sessionId,
+        mode: "arena",
+        model: "gpt-4o-mini",
+        maxTokensConfigured: 200,
+        promptTokens: usage.prompt_tokens,
+        completionTokens: usage.completion_tokens,
+        totalTokens: usage.total_tokens,
+        latencyMs: 0,
+        status: "ok",
+      });
+    }
+    const raw = completion.choices[0]?.message?.content?.trim() ?? "";
+    const parsed: unknown = JSON.parse(raw);
+    return isValidJourney(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 // ── POST /api/arena/turn ──────────────────────────────────────────────────────
 router.post("/arena/turn", async (req, res) => {
   const { arenaSessionId, userMessage } = req.body as {
@@ -678,13 +806,21 @@ router.post("/arena/turn", async (req, res) => {
     message: aiMessage,
   });
 
-  // ── Run terminal detection + coachLite in parallel ────────────────────────
-  const [terminalSignal, coachLite] = await Promise.all([
+  // ── Run terminal detection + coachLite + journey in parallel ─────────────
+  const [terminalSignal, coachLiteBase, journeyData] = await Promise.all([
     detectTerminalState(session.turns, session.role, session.lang, arenaSessionId, session.forceTerminal),
     session.role === "client"
       ? generateCoachLite(userMessage.trim(), aiMessage, session.context, session.lang, arenaSessionId)
       : Promise.resolve(null),
+    session.role === "client"
+      ? generateJourney(session.turns, session.context, session.lang, arenaSessionId)
+      : Promise.resolve(null),
   ]);
+
+  // Merge journey into coachLite payload
+  const coachLite: CoachLite | null = (coachLiteBase || journeyData)
+    ? { explanation: coachLiteBase?.explanation ?? "", ...(journeyData ? { journey: journeyData } : {}) }
+    : null;
 
   res.json({ aiMessage, terminalSignal, ...(coachLite ? { coachLite } : {}) });
 });

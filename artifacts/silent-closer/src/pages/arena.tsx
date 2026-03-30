@@ -23,8 +23,19 @@ interface ArenaDebrief {
   critique: string[];
 }
 
+type JourneyStatus = "done" | "current" | "upcoming";
+type StageId = "context" | "problem" | "blocker" | "fit" | "advance" | "close";
+
+interface JourneyData {
+  stages: Record<StageId, JourneyStatus>;
+  now_help: string;
+  next_help: string;
+  premature_close_risk: "low" | "medium" | "high";
+}
+
 interface CoachLite {
   explanation: string;
+  journey?: JourneyData;
 }
 
 interface ArenaSummary {
@@ -613,6 +624,78 @@ function CoachNoteSkeleton() {
   );
 }
 
+// ── Journey stage labels ───────────────────────────────────────────────────────
+const JOURNEY_STAGES: Record<Lang, Array<{ id: StageId; label: string }>> = {
+  es: [
+    { id: "context",  label: "Contexto" },
+    { id: "problem",  label: "Problema" },
+    { id: "blocker",  label: "Bloqueo"  },
+    { id: "fit",      label: "Encaje"   },
+    { id: "advance",  label: "Avance"   },
+    { id: "close",    label: "Cierre"   },
+  ],
+  en: [
+    { id: "context",  label: "Context" },
+    { id: "problem",  label: "Problem" },
+    { id: "blocker",  label: "Blocker" },
+    { id: "fit",      label: "Fit"     },
+    { id: "advance",  label: "Advance" },
+    { id: "close",    label: "Close"   },
+  ],
+};
+
+// ── JourneyBar component ──────────────────────────────────────────────────────
+function JourneyBar({ journey, lang }: { journey: JourneyData; lang: Lang }) {
+  const stages = JOURNEY_STAGES[lang];
+  const currentIdx = stages.findIndex(s => journey.stages[s.id] === "current");
+
+  return (
+    <div className="shrink-0 border-b border-white/4 px-4 py-2.5 bg-black/40">
+      <div className="max-w-4xl mx-auto flex flex-col gap-1.5">
+        {/* Stage pills row */}
+        <div className="flex items-center gap-0">
+          {stages.map((stage, i) => {
+            const status = journey.stages[stage.id];
+            const isCurrent = status === "current";
+            const isDone = status === "done";
+            const isClose = stage.id === "close";
+            return (
+              <div key={stage.id} className="flex items-center">
+                {i > 0 && (
+                  <div className={cn(
+                    "w-5 h-px shrink-0",
+                    isDone ? "bg-zinc-600" : "bg-zinc-800"
+                  )} />
+                )}
+                <span className={cn(
+                  "text-[8px] font-mono tracking-widest uppercase px-2 py-0.5 rounded-full transition-all whitespace-nowrap",
+                  isCurrent && "text-teal-300 bg-teal-500/10 border border-teal-500/25",
+                  isDone && "text-zinc-600",
+                  !isCurrent && !isDone && "text-zinc-800",
+                  isClose && journey.premature_close_risk === "high" && isCurrent && "text-amber-300 bg-amber-500/10 border-amber-500/25",
+                )}>
+                  {isDone ? "· " : ""}{stage.label}
+                </span>
+              </div>
+            );
+          })}
+          {journey.premature_close_risk === "high" && currentIdx < 4 && (
+            <span className="ml-3 text-[8px] font-mono tracking-widest uppercase text-amber-400/80 shrink-0">
+              {lang === "es" ? "cierre prematuro" : "early close"}
+            </span>
+          )}
+        </div>
+        {/* Context line: what the seller is doing now */}
+        {journey.now_help && (
+          <p className="text-[9px] text-zinc-500 leading-relaxed tracking-wide">
+            {journey.now_help}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Arena component ───────────────────────────────────────────────────────────
 export function Arena({
   context,
@@ -661,6 +744,8 @@ export function Arena({
   const [coachLiteMap, setCoachLiteMap] = useState<Record<number, CoachLite>>({});
   const [coachOn, setCoachOn] = useState(false);
   const [loadingPhase, setLoadingPhase] = useState(0);
+  // Journey: latest sales stage data (updated each turn in client mode)
+  const [latestJourney, setLatestJourney] = useState<JourneyData | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -771,6 +856,9 @@ export function Arena({
       setConversationState(inferState(data.aiMessage, lang));
       if (data.coachLite) {
         setCoachLiteMap(prev => ({ ...prev, [expectedAiIndex]: data.coachLite! }));
+        if (data.coachLite.journey) {
+          setLatestJourney(data.coachLite.journey);
+        }
       }
       if (data.terminalSignal && data.terminalSignal !== "none" && data.terminalSignal !== "manual_stop") {
         setPendingOutcome(data.terminalSignal as Exclude<ArenaOutcome, "none" | "manual_stop">);
@@ -1298,6 +1386,11 @@ export function Arena({
           </button>
         </div>
       </div>
+
+      {/* ── Journey bar (client mode, coach on, has data) ──────────────────── */}
+      {role === "client" && coachOn && latestJourney && (
+        <JourneyBar journey={latestJourney} lang={lang} />
+      )}
 
       {/* ── Message list ───────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto px-4 py-4">

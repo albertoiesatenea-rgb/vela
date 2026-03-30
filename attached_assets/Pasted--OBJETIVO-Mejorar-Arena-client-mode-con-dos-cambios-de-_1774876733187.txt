@@ -1,0 +1,112 @@
+## OBJETIVO
+Mejorar Arena `client` mode` con dos cambios de alto valor didáctico:
+1. añadir un `journey` visual rápido y entendible para ubicar al usuario en qué parte del proceso de venta está, qué falta y cuál es el siguiente paso;
+2. añadir una vista alternativa minimalista centrada en la frase actual del vendedor, para que el usuario pueda enfocarse en lo que está diciendo ahora sin distracción del historial completo.
+
+## CONTEXTO
+- Arena ya tiene dos roles:
+  - `seller`: el usuario vende y la IA hace de cliente
+  - `client`: el usuario hace de cliente y la IA hace de vendedor
+- En `client` mode el valor didáctico no está solo en ver qué responde el vendedor, sino en entender:
+  - dónde estamos en el proceso,
+  - qué intenta conseguir ahora,
+  - qué debería venir después,
+  - cuánto falta para un avance o cierre razonable.
+- Copiloto ya usa una lógica de orientación con `journey` (`past / now / next`) y con bloques como `reading`, `mission`, `next_move`; quiero tomar esa lógica como referencia conceptual, pero adaptada a Arena de forma visual y no intrusiva. :contentReference[oaicite:0]{index=0} :contentReference[oaicite:1]{index=1}
+- Además, la vista chat actual da demasiado detalle para ciertos usos. Quiero mantenerla, pero añadir una vista más minimalista donde la atención principal esté en la frase actual del vendedor, en grande, como si fuera una conversación más viva y menos “log de chat”.
+- No quiero una solución ornamental. Quiero una mejora real de aprendizaje y de foco.
+
+Archivos probablemente implicados:
+- `artifacts/silent-closer/src/pages/arena.tsx`
+- componentes del chat / coach / render de mensajes de Arena
+- `artifacts/api-server/src/routes/arena.ts`
+- `docs/04-prompts.md`
+- `docs/05-arena-logic.md`
+
+## RESTRICCIONES
+- No tocar Copiloto
+- No cambiar seller mode salvo reutilización visual segura de componentes
+- No rehacer Arena desde cero
+- No romper `start / turn / suggest / finish`
+- No meter una timeline universal rígida ni una barra decorativa falsa
+- No usar porcentajes arbitrarios de progreso
+- No volver la UI intrusiva ni recargada
+- No eliminar la vista chat actual; debe coexistir con la nueva vista
+- No instalar dependencias nuevas salvo necesidad real
+- Mantener el estilo minimalista de la app
+
+## CAMBIO EXACTO
+
+### PARTE 1 — JOURNEY VISUAL EN CLIENT MODE
+
+Quiero añadir un `journey` híbrido:
+- con una estructura funcional corta y estable,
+- pero con contenido dinámico adaptado al caso real de venta.
+
+#### Qué debe mostrar
+En un vistazo, el usuario debe poder ver:
+- **dónde estamos**
+- **qué paso viene después**
+- **qué falta hasta el avance o cierre**
+- **si el vendedor está intentando cerrar demasiado pronto**
+
+#### Estructura recomendada
+No usar una timeline gigante.
+Usar una secuencia corta de funciones comerciales, por ejemplo:
+- Contexto
+- Problema
+- Bloqueo
+- Encaje
+- Avance
+- Cierre
+
+Pero la explicación concreta de cada paso debe adaptarse al caso real.
+
+Ejemplo:
+- visible: `Bloqueo`
+- tooltip: “Aquí el vendedor intenta aislar qué frena de verdad la decisión.”
+- ayuda del paso actual: “Ahora mismo el bloqueo es el cashflow mensual negativo.”
+
+#### Backend
+Ampliar la respuesta de `POST /api/arena/turn` en `client` mode para incluir un bloque `journey` dentro de `coach` o `coachLite`, con algo como esto:
+
+```json
+{
+  "coachLite": {
+    "signal": "string",
+    "mission": "string",
+    "next_move": "string",
+    "reading": "string",
+    "why_this_response": "string",
+    "alternative": "string",
+    "journey": {
+      "stages": [
+        {
+          "id": "context",
+          "label": "Contexto",
+          "help": "Qué se está vendiendo y bajo qué marco.",
+          "status": "done | current | upcoming"
+        },
+        {
+          "id": "problem",
+          "label": "Problema",
+          "help": "Qué necesidad o fricción está sobre la mesa.",
+          "status": "done | current | upcoming"
+        },
+        {
+          "id": "blocker",
+          "label": "Bloqueo",
+          "help": "Qué está frenando realmente la decisión.",
+          "status": "done | current | upcoming"
+        }
+      ],
+      "now_label": "string",
+      "now_help": "string",
+      "next_label": "string",
+      "next_help": "string",
+      "goal": "string",
+      "steps_remaining": 2,
+      "premature_close_risk": "low | medium | high"
+    }
+  }
+}
