@@ -1,0 +1,57 @@
+## OBJETIVO
+Mejorar el vendedor IA de Arena `client` mode para que, cuando el cliente define un umbral claro o pide cómo mejorar una operación, deje de responder con listas genéricas y pase a una lógica concreta, consistente y creíble.
+
+## CONTEXTO
+- Archivo principal: `artifacts/api-server/src/routes/arena.ts`
+- Documentación relevante: `docs/04-prompts.md` y `docs/05-arena-logic.md`
+- El comportamiento actual ha mejorado en diagnóstico, pero sigue fallando en ejecución:
+  - detecta mejor el bloqueo central;
+  - pero cuando el cliente pide una solución, responde con palancas genéricas;
+  - entra en bucles tipo “explorar / optimizar / maximizar retorno”;
+  - a veces se contradice con el propio contexto de la operación.
+- Caso observado:
+  - cliente acepta que 650 €/mes es demasiado;
+  - dice que 300 €/mes sí sería tolerable;
+  - pregunta “¿cómo lo mejoramos?”;
+  - el vendedor propone negociar precio y subir alquiler;
+  - luego afirma que precio y alquiler son fijos;
+  - y acaba repitiendo opciones vacías sin tomar postura.
+
+## RESTRICCIONES
+- No tocar Copiloto
+- No cambiar seller mode
+- No rehacer Arena
+- No romper `start / turn / suggest / finish`
+- No cambiar rutas API
+- No tocar UI en este cambio
+- No instalar dependencias nuevas
+- Tocar solo prompt/comportamiento del vendedor IA en `client` mode y un ajuste mínimo si de verdad hace falta
+
+## CAMBIO EXACTO
+Reescribir la instrucción del vendedor IA en `client` mode para que:
+1. si el cliente define un umbral claro, use ese umbral como referencia central del resto de la conversación;
+2. cuando el cliente pida solución, no dé listas genéricas sino una tesis principal o un máximo de 2 palancas reales;
+3. no use expresiones vacías tipo “explorar”, “optimizar”, “maximizar” sin concretar inmediatamente;
+4. mantenga consistencia con el propio contexto y no proponga cambios imposibles o luego se contradiga;
+5. si la distancia entre la operación actual y el umbral del cliente no se puede cerrar honestamente, lo diga con claridad;
+6. responda con esta estructura mental cuando toque aterrizar una solución:
+   - qué tendría que cambiar,
+   - si es realista o no,
+   - qué conclusión práctica sale de eso;
+7. siga siendo natural, conversacional y breve por defecto, pero sin caer en respuestas mecánicas.
+
+## ENTREGABLES
+- [ ] Ajuste del prompt del vendedor IA en `artifacts/api-server/src/routes/arena.ts`
+- [ ] Ajuste mínimo de tokens solo si ayuda y no degrada respuestas útiles
+- [ ] Actualización de `docs/04-prompts.md`
+- [ ] No tocar nada innecesario fuera de ese flujo
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] Si el cliente define un umbral, el vendedor trabaja desde ese umbral y no vuelve a abstracciones
+- [ ] Si el cliente pregunta “cómo lo mejoramos”, el vendedor responde con una tesis concreta y no con lista genérica
+- [ ] El vendedor no usa muletillas vacías sin concretar
+- [ ] El vendedor no se contradice con el propio contexto del caso
+- [ ] El vendedor puede decir honestamente que una operación no encaja si no hay forma realista de acercarla al umbral del cliente
+- [ ] El tono se siente más directo, creíble y útil
+- [ ] No hay regresión en `POST /api/arena/turn`
+- [ ] La app compila sin errores
