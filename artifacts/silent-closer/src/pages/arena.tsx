@@ -1492,29 +1492,29 @@ export function Arena({
                 {exitStep === "outcomes" ? (
                   /* Step 1 — choose outcome */
                   <>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mb-0.5">
                       <p className="text-[8px] font-mono tracking-widest uppercase text-zinc-600">{t.CLIENT_EXIT_TITLE}</p>
                       <button onClick={() => setExitStep(null)} className="text-[9px] text-zinc-700 hover:text-zinc-400 transition-colors leading-none">✕</button>
                     </div>
-                    <div className="flex flex-col gap-1">
+                    <div className="flex gap-1">
                       <button
                         onClick={() => void handleClientExit("closed")}
                         disabled={isEnding}
-                        className="w-full py-1.5 rounded-lg border text-[10px] font-mono tracking-wide transition-all disabled:opacity-30 disabled:pointer-events-none text-teal-400 border-teal-400/30 hover:border-teal-400/60 hover:bg-teal-400/5"
+                        className="flex-1 py-1.5 rounded-lg border text-[9px] font-mono tracking-wide transition-all disabled:opacity-30 disabled:pointer-events-none text-teal-400 border-teal-400/30 hover:border-teal-400/60 hover:bg-teal-400/5 text-center leading-snug"
                       >
                         {isEnding ? <Loader2 className="w-3 h-3 animate-spin inline" /> : t.CLIENT_EXIT_CONVINCED}
                       </button>
                       <button
                         onClick={() => setExitStep("reason")}
                         disabled={isEnding}
-                        className="w-full py-1.5 rounded-lg border text-[10px] font-mono tracking-wide transition-all disabled:opacity-30 disabled:pointer-events-none text-amber-400 border-amber-400/30 hover:border-amber-400/60 hover:bg-amber-400/5"
+                        className="flex-1 py-1.5 rounded-lg border text-[9px] font-mono tracking-wide transition-all disabled:opacity-30 disabled:pointer-events-none text-amber-400 border-amber-400/30 hover:border-amber-400/60 hover:bg-amber-400/5 text-center leading-snug"
                       >
                         {t.CLIENT_EXIT_LOST}
                       </button>
                       <button
                         onClick={() => void handleClientExit("manual_stop")}
                         disabled={isEnding}
-                        className="w-full py-1.5 rounded-lg border text-[10px] font-mono tracking-wide transition-all disabled:opacity-30 disabled:pointer-events-none text-zinc-500 border-zinc-800 hover:border-zinc-600 hover:text-zinc-300"
+                        className="flex-1 py-1.5 rounded-lg border text-[9px] font-mono tracking-wide transition-all disabled:opacity-30 disabled:pointer-events-none text-zinc-500 border-zinc-800 hover:border-zinc-600 hover:text-zinc-300 text-center leading-snug"
                       >
                         {t.CLIENT_EXIT_QUIT}
                       </button>
