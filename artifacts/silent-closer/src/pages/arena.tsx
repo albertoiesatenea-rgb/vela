@@ -884,11 +884,11 @@ export function Arena({
               </p>
               <p className="text-[10px] font-mono text-zinc-500 mt-0.5">{outcomeName}</p>
             </div>
-            <div className={cn("shrink-0 mr-1", outcomeColor)}>
+            <div className={cn("shrink-0", outcomeColor)}>
               {summary.outcome === "closed"
                 ? <Trophy className="w-14 h-14 drop-shadow-[0_0_12px_rgba(52,211,153,0.6)]" style={{ animation: "arena-win-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) both" }} />
                 : summary.outcome === "next_step"
-                  ? <TrendingUp className="w-11 h-11" style={{ animation: "arena-win-pop 0.45s cubic-bezier(0.34,1.56,0.64,1) both" }} />
+                  ? <TrendingUp className="w-14 h-14" style={{ animation: "arena-win-pop 0.45s cubic-bezier(0.34,1.56,0.64,1) both" }} />
                   : summary.outcome === "lost"
                     ? <span className="text-5xl font-mono leading-none select-none">✗</span>
                     : <span className="text-4xl font-mono leading-none select-none text-zinc-600">·</span>}
