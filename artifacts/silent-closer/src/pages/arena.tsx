@@ -594,7 +594,6 @@ export function Arena({
   // Early exit prompt (no user turns yet)
   const [showEarlyExit, setShowEarlyExit] = useState(false);
   // Seller notes (client mode only)
-  const [showNotePanel, setShowNotePanel] = useState(false);
   const [noteText, setNoteText] = useState("");
   const [noteCount, setNoteCount] = useState(0);
 
@@ -740,7 +739,6 @@ export function Arena({
     if (!note || !arenaSessionId) return;
     // Clear immediately, don't wait for fetch
     setNoteText("");
-    setShowNotePanel(false);
     setIsSending(true);
     try {
       await fetch("/api/arena/note", {
@@ -1355,52 +1353,23 @@ export function Arena({
             /* Client: seller notes + textarea */
             <>
               {!isStarting && (
-                showNotePanel ? (
-                  <div className="flex flex-col gap-1.5 p-3 bg-zinc-950 border border-zinc-800 rounded-xl">
-                    <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">
-                      {lang === "es" ? "Instrucción al vendedor IA" : "Seller AI instruction"}
-                    </p>
-                    <textarea
-                      value={noteText}
-                      onChange={e => setNoteText(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void submitNote(); }
-                        if (e.key === "Escape") { setShowNotePanel(false); setNoteText(""); }
-                      }}
-                      placeholder={lang === "es" ? "Ej: los precios no son negociables" : "e.g. prices are non-negotiable"}
-                      autoFocus
-                      rows={2}
-                      className="w-full bg-transparent border border-zinc-800 rounded-lg px-3 py-2 text-xs font-mono text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors resize-none"
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => { setShowNotePanel(false); setNoteText(""); }}
-                        className="px-3 py-1.5 rounded-lg text-[10px] font-mono text-zinc-600 hover:text-zinc-300 transition-colors"
-                      >
-                        {lang === "es" ? "Cancelar" : "Cancel"}
-                      </button>
-                      <button
-                        onClick={() => void submitNote()}
-                        disabled={!noteText.trim()}
-                        className="flex-1 py-1.5 rounded-lg border border-sky-500/30 text-sky-400 text-[10px] font-mono hover:bg-sky-500/10 disabled:opacity-30 disabled:pointer-events-none transition-all"
-                      >
-                        {lang === "es" ? "Añadir" : "Add"}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setShowNotePanel(true)}
-                    onMouseDown={e => e.preventDefault()}
-                    className="self-start flex items-center gap-1.5 text-[9px] font-mono text-zinc-600 hover:text-zinc-300 transition-colors"
-                  >
-                    <StickyNote className="w-3 h-3" />
-                    {lang === "es" ? "Instrucción al vendedor" : "Seller instruction"}
-                    {noteCount > 0 && (
-                      <span className="bg-sky-500/15 text-sky-400 px-1.5 py-0 rounded-full text-[8px] font-mono tabular-nums">{noteCount}</span>
-                    )}
-                  </button>
-                )
+                <div className="flex items-center gap-2">
+                  <StickyNote className="w-3 h-3 text-zinc-700 shrink-0" />
+                  <input
+                    value={noteText}
+                    onChange={e => setNoteText(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === "Enter" && noteText.trim()) { e.preventDefault(); void submitNote(); }
+                      if (e.key === "Escape") { setNoteText(""); (e.target as HTMLInputElement).blur(); }
+                    }}
+                    placeholder={lang === "es" ? "Instrucción al vendedor — Enter para enviar" : "Seller instruction — Enter to send"}
+                    disabled={isSending}
+                    className="flex-1 min-w-0 bg-transparent border-b border-zinc-800 focus:border-zinc-600 text-[11px] font-mono text-white placeholder:text-zinc-700 focus:outline-none py-1 transition-colors disabled:opacity-40"
+                  />
+                  {noteCount > 0 && (
+                    <span className="text-[8px] font-mono text-sky-400 tabular-nums shrink-0">{noteCount}</span>
+                  )}
+                </div>
               )}
               <textarea
                 ref={textareaRef}
