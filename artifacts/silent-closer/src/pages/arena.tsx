@@ -414,25 +414,25 @@ function ClientOutcomeBar({
 }: {
   lang: Lang;
   disabled: boolean;
-  onShortcut: (text: string) => void;
+  onShortcut: (direction: "agree" | "object") => void;
   onEndChat: () => void;
 }) {
   const t = T[lang];
 
   return (
     <div className="flex gap-2 pt-1">
-      {/* Accept — shortcut message, conversation continues */}
+      {/* Accept — AI generates a contextual positive response */}
       <button
-        onClick={() => onShortcut(t.CLIENT_ACCEPT_MSG)}
+        onClick={() => onShortcut("agree")}
         disabled={disabled}
         className="flex-1 py-2 rounded-lg border text-[10px] font-mono tracking-wide transition-all disabled:opacity-30 disabled:pointer-events-none text-sky-400 border-sky-400/30 hover:border-sky-400/60 hover:bg-sky-400/5"
       >
         {t.CLIENT_ACCEPT}
       </button>
 
-      {/* Objection — shortcut message, conversation continues */}
+      {/* Objection — AI generates a contextual specific objection */}
       <button
-        onClick={() => onShortcut(t.CLIENT_OBJECTION_MSG)}
+        onClick={() => onShortcut("object")}
         disabled={disabled}
         className="flex-1 py-2 rounded-lg border text-[10px] font-mono tracking-wide transition-all disabled:opacity-30 disabled:pointer-events-none text-amber-400 border-amber-400/30 hover:border-amber-400/60 hover:bg-amber-400/5"
       >
@@ -875,24 +875,65 @@ export function Arena({
     }
   }, [isSending, arenaSessionId, messages.length, lang]);
 
-  // Arrow key shortcuts for client mode (↓ = accept, ↑ = object) — must be after sendMessage
+  // Comodín shortcut: AI generates a contextual client response in the given direction
+  const sendShortcut = useCallback(async (direction: "agree" | "object") => {
+    if (isSending || !arenaSessionId) return;
+    const expectedUserIdx = messages.length;
+    const expectedAiIdx = messages.length + 1;
+    setIsSending(true);
+    try {
+      const res = await fetch("/api/arena/turn", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ arenaSessionId, shortcutDirection: direction }),
+      });
+      const data = await res.json() as {
+        aiMessage: string;
+        generatedUserMessage: string;
+        terminalSignal?: ArenaOutcome;
+        coachLite?: CoachLite;
+      };
+      setMessages(prev => [
+        ...prev,
+        { index: expectedUserIdx, speaker: "user" as const, message: data.generatedUserMessage },
+        { index: expectedAiIdx,   speaker: "ai"   as const, message: data.aiMessage },
+      ]);
+      setConversationState(inferState(data.aiMessage, lang));
+      if (data.coachLite) {
+        setCoachLiteMap(prev => ({ ...prev, [expectedAiIdx]: data.coachLite! }));
+        if (data.coachLite.journey) setLatestJourney(data.coachLite.journey);
+      }
+      if (data.terminalSignal && data.terminalSignal !== "none" && data.terminalSignal !== "manual_stop") {
+        setPendingOutcome(data.terminalSignal as Exclude<ArenaOutcome, "none" | "manual_stop">);
+      }
+    } catch {
+      setMessages(prev => [...prev, {
+        index: prev.length, speaker: "ai" as const,
+        message: lang === "en" ? "(Connection error)" : "(Error de conexión)",
+      }]);
+    } finally {
+      setIsSending(false);
+      setTimeout(() => textareaRef.current?.focus(), 50);
+    }
+  }, [isSending, arenaSessionId, messages.length, lang]);
+
+  // Arrow key shortcuts for client mode (↓ = agree comodín, ↑ = object comodín)
   useEffect(() => {
     if (role !== "client" || isStarting || isSending || isEnding) return;
     const handler = (e: KeyboardEvent) => {
-      // Block shortcut only if textarea is focused AND has content (cursor navigation)
       if (document.activeElement === textareaRef.current && input.trim() !== "") return;
       if (exitStep !== null) return;
       if (e.key === "ArrowDown") {
         e.preventDefault();
-        void sendMessage(T[lang].CLIENT_ACCEPT_MSG);
+        void sendShortcut("agree");
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
-        void sendMessage(T[lang].CLIENT_OBJECTION_MSG);
+        void sendShortcut("object");
       }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [role, isStarting, isSending, isEnding, exitStep, lang, input, sendMessage]);
+  }, [role, isStarting, isSending, isEnding, exitStep, input, sendShortcut]);
 
   const handleSend = useCallback(() => {
     void sendMessage(input);
@@ -1554,7 +1595,7 @@ export function Arena({
               <ClientOutcomeBar
                 lang={lang}
                 disabled={isEnding || isSending}
-                onShortcut={(text) => void sendMessage(text)}
+                onShortcut={(direction) => void sendShortcut(direction)}
                 onEndChat={() => setExitStep("outcomes")}
               />
             )

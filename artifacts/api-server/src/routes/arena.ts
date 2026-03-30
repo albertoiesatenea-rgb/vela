@@ -717,15 +717,96 @@ async function generateJourney(
   }
 }
 
+// ── Shortcut response generator (client mode comodín) ────────────────────────
+function buildShortcutPrompt(
+  lastAiMessage: string,
+  recentTurns: ArenaTurn[],
+  context: string,
+  direction: "agree" | "object",
+  lang: Lang,
+): string {
+  const recent = recentTurns.slice(-6).map(t =>
+    `${t.speaker === "ai" ? "VENDEDOR" : "CLIENTE"}: ${t.message}`
+  ).join("\n");
+
+  if (lang === "en") {
+    const dir = direction === "agree"
+      ? `Generate a SHORT, natural CLIENT response that ADVANCES the conversation positively. If the seller asked for a specific fact (budget, timeline, quantity), invent a realistic concrete answer. If they proposed something, accept naturally. Do NOT write "ok tell me more" literally — be specific to what was just said.`
+      : `Generate a SHORT, natural CLIENT objection that is SPECIFIC to what the seller just said. The objection must relate directly to their last statement or question — a real concern, not generic resistance like "that doesn't convince me".`;
+    return `You are playing the CLIENT in a sales simulation.
+${dir}
+
+Sale context: ${context || "Generic sale"}
+Recent conversation:
+${recent}
+Seller just said: "${lastAiMessage}"
+
+Reply ONLY with the client's 1-2 sentence response. No quotes, no labels.`;
+  }
+
+  const dir = direction === "agree"
+    ? `Genera una respuesta CORTA y natural del CLIENTE que avance la conversación positivamente. Si el vendedor pidió un dato concreto (presupuesto, plazo, cantidad, nombre), inventa una respuesta realista y específica. Si propuso algo, acepta con naturalidad. NO escribas "ok cuéntame más" literalmente — sé específico a lo que acaba de decir.`
+    : `Genera una objeción CORTA del CLIENTE que sea ESPECÍFICA a lo que acaba de decir el vendedor. La objeción debe relacionarse directamente con su última afirmación o pregunta — una preocupación real, no resistencia genérica como "eso no me convence".`;
+
+  return `Estás haciendo el papel del CLIENTE en una simulación de venta.
+${dir}
+
+Contexto de la venta: ${context || "Venta genérica"}
+Conversación reciente:
+${recent}
+El vendedor acaba de decir: "${lastAiMessage}"
+
+Responde SOLO con la frase del cliente. 1-2 frases máximo. Sin comillas, sin etiquetas.`;
+}
+
+async function generateShortcutResponse(
+  lastAiMessage: string,
+  recentTurns: ArenaTurn[],
+  context: string,
+  direction: "agree" | "object",
+  lang: Lang,
+  sessionId: string,
+): Promise<string> {
+  const fallback = lang === "en" ? "Yes, go on." : "Sí, adelante.";
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_tokens: 80,
+      temperature: 0.7,
+      messages: [{ role: "user", content: buildShortcutPrompt(lastAiMessage, recentTurns, context, direction, lang) }],
+    });
+    const usage = completion.usage;
+    if (usage) {
+      logAICall({
+        route: "arena/turn",
+        endpoint: "shortcut",
+        sessionId,
+        mode: "arena",
+        model: "gpt-4o-mini",
+        maxTokensConfigured: 80,
+        promptTokens: usage.prompt_tokens,
+        completionTokens: usage.completion_tokens,
+        totalTokens: usage.total_tokens,
+        latencyMs: 0,
+        status: "ok",
+      });
+    }
+    return completion.choices[0]?.message?.content?.trim() || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 // ── POST /api/arena/turn ──────────────────────────────────────────────────────
 router.post("/arena/turn", async (req, res) => {
-  const { arenaSessionId, userMessage } = req.body as {
+  const { arenaSessionId, userMessage, shortcutDirection } = req.body as {
     arenaSessionId?: string;
     userMessage?: string;
+    shortcutDirection?: "agree" | "object";
   };
 
-  if (!arenaSessionId || !userMessage?.trim()) {
-    res.status(400).json({ error: "arenaSessionId and userMessage required" });
+  if (!arenaSessionId || (!userMessage?.trim() && !shortcutDirection)) {
+    res.status(400).json({ error: "arenaSessionId and (userMessage or shortcutDirection) required" });
     return;
   }
 
@@ -735,11 +816,24 @@ router.post("/arena/turn", async (req, res) => {
     return;
   }
 
+  // ── Resolve effective user message (direct text or AI-generated comodín) ──
+  let effectiveUserMessage = userMessage?.trim() ?? "";
+  let generatedUserMessage: string | undefined;
+
+  if (shortcutDirection && session.role === "client") {
+    const lastAiTurn = [...session.turns].reverse().find(t => t.speaker === "ai");
+    const lastAiMsg = lastAiTurn?.message ?? "";
+    effectiveUserMessage = await generateShortcutResponse(
+      lastAiMsg, session.turns, session.context, shortcutDirection, session.lang, arenaSessionId,
+    );
+    generatedUserMessage = effectiveUserMessage;
+  }
+
   session.turns.push({
     index: session.turns.length,
     timestamp: new Date().toISOString(),
     speaker: "user",
-    message: userMessage.trim(),
+    message: effectiveUserMessage,
   });
 
   // ── History windowing: use full history or last N turns ───────────────────
@@ -810,7 +904,7 @@ router.post("/arena/turn", async (req, res) => {
   const [terminalSignal, coachLiteBase, journeyData] = await Promise.all([
     detectTerminalState(session.turns, session.role, session.lang, arenaSessionId, session.forceTerminal),
     session.role === "client"
-      ? generateCoachLite(userMessage.trim(), aiMessage, session.context, session.lang, arenaSessionId)
+      ? generateCoachLite(effectiveUserMessage, aiMessage, session.context, session.lang, arenaSessionId)
       : Promise.resolve(null),
     session.role === "client"
       ? generateJourney(session.turns, session.context, session.lang, arenaSessionId)
@@ -822,7 +916,12 @@ router.post("/arena/turn", async (req, res) => {
     ? { explanation: coachLiteBase?.explanation ?? "", ...(journeyData ? { journey: journeyData } : {}) }
     : null;
 
-  res.json({ aiMessage, terminalSignal, ...(coachLite ? { coachLite } : {}) });
+  res.json({
+    aiMessage,
+    terminalSignal,
+    ...(coachLite ? { coachLite } : {}),
+    ...(generatedUserMessage !== undefined ? { generatedUserMessage } : {}),
+  });
 });
 
 // ── POST /api/arena/finish ────────────────────────────────────────────────────
