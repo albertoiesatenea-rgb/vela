@@ -802,7 +802,7 @@ export function ContextSetup({
             {/* CTA */}
             <button
               onClick={() => handleSubmit(quickText)}
-              disabled={appMode === "arena" && !quickText.trim()}
+              disabled={!quickText.trim()}
               className="w-full bg-white text-black text-sm font-mono font-bold py-3.5 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all disabled:opacity-40 disabled:pointer-events-none"
             >
               {ctaLabel}
