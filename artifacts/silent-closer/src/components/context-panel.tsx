@@ -860,7 +860,7 @@ export function ContextSetup({
                       title={lang === "es" ? "Perfil y dificultad" : "Profile & difficulty"}
                       className={cn(
                         "p-1.5 rounded-lg transition-all",
-                        showAdvancedOpts || clientProfile || sellerProfile
+                        showAdvancedOpts
                           ? "text-sky-400 bg-sky-500/10"
                           : "text-zinc-500 hover:text-white hover:bg-white/8"
                       )}
@@ -870,20 +870,35 @@ export function ContextSetup({
                   </>
                 )}
                 {appMode === "copilot" && (
-                  <button
-                    onMouseDown={e => e.preventDefault()}
+                  <div
+                    className="relative"
                     onMouseEnter={copilotOptsShow}
                     onMouseLeave={copilotOptsHide}
-                    title={lang === "es" ? "Perfil del cliente" : "Client profile"}
-                    className={cn(
-                      "p-1.5 rounded-lg transition-all",
-                      showCopilotOpts || copilotClientProfile
-                        ? "text-sky-400 bg-sky-500/10"
-                        : "text-zinc-500 hover:text-white hover:bg-white/8"
-                    )}
                   >
-                    <SlidersHorizontal className="w-3.5 h-3.5" />
-                  </button>
+                    <button
+                      onMouseDown={e => e.preventDefault()}
+                      title={lang === "es" ? "Perfil del cliente" : "Client profile"}
+                      className={cn(
+                        "p-1.5 rounded-lg transition-all",
+                        showCopilotOpts || copilotClientProfile
+                          ? "text-sky-400 bg-sky-500/10"
+                          : "text-zinc-500 hover:text-white hover:bg-white/8"
+                      )}
+                    >
+                      <SlidersHorizontal className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* Chips panel — floats to the left of the icon, zero gap */}
+                    {showCopilotOpts && (
+                      <div className="absolute top-0 right-9 z-20 w-56 rounded-xl border border-zinc-800 bg-zinc-950 shadow-2xl p-2.5">
+                        <CopilotClientPicker
+                          lang={lang}
+                          value={copilotClientProfile}
+                          onChange={setCopilotClientProfile}
+                        />
+                      </div>
+                    )}
+                  </div>
                 )}
                 {quickText && (
                   <button
@@ -897,17 +912,6 @@ export function ContextSetup({
                 )}
               </div>
             </div>
-
-            {/* ── Copilot: profile chips on hover — wraps to keep mouse path connected ── */}
-            {appMode === "copilot" && showCopilotOpts && (
-              <div onMouseEnter={copilotOptsShow} onMouseLeave={copilotOptsHide}>
-                <CopilotClientPicker
-                  lang={lang}
-                  value={copilotClientProfile}
-                  onChange={setCopilotClientProfile}
-                />
-              </div>
-            )}
 
             {/* ── Arena: profile + difficulty chips (click toggle in overlay icon) ── */}
             {appMode === "arena" && showAdvancedOpts && (
