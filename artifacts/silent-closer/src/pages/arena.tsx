@@ -761,10 +761,11 @@ export function Arena({
         body: JSON.stringify({ arenaSessionId }),
       });
       const data = await res.json() as { message?: string; index?: number };
-      if (data.message) {
+      const aiMsg = data.message ?? "";
+      if (aiMsg) {
         setMessages(prev => [
           ...prev,
-          { index: data.index ?? prev.length, speaker: "ai", message: data.message! },
+          { index: data.index ?? prev.length, speaker: "ai", message: aiMsg },
         ]);
       }
     } catch { /* silent */ }
@@ -1425,8 +1426,8 @@ export function Arena({
 }
 
 // ── Bold markdown renderer ────────────────────────────────────────────────────
-function BoldText({ text, className }: { text: string; className?: string }) {
-  const parts = text.split(/\*\*(.+?)\*\*/g);
+function BoldText({ text, className }: { text?: string; className?: string }) {
+  const parts = (text ?? "").split(/\*\*(.+?)\*\*/g);
   return (
     <span className={className}>
       {parts.map((part, i) =>
