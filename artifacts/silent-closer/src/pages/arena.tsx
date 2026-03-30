@@ -449,6 +449,7 @@ export function Arena({
   const [isEnding, setIsEnding] = useState(false);
   const [summary, setSummary] = useState<ArenaSummary | null>(null);
   const [allTurns, setAllTurns] = useState<ArenaMessage[]>([]);
+  const [transcriptOpen, setTranscriptOpen] = useState(false);
   const [exitStep, setExitStep] = useState<null | "outcomes" | "reason">(null);
   const [pendingExitReason, setPendingExitReason] = useState("");
   const [exitNote, setExitNote] = useState<{ text: string; outcome: FinalOutcome } | null>(null);
@@ -645,6 +646,64 @@ export function Arena({
     triggerAuditLogDownload(log, arenaSessionId);
   };
 
+  const handleDownloadReport = () => {
+    if (!summary) return;
+    const isEs = lang === "es";
+    const date = new Date(summary.closedAt || summary.createdAt).toLocaleString(isEs ? "es-ES" : "en-US");
+    const outcomeWord = summary.outcome === "closed"    ? (isEs ? "CERRADO" : "CLOSED")
+      : summary.outcome === "next_step" ? (isEs ? "AVANCE" : "PROGRESS")
+      : summary.outcome === "lost"      ? (isEs ? "PERDIDO" : "LOST")
+      :                                    (isEs ? "PARADO"  : "STOPPED");
+    const outcomeLabel = getOutcomeLabel(summary.outcome, t);
+    const profileLines: string[] = [];
+    if (arenaConfig.clientProfile) profileLines.push(`- ${isEs ? "Perfil de cliente" : "Client profile"}: ${arenaConfig.clientProfile}`);
+    if (arenaConfig.sellerProfile) profileLines.push(`- ${isEs ? "Perfil de vendedor" : "Seller profile"}: ${arenaConfig.sellerProfile}`);
+    if (arenaConfig.difficulty)    profileLines.push(`- ${isEs ? "Dificultad" : "Difficulty"}: ${arenaConfig.difficulty}`);
+    profileLines.push(`- ${isEs ? "Rol practicado" : "Role practiced"}: ${role === "seller" ? (isEs ? "vendedor" : "seller") : (isEs ? "cliente" : "client")}`);
+    const transcriptText = allTurns.map(turn => {
+      const sp = turn.speaker === "user"
+        ? (isEs ? "TÚ" : "YOU")
+        : (role === "seller" ? (isEs ? "CLIENTE" : "CLIENT") : (isEs ? "VENDEDOR" : "SELLER"));
+      return `**${sp}:** ${turn.message}`;
+    }).join("\n\n");
+    const critiqueLines = summary.debrief?.critique.map((c, i) => `${i + 1}. ${c}`).join("\n") ?? "";
+    const sections: string[] = [
+      isEs ? "# Informe de sesión — Closer Wizard Arena" : "# Session Report — Closer Wizard Arena",
+      "",
+      `**${isEs ? "Fecha" : "Date"}:** ${date}`,
+      `**${isEs ? "Contexto" : "Context"}:** ${summary.context || "—"}`,
+      "",
+      isEs ? "## Resultado" : "## Result",
+      `${outcomeWord} — ${outcomeLabel}`,
+      ...(summary.debrief ? [`${isEs ? "Puntuación" : "Score"}: **${summary.debrief.score}/10**`] : []),
+      "",
+      isEs ? "## Perfil de sesión" : "## Session profile",
+      ...profileLines,
+      "",
+      ...(critiqueLines ? [
+        isEs ? "## Puntos de mejora" : "## Points to improve",
+        critiqueLines,
+        "",
+        isEs ? "## Ideas para la próxima sesión" : "## Ideas for next session",
+        isEs
+          ? "_Toma cada punto de mejora y diseña una táctica concreta: ¿Qué dirías? ¿Cómo lo estructurarías? Escríbelo antes de tu próxima práctica._"
+          : "_Take each improvement point and design a concrete tactic: What would you say? How would you structure it? Write it down before your next practice._",
+        "",
+      ] : []),
+      isEs ? "## Transcripción completa" : "## Full transcript",
+      "",
+      transcriptText,
+    ];
+    const md = sections.join("\n");
+    const blob = new Blob([md], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `arena-report-${arenaSessionId.slice(0, 8)}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   // ── Summary screen ──────────────────────────────────────────────────────────
   if (summary) {
     const roleName = role === "seller" ? t.ROLE_SELLER : t.ROLE_CLIENT;
@@ -664,10 +723,24 @@ export function Arena({
             <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-zinc-500">{t.ARENA}</span>
           </div>
 
-          {/* Outcome badge */}
-          <div className={cn("flex flex-col gap-1 border rounded-xl px-4 py-3", outcomeBg)}>
-            <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{t.OUTCOME_LABEL}</p>
-            <p className={cn("text-xl font-mono font-bold", outcomeColor)}>{outcomeName}</p>
+          {/* Hero verdict */}
+          <div className={cn("rounded-2xl px-5 py-5 flex items-center justify-between gap-4", outcomeBg)}>
+            <div className="flex flex-col gap-1 min-w-0">
+              <p className="text-[9px] font-mono tracking-[0.2em] uppercase text-zinc-500">{t.OUTCOME_LABEL}</p>
+              <p className={cn("text-3xl font-mono font-black tracking-tight leading-none", outcomeColor)}>
+                {summary.outcome === "closed"     ? (lang === "es" ? "CERRADO"  : "CLOSED")
+                  : summary.outcome === "next_step" ? (lang === "es" ? "AVANCE"   : "PROGRESS")
+                  : summary.outcome === "lost"      ? (lang === "es" ? "PERDIDO"  : "LOST")
+                  :                                   (lang === "es" ? "PARADO"   : "STOPPED")}
+              </p>
+              <p className="text-[11px] font-mono text-zinc-500 mt-0.5">{outcomeName}</p>
+            </div>
+            <span className={cn("text-6xl font-mono leading-none shrink-0 select-none", outcomeColor)}>
+              {summary.outcome === "closed" ? "✓"
+                : summary.outcome === "next_step" ? "→"
+                : summary.outcome === "lost" ? "✗"
+                : "·"}
+            </span>
           </div>
 
           {/* Exit note — only for client mode when reason was given */}
@@ -682,58 +755,20 @@ export function Arena({
           {role === "seller" && debrief && (
             <div className="flex flex-col gap-4 border border-zinc-800 rounded-xl px-4 py-4 bg-zinc-950">
 
-              {/* Score + outcome verdict */}
-              <div className="flex items-end justify-between gap-2">
-                <div className="flex flex-col gap-0.5">
-                  <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{t.DEBRIEF_SCORE}</p>
-                  <div className="flex items-baseline gap-1">
-                    <span className={cn(
-                      "text-4xl font-mono font-bold tabular-nums",
-                      debrief.score <= 3 ? "text-red-400"
-                      : debrief.score <= 5 ? "text-amber-400"
-                      : debrief.score <= 7 ? "text-zinc-200"
-                      : "text-emerald-400"
-                    )}>
-                      {debrief.score}
-                    </span>
-                    <span className="text-lg font-mono text-zinc-600">/ 10</span>
-                  </div>
-                </div>
-                {/* Outcome verdict stamp */}
-                <div className={cn(
-                  "flex flex-col items-center justify-center border rounded-lg px-3 py-2 min-w-[72px]",
-                  summary.outcome === "closed"    ? "border-emerald-500/40 bg-emerald-500/8"
-                  : summary.outcome === "next_step" ? "border-sky-500/40 bg-sky-500/8"
-                  : summary.outcome === "lost"      ? "border-amber-500/40 bg-amber-500/8"
-                  : "border-zinc-700 bg-zinc-900"
-                )}>
+              {/* Score */}
+              <div className="flex flex-col gap-0.5">
+                <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{t.DEBRIEF_SCORE}</p>
+                <div className="flex items-baseline gap-1">
                   <span className={cn(
-                    "text-[8px] font-mono tracking-[0.2em] uppercase font-bold",
-                    summary.outcome === "closed"    ? "text-emerald-400"
-                    : summary.outcome === "next_step" ? "text-sky-400"
-                    : summary.outcome === "lost"       ? "text-amber-400"
-                    : "text-zinc-500"
+                    "text-4xl font-mono font-bold tabular-nums",
+                    debrief.score <= 3 ? "text-red-400"
+                    : debrief.score <= 5 ? "text-amber-400"
+                    : debrief.score <= 7 ? "text-zinc-200"
+                    : "text-emerald-400"
                   )}>
-                    {summary.outcome === "closed"
-                      ? (lang === "es" ? "CERRADO" : "CLOSED")
-                      : summary.outcome === "next_step"
-                        ? (lang === "es" ? "AVANCE" : "PROGRESS")
-                        : summary.outcome === "lost"
-                          ? (lang === "es" ? "PERDIDO" : "LOST")
-                          : (lang === "es" ? "PARADO" : "STOPPED")}
+                    {debrief.score}
                   </span>
-                  <span className={cn(
-                    "text-lg leading-none mt-0.5",
-                    summary.outcome === "closed"    ? "text-emerald-400"
-                    : summary.outcome === "next_step" ? "text-sky-400"
-                    : summary.outcome === "lost"       ? "text-amber-400"
-                    : "text-zinc-600"
-                  )}>
-                    {summary.outcome === "closed" ? "✓"
-                      : summary.outcome === "next_step" ? "→"
-                      : summary.outcome === "lost" ? "✗"
-                      : "·"}
-                  </span>
+                  <span className="text-lg font-mono text-zinc-600">/ 10</span>
                 </div>
               </div>
 
@@ -754,31 +789,41 @@ export function Arena({
             </div>
           )}
 
-          {/* Conversation transcript */}
+          {/* Conversation transcript — collapsible */}
           {allTurns.length > 0 && (
-            <div className="flex flex-col gap-2 border border-zinc-800 rounded-xl px-4 py-3 bg-zinc-950">
-              <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500 mb-1">{t.TRANSCRIPT_LABEL}</p>
-              <div className="flex flex-col gap-2 max-h-52 overflow-y-auto pr-1 scrollbar-thin">
-                {allTurns.map((turn, i) => {
-                  const isUser = turn.speaker === "user";
-                  return (
-                    <div key={i} className={cn("flex gap-2", isUser ? "flex-row-reverse" : "flex-row")}>
-                      <span className={cn(
-                        "text-[8px] font-mono tracking-widest uppercase shrink-0 mt-1",
-                        isUser ? "text-teal-400" : "text-sky-400"
-                      )}>
-                        {isUser ? (lang === "es" ? "TÚ" : "YOU") : (role === "seller" ? t.AI_AS_CLIENT : t.AI_AS_SELLER)}
-                      </span>
-                      <p className={cn(
-                        "text-[11px] font-mono leading-relaxed text-zinc-300",
-                        isUser ? "text-right" : "text-left"
-                      )}>
-                        {turn.message}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
+            <div className="border border-zinc-800 rounded-xl bg-zinc-950 overflow-hidden">
+              <button
+                onClick={() => setTranscriptOpen(o => !o)}
+                onMouseDown={e => e.preventDefault()}
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/3 transition-colors"
+              >
+                <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{t.TRANSCRIPT_LABEL}</p>
+                <span className={cn("text-zinc-600 text-xs font-mono transition-transform duration-200", transcriptOpen ? "rotate-180" : "")}>▾</span>
+              </button>
+              {transcriptOpen && (
+                <div className="flex flex-col gap-2 max-h-64 overflow-y-auto px-4 pb-3 pr-5 scrollbar-thin border-t border-zinc-800/60">
+                  <div className="h-2" />
+                  {allTurns.map((turn, i) => {
+                    const isUser = turn.speaker === "user";
+                    return (
+                      <div key={i} className={cn("flex gap-2", isUser ? "flex-row-reverse" : "flex-row")}>
+                        <span className={cn(
+                          "text-[8px] font-mono tracking-widest uppercase shrink-0 mt-1",
+                          isUser ? "text-teal-400" : "text-sky-400"
+                        )}>
+                          {isUser ? (lang === "es" ? "TÚ" : "YOU") : (role === "seller" ? t.AI_AS_CLIENT : t.AI_AS_SELLER)}
+                        </span>
+                        <p className={cn(
+                          "text-[11px] font-mono leading-relaxed text-zinc-300",
+                          isUser ? "text-right" : "text-left"
+                        )}>
+                          {turn.message}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
@@ -821,15 +866,22 @@ export function Arena({
                 {role === "client" ? t.CLIENT_RETRY : t.DEBRIEF_RETRY}
               </button>
             )}
-            {/* Export */}
+            {/* Report download */}
             <button
-              onClick={handleExportLog}
+              onClick={handleDownloadReport}
               className={cn(
                 "w-full text-xs font-mono font-bold py-3 rounded-xl active:scale-[0.98] transition-all",
                 onRetry
                   ? "border border-zinc-800 text-zinc-300 hover:border-zinc-600 hover:text-white"
                   : "bg-white text-black hover:bg-zinc-100"
               )}
+            >
+              {lang === "es" ? "Descargar informe (.md)" : "Download report (.md)"}
+            </button>
+            {/* Audit log */}
+            <button
+              onClick={handleExportLog}
+              className="w-full text-center text-[10px] font-mono text-zinc-500 hover:text-zinc-300 py-2 transition-colors"
             >
               {t.EXPORT}
             </button>
