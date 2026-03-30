@@ -1,0 +1,241 @@
+Quiero una pasada de pulido serio del panel interno de costes/tokens "AI $" para dejarlo realmente útil en el día a día.
+
+IMPORTANTE
+No quiero rehacerlo.
+La base ya existe y funciona.
+Quiero mejorar UX, legibilidad, utilidad y persistencia de uso.
+
+OBJETIVO
+Dejar el panel "AI $" fino, útil y cómodo para trabajar mientras sigo usando la app, tanto en Copiloto como en Arena.
+
+CONTEXTO ACTUAL
+Ya existe:
+- botón "AI $" en la esquina inferior derecha
+- atajo Ctrl+Shift+D
+- panel con pestañas:
+  - Sesiones
+  - Rutas
+  - Llamadas
+- refresh automático cada 5 segundos
+- registros reales por llamada con tokens, coste y latencia
+- datos en memoria
+
+PROBLEMAS A RESOLVER
+1. El panel todavía necesita más valor práctico, no solo datos sueltos
+2. Quiero poder dejar la versión detalle visible mientras sigo usando la app
+3. Ahora, si lo abro y luego interactúo fuera, vuelve a colapsarse demasiado fácil
+4. Quiero que sirva para tomar decisiones rápidas, no solo para mirar números bonitos
+
+CAMBIO 1 — PANEL PINNABLE / FIJABLE
+Quiero que el panel tenga dos modos:
+
+A) MODO FLOTANTE
+- comportamiento actual parecido al de popover
+- se puede abrir rápido
+- si haces click fuera, puede cerrarse o volver a botón
+
+B) MODO FIJADO
+- el panel se queda abierto aunque haga click en otra parte de la app
+- puedo seguir usando la app con el panel visible
+- no se colapsa automáticamente por perder foco
+- solo se cierra si:
+  - pulso cerrar
+  - desactivo pin
+  - uso el atajo si decides mantener ese comportamiento de forma coherente
+
+IMPLEMENTACIÓN UX
+Añadir un control claro dentro del panel:
+- icono de pin / unpin
+o
+- toggle "Fijar"
+
+REGLA CLAVE
+Si el panel está fijado:
+- debe permanecer visible
+- debe seguir actualizándose
+- no debe bloquear el uso normal de la app
+- debe poder convivir con Copiloto y Arena sin molestar demasiado
+
+Además:
+- recordar el estado fijado o no fijado en localStorage
+- recordar también si estaba abierto o cerrado, al menos en esta sesión o entre recargas si es fácil
+
+CAMBIO 2 — MEJOR USO DEL ESPACIO Y LEGIBILIDAD
+Quiero que el panel en modo detalle se vea más serio y útil.
+
+Mejoras:
+- mejor jerarquía visual
+- números más legibles
+- labels más claros
+- menos sensación de tabla improvisada
+- mejor aprovechamiento del espacio
+
+No quiero un rediseño SaaS genérico.
+Mantener estética Closer Wizard:
+- negro
+- gris
+- blanco
+- monoespaciada
+- limpio
+- táctico
+- sin adornos
+
+CAMBIO 3 — KPI RESUMEN ARRIBA
+Añadir una franja superior o bloque resumen con KPIs rápidos, al menos:
+
+PARA LA SESIÓN ACTUAL
+- coste estimado de la sesión
+- total tokens de la sesión
+- número de llamadas
+- latencia media
+- modelo principal
+
+PARA VISIÓN GLOBAL RECIENTE
+- coste acumulado desde arranque o del día
+- total llamadas recientes
+- ruta más cara
+- sesión más cara reciente
+
+Esto debe verse sin tener que navegar demasiado.
+
+CAMBIO 4 — MEJORAS EN LA PESTAÑA SESIONES
+La pestaña Sesiones debe mostrar mejor:
+- sessionId corto o identificable
+- modo: Copiloto / Arena
+- coste acumulado
+- tokens acumulados
+- llamadas
+- latencia media
+- última actividad
+- estado: activa / reciente / cerrada si aplica
+
+Mejoras:
+- ordenar por coste descendente por defecto o dar opción clara
+- poder distinguir rápido qué sesión está saliendo cara
+- resaltar la sesión actual
+
+CAMBIO 5 — MEJORAS EN LA PESTAÑA RUTAS
+La pestaña Rutas debe dejar clarísimo:
+- qué endpoint gasta más
+- cuál mete más latencia
+- cuántas llamadas lleva
+- coste acumulado
+- tokens acumulados
+- coste medio por llamada
+
+Quiero ver claro algo como:
+- analyze
+- summarize
+- summarize-full
+- context-label
+- opening
+- turn
+- terminal-state
+- suggest
+- debrief
+
+Ordenar por coste descendente por defecto.
+
+CAMBIO 6 — MEJORAS EN LA PESTAÑA LLAMADAS
+La pestaña Llamadas debe mostrar últimas llamadas individuales de forma más útil.
+
+Cada fila o item debe enseñar al menos:
+- timestamp
+- endpoint
+- modo
+- sessionId corto
+- prompt tokens
+- completion tokens
+- total tokens
+- coste
+- latencia
+- status
+
+Mejoras:
+- mejor densidad visual
+- evitar ruido
+- que sea escaneable
+- permitir ver rápido qué llamada fue cara o lenta
+
+CAMBIO 7 — FILTROS BÁSICOS
+Añadir filtros simples y útiles, no mil opciones.
+
+Quiero al menos:
+- filtro por modo:
+  - todos
+  - copilot
+  - arena
+- filtro por sesión actual / todas
+- quizá filtro por endpoint si queda limpio
+
+No quiero una UX sobrecargada.
+
+CAMBIO 8 — SESIÓN ACTUAL BIEN RESUELTA
+Quiero que quede clarísimo cuál es la sesión actual y su gasto en tiempo real.
+
+Si la app está en Copiloto o Arena y hay una sesión activa:
+- marcarla visualmente
+- permitir ver su resumen arriba
+- distinguirla del histórico
+
+CAMBIO 9 — COMPORTAMIENTO DEL BOTÓN "AI $"
+El botón flotante debe seguir siendo discreto, pero no invisible.
+Quiero que:
+- se vea bien sobre fondo negro
+- siga siendo pequeño
+- tenga buen contraste
+- no parezca bug ni texto perdido
+
+No convertirlo en un botón gigante.
+
+CAMBIO 10 — RESPONSIVE / TAMAÑO DEL PANEL
+Quiero que el panel detalle tenga un tamaño razonable y útil.
+
+Si está fijado:
+- que pueda ocupar una esquina sin tapar media app
+- que no sea demasiado estrecho
+- si es fácil, permitir resize básico
+- si no es fácil, definir un tamaño fijo bueno y limpio
+
+PRIORIDAD
+Si hay que elegir, prioriza:
+1. pin/unpin correcto
+2. KPIs arriba
+3. mejor legibilidad
+4. filtros básicos
+5. resize opcional
+
+NO QUIERO
+- rehacer todo el sistema de métricas
+- cambiar cómo se registran los usage
+- gráficos decorativos
+- charts innecesarios
+- tablas enterprise horribles
+- panel enorme que tape toda la app
+
+SÍ QUIERO
+- un panel que de verdad se use
+- dejarlo abierto mientras trabajo
+- ver sesión actual, rutas caras y llamadas caras
+- detectar rápido dónde se va el dinero
+- experiencia fluida
+
+CRITERIOS DE ACEPTACIÓN
+Esto solo estará bien hecho si:
+- puedo abrir "AI $" y fijarlo
+- puedo seguir usando la app con el panel abierto
+- si está fijado, no se colapsa al clickar fuera
+- si no está fijado, puede comportarse como popover ligero
+- la sesión actual se entiende rápido
+- veo KPIs útiles arriba
+- las pestañas Sesiones / Rutas / Llamadas se leen mejor
+- la estética sigue encajando con Closer Wizard
+- no parece un parche improvisado
+
+AL FINAL DE LA TAREA
+Explícame brevemente:
+1. qué componentes o archivos has tocado
+2. cómo funciona ahora el modo fijado
+3. qué recuerdas en localStorage
+4. qué KPIs nuevos has añadido
+5. qué has dejado simple a propósito para no sobrecargarlo
