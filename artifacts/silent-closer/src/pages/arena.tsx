@@ -894,7 +894,7 @@ export function Arena({
               <div className="flex flex-col gap-0.5">
                 <p className="text-[9px] font-mono tracking-[0.2em] uppercase text-zinc-500">{t.OUTCOME_LABEL}</p>
                 <p className={cn("text-4xl font-mono font-black tracking-tight leading-none", outcomeColor)}>
-                  {lang === "es" ? "AVANCE" : "PROGRESS"}
+                  {lang === "es" ? "GANADO" : "WON"}
                 </p>
                 <p className="text-[10px] font-mono text-zinc-500 mt-0.5">{outcomeName}</p>
               </div>
@@ -1038,7 +1038,7 @@ export function Arena({
                 onClick={onRetry}
                 className="w-full bg-white text-black text-xs font-mono font-bold py-2.5 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all"
               >
-                {role === "client" ? t.CLIENT_RETRY : t.DEBRIEF_RETRY}
+                {["closed", "next_step"].includes(summary.outcome) ? t.CLIENT_RETRY : t.DEBRIEF_RETRY}
               </button>
             )}
             <button
