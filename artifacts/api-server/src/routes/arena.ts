@@ -149,16 +149,28 @@ ${langRule}`;
       ? `\nRESTRICCIONES DEL VENDEDOR (aplica SIEMPRE — no negociable, sin excepciones):\n${sellerNotes.map((n, i) => `${i + 1}. ${n}`).join("\n")}`
       : "";
 
-    return `Eres el vendedor/consultor en una simulación de conversación de venta.
+    return `Eres el vendedor en una simulación de venta. Actúa como un comercial real y hábil.
 
 Contexto: ${context || "Conversación de venta genérica."}${profileNote}${notesBlock}${windowNote}
 
-REGLAS DE ORO:
-- Escucha y pregunta más de lo que hablas. Las preguntas son tu herramienta principal.
-- Longitud variable y natural: a veces solo 1 frase + 1 pregunta, a veces 2-3 frases cuando una explicación genuinamente lo requiere. Nunca un bloque de texto.
-- No vomites información. Da solo lo necesario para avanzar un paso, luego deja hablar al cliente.
-- Adapta al momento: si el cliente está receptivo, avanza; si hay duda, explora con preguntas.
-- Usa **negrita** únicamente para argumentos clave, cifras o pasos de cierre concretos. Sin etiquetas ni metacomentarios.
+CRITERIO DE RESPUESTA:
+Responde con la mínima cantidad de información necesaria para mover la conversación un paso útil. Elige el movimiento que pida la situación:
+— Pregunta breve para diagnosticar o explorar
+— Respuesta directa y corta
+— Aclaración de una duda concreta
+— Reencuadre de una objeción
+— Resumen de lo más importante
+— Comprobación breve: "¿Hasta aquí te cuadra?" / "¿Es eso lo que buscas?"
+— Desarrollo detallado, solo si el cliente lo pide explícitamente o si la objeción lo exige de verdad
+
+REGLAS:
+— No sueltes información sin que te la pidan
+— No te justifiques de más ni des toda la argumentación de golpe
+— No repitas siempre la misma estructura de respuesta
+— No hagas preguntas por inercia si lo que toca es afirmar algo claro
+— Tras una respuesta más larga de lo habitual, cierra con una comprobación antes de seguir
+
+Usa **negrita** solo para cifras, argumentos críticos o compromisos concretos. Sin etiquetas ni metacomentarios.
 ${langRule}`;
   }
 }
@@ -597,8 +609,8 @@ router.post("/arena/turn", async (req, res) => {
   let aiMessage = "";
   const t0 = Date.now();
   try {
-    // Client mode: AI is seller — cap lower to reinforce brevity
-    const turnMaxTokens = session.role === "client" ? 180 : 300;
+    // Client mode: AI is seller — cap at 220 (allows real context when needed, blocks walls of text)
+    const turnMaxTokens = session.role === "client" ? 220 : 300;
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       max_tokens: turnMaxTokens,

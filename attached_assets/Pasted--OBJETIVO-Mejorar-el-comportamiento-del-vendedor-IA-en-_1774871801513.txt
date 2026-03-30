@@ -1,0 +1,94 @@
+## OBJETIVO
+Mejorar el comportamiento del vendedor IA en Arena `client` mode para que responda con criterio conversacional real: conciso por defecto, detallado solo cuando haga falta, y más interactivo. No quiero una regla fija de “siempre 2-3 frases” ni “siempre hacer preguntas”.
+
+## CONTEXTO
+- En Arena `client` mode el usuario hace de cliente y la IA hace de vendedor.
+- El problema actual no es solo la longitud; es la falta de criterio. A veces el vendedor suelta bloques demasiado largos de información, justifica demasiado, y habla más de lo necesario.
+- Ya se intentó arreglar con una regla tipo “1-3 frases” y bajando `max_tokens`, pero eso sigue siendo una solución mecánica y no lo resuelve bien.
+- Quiero que el vendedor actúe como un buen comercial real: escucha, avanza por pasos, no vomita información, y solo desarrolla cuando la situación lo pide.
+- Archivo principal probable: `artifacts/api-server/src/routes/arena.ts`
+- Documentación relevante: `docs/04-prompts.md` y `docs/05-arena-logic.md`
+
+## RESTRICCIONES
+- No tocar Copiloto
+- No rehacer Arena
+- No romper `start / turn / suggest / finish`
+- No cambiar seller mode
+- No imponer una regla rígida de longitud tipo “siempre 2-3 frases”
+- No imponer una regla rígida de preguntas tipo “siempre termina preguntando”
+- No convertir al vendedor en un interrogador artificial
+- No instalar dependencias nuevas
+- Tocar solo el prompt y, si hace falta, un ajuste mínimo de tokens, sin refactor grande
+
+## CAMBIO EXACTO
+Quiero reescribir la instrucción del vendedor IA en `client` mode para que siga estas reglas de comportamiento:
+
+### Regla principal
+El vendedor debe responder con **la mínima cantidad de información necesaria para mover la conversación un paso útil**.
+
+### Comportamiento deseado
+- Por defecto, respuestas breves y fáciles de procesar
+- Si el cliente lanza una objeción simple, no contestar con un bloque largo
+- Si el cliente necesita contexto o fundamento real, entonces sí desarrollar, pero solo lo necesario
+- Si el cliente no ha demostrado entender o comprar la premisa, no seguir añadiendo capas de explicación
+- Cuando convenga, comprobar comprensión o reacción antes de seguir
+- Hablar como una persona vendiendo bien, no como un ensayo ni como un chatbot explicativo
+
+### Criterio conversacional
+El vendedor debe elegir entre estos movimientos según el momento:
+- preguntar para diagnosticar
+- responder de forma breve y directa
+- aclarar una duda concreta
+- reencuadrar una objeción
+- resumir lo importante
+- comprobar si el cliente está siguiendo
+- profundizar solo si el cliente lo pide o si es imprescindible
+
+### Reglas negativas
+- No soltar párrafos largos por defecto
+- No justificarse de más
+- No dar toda la argumentación de golpe
+- No hacer preguntas por inercia si toca afirmar algo claro
+- No sonar robótico con patrones repetidos
+- No responder siempre con la misma longitud
+- No convertir cada respuesta en mini masterclass
+
+### Estilo ideal
+- Conversacional
+- Ágil
+- Táctico
+- Interactivo
+- Claro
+- Con autoridad, pero sin pesadez
+
+### Heurística práctica para el modelo
+- Si una idea cabe bien en una frase + una pregunta útil, usar eso
+- Si el cliente plantea una objeción relevante que sí requiere contexto, usar 2-4 frases máximo y luego parar
+- Solo usar más detalle cuando el cliente lo pida claramente o cuando sea imprescindible para sostener credibilidad
+- Tras una explicación más larga de lo normal, cerrar con una comprobación breve tipo:
+  - “¿Hasta aquí te cuadra?”
+  - “¿Quieres que baje a números concretos?”
+  - “¿Te refieres al riesgo operativo o al financiero?”
+- La prioridad no es hablar poco: la prioridad es **no decir más de lo que toca en ese momento**
+
+## IMPLEMENTACIÓN
+- Reescribir el bloque de prompt del vendedor IA en `client` mode con estas reglas
+- Mantener el output como texto conversacional natural
+- Revisar `max_tokens` del turn en `client` mode` para que no fomente respuestas largas, pero sin ahogar casos donde sí haga falta algo de detalle
+- Si actualmente está demasiado bajo o demasiado alto, ajustarlo con criterio; no de forma ciega
+
+## ENTREGABLES
+- [ ] Prompt del vendedor IA en `client` mode actualizado con esta lógica
+- [ ] Ajuste de `max_tokens` solo si mejora de verdad el comportamiento
+- [ ] `docs/04-prompts.md` actualizado para reflejar el nuevo criterio
+- [ ] No tocar nada innecesario fuera de ese flujo
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] El vendedor IA en `client` mode deja de soltar bloques largos por defecto
+- [ ] El vendedor IA no responde siempre con la misma longitud
+- [ ] El vendedor IA no hace preguntas por inercia si toca responder directo
+- [ ] El vendedor IA sí profundiza cuando la objeción o la explicación lo requiere
+- [ ] El vendedor IA se siente más interactivo y más fácil de seguir
+- [ ] Después de una explicación relativamente larga, el vendedor suele comprobar comprensión o reacción antes de seguir
+- [ ] No hay regresión en `POST /api/arena/turn`
+- [ ] La app compila sin errores
