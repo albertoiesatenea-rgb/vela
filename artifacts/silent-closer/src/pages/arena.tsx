@@ -436,6 +436,122 @@ const DIFFICULTY_LABEL: Record<string, Record<"es"|"en", string>> = {
   brutal: { es: "Brutal",  en: "Brutal" },
 };
 
+// ── Confetti burst ────────────────────────────────────────────────────────────
+function Confetti({ active, intensity = "high" }: { active: boolean; intensity?: "high" | "medium" }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    if (!active) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const resize = () => {
+      canvas.width  = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    resize();
+    window.addEventListener("resize", resize);
+
+    // Colors: white + teal + emerald + sky (colorblind-safe palette)
+    const COLORS = ["#ffffff","#ffffff","#2dd4bf","#34d399","#67e8f9","#a78bfa","#fbbf24","#f9a8d4"];
+    const COUNT   = intensity === "high" ? 180 : 110;
+    const DURATION = 200; // frames
+
+    interface Piece {
+      x: number; y: number; vx: number; vy: number;
+      w: number; h: number; color: string;
+      spin: number; rot: number; opacity: number;
+    }
+
+    const pieces: Piece[] = [];
+
+    // Three burst origins across the top third of the screen
+    const origins = [
+      canvas.width * 0.25,
+      canvas.width * 0.50,
+      canvas.width * 0.75,
+    ];
+
+    for (let i = 0; i < COUNT; i++) {
+      const ox = origins[i % 3] + (Math.random() - 0.5) * 60;
+      const oy = canvas.height * 0.28;
+      // Fan mostly upward: angle from -150° to -30° (in radians)
+      const angle = (-Math.PI * 5 / 6) + Math.random() * (Math.PI * 2 / 3);
+      const speed = 5 + Math.random() * 9;
+      pieces.push({
+        x: ox, y: oy,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        w: 6 + Math.random() * 8,
+        h: 3 + Math.random() * 5,
+        color: COLORS[Math.floor(Math.random() * COLORS.length)],
+        spin: Math.random() * Math.PI * 2,
+        rot: (Math.random() - 0.5) * 0.28,
+        opacity: 1,
+      });
+    }
+
+    let frame = 0;
+    let raf: number;
+    const GRAVITY   = 0.22;
+    const FADE_START = Math.floor(DURATION * 0.55);
+    const FADE_STEP  = 1 / (DURATION - FADE_START);
+
+    const animate = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      frame++;
+
+      for (const p of pieces) {
+        p.vy += GRAVITY;
+        p.vx *= 0.992; // subtle air resistance
+        p.x  += p.vx;
+        p.y  += p.vy;
+        p.spin += p.rot;
+        if (frame > FADE_START) p.opacity = Math.max(0, p.opacity - FADE_STEP);
+        if (p.opacity <= 0) continue;
+
+        ctx.save();
+        ctx.globalAlpha = p.opacity;
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.spin);
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        // Alternate between rects and tiny circles for variety
+        if (p.w > 10) {
+          ctx.arc(0, 0, p.w / 3, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+        }
+        ctx.restore();
+      }
+
+      if (frame < DURATION) {
+        raf = requestAnimationFrame(animate);
+      } else {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    };
+
+    raf = requestAnimationFrame(animate);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", resize);
+    };
+  }, [active, intensity]);
+
+  if (!active) return null;
+  return (
+    <canvas
+      ref={canvasRef}
+      className="fixed inset-0 pointer-events-none"
+      style={{ zIndex: 9999 }}
+    />
+  );
+}
+
 // ── Arena component ───────────────────────────────────────────────────────────
 export function Arena({
   context,
@@ -728,8 +844,15 @@ export function Arena({
     const outcomeBg = getOutcomeBg(summary.outcome);
     const debrief = summary.debrief;
 
+    const isWin = summary.outcome === "closed" || summary.outcome === "next_step";
+    const isClosed = summary.outcome === "closed";
+
     return (
       <div className="fixed inset-0 bg-black flex flex-col items-center justify-center px-6 overflow-y-auto py-5">
+
+        {/* ── Confetti — fires on any win ──────────────────────────────────── */}
+        <Confetti active={isWin} intensity={isClosed ? "high" : "medium"} />
+
         <div className="w-full max-w-sm flex flex-col gap-3">
 
           {/* Brand */}
@@ -741,10 +864,19 @@ export function Arena({
           </div>
 
           {/* Hero verdict */}
-          <div className={cn("rounded-2xl px-5 py-4 flex items-center justify-between gap-4", outcomeBg)}>
+          <div className={cn(
+            "rounded-2xl px-5 flex items-center justify-between gap-4",
+            isClosed ? "py-6" : "py-4",
+            outcomeBg,
+            isWin && "ring-1 ring-white/10",
+          )}>
             <div className="flex flex-col gap-0.5 min-w-0">
               <p className="text-[9px] font-mono tracking-[0.2em] uppercase text-zinc-500">{t.OUTCOME_LABEL}</p>
-              <p className={cn("text-3xl font-mono font-black tracking-tight leading-none", outcomeColor)}>
+              <p className={cn(
+                "font-mono font-black tracking-tight leading-none",
+                isClosed ? "text-5xl" : summary.outcome === "next_step" ? "text-4xl" : "text-3xl",
+                outcomeColor,
+              )}>
                 {summary.outcome === "closed"     ? (lang === "es" ? "CERRADO"  : "CLOSED")
                   : summary.outcome === "next_step" ? (lang === "es" ? "AVANCE"   : "PROGRESS")
                   : summary.outcome === "lost"      ? (lang === "es" ? "PERDIDO"  : "LOST")
@@ -754,9 +886,9 @@ export function Arena({
             </div>
             <div className={cn("shrink-0 mr-1", outcomeColor)}>
               {summary.outcome === "closed"
-                ? <Trophy className="w-10 h-10" />
+                ? <Trophy className="w-14 h-14 drop-shadow-[0_0_12px_rgba(52,211,153,0.6)]" style={{ animation: "arena-win-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) both" }} />
                 : summary.outcome === "next_step"
-                  ? <TrendingUp className="w-10 h-10" />
+                  ? <TrendingUp className="w-11 h-11" style={{ animation: "arena-win-pop 0.45s cubic-bezier(0.34,1.56,0.64,1) both" }} />
                   : summary.outcome === "lost"
                     ? <span className="text-5xl font-mono leading-none select-none">✗</span>
                     : <span className="text-4xl font-mono leading-none select-none text-zinc-600">·</span>}
