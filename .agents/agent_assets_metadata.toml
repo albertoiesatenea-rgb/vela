@@ -126,3 +126,9 @@ id = "s9b990Qelw3Lp9aA5UMch"
 uri = "file://docs/closer-wizard-brain/09-feature-flags.md"
 type = "text"
 title = "09-feature-flags.md"
+
+[[outputs]]
+id = "FVHsQaJCPcCR6stjyRY4a"
+uri = "file://docs/closer-wizard-brain/10-replit-prompt-style.md"
+type = "text"
+title = "10-replit-prompt-style.md"
