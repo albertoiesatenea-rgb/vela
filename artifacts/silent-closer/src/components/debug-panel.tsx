@@ -148,12 +148,12 @@ export function DebugPanel({ sessionId }: { sessionId?: string | null }) {
     return () => window.removeEventListener("keydown", h);
   }, [open, pinned]);
 
-  // Auto-poll every 5s while open, every 12s while closed (for button cost)
+  // Always poll every 4s (button needs live cost even when panel is closed)
   useEffect(() => {
     fetchData();
-    const id = setInterval(fetchData, open ? 5000 : 12000);
+    const id = setInterval(fetchData, 4000);
     return () => clearInterval(id);
-  }, [open, fetchData]);
+  }, [fetchData]);
 
   const session  = data?.sessions.find(s => s.sessionId === sessionId) ?? null;
   const alert    = session ? getAlert(session) : null;
@@ -163,8 +163,8 @@ export function DebugPanel({ sessionId }: { sessionId?: string | null }) {
   const filteredRoutes   = data?.routes.filter(r => mode === "all" || r.route.startsWith(mode)) ?? [];
   const filteredCalls    = data?.recentCalls.filter(c => mode === "all" || c.mode === mode) ?? [];
 
-  // Button label: prefer current session cost, fall back to global, else bare "AI $"
-  const displayCost = session?.totalCostUsd ?? null;
+  // Button label: prefer current session cost, fall back to global total, else bare "AI $"
+  const displayCost = session?.totalCostUsd ?? data?.global.totalCostUsd ?? null;
   const buttonCostLabel = displayCost !== null && displayCost > 0
     ? `AI ${fmt$(displayCost)}`
     : "AI $";
