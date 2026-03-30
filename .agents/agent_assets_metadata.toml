@@ -65,7 +65,7 @@ title = "Feature Flags"
 id = "wC3hDOgYIhLmnWAjHM-Aq"
 uri = "file://closer-wizard-brain-docs.zip"
 type = "unspecified"
-title = "closer-wizard-brain-docs.zip (43 KB)"
+title = "closer-wizard-brain-docs.zip (56 KB — 13 archivos)"
 
 [[outputs]]
 id = "fwJJ85cLxEYOLyxT94JRN"
@@ -137,10 +137,16 @@ title = "10-replit-prompt-style.md"
 id = "sgbnG5oGg7pMcVRp7g1Np"
 uri = "file://docs/closer-wizard-brain-export/ALL_DOCS_COMBINED.md"
 type = "text"
-title = "ALL_DOCS_COMBINED.md (57 KB)"
+title = "ALL_DOCS_COMBINED.md (74 KB)"
 
 [[outputs]]
 id = "PJgYlGaQU3t7-Lv0oeM8H"
 uri = "file://docs/closer-wizard-brain-export/10-replit-prompt-style.md"
 type = "text"
 title = "10-replit-prompt-style.md"
+
+[[outputs]]
+id = "5Pa2v-yajwfuzx5SLqYLv"
+uri = "file://docs/closer-wizard-brain/11-sales-references.md"
+type = "text"
+title = "11-sales-references.md"

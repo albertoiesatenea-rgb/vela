@@ -1,0 +1,123 @@
+Quiero crear un documento nuevo para el knowledge del GPT Closer Wizard Brain, pero antes quiero que revises el estado real de la carpeta de documentación para no llenar el proyecto de mierda innecesaria.
+
+Haz esto en este orden:
+
+1. Revisa cuántos documentos existen ahora mismo en:
+- docs/closer-wizard-brain/
+- docs/closer-wizard-brain-export/
+
+2. Dime claramente:
+- cuántos archivos hay en cada carpeta
+- cuáles son
+- si hay duplicados evidentes
+- si hay archivos que no merece la pena conservar
+- si el ZIP y el ALL_DOCS_COMBINED.md son redundantes para el uso diario
+
+3. No borres nada todavía.
+Primero solo audita y resume la situación en 8-12 líneas, con criterio práctico.
+
+4. Después de esa revisión, crea este archivo nuevo:
+docs/closer-wizard-brain/11-sales-references.md
+
+OBJETIVO
+Crear una base interna de principios de venta, cierre y manejo de objeciones útil para evaluar conversaciones, mejorar prompts y diseñar mejores respuestas dentro de Closer Wizard.
+
+IMPORTANTE
+No quiero un documento de gurús ni frases motivacionales.
+No quiero humo.
+No quiero teoría abstracta.
+Quiero un documento práctico, claro, estructurado y orientado a ejecución.
+
+EL DOCUMENTO DEBE INCLUIR
+
+A. PRINCIPIOS GENERALES DE VENTA
+- control de la conversación
+- descubrimiento de criterio
+- manejo de objeciones
+- no comparar demasiado pronto
+- no cerrar demasiado pronto
+- usar prueba cuando hace falta
+- detectar miedo, duda, resistencia, indecisión
+- cuándo apretar y cuándo no
+
+B. TIPOS DE BUYER / PERFILES
+Crear una base clara y útil de perfiles como:
+- analítico
+- emocional
+- escéptico
+- averso al riesgo
+- indeciso
+- dominante
+
+Para cada uno:
+- qué valora
+- qué le frena
+- qué errores del vendedor le hacen desconectar
+- qué tipo de approach suele funcionar mejor
+
+C. OBJECIONES Y RESPUESTAS ESTRATÉGICAS
+No quiero guiones cerrados.
+Quiero lógica útil para:
+- precio
+- desconfianza
+- timing
+- miedo a equivocarse
+- comparación con otra alternativa
+- falta de urgencia
+- falta de prueba
+- indecisión
+
+D. CIERRE
+Explicar de forma práctica:
+- qué señales indican que aún no toca cerrar
+- qué señales indican que ya sí toca avanzar
+- diferencia entre:
+  - closed
+  - next_step
+  - lost
+  - open / unclear
+- errores típicos de cierre prematuro
+- errores típicos de vendedor blando
+
+E. MARCOS EXTERNOS ÚTILES
+Añadir una sección breve con referencias a estilos o marcos de ventas conocidos que puedan servir como inspiración general.
+No quiero copiar contenido propietario ni citas largas.
+Sí quiero ideas resumidas y útiles.
+Puedes incluir referencias de alto nivel a estilos tipo:
+- venta directa y clara
+- venta consultiva
+- control de objeciones
+- enfoque más agresivo vs más consultivo
+- influencia, prueba, riesgo, claridad, urgencia
+
+F. APLICACIÓN A CLOSER WIZARD
+Traducir todo lo anterior al tipo de producto que es Closer Wizard.
+Explica:
+- cómo estos principios sirven para auditar logs
+- cómo sirven para mejorar prompts
+- cómo sirven para mejorar Arena
+- cómo sirven para detectar si el vendedor estuvo flojo o si el sistema se quedó corto
+
+ESTILO DEL DOCUMENTO
+- markdown
+- claro
+- útil
+- nada de humo
+- nada de motivación vacía
+- nada de frases de “gurú”
+- que sirva para decisiones reales
+
+5. Después de crearlo:
+- actualiza el índice si hace falta
+- cópialo a:
+  docs/closer-wizard-brain-export/11-sales-references.md
+- actualiza también:
+  docs/closer-wizard-brain-export/ALL_DOCS_COMBINED.md
+- regenera:
+  closer-wizard-brain-docs.zip
+
+6. Al final dime exactamente:
+- si ya hay demasiados documentos o no
+- cuáles subirías tú al GPT y cuáles NO
+- la ruta exacta del nuevo 11-sales-references.md
+- la ruta del zip actualizado

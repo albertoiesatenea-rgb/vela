@@ -12,3 +12,4 @@
 | [08-debug-panel.md](./08-debug-panel.md) | Layout panel, alertas, pin, tabs, polling |
 | [09-feature-flags.md](./09-feature-flags.md) | LEGACY_PROMPTS y LEGACY_ARENA — comportamiento y coste |
 | [10-replit-prompt-style.md](./10-replit-prompt-style.md) | Cómo escribir prompts para Replit AI — estructura, plantilla, ejemplos |
+| [11-sales-references.md](./11-sales-references.md) | Principios de venta, perfiles de comprador, objeciones, cierre, aplicación a Closer Wizard |
