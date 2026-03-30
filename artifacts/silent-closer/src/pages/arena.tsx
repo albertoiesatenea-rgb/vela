@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sun, Moon } from "lucide-react";
 import { WizardIcon } from "@/components/context-panel";
 import { cn } from "@/lib/utils";
 import { buildArenaAuditLog, triggerAuditLogDownload } from "@/lib/audit-log";
+import { useTheme } from "@/hooks/use-theme";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export type ArenaRole = "seller" | "client";
@@ -123,7 +124,7 @@ const T = {
     CLIENT_EXIT_QUIT: "Solo quería acabar",
     CLIENT_EXIT_REASON_TITLE: "¿Por qué te han perdido?",
     CLIENT_EXIT_REASON_PH: "Escribe el motivo (opcional)",
-    CLIENT_EXIT_CONFIRM: "Confirmar →",
+    CLIENT_EXIT_CONFIRM: "Confirmar",
     CLIENT_EXIT_BACK: "← Volver",
     CLIENT_EXIT_NOTE_LABEL: "MOTIVO DE SALIDA",
     // Summary
@@ -131,8 +132,8 @@ const T = {
     // Debrief
     DEBRIEF_SCORE: "PUNTUACIÓN",
     DEBRIEF_CRITIQUE: "QUÉ FALLÓ",
-    DEBRIEF_RETRY: "Intentar de nuevo →",
-    CLIENT_RETRY: "Repetir →",
+    DEBRIEF_RETRY: "Intentar de nuevo",
+    CLIENT_RETRY: "Repetir",
     DEBRIEF_LOADING: "Analizando sesión...",
   },
   en: {
@@ -184,7 +185,7 @@ const T = {
     CLIENT_EXIT_QUIT: "I just wanted to stop",
     CLIENT_EXIT_REASON_TITLE: "Why did you lose interest?",
     CLIENT_EXIT_REASON_PH: "Write the reason (optional)",
-    CLIENT_EXIT_CONFIRM: "Confirm →",
+    CLIENT_EXIT_CONFIRM: "Confirm",
     CLIENT_EXIT_BACK: "← Back",
     CLIENT_EXIT_NOTE_LABEL: "EXIT REASON",
     // Summary
@@ -192,8 +193,8 @@ const T = {
     // Debrief
     DEBRIEF_SCORE: "SCORE",
     DEBRIEF_CRITIQUE: "WHAT WENT WRONG",
-    DEBRIEF_RETRY: "Try again →",
-    CLIENT_RETRY: "Repeat →",
+    DEBRIEF_RETRY: "Try again",
+    CLIENT_RETRY: "Repeat",
     DEBRIEF_LOADING: "Analyzing session...",
   },
 };
@@ -414,6 +415,7 @@ export function Arena({
   onRetry?: () => void;
 }) {
   const t = T[lang];
+  const { theme, toggleTheme } = useTheme();
 
   const [arenaSessionId, setArenaSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ArenaMessage[]>([]);
@@ -771,6 +773,14 @@ export function Arena({
 
         <div className="flex items-center gap-3 shrink-0 ml-4">
           <StateIndicator state={conversationState} lang={lang} />
+          <button
+            onClick={toggleTheme}
+            onMouseDown={e => e.preventDefault()}
+            title={theme === "dark" ? "Tema claro" : "Tema oscuro"}
+            className="text-zinc-500 hover:text-zinc-200 transition-colors"
+          >
+            {theme === "dark" ? <Sun className="w-3 h-3" /> : <Moon className="w-3 h-3" />}
+          </button>
           <button
             onClick={onExit}
             className="text-[9px] tracking-widest uppercase text-zinc-500 hover:text-zinc-200 transition-colors"

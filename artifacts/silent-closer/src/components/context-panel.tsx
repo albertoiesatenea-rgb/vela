@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { ChevronDown, ChevronUp, Zap, SlidersHorizontal, User, Users, Target, Briefcase, ShieldOff, FileText, Swords, Navigation, Headphones, Shuffle, X, Package, Building, Lightbulb, MessageSquare } from "lucide-react";
+import { ChevronDown, ChevronUp, Zap, SlidersHorizontal, User, Users, Target, Briefcase, ShieldOff, FileText, Swords, Navigation, Headphones, Shuffle, X, Package, Building, Lightbulb, MessageSquare, Sun, Moon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/hooks/use-theme";
 import type { ArenaRole } from "@/pages/arena";
 
 export interface ArenaConfig {
@@ -44,7 +45,7 @@ const CP = {
     DEFINE:    "Define el contexto",
     QUICK:     "Rápido",
     ADVANCED:  "Avanzado",
-    START:     "Iniciar copiloto →",
+    START:     "Iniciar copiloto",
     PLACEHOLDER: "Ej: quiero vender un piso en Dresden a un inversor muy analítico que duda de la ciudad",
     ARENA_PH_SELLER: "Ej: quiero vender un piso en Dresden a un inversor muy analítico que duda de la ciudad",
     ARENA_PH_CLIENT: "Ej: soy un inversor analítico al que quieren venderle un piso en Dresden",
@@ -52,8 +53,8 @@ const CP = {
     END:       "Finalizar",
     SUBTITLE:  "Inteligencia táctica conversacional",
     // Advanced step-by-step
-    ADV_NEXT:  "Siguiente →",
-    ADV_START: "Iniciar copiloto →",
+    ADV_NEXT:  "Siguiente",
+    ADV_START: "Iniciar copiloto",
     ADV_SHORT_LABELS: ["Rol", "Quién", "Objetivo", "Oferta", "Frenos", "Notas"] as string[],
     ADV_Q: [
       "¿Quién eres tú en esta conversación?",
@@ -76,7 +77,7 @@ const CP = {
     ] as string[],
     MODE_COPILOT: "Copiloto",
     MODE_ARENA: "Arena",
-    START_ARENA: "Entrar en Arena →",
+    START_ARENA: "Entrar en Arena",
     ARENA_ROLE_LABEL: "Tu rol en Arena",
     ARENA_SELLER: "Yo soy el vendedor",
     ARENA_CLIENT: "Yo soy el cliente",
@@ -88,15 +89,15 @@ const CP = {
     DEFINE:    "Set the context",
     QUICK:     "Quick",
     ADVANCED:  "Advanced",
-    START:     "Start copilot →",
+    START:     "Start copilot",
     PLACEHOLDER: "E.g: I want to sell an apartment in Berlin to a very analytical investor who doubts the city",
     ARENA_PH_SELLER: "E.g: I want to sell an apartment in Berlin to a very analytical investor who doubts the city",
     ARENA_PH_CLIENT: "E.g: I'm a very analytical investor being pitched an apartment in Berlin",
     SESSION:   "Session",
     END:       "End",
     SUBTITLE:  "Conversational tactical intelligence",
-    ADV_NEXT:  "Next →",
-    ADV_START: "Start copilot →",
+    ADV_NEXT:  "Next",
+    ADV_START: "Start copilot",
     ADV_SHORT_LABELS: ["Role", "Who", "Goal", "Offer", "Blockers", "Notes"] as string[],
     ADV_Q: [
       "Who are you in this conversation?",
@@ -119,7 +120,7 @@ const CP = {
     ] as string[],
     MODE_COPILOT: "Copilot",
     MODE_ARENA: "Arena",
-    START_ARENA: "Enter Arena →",
+    START_ARENA: "Enter Arena",
     ARENA_ROLE_LABEL: "Your role in Arena",
     ARENA_SELLER: "I am the seller",
     ARENA_CLIENT: "I am the client",
@@ -302,7 +303,7 @@ function ArenaAdvancedForm({
     else onSubmit(buildCtx(answers));
   };
 
-  const ctaLabel = lang === "es" ? "Entrar en Arena →" : "Enter Arena →";
+  const ctaLabel = lang === "es" ? "Entrar en Arena" : "Enter Arena";
 
   return (
     <div className="flex flex-col gap-5">
@@ -528,6 +529,7 @@ export function ContextSetup({
   onLangChange: (l: Lang) => void;
 }) {
   const t = CP[lang];
+  const { theme, toggleTheme } = useTheme();
   const [contextMode, setContextMode] = useState<ContextMode>("quick");
   const [appMode, setAppMode] = useState<AppMode>("copilot");
   const [arenaRole, setArenaRole] = useState<ArenaRole>("seller");
@@ -594,19 +596,33 @@ export function ContextSetup({
               </p>
             </div>
           </div>
-          <div className="flex items-center bg-white/5 p-1 rounded-full border border-white/8 text-[9px] font-mono overflow-hidden">
-            {(["es", "en"] as Lang[]).map(l => (
-              <button
-                key={l}
-                onClick={() => onLangChange(l)}
-                className={cn(
-                  "px-3 py-1.5 rounded-full uppercase tracking-widest transition-all font-medium",
-                  lang === l ? "bg-white text-black shadow" : "text-zinc-400 hover:text-white"
-                )}
-              >
-                {l}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            {/* Theme toggle */}
+            <button
+              onClick={toggleTheme}
+              onMouseDown={e => e.preventDefault()}
+              title={theme === "dark" ? "Tema claro" : "Tema oscuro"}
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 border border-white/8 text-zinc-400 hover:text-white transition-colors"
+            >
+              {theme === "dark"
+                ? <Sun className="w-3.5 h-3.5" />
+                : <Moon className="w-3.5 h-3.5" />}
+            </button>
+            {/* Language toggle */}
+            <div className="flex items-center bg-white/5 p-1 rounded-full border border-white/8 text-[9px] font-mono overflow-hidden">
+              {(["es", "en"] as Lang[]).map(l => (
+                <button
+                  key={l}
+                  onClick={() => onLangChange(l)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-full uppercase tracking-widest transition-all font-medium",
+                    lang === l ? "bg-white text-black shadow" : "text-zinc-400 hover:text-white"
+                  )}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -811,6 +827,7 @@ export function SessionBar({
   endLabel?: string;
 }) {
   const t = CP[lang];
+  const { theme, toggleTheme } = useTheme();
   const [expanded, setExpanded] = useState(false);
   const displayLabel = contextLabel || sessionContext.split("\n")[0].slice(0, 70);
 
@@ -859,6 +876,17 @@ export function SessionBar({
               <span>{MOMENTUM_LABELS[lang as "es" | "en"][momentum]}</span>
             </div>
           )}
+          {/* Theme toggle */}
+          <button
+            onClick={(e) => { e.stopPropagation(); toggleTheme(); }}
+            onMouseDown={e => e.preventDefault()}
+            title={theme === "dark" ? "Tema claro" : "Tema oscuro"}
+            className="w-7 h-7 flex items-center justify-center text-zinc-500 hover:text-zinc-300 transition-colors"
+          >
+            {theme === "dark"
+              ? <Sun className="w-3 h-3" />
+              : <Moon className="w-3 h-3" />}
+          </button>
           {/* End session button — larger hit area */}
           <button
             onClick={(e) => { e.stopPropagation(); onClearSession(); }}

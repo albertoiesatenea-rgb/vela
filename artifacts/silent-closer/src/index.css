@@ -55,6 +55,41 @@
   --destructive-foreground: 0 0% 98%;
 }
 
+/* ── Light theme ──────────────────────────────────────────────────── */
+/* Swaps the zinc/black/white palette so all bg-zinc-900 etc. invert */
+html.light {
+  color-scheme: light;
+
+  /* Semantic tokens */
+  --background: 0 0% 100%;
+  --foreground: 0 0% 4%;
+  --muted: 0 0% 94%;
+  --muted-foreground: 0 0% 45%;
+  --border: 0 0% 88%;
+  --input: 0 0% 94%;
+  --ring: 0 0% 60%;
+  --card: 0 0% 97%;
+  --card-foreground: 0 0% 4%;
+  --primary: 0 0% 4%;
+  --primary-foreground: 0 0% 98%;
+
+  --color-black: #ffffff;
+  --color-white: #000000;
+
+  /* Zinc palette — mirrored (950↔50, 900↔100, ...) */
+  --color-zinc-950: #fafafa;
+  --color-zinc-900: #f4f4f5;
+  --color-zinc-800: #e4e4e7;
+  --color-zinc-700: #d4d4d8;
+  --color-zinc-600: #a1a1aa;
+  --color-zinc-500: #71717a;
+  --color-zinc-400: #52525b;
+  --color-zinc-300: #3f3f46;
+  --color-zinc-200: #27272a;
+  --color-zinc-100: #18181b;
+  --color-zinc-50:  #09090b;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

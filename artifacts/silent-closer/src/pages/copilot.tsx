@@ -1101,7 +1101,7 @@ export default function CopilotPage() {
                           >
                             {isGeneratingReport
                               ? <><Loader2 className="w-3 h-3 animate-spin" />{T[lang].ANALYZING_CALL}</>
-                              : `${T[lang].GEN_REPORT} →`}
+                              : T[lang].GEN_REPORT}
                           </button>
                           {/* 4. Download session audit log — tertiary, for GPT auditor */}
                           <button
