@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Loader2, Sun, Moon, Sparkles, Trophy, TrendingUp, StickyNote } from "lucide-react";
+import { Loader2, Sun, Moon, Sparkles, Trophy, TrendingUp, StickyNote, GraduationCap } from "lucide-react";
 import { WizardIcon } from "@/components/context-panel";
 import { cn } from "@/lib/utils";
 import { buildArenaAuditLog, triggerAuditLogDownload } from "@/lib/audit-log";
@@ -24,12 +24,7 @@ interface ArenaDebrief {
 }
 
 interface CoachLite {
-  signal: string;
-  mission: string;
-  next_move: string;
-  reading: string;
-  why_this_response: string;
-  alternative: string;
+  explanation: string;
 }
 
 interface ArenaSummary {
@@ -578,52 +573,33 @@ function Confetti({ active, intensity = "high" }: { active: boolean; intensity?:
   );
 }
 
-// ── CoachBox component ────────────────────────────────────────────────────────
-function CoachBox({
-  data,
-  isOpen,
-  onToggle,
-  lang,
-}: {
-  data: CoachLite;
-  isOpen: boolean;
-  onToggle: () => void;
-  lang: Lang;
-}) {
-  const lbl = lang === "es"
-    ? { signal: "señal", mission: "misión", move: "movim.", strategy: "ver estrategia", hide: "ocultar", reading: "lectura", why: "por qué", alt: "alternativa" }
-    : { signal: "signal", mission: "mission", move: "move", strategy: "show strategy", hide: "hide", reading: "reading", why: "why", alt: "alternative" };
-
+// ── CoachNote component — didactic side panel ─────────────────────────────────
+function CoachNote({ explanation, lang }: { explanation: string; lang: Lang }) {
   return (
-    <div className="ml-0 max-w-xs flex flex-col gap-1 mt-0.5">
-      <div className="flex flex-col gap-1 px-3 py-2 rounded-lg bg-zinc-900/70 border border-zinc-800/60">
-        <div className="grid gap-x-2.5 gap-y-0.5" style={{ gridTemplateColumns: "46px 1fr" }}>
-          <span className="text-[8px] font-mono tracking-widest uppercase text-sky-400/60 pt-0.5">{lbl.signal}</span>
-          <span className="text-[11px] text-zinc-300 leading-snug">{data.signal}</span>
-          <span className="text-[8px] font-mono tracking-widest uppercase text-sky-400/60 pt-0.5">{lbl.mission}</span>
-          <span className="text-[11px] text-zinc-300 leading-snug">{data.mission}</span>
-          <span className="text-[8px] font-mono tracking-widest uppercase text-sky-400/60 pt-0.5">{lbl.move}</span>
-          <span className="text-[11px] text-zinc-300 leading-snug">{data.next_move}</span>
-        </div>
-        <button
-          onClick={onToggle}
-          className="mt-0.5 text-[8px] font-mono text-zinc-600 hover:text-zinc-400 transition-colors text-left"
-        >
-          {isOpen ? `▴ ${lbl.hide}` : `▾ ${lbl.strategy}`}
-        </button>
+    <div className="flex flex-col gap-1.5 pt-1 pr-3 border-r border-teal-500/20">
+      <div className="flex items-center gap-1">
+        <GraduationCap className="w-2.5 h-2.5 text-teal-400/50 shrink-0" />
+        <span className="text-[7px] font-mono tracking-[0.2em] uppercase text-teal-400/50">
+          {lang === "es" ? "análisis" : "analysis"}
+        </span>
       </div>
-      {isOpen && (
-        <div className="flex flex-col gap-1 px-3 py-2 rounded-lg bg-zinc-900/40 border border-zinc-800/40">
-          <div className="grid gap-x-2.5 gap-y-0.5" style={{ gridTemplateColumns: "46px 1fr" }}>
-            <span className="text-[8px] font-mono tracking-widest uppercase text-zinc-600 pt-0.5">{lbl.reading}</span>
-            <span className="text-[11px] text-zinc-400 leading-snug">{data.reading}</span>
-            <span className="text-[8px] font-mono tracking-widest uppercase text-zinc-600 pt-0.5">{lbl.why}</span>
-            <span className="text-[11px] text-zinc-400 leading-snug">{data.why_this_response}</span>
-            <span className="text-[8px] font-mono tracking-widest uppercase text-zinc-600 pt-0.5">{lbl.alt}</span>
-            <span className="text-[11px] text-zinc-400 leading-snug italic">{data.alternative}</span>
-          </div>
-        </div>
-      )}
+      <p className="text-[11px] text-zinc-400 leading-relaxed">
+        {explanation}
+      </p>
+    </div>
+  );
+}
+
+// ── CoachNote skeleton — shown while AI + coach are loading ───────────────────
+function CoachNoteSkeleton() {
+  return (
+    <div className="flex flex-col gap-2 pt-1 pr-3 border-r border-teal-500/10">
+      <div className="w-12 h-1.5 bg-teal-500/10 rounded animate-pulse" />
+      <div className="flex flex-col gap-1.5">
+        <div className="w-full h-1.5 bg-zinc-800/60 rounded animate-pulse" />
+        <div className="w-full h-1.5 bg-zinc-800/60 rounded animate-pulse" />
+        <div className="w-3/4 h-1.5 bg-zinc-800/60 rounded animate-pulse" />
+      </div>
     </div>
   );
 }
@@ -672,9 +648,9 @@ export function Arena({
   const [noteText, setNoteText] = useState("");
   const [noteCount, setNoteCount] = useState(0);
   const [sellerNotes, setSellerNotes] = useState<string[]>([]);
-  // CoachLite (client mode only): coach data per message index + strategy toggle state
+  // CoachLite (client mode only): coach data per message index, live toggle
   const [coachLiteMap, setCoachLiteMap] = useState<Record<number, CoachLite>>({});
-  const [strategyOpen, setStrategyOpen] = useState<Set<number>>(new Set());
+  const [coachLiveEnabled, setCoachLiveEnabled] = useState(false);
   const [loadingPhase, setLoadingPhase] = useState(0);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -1262,6 +1238,22 @@ export function Arena({
 
         <div className="flex items-center gap-3 shrink-0 ml-4">
           <StateIndicator state={conversationState} lang={lang} />
+          {role === "client" && (
+            <button
+              onClick={() => setCoachLiveEnabled(prev => !prev)}
+              onMouseDown={e => e.preventDefault()}
+              title={lang === "es" ? "Coach en vivo" : "Live coach"}
+              className={cn(
+                "flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-mono tracking-widest uppercase border transition-all",
+                coachLiveEnabled
+                  ? "text-teal-300 border-teal-500/40 bg-teal-500/10"
+                  : "text-zinc-600 border-zinc-800 hover:text-zinc-400 hover:border-zinc-600"
+              )}
+            >
+              <GraduationCap className="w-2.5 h-2.5" />
+              coach
+            </button>
+          )}
           <button
             onClick={toggleTheme}
             onMouseDown={e => e.preventDefault()}
@@ -1287,10 +1279,15 @@ export function Arena({
             <span className="text-xs tracking-widest uppercase">{t.STARTING}</span>
           </div>
         ) : (
-          <div className="max-w-2xl mx-auto flex flex-col gap-5">
+          <div className={cn(
+            "mx-auto flex flex-col gap-5 transition-[max-width] duration-300",
+            role === "client" && coachLiveEnabled ? "max-w-4xl" : "max-w-2xl"
+          )}>
             {messages.map((msg, i) => (
               msg.speaker === "note" ? (
                 <div key={i} className="flex items-center gap-2 py-0.5">
+                  {/* Left slot spacer for note divider when coach is on */}
+                  {role === "client" && coachLiveEnabled && <div className="w-44 shrink-0" />}
                   <div className="flex-1 h-px bg-zinc-800" />
                   <span className="text-[8px] font-mono tracking-widest uppercase text-zinc-600 shrink-0 flex items-center gap-1">
                     <StickyNote className="w-2.5 h-2.5" />
@@ -1299,43 +1296,53 @@ export function Arena({
                   <div className="flex-1 h-px bg-zinc-800" />
                 </div>
               ) : (
-                <div key={i} className="flex flex-col gap-1.5">
-                  <MessageRow msg={msg} youLabel={t.YOU} aiLabel={aiLabel} />
-                  {role === "client" && msg.speaker === "ai" && coachLiteMap[msg.index] && (
-                    <CoachBox
-                      data={coachLiteMap[msg.index]}
-                      isOpen={strategyOpen.has(msg.index)}
-                      onToggle={() => setStrategyOpen(prev => {
-                        const next = new Set(prev);
-                        if (next.has(msg.index)) next.delete(msg.index); else next.add(msg.index);
-                        return next;
-                      })}
-                      lang={lang}
-                    />
+                <div key={i} className="flex items-start gap-0">
+                  {/* Left coach slot — only in client mode with coach enabled */}
+                  {role === "client" && coachLiveEnabled && (
+                    <div className="w-44 shrink-0 self-start">
+                      {msg.speaker === "ai" && coachLiteMap[msg.index] && (
+                        <CoachNote explanation={coachLiteMap[msg.index].explanation} lang={lang} />
+                      )}
+                    </div>
                   )}
+                  {/* Message */}
+                  <div className="flex-1 min-w-0">
+                    <MessageRow msg={msg} youLabel={t.YOU} aiLabel={aiLabel} />
+                  </div>
                 </div>
               )
             ))}
             {isSending && (
-              role === "client" ? (
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[9px] tracking-widest uppercase text-sky-400/70">{aiLabel}</span>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-sky-400/60 animate-pulse shrink-0" />
-                    <span className="text-[11px] font-mono text-zinc-500 italic">
-                      {COACH_LOADING[lang][loadingPhase]}
-                    </span>
+              <div className="flex items-start gap-0">
+                {/* Left coach skeleton */}
+                {role === "client" && coachLiveEnabled && (
+                  <div className="w-44 shrink-0">
+                    <CoachNoteSkeleton />
                   </div>
+                )}
+                {/* Loading message */}
+                <div className="flex-1 min-w-0">
+                  {role === "client" ? (
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[9px] tracking-widest uppercase text-sky-400/70">{aiLabel}</span>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-1.5 h-1.5 rounded-full bg-sky-400/60 animate-pulse shrink-0" />
+                        <span className="text-[11px] font-mono text-zinc-500 italic">
+                          {COACH_LOADING[lang][loadingPhase]}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[9px] tracking-widest uppercase text-zinc-600">{aiLabel}</span>
+                      <div className="flex items-center gap-1.5 text-zinc-600">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        <span className="text-xs">{t.SENDING}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="flex flex-col gap-1">
-                  <span className="text-[9px] tracking-widest uppercase text-zinc-600">{aiLabel}</span>
-                  <div className="flex items-center gap-1.5 text-zinc-600">
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                    <span className="text-xs">{t.SENDING}</span>
-                  </div>
-                </div>
-              )
+              </div>
             )}
             <div ref={messagesEndRef} />
           </div>

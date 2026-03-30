@@ -105,12 +105,7 @@ function shouldCheckTerminal(turns: ArenaTurn[], lang: Lang): boolean {
 
 // ── CoachLite types ───────────────────────────────────────────────────────────
 interface CoachLite {
-  signal: string;
-  mission: string;
-  next_move: string;
-  reading: string;
-  why_this_response: string;
-  alternative: string;
+  explanation: string;
 }
 
 // ── Prompt builders ───────────────────────────────────────────────────────────
@@ -489,37 +484,25 @@ function buildCoachLitePrompt(
   lang: Lang,
 ): string {
   if (lang === "en") {
-    return `You are a sales coach analyzing a simulation. The AI seller just responded to the trainee (who plays the client).
+    return `You are a sales professor watching a live simulation. The AI seller just responded to the trainee (who plays the client). Write 1–2 short didactic sentences explaining the move: what signal the seller detected, why they responded that way, and with what objective. Speak about the seller in third person, as if pausing a class to explain a key moment.
+
+Tone example: "The client showed price resistance, so the seller avoids defending it directly and uses a value question — letting the client reason for themselves why it's worth it."
 
 Context: ${context || "Generic sale"}
-Client (trainee) said: "${userMessage}"
-Seller (AI) responded: "${aiMessage}"
+Client said: "${userMessage}"
+Seller responded: "${aiMessage}"
 
-Reply ONLY with valid JSON, no extra text. Max 10 words per field:
-{
-  "signal": "main signal detected in client's message",
-  "mission": "tactical objective for this seller turn",
-  "next_move": "the move chosen by the seller",
-  "reading": "what seller detected in client's behavior or mindset",
-  "why_this_response": "why this response was the best choice",
-  "alternative": "one alternative move with a different nuance"
-}`;
+Reply ONLY with the explanation text. No quotes, no labels, no bullet points.`;
   }
-  return `Eres un coach de ventas analizando una simulación. El vendedor IA acaba de responder al alumno (que hace de cliente).
+  return `Eres un profesor de ventas que está viendo una simulación en vivo. El vendedor IA acaba de responder al alumno (que hace de cliente). Escribe 1-2 frases cortas y didácticas explicando la jugada: qué señal detectó el vendedor, por qué respondió así y con qué objetivo. Habla sobre el vendedor en tercera persona, como si pararas la clase un momento para explicar un momento clave.
+
+Ejemplo de tono: "El cliente mostró resistencia al precio, por tanto el vendedor evita defenderlo directamente y usa una pregunta de valor — dejando que el cliente razone por sí mismo por qué vale la pena."
 
 Contexto: ${context || "Venta genérica"}
-Cliente (alumno) dijo: "${userMessage}"
-Vendedor (IA) respondió: "${aiMessage}"
+Cliente dijo: "${userMessage}"
+Vendedor respondió: "${aiMessage}"
 
-Responde SOLO con JSON válido, sin texto adicional. Máx 10 palabras por campo:
-{
-  "signal": "señal principal detectada en el mensaje del cliente",
-  "mission": "objetivo táctico de este turno del vendedor",
-  "next_move": "movimiento elegido por el vendedor",
-  "reading": "qué detectó el vendedor en el comportamiento o mentalidad del cliente",
-  "why_this_response": "por qué esta respuesta fue la mejor elección",
-  "alternative": "un movimiento alternativo con otro matiz"
-}`;
+Responde SOLO con el texto de la explicación. Sin comillas, sin etiquetas, sin listas.`;
 }
 
 async function generateCoachLite(
@@ -553,9 +536,8 @@ async function generateCoachLite(
       });
     }
     const raw = completion.choices[0]?.message?.content?.trim() ?? "";
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return null;
-    return JSON.parse(jsonMatch[0]) as CoachLite;
+    if (!raw) return null;
+    return { explanation: raw };
   } catch {
     return null;
   }
