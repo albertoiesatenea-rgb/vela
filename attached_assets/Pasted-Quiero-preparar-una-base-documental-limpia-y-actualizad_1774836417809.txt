@@ -1,0 +1,140 @@
+Quiero preparar una base documental limpia y actualizada de este proyecto para crear un GPT privado de producto que actúe como cerebro de Closer Wizard.
+
+IMPORTANTE:
+No quiero teoría.
+No quiero marketing.
+No quiero resúmenes bonitos.
+Quiero documentos técnicos y de producto, útiles, concretos y actualizados, basados en el código y comportamiento real de la app de hoy.
+
+Tu tarea es generar una carpeta de documentación interna del proyecto con archivos markdown bien separados, cada uno con información precisa y fácil de subir luego a un GPT como knowledge.
+
+OBJETIVO
+Crear una documentación viva, modular y útil para:
+- entender el estado actual real de la app
+- tomar decisiones de producto
+- preparar prompts para Replit
+- revisar cambios sin tener que releer todo el código
+- dar contexto a un GPT privado llamado Closer Wizard Brain
+
+FORMATO GENERAL
+- crear archivos .md
+- nombres claros y ordenados
+- contenido técnico y accionable
+- evitar duplicidades
+- cada archivo debe servir para un propósito concreto
+- no meter relleno
+
+QUIERO EXACTAMENTE ESTOS DOCUMENTOS
+
+1. 01-current-state.md
+Debe incluir:
+- qué hace hoy la app realmente
+- modos disponibles
+- flujos existentes
+- qué está ya implementado
+- qué está incompleto o parcial
+- qué diferencias hay entre Copiloto y Arena
+- qué partes están en producción funcional y cuáles son v1 provisionales
+
+2. 02-architecture.md
+Debe incluir:
+- stack frontend
+- stack backend
+- estructura de archivos clave
+- rutas API
+- cómo fluye una sesión de Copiloto
+- cómo fluye una sesión de Arena
+- cómo se gestiona el estado
+- dónde vive la memoria
+- dónde viven los logs
+- dependencias importantes
+
+3. 03-prompts-and-ai-flows.md
+Debe incluir:
+- todas las rutas que llaman al modelo
+- qué hace cada una
+- qué modelo usan
+- max_tokens
+- prompts reales resumidos por flujo
+- payload real que se envía
+- output esperado
+- memoria o contexto que usa cada flujo
+- riesgos o puntos débiles actuales
+
+4. 04-logs-and-auditing.md
+Debe incluir:
+- qué logs se pueden exportar hoy
+- formato actual de logs
+- diferencias entre Copiloto y Arena
+- qué información se registra bien
+- qué información falta
+- qué parte del razonamiento de la herramienta se conserva y cuál no
+- qué necesita el Auditor para funcionar bien
+
+5. 05-cost-and-token-usage.md
+Debe incluir:
+- qué se sabe hoy del gasto de tokens y coste
+- dónde se gasta más
+- rutas más caras
+- problemas actuales de payload o redundancia
+- sistema actual de tracking AI $
+- limitaciones actuales del tracking
+- oportunidades claras de optimización
+
+6. 06-ui-and-product-decisions.md
+Debe incluir:
+- decisiones de UX ya tomadas
+- naming actual de pantallas y modos
+- cómo está planteado el setup
+- cómo está planteado Copiloto
+- cómo está planteado Arena
+- cómo está planteado el panel AI $
+- decisiones visuales o de estructura que ya conviene no romper
+- zonas donde el diseño sigue abierto o dudoso
+
+7. 07-roadmap-and-open-questions.md
+Debe incluir:
+- lista de mejoras pendientes conocidas
+- ideas ya habladas pero no implementadas
+- cosas que claramente son fase 2 o fase 3
+- dudas abiertas de arquitectura
+- dudas abiertas de producto
+- conflictos o tradeoffs importantes
+
+8. 08-change-log-recent.md
+Debe incluir:
+- cambios recientes importantes
+- qué se ha añadido
+- qué se ha tocado
+- qué impacto tuvo
+- si algo sustituyó o dejó obsoleta documentación anterior
+
+REGLAS IMPORTANTES
+- si algo no está claro en el código, dilo
+- si algo es heurístico o parcial, dilo
+- si algo es provisional, dilo
+- no inventes
+- no uses lenguaje de marketing
+- no escondas limitaciones
+- no mezcles opinión con descripción técnica salvo en el roadmap o dudas
+
+ESTILO
+- claro
+- técnico
+- compacto
+- sin humo
+- útil para otro modelo
+- bien estructurado con headings
+
+ENTREGABLES
+1. Crear los archivos markdown
+2. Decirme exactamente dónde los has dejado
+3. Resumirme en 10 líneas:
+   - qué archivo debería subir sí o sí al GPT
+   - cuáles son opcionales
+   - cuál ha quedado más útil
+   - cuál estaba más desactualizado respecto a lo que creíamos
+
+IMPORTANTE FINAL
+No me devuelvas todo en un bloque gigante por chat.
+Quiero que generes los archivos reales en el proyecto para poder usarlos como base documental viva.
