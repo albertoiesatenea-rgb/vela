@@ -1271,7 +1271,10 @@ export function Arena({
                     <textarea
                       value={pendingExitReason}
                       onChange={e => setPendingExitReason(e.target.value)}
-                      onKeyDown={e => { if (e.key === "Escape") setExitStep("outcomes"); }}
+                      onKeyDown={e => {
+                        if (e.key === "Enter" && !e.shiftKey && !isEnding) { e.preventDefault(); void handleClientExit("lost"); }
+                        if (e.key === "Escape") setExitStep("outcomes");
+                      }}
                       placeholder={t.CLIENT_EXIT_REASON_PH}
                       autoFocus
                       rows={2}
