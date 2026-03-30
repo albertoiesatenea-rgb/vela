@@ -1706,7 +1706,7 @@ export function Arena({
                 />
                 {messages.length >= 1 && (
                   <div
-                    className="relative"
+                    className="relative flex flex-col"
                     onMouseEnter={() => {
                       if (exitLeaveTimer.current) clearTimeout(exitLeaveTimer.current);
                       if (!isEnding && !isSending && !isStarting) setIsExitHovered(true);
@@ -1760,7 +1760,7 @@ export function Arena({
                       onMouseDown={e => e.preventDefault()}
                       disabled={isEnding || isSending || isStarting}
                       className={cn(
-                        "w-20 rounded-xl border text-[9px] font-mono tracking-wider uppercase leading-snug transition-all disabled:opacity-25 disabled:pointer-events-none flex items-center justify-center text-center px-1 py-2",
+                        "w-20 flex-1 rounded-xl border text-[9px] font-mono tracking-wider uppercase leading-snug transition-all disabled:opacity-25 disabled:pointer-events-none flex items-center justify-center text-center px-1",
                         isExitHovered
                           ? "border-zinc-500 text-white bg-zinc-800/40"
                           : "border-zinc-700 text-zinc-300 hover:border-zinc-400 hover:text-white"
