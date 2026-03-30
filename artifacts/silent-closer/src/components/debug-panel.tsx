@@ -1,49 +1,29 @@
 /**
- * Closer Wizard — AI Usage Debug Panel
- * Hidden panel: click the ⚙ button bottom-right or press Ctrl+Shift+D.
- * Shows live token/cost/latency data from the API server.
+ * Closer Wizard — AI Monitor Panel
+ * Tactical cost/token monitor. Pinnable. KPIs-first. Alerts on anomalies.
+ * Toggle: "AI $" button (bottom-right) or Ctrl+Shift+D.
  */
 
 import { useState, useEffect, useCallback } from "react";
+import { Pin, PinOff, X, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// ── Types (mirror api-tracker shapes) ────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 interface RouteStats {
-  route: string;
-  calls: number;
-  totalTokens: number;
-  totalCostUsd: number;
-  avgLatencyMs: number;
-  avgPromptTokens: number;
-  avgCompletionTokens: number;
+  route: string; calls: number; totalTokens: number; totalCostUsd: number;
+  avgLatencyMs: number; avgPromptTokens: number; avgCompletionTokens: number;
 }
 interface SessionStats {
-  sessionId: string;
-  mode: string;
-  calls: number;
-  totalPromptTokens: number;
-  totalCompletionTokens: number;
-  totalTokens: number;
-  totalCostUsd: number;
-  avgLatencyMs: number;
-  createdAt: string;
-  lastCallAt: string;
+  sessionId: string; mode: string; calls: number;
+  totalPromptTokens: number; totalCompletionTokens: number;
+  totalTokens: number; totalCostUsd: number; avgLatencyMs: number;
+  createdAt: string; lastCallAt: string;
 }
 interface RecentCall {
-  callId: string;
-  timestamp: string;
-  route: string;
-  endpoint: string;
-  mode: string;
-  sessionId?: string;
-  model: string;
-  promptTokens: number;
-  completionTokens: number;
-  totalTokens: number;
-  estimatedCostUsd: number | null;
-  latencyMs: number;
-  status: string;
-  notes?: string;
+  callId: string; timestamp: string; route: string; endpoint: string;
+  mode: string; sessionId?: string; model: string;
+  promptTokens: number; completionTokens: number; totalTokens: number;
+  estimatedCostUsd: number | null; latencyMs: number; status: string; notes?: string;
 }
 interface UsageSnapshot {
   serverStartedAt: string;
@@ -53,23 +33,98 @@ interface UsageSnapshot {
   recentCalls: RecentCall[];
 }
 
+// ── Formatters ────────────────────────────────────────────────────────────────
 function fmt$(v: number | null): string {
-  if (v === null) return "?";
-  if (v < 0.0001) return `$${(v * 1000).toFixed(4)}m`;
+  if (v === null)  return "?";
+  if (v === 0)     return "$0";
+  if (v < 0.0001)  return `$${v.toFixed(6)}`;
   return `$${v.toFixed(4)}`;
 }
 function fmtK(v: number): string {
-  return v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v);
+  if (v >= 1000) return `${(v / 1000).toFixed(1)}k`;
+  return String(v);
+}
+function fmtMs(ms: number): string {
+  if (ms >= 1000) return `${(ms / 1000).toFixed(1)}s`;
+  return `${Math.round(ms)}ms`;
 }
 function fmtTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  return new Date(iso).toLocaleTimeString("es-ES", {
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+  });
+}
+function shortId(id: string): string { return id.slice(0, 7); }
+function routeLabel(route: string): string { return route.split("/").pop() ?? route; }
+
+// ── Alert logic ───────────────────────────────────────────────────────────────
+type AlertLevel = "NORMAL" | "VIGILAR" | "CARA" | "LATENCIA ALTA";
+interface AlertInfo { level: AlertLevel; cls: string; bg: string }
+
+function getAlert(s: SessionStats): AlertInfo {
+  if (s.avgLatencyMs > 2000)
+    return { level: "LATENCIA ALTA", cls: "text-sky-400",  bg: "bg-sky-900/25 border-sky-800/40" };
+  if (s.totalCostUsd > 0.05)
+    return { level: "CARA",          cls: "text-amber-300", bg: "bg-amber-800/30 border-amber-700/40" };
+  if (s.totalCostUsd > 0.015 || s.avgLatencyMs > 1400 || s.calls > 25)
+    return { level: "VIGILAR",       cls: "text-amber-400", bg: "bg-amber-900/20 border-amber-800/40" };
+  return   { level: "NORMAL",        cls: "text-zinc-500",  bg: "bg-zinc-800/30 border-zinc-700/40" };
 }
 
+function getDominantRoute(routes: RouteStats[]): string | null {
+  if (routes.length < 2) return null;
+  const total = routes.reduce((a, r) => a + r.totalCostUsd, 0);
+  if (total === 0) return null;
+  if (routes[0].totalCostUsd / total > 0.70) return routeLabel(routes[0].route);
+  return null;
+}
+
+// ── localStorage ──────────────────────────────────────────────────────────────
+const LS_PINNED = "cwiz-debug-pinned";
+const LS_OPEN   = "cwiz-debug-open";
+const LS_DETAIL = "cwiz-debug-detail";
+
+function getLS(key: string, def: boolean): boolean {
+  try { return localStorage.getItem(key) === "true"; } catch { return def; }
+}
+function setLS(key: string, val: boolean): void {
+  try { localStorage.setItem(key, String(val)); } catch { /* noop */ }
+}
+
+// ── KPI card ──────────────────────────────────────────────────────────────────
+function Kpi({
+  label, value, sub, hi = false,
+}: { label: string; value: string; sub?: string; hi?: boolean }) {
+  return (
+    <div className="flex flex-col gap-0.5 min-w-0">
+      <span className="text-[7.5px] font-mono tracking-[0.18em] uppercase text-zinc-600 truncate">
+        {label}
+      </span>
+      <span className={cn(
+        "text-[13px] font-mono font-bold leading-none truncate",
+        hi ? "text-white" : "text-zinc-200",
+      )}>
+        {value}
+      </span>
+      {sub && (
+        <span className="text-[8px] font-mono text-zinc-600 leading-none truncate">{sub}</span>
+      )}
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 export function DebugPanel({ sessionId }: { sessionId?: string | null }) {
-  const [open, setOpen]         = useState(false);
-  const [data, setData]         = useState<UsageSnapshot | null>(null);
-  const [tab,  setTab]          = useState<"global" | "routes" | "calls">("global");
-  const [err,  setErr]          = useState<string | null>(null);
+  const [open,       rawSetOpen]   = useState(() => getLS(LS_OPEN,   false));
+  const [pinned,     rawSetPinned] = useState(() => getLS(LS_PINNED, false));
+  const [detailOpen, rawSetDetail] = useState(() => getLS(LS_DETAIL, false));
+  const [tab,  setTab]  = useState<"sessions" | "routes" | "calls">("sessions");
+  const [mode, setMode] = useState<"all" | "copilot" | "arena">("all");
+  const [data, setData] = useState<UsageSnapshot | null>(null);
+  const [err,  setErr]  = useState<string | null>(null);
+
+  const setOpen   = (v: boolean) => { rawSetOpen(v);   setLS(LS_OPEN,   v); };
+  const setPinned = (v: boolean) => { rawSetPinned(v); setLS(LS_PINNED, v); };
+  const setDetail = (v: boolean) => { rawSetDetail(v); setLS(LS_DETAIL, v); };
 
   const fetchData = useCallback(async () => {
     try {
@@ -77,25 +132,23 @@ export function DebugPanel({ sessionId }: { sessionId?: string | null }) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setData(await res.json() as UsageSnapshot);
       setErr(null);
-    } catch (e) {
-      setErr(String(e));
-    }
+    } catch (e) { setErr(String(e)); }
   }, []);
 
-  // Keyboard shortcut: Ctrl+Shift+D
+  // Keyboard shortcut: Ctrl/Cmd+Shift+D
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
+    const h = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "D") {
         e.preventDefault();
-        setOpen(o => !o);
+        setOpen(!open);
       }
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape" && open && !pinned) setOpen(false);
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [open, pinned]);
 
-  // Poll while open
+  // Auto-poll every 5s while open
   useEffect(() => {
     if (!open) return;
     fetchData();
@@ -103,232 +156,351 @@ export function DebugPanel({ sessionId }: { sessionId?: string | null }) {
     return () => clearInterval(id);
   }, [open, fetchData]);
 
-  const session = data?.sessions.find(s => s.sessionId === sessionId);
+  const session  = data?.sessions.find(s => s.sessionId === sessionId) ?? null;
+  const alert    = session ? getAlert(session) : null;
+  const dominant = data ? getDominantRoute(data.routes) : null;
+
+  const filteredSessions = data?.sessions.filter(s => mode === "all" || s.mode === mode) ?? [];
+  const filteredRoutes   = data?.routes.filter(r => mode === "all" || r.route.startsWith(mode)) ?? [];
+  const filteredCalls    = data?.recentCalls.filter(c => mode === "all" || c.mode === mode) ?? [];
 
   return (
     <>
-      {/* Trigger button — bottom-right */}
+      {/* ── Trigger button ───────────────────────────────────────────────── */}
       <button
-        onClick={() => setOpen(o => !o)}
+        onClick={() => setOpen(!open)}
         className={cn(
-          "fixed bottom-3 right-3 z-40 text-[9px] font-mono tracking-widest uppercase px-2 py-1 rounded",
-          "text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all select-none border border-transparent hover:border-zinc-700",
-          open && "text-white bg-zinc-800 border-zinc-700",
+          "fixed bottom-3 right-3 z-40 font-mono text-[9px] tracking-widest uppercase",
+          "px-2.5 py-1 rounded border transition-all select-none",
+          open
+            ? "text-white bg-zinc-800 border-zinc-600"
+            : "text-zinc-500 border-zinc-800 hover:text-zinc-300 hover:border-zinc-600",
         )}
-        title="Panel de uso AI (Ctrl+Shift+D)"
+        title="AI Monitor (Ctrl+Shift+D)"
       >
         AI $
       </button>
 
-      {/* Panel */}
+      {/* ── Click-away backdrop (only when not pinned) ───────────────────── */}
+      {open && !pinned && (
+        <div
+          className="fixed inset-0"
+          style={{ zIndex: 49 }}
+          onClick={() => setOpen(false)}
+        />
+      )}
+
+      {/* ── Panel ────────────────────────────────────────────────────────── */}
       {open && (
-        <div className="fixed inset-0 z-50 flex items-end justify-end pointer-events-none">
-          {/* Backdrop — click to close */}
-          <div
-            className="absolute inset-0 pointer-events-auto"
-            onClick={() => setOpen(false)}
-          />
-          <div
-            className="relative pointer-events-auto mb-8 mr-3 w-[420px] max-h-[80vh] flex flex-col bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl overflow-hidden"
-            onClick={e => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-zinc-800 shrink-0">
-              <div className="flex items-center gap-2">
-                <span className="text-[9px] font-mono tracking-[0.2em] uppercase text-zinc-400">AI Usage</span>
-                {data && (
-                  <span className="text-[9px] font-mono text-zinc-600">
-                    desde {fmtTime(data.serverStartedAt)}
-                  </span>
-                )}
-              </div>
-              <button onClick={() => setOpen(false)} className="text-zinc-600 hover:text-zinc-300 text-xs font-mono">✕</button>
+        <div className="fixed bottom-11 right-3 z-50 w-[370px] max-h-[84vh] flex flex-col bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl overflow-hidden">
+
+          {/* ─ Header ──────────────────────────────────────────────────── */}
+          <div className="flex items-center justify-between px-3.5 py-2 border-b border-zinc-800 shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] font-mono tracking-[0.22em] uppercase text-zinc-300 font-semibold">
+                AI Monitor
+              </span>
+              {pinned && (
+                <span className="text-[6.5px] font-mono tracking-widest uppercase text-zinc-700 border border-zinc-800 px-1 py-0.5 rounded">
+                  fijado
+                </span>
+              )}
             </div>
+            <div className="flex items-center gap-0.5">
+              <button
+                onClick={() => setPinned(!pinned)}
+                className="p-1 rounded text-zinc-600 hover:text-zinc-300 transition-colors"
+                title={pinned ? "Desfijar panel" : "Fijar panel — no se cierra al clicar fuera"}
+              >
+                {pinned ? <PinOff className="w-3 h-3" /> : <Pin className="w-3 h-3" />}
+              </button>
+              <button
+                onClick={() => setOpen(false)}
+                className="p-1 rounded text-zinc-600 hover:text-zinc-300 transition-colors"
+                title="Cerrar"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
 
-            {/* Error */}
-            {err && (
-              <div className="px-4 py-2 text-[10px] font-mono text-amber-400 border-b border-zinc-800">{err}</div>
-            )}
+          {err && (
+            <div className="px-3.5 py-1.5 text-[9px] font-mono text-amber-400 border-b border-zinc-800 shrink-0">
+              {err}
+            </div>
+          )}
 
-            {data && (
-              <>
-                {/* Global KPIs */}
-                <div className="grid grid-cols-3 divide-x divide-zinc-800 border-b border-zinc-800 shrink-0">
-                  {[
-                    { label: "LLAMADAS",  value: String(data.global.calls) },
-                    { label: "TOKENS",    value: fmtK(data.global.totalTokens) },
-                    { label: "COSTE",     value: fmt$(data.global.totalCostUsd) },
-                  ].map(kpi => (
-                    <div key={kpi.label} className="flex flex-col items-center py-2.5 gap-0.5">
-                      <p className="text-[8px] font-mono tracking-widest uppercase text-zinc-600">{kpi.label}</p>
-                      <p className="text-sm font-mono font-bold text-white">{kpi.value}</p>
-                    </div>
-                  ))}
-                </div>
+          <div className="overflow-y-auto flex-1">
+            {data ? (
+              <div className="flex flex-col">
 
-                {/* Current session — if available */}
-                {session && (
-                  <div className="px-4 py-2.5 border-b border-zinc-800 shrink-0 bg-zinc-900/50">
-                    <p className="text-[8px] font-mono tracking-widest uppercase text-zinc-500 mb-1.5">SESIÓN ACTUAL</p>
-                    <div className="grid grid-cols-4 gap-x-3 gap-y-0.5">
-                      {[
-                        { l: "modo",    v: session.mode },
-                        { l: "calls",   v: String(session.calls) },
-                        { l: "tokens",  v: fmtK(session.totalTokens) },
-                        { l: "coste",   v: fmt$(session.totalCostUsd) },
-                        { l: "in",      v: fmtK(session.totalPromptTokens) },
-                        { l: "out",     v: fmtK(session.totalCompletionTokens) },
-                        { l: "lat avg", v: `${session.avgLatencyMs}ms` },
-                        { l: "id",      v: session.sessionId.slice(0, 8) },
-                      ].map(item => (
-                        <div key={item.l} className="flex flex-col">
-                          <span className="text-[8px] font-mono text-zinc-600 uppercase tracking-widest">{item.l}</span>
-                          <span className="text-[10px] font-mono text-zinc-300 font-semibold truncate">{item.v}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Tabs */}
-                <div className="flex border-b border-zinc-800 shrink-0">
-                  {(["global", "routes", "calls"] as const).map(t => (
-                    <button
-                      key={t}
-                      onClick={() => setTab(t)}
-                      className={cn(
-                        "flex-1 text-[9px] font-mono tracking-widest uppercase py-2 transition-colors",
-                        tab === t ? "text-white border-b border-white -mb-px" : "text-zinc-600 hover:text-zinc-300",
+                {/* ─ SESIÓN ACTUAL ─────────────────────────────────────── */}
+                <section className="px-3.5 pt-3 pb-3 border-b border-zinc-800/70">
+                  <div className="flex items-center justify-between mb-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[7.5px] font-mono tracking-[0.2em] uppercase text-zinc-600">
+                        Sesión actual
+                      </span>
+                      {session && (
+                        <span className="text-[7px] font-mono text-zinc-700">
+                          {session.mode} · {shortId(session.sessionId)}
+                        </span>
                       )}
-                    >
-                      {t === "global" ? "Sesiones" : t === "routes" ? "Rutas" : "Llamadas"}
-                    </button>
-                  ))}
-                </div>
+                    </div>
+                    {alert && (
+                      <span className={cn(
+                        "text-[7.5px] font-mono tracking-widest uppercase px-1.5 py-0.5 rounded border font-bold",
+                        alert.cls, alert.bg,
+                      )}>
+                        {alert.level}
+                      </span>
+                    )}
+                  </div>
 
-                {/* Tab content */}
-                <div className="overflow-y-auto flex-1">
-                  {/* ── Sessions tab ── */}
-                  {tab === "global" && (
-                    <table className="w-full text-[10px] font-mono">
-                      <thead className="sticky top-0 bg-zinc-950">
-                        <tr className="text-zinc-600 text-[8px] uppercase tracking-widest">
-                          <td className="px-3 py-1.5">ID</td>
-                          <td className="px-3 py-1.5">Modo</td>
-                          <td className="px-3 py-1.5 text-right">Calls</td>
-                          <td className="px-3 py-1.5 text-right">Tokens</td>
-                          <td className="px-3 py-1.5 text-right">Coste</td>
-                          <td className="px-3 py-1.5 text-right">Lat</td>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {data.sessions.length === 0 && (
-                          <tr><td colSpan={6} className="px-3 py-4 text-zinc-600 text-center">Sin sesiones activas</td></tr>
-                        )}
-                        {data.sessions.map(s => (
-                          <tr key={s.sessionId} className={cn(
-                            "border-t border-zinc-800/50 hover:bg-zinc-900/30",
-                            s.sessionId === sessionId && "bg-zinc-900/60",
-                          )}>
-                            <td className="px-3 py-1.5 text-zinc-500">{s.sessionId.slice(0, 8)}</td>
-                            <td className="px-3 py-1.5 text-zinc-400">{s.mode}</td>
-                            <td className="px-3 py-1.5 text-right text-zinc-300">{s.calls}</td>
-                            <td className="px-3 py-1.5 text-right text-zinc-300">{fmtK(s.totalTokens)}</td>
-                            <td className="px-3 py-1.5 text-right text-teal-400">{fmt$(s.totalCostUsd)}</td>
-                            <td className="px-3 py-1.5 text-right text-zinc-500">{s.avgLatencyMs}ms</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  {session ? (
+                    <div className="grid grid-cols-4 gap-3">
+                      <Kpi label="Coste"    value={fmt$(session.totalCostUsd)}         hi />
+                      <Kpi label="Tokens"   value={fmtK(session.totalTokens)} />
+                      <Kpi label="Llamadas" value={String(session.calls)} />
+                      <Kpi label="Latencia" value={fmtMs(session.avgLatencyMs)} />
+                    </div>
+                  ) : (
+                    <p className="text-[9px] font-mono text-zinc-700 italic">Sin sesión activa</p>
                   )}
+                </section>
 
-                  {/* ── Routes tab ── */}
-                  {tab === "routes" && (
-                    <table className="w-full text-[10px] font-mono">
-                      <thead className="sticky top-0 bg-zinc-950">
-                        <tr className="text-zinc-600 text-[8px] uppercase tracking-widest">
-                          <td className="px-3 py-1.5">Ruta</td>
-                          <td className="px-3 py-1.5 text-right">Calls</td>
-                          <td className="px-3 py-1.5 text-right">Avg in</td>
-                          <td className="px-3 py-1.5 text-right">Avg out</td>
-                          <td className="px-3 py-1.5 text-right">Coste total</td>
-                          <td className="px-3 py-1.5 text-right">Lat</td>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {data.routes.map(r => (
-                          <tr key={r.route} className="border-t border-zinc-800/50 hover:bg-zinc-900/30">
-                            <td className="px-3 py-1.5 text-zinc-300 max-w-[120px] truncate">{r.route}</td>
-                            <td className="px-3 py-1.5 text-right text-zinc-500">{r.calls}</td>
-                            <td className="px-3 py-1.5 text-right text-zinc-500">{r.avgPromptTokens}</td>
-                            <td className="px-3 py-1.5 text-right text-zinc-500">{r.avgCompletionTokens}</td>
-                            <td className="px-3 py-1.5 text-right text-teal-400">{fmt$(r.totalCostUsd)}</td>
-                            <td className="px-3 py-1.5 text-right text-zinc-500">{r.avgLatencyMs}ms</td>
-                          </tr>
-                        ))}
-                        {data.routes.length === 0 && (
-                          <tr><td colSpan={6} className="px-3 py-4 text-zinc-600 text-center">Sin llamadas registradas</td></tr>
-                        )}
-                      </tbody>
-                    </table>
-                  )}
+                {/* ─ GLOBAL ────────────────────────────────────────────── */}
+                <section className="px-3.5 pt-2.5 pb-3 border-b border-zinc-800/70">
+                  <div className="flex items-center justify-between mb-2.5">
+                    <span className="text-[7.5px] font-mono tracking-[0.2em] uppercase text-zinc-600">
+                      Global · desde arranque
+                    </span>
+                    {dominant && (
+                      <span className="text-[7.5px] font-mono tracking-widest text-sky-400 uppercase">
+                        ↑ {dominant}
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-4 gap-3">
+                    <Kpi label="Total $"  value={fmt$(data.global.totalCostUsd)} />
+                    <Kpi label="Tokens"   value={fmtK(data.global.totalTokens)} />
+                    <Kpi label="Calls"    value={String(data.global.calls)} />
+                    <Kpi
+                      label="Top ruta"
+                      value={data.routes[0] ? routeLabel(data.routes[0].route) : "—"}
+                      sub={data.routes[0] ? fmt$(data.routes[0].totalCostUsd) : undefined}
+                    />
+                  </div>
+                </section>
 
-                  {/* ── Recent calls tab ── */}
-                  {tab === "calls" && (
-                    <table className="w-full text-[10px] font-mono">
-                      <thead className="sticky top-0 bg-zinc-950">
-                        <tr className="text-zinc-600 text-[8px] uppercase tracking-widest">
-                          <td className="px-3 py-1.5">Hora</td>
-                          <td className="px-3 py-1.5">Endpoint</td>
-                          <td className="px-3 py-1.5 text-right">In</td>
-                          <td className="px-3 py-1.5 text-right">Out</td>
-                          <td className="px-3 py-1.5 text-right">Coste</td>
-                          <td className="px-3 py-1.5 text-right">ms</td>
-                          <td className="px-3 py-1.5 text-right">st</td>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {data.recentCalls.map(c => (
-                          <tr
-                            key={c.callId}
-                            title={c.notes ?? ""}
+                {/* ─ DETALLE (collapsible) ─────────────────────────────── */}
+                <section>
+                  <button
+                    onClick={() => setDetail(!detailOpen)}
+                    className="w-full flex items-center gap-1.5 px-3.5 py-2 text-zinc-600 hover:text-zinc-400 transition-colors border-b border-zinc-800/70 text-left"
+                  >
+                    {detailOpen
+                      ? <ChevronDown className="w-3 h-3 shrink-0" />
+                      : <ChevronRight className="w-3 h-3 shrink-0" />
+                    }
+                    <span className="text-[8px] font-mono tracking-widest uppercase">
+                      {detailOpen ? "Ocultar detalle" : "Ver detalle"}
+                    </span>
+                  </button>
+
+                  {detailOpen && (
+                    <>
+                      {/* Mode filter */}
+                      <div className="flex border-b border-zinc-800/50">
+                        {(["all", "copilot", "arena"] as const).map(m => (
+                          <button
+                            key={m}
+                            onClick={() => setMode(m)}
                             className={cn(
-                              "border-t border-zinc-800/50 hover:bg-zinc-900/30",
-                              c.status === "error" && "bg-amber-900/10",
+                              "flex-1 text-[7.5px] font-mono tracking-widest uppercase py-1.5 transition-colors",
+                              mode === m
+                                ? "text-zinc-200 bg-zinc-800/50"
+                                : "text-zinc-600 hover:text-zinc-400",
                             )}
                           >
-                            <td className="px-3 py-1.5 text-zinc-600">{fmtTime(c.timestamp)}</td>
-                            <td className="px-3 py-1.5 text-zinc-300">{c.endpoint}</td>
-                            <td className="px-3 py-1.5 text-right text-zinc-500">{c.promptTokens}</td>
-                            <td className="px-3 py-1.5 text-right text-zinc-500">{c.completionTokens}</td>
-                            <td className="px-3 py-1.5 text-right text-teal-400">{fmt$(c.estimatedCostUsd)}</td>
-                            <td className="px-3 py-1.5 text-right text-zinc-500">{c.latencyMs}</td>
-                            <td className={cn(
-                              "px-3 py-1.5 text-right",
-                              c.status === "ok" ? "text-emerald-500" : c.status === "error" ? "text-amber-400" : "text-zinc-500",
-                            )}>{c.status[0]}</td>
-                          </tr>
+                            {m === "all" ? "Todo" : m}
+                          </button>
                         ))}
-                        {data.recentCalls.length === 0 && (
-                          <tr><td colSpan={7} className="px-3 py-4 text-zinc-600 text-center">Sin llamadas</td></tr>
-                        )}
-                      </tbody>
-                    </table>
+                      </div>
+
+                      {/* Tab selector */}
+                      <div className="flex border-b border-zinc-800/50">
+                        {(["sessions", "routes", "calls"] as const).map(t => (
+                          <button
+                            key={t}
+                            onClick={() => setTab(t)}
+                            className={cn(
+                              "flex-1 text-[7.5px] font-mono tracking-widest uppercase py-1.5 transition-colors",
+                              tab === t
+                                ? "text-white border-b border-zinc-300 -mb-px"
+                                : "text-zinc-600 hover:text-zinc-400",
+                            )}
+                          >
+                            {t === "sessions" ? "Sesiones" : t === "routes" ? "Rutas" : "Llamadas"}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Sessions table */}
+                      {tab === "sessions" && (
+                        <table className="w-full text-[9px] font-mono">
+                          <thead className="sticky top-0 bg-zinc-950">
+                            <tr className="text-zinc-700 text-[7px] uppercase tracking-widest">
+                              <th className="px-3 py-1.5 text-left font-normal">ID</th>
+                              <th className="px-1 py-1.5 text-left font-normal">Modo</th>
+                              <th className="px-1 py-1.5 text-right font-normal">Calls</th>
+                              <th className="px-1 py-1.5 text-right font-normal">Tok</th>
+                              <th className="px-1 py-1.5 text-right font-normal">$</th>
+                              <th className="px-2 py-1.5 text-right font-normal">Lat</th>
+                              <th className="px-2 py-1.5 text-right font-normal">Est</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filteredSessions.length === 0 && (
+                              <tr>
+                                <td colSpan={7} className="px-3 py-3 text-zinc-700 text-center">
+                                  Sin sesiones
+                                </td>
+                              </tr>
+                            )}
+                            {filteredSessions.map(s => {
+                              const a = getAlert(s);
+                              return (
+                                <tr
+                                  key={s.sessionId}
+                                  className={cn(
+                                    "border-t border-zinc-800/30",
+                                    s.sessionId === sessionId
+                                      ? "bg-zinc-900/60"
+                                      : "hover:bg-zinc-900/20",
+                                  )}
+                                >
+                                  <td className="px-3 py-1 text-zinc-500">{shortId(s.sessionId)}</td>
+                                  <td className="px-1 py-1 text-zinc-500 capitalize">{s.mode}</td>
+                                  <td className="px-1 py-1 text-right text-zinc-400">{s.calls}</td>
+                                  <td className="px-1 py-1 text-right text-zinc-400">{fmtK(s.totalTokens)}</td>
+                                  <td className="px-1 py-1 text-right text-teal-400">{fmt$(s.totalCostUsd)}</td>
+                                  <td className="px-2 py-1 text-right text-zinc-500">{fmtMs(s.avgLatencyMs)}</td>
+                                  <td className="px-2 py-1 text-right">
+                                    <span className={cn("text-[7px] font-bold", a.cls)}>
+                                      {a.level === "NORMAL" ? "OK" : a.level.split(" ")[0]}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      )}
+
+                      {/* Routes table */}
+                      {tab === "routes" && (
+                        <table className="w-full text-[9px] font-mono">
+                          <thead className="sticky top-0 bg-zinc-950">
+                            <tr className="text-zinc-700 text-[7px] uppercase tracking-widest">
+                              <th className="px-3 py-1.5 text-left font-normal">Endpoint</th>
+                              <th className="px-1 py-1.5 text-right font-normal">Calls</th>
+                              <th className="px-1 py-1.5 text-right font-normal">In</th>
+                              <th className="px-1 py-1.5 text-right font-normal">Out</th>
+                              <th className="px-1 py-1.5 text-right font-normal">$</th>
+                              <th className="px-2 py-1.5 text-right font-normal">Lat</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filteredRoutes.length === 0 && (
+                              <tr>
+                                <td colSpan={6} className="px-3 py-3 text-zinc-700 text-center">
+                                  Sin rutas
+                                </td>
+                              </tr>
+                            )}
+                            {filteredRoutes.map(r => (
+                              <tr key={r.route} className="border-t border-zinc-800/30 hover:bg-zinc-900/20">
+                                <td className="px-3 py-1 text-zinc-300">{routeLabel(r.route)}</td>
+                                <td className="px-1 py-1 text-right text-zinc-500">{r.calls}</td>
+                                <td className="px-1 py-1 text-right text-zinc-600">{r.avgPromptTokens}</td>
+                                <td className="px-1 py-1 text-right text-zinc-600">{r.avgCompletionTokens}</td>
+                                <td className="px-1 py-1 text-right text-teal-400">{fmt$(r.totalCostUsd)}</td>
+                                <td className="px-2 py-1 text-right text-zinc-500">{fmtMs(r.avgLatencyMs)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+
+                      {/* Recent calls table */}
+                      {tab === "calls" && (
+                        <table className="w-full text-[9px] font-mono">
+                          <thead className="sticky top-0 bg-zinc-950">
+                            <tr className="text-zinc-700 text-[7px] uppercase tracking-widest">
+                              <th className="px-3 py-1.5 text-left font-normal">Hora</th>
+                              <th className="px-1 py-1.5 text-left font-normal">End.</th>
+                              <th className="px-1 py-1.5 text-right font-normal">In</th>
+                              <th className="px-1 py-1.5 text-right font-normal">Out</th>
+                              <th className="px-1 py-1.5 text-right font-normal">$</th>
+                              <th className="px-2 py-1.5 text-right font-normal">ms</th>
+                              <th className="px-2 py-1.5 text-right font-normal">st</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filteredCalls.length === 0 && (
+                              <tr>
+                                <td colSpan={7} className="px-3 py-3 text-zinc-700 text-center">
+                                  Sin llamadas
+                                </td>
+                              </tr>
+                            )}
+                            {filteredCalls.map(c => (
+                              <tr
+                                key={c.callId}
+                                title={c.notes ?? undefined}
+                                className={cn(
+                                  "border-t border-zinc-800/30",
+                                  c.status === "error" ? "bg-amber-900/10" : "hover:bg-zinc-900/20",
+                                )}
+                              >
+                                <td className="px-3 py-1 text-zinc-600">{fmtTime(c.timestamp)}</td>
+                                <td className="px-1 py-1 text-zinc-300 max-w-[70px] truncate">{c.endpoint}</td>
+                                <td className="px-1 py-1 text-right text-zinc-600">{c.promptTokens}</td>
+                                <td className="px-1 py-1 text-right text-zinc-600">{c.completionTokens}</td>
+                                <td className="px-1 py-1 text-right text-teal-400">{fmt$(c.estimatedCostUsd)}</td>
+                                <td className="px-2 py-1 text-right text-zinc-500">{fmtMs(c.latencyMs)}</td>
+                                <td className={cn(
+                                  "px-2 py-1 text-right text-[8px] font-bold",
+                                  c.status === "ok" ? "text-emerald-500" : c.status === "error" ? "text-amber-400" : "text-zinc-600",
+                                )}>
+                                  {c.status === "ok" ? "OK" : c.status === "error" ? "ERR" : "PAR"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </>
                   )}
-                </div>
+                </section>
 
-                {/* Footer */}
-                <div className="px-4 py-2 border-t border-zinc-800 shrink-0 text-[8px] font-mono text-zinc-700 flex justify-between">
-                  <span>Ctrl+Shift+D para cerrar</span>
-                  <span>↻ cada 5s</span>
-                </div>
-              </>
-            )}
-
-            {!data && !err && (
-              <div className="flex-1 flex items-center justify-center text-[10px] font-mono text-zinc-600">Cargando…</div>
-            )}
+              </div>
+            ) : !err ? (
+              <div className="flex items-center justify-center py-10 text-[9px] font-mono text-zinc-700">
+                Cargando…
+              </div>
+            ) : null}
           </div>
+
+          {/* ─ Footer ──────────────────────────────────────────────────── */}
+          <div className="flex items-center justify-between px-3.5 py-1.5 border-t border-zinc-800 shrink-0">
+            <span className="text-[7px] font-mono text-zinc-700">
+              {pinned ? "fijado · no se cierra solo" : "ctrl+shift+D"}
+            </span>
+            <span className="text-[7px] font-mono text-zinc-700">↻ 5s</span>
+          </div>
+
         </div>
       )}
     </>

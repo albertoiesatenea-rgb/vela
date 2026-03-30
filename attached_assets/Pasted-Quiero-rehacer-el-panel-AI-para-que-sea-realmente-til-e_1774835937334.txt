@@ -1,0 +1,196 @@
+Quiero rehacer el panel "AI $" para que sea realmente útil en el día a día.
+
+IMPORTANTE
+La base ya existe, pero ahora mismo el panel muestra demasiada información secundaria y no prioriza lo que de verdad importa.
+No quiero un mini dashboard de tablas.
+Quiero un monitor táctico, simple, fijable y útil.
+
+OBJETIVO
+Que el panel "AI $" sirva para:
+- ver de un vistazo si la sesión actual está gastando demasiado
+- ver los KPIs importantes sin ruido
+- dejarlo fijo mientras uso la app
+- recibir una alerta si una sesión o ruta se dispara
+- ocultar el detalle secundario si no hace falta
+
+PROBLEMAS ACTUALES
+1. No tengo todavía una opción real de fijarlo
+2. Lo de abajo (sesiones / rutas / llamadas) aporta poco valor en el uso normal
+3. El foco debería estar en los KPIs, no en tablas
+4. Quiero detectar rápido si algo se está yendo de madre
+5. El panel debería sentirse más como un monitor vivo y menos como un panel admin
+
+CAMBIO 1 — MODO FIJADO REAL
+Implementar correctamente la opción de fijar el panel.
+
+Requisitos:
+- añadir un control claro de pin/unpin
+- si está fijado, no debe cerrarse al hacer click fuera
+- debe quedarse visible mientras sigo usando la app
+- debe seguir refrescando
+- debe recordar el estado fijado en localStorage
+- también recordar si estaba abierto/cerrado y la vista seleccionada si es fácil
+
+Si no está fijado:
+- puede seguir funcionando como popover ligero
+
+CAMBIO 2 — NUEVA JERARQUÍA DEL PANEL
+Quiero que el panel priorice brutalmente los KPIs.
+
+La vista por defecto debe centrarse en:
+- coste de la sesión actual
+- tokens de la sesión actual
+- llamadas de la sesión actual
+- latencia media de la sesión actual
+- modelo usado
+- coste total reciente / desde arranque
+- ruta más cara
+- alerta de si la sesión actual está dentro de lo normal o se está disparando
+
+Las tablas de detalle NO deben ser lo primero que domine el panel.
+
+CAMBIO 3 — DETALLE SECUNDARIO PLEGABLE
+Las secciones de:
+- sesiones
+- rutas
+- llamadas
+
+deben pasar a ser secundarias.
+
+Opciones válidas:
+- un bloque “Ver detalle”
+- acordeón
+- toggle “Detalle”
+- tabs ocultas detrás de una vista expandida
+
+Pero por defecto quiero ver solo:
+- KPIs
+- estado
+- alertas
+
+Si el detalle existe, que esté disponible, pero no protagonice la UI.
+
+CAMBIO 4 — ALERTAS ÚTILES
+Quiero una lógica simple de alerta para detectar sesiones caras o anómalas.
+
+No quiero una IA nueva para esto.
+Quiero reglas prácticas.
+
+Implementar al menos:
+- alerta si la sesión actual supera claramente el coste medio reciente
+- alerta si la latencia media es anormalmente alta
+- alerta si una ruta domina demasiado el gasto
+- alerta si el número de llamadas por sesión se está disparando
+
+Formato de alerta:
+- discreto pero visible
+- por ejemplo:
+  - NORMAL
+  - VIGILAR
+  - CARA
+  - LATENCIA ALTA
+  - RUTA DOMINANTE: analyze
+
+No quiero una alarma roja gigante.
+Sí quiero señal útil.
+
+CAMBIO 5 — SESIÓN ACTUAL COMO FOCO
+Quiero que el panel tenga un bloque claramente identificado como:
+- SESIÓN ACTUAL
+
+Y que ahí se vea:
+- sessionId corto
+- modo: copilot / arena
+- calls
+- tokens
+- coste
+- latencia media
+- endpoint dominante si aplica
+- estado: normal / vigilar / cara
+
+Esto debe ser el centro del panel.
+
+CAMBIO 6 — RESUMEN GLOBAL MUY SIMPLE
+Debajo o al lado, un bloque secundario:
+- total reciente o desde arranque
+- llamadas totales
+- tokens totales
+- coste total
+- ruta más cara
+
+Nada más.
+No hace falta más complejidad por ahora.
+
+CAMBIO 7 — LIMPIEZA DE UI
+Quiero una UI más limpia y más legible.
+
+Mejoras:
+- mejor jerarquía tipográfica
+- más aire en los KPIs
+- menos sensación de tabla administrativa
+- menos gris confuso
+- mejor contraste
+- mantener estilo Closer Wizard:
+  - negro
+  - blanco
+  - gris
+  - monoespaciada
+  - serio
+  - táctico
+
+No meter:
+- charts
+- donuts
+- barras de progreso decorativas
+- colores absurdos
+- estilo SaaS corporativo genérico
+
+CAMBIO 8 — DETALLE SOLO SI APORTA
+Si mantienes las tablas de sesiones/rutas/llamadas:
+- que sean más limpias
+- que se entiendan mejor
+- que no usen demasiado espacio
+- que no aparezcan por defecto dominando la pantalla
+
+Si ves que alguna pestaña no aporta casi nada en esta fase, simplifícala o escóndela detrás de “ver detalle”.
+
+CAMBIO 9 — TEXTO Y FORMATO
+Quiero que el dinero y los tokens se lean mejor.
+
+Ejemplos:
+- coste con formato claro
+- evitar cosas raras como $0.0450m si queda confuso
+- usar formato consistente:
+  - $0.0009
+  - 3.8k tokens
+  - 14 calls
+  - 791 ms
+
+Hazlo legible y coherente.
+
+CAMBIO 10 — UTILIDAD REAL
+Quiero que el panel me responda visualmente a estas preguntas sin pensar mucho:
+- ¿esta sesión está gastando poco o mucho?
+- ¿arena o copiloto está gastando más?
+- ¿la latencia está bien o mal?
+- ¿hay alguna ruta que se está yendo de madre?
+- ¿necesito preocuparme ahora mismo o no?
+
+CRITERIOS DE ACEPTACIÓN
+Esto solo estará bien hecho si:
+- puedo fijar el panel de verdad
+- se queda visible mientras uso la app
+- los KPIs son el foco principal
+- las tablas pasan a segundo plano
+- existe una alerta útil de sesión cara o anómala
+- la sesión actual se entiende de un vistazo
+- el panel sigue encajando visualmente con Closer Wizard
+- no parece un dashboard enterprise metido con calzador
+
+AL FINAL DE LA TAREA
+Explícame brevemente:
+1. qué archivos has tocado
+2. cómo funciona ahora el modo fijado
+3. qué recuerdas en localStorage
+4. cómo calculas las alertas
+5. qué has simplificado a propósito para centrar el panel en lo útil
