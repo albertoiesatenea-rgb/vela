@@ -1385,21 +1385,6 @@ export function Arena({
       <div className="shrink-0 border-t border-white/6 px-4 py-3">
         <div className="max-w-2xl mx-auto flex flex-col gap-2">
 
-          {/* Download log — floats above the typing area, right-aligned */}
-          {messages.some(m => m.speaker === "user") && (
-            <div className="flex justify-end">
-              <button
-                onClick={handleMidSessionDownload}
-                onMouseDown={e => e.preventDefault()}
-                title={lang === "es" ? "Descargar log de conversación" : "Download conversation log"}
-                className="flex items-center gap-1.5 text-[9px] font-mono tracking-widest uppercase text-zinc-600 hover:text-zinc-300 transition-colors"
-              >
-                <Download className="w-3 h-3" />
-                log
-              </button>
-            </div>
-          )}
-
           {/* Client mode: outcome shortcuts OR exit panel */}
           {role === "client" && !isStarting && messages.length >= 1 && (
             exitStep !== null ? (
@@ -1510,21 +1495,34 @@ export function Arena({
                   }
                 </button>
               </div>
-              <button
-                onClick={() => {
-                  const hasUserTurns = messages.some(m => m.speaker === "user");
-                  if (!hasUserTurns) { setShowEarlyExit(true); }
-                  else { void handleEnd("manual_stop"); }
-                }}
-                disabled={isEnding || isStarting}
-                onMouseDown={e => e.preventDefault()}
-                className="w-20 h-full rounded-xl border border-zinc-700 text-zinc-300 text-[9px] font-mono tracking-wider uppercase leading-snug hover:border-zinc-400 hover:text-white active:scale-[0.98] transition-all disabled:opacity-25 disabled:pointer-events-none flex items-center justify-center text-center px-1"
-              >
-                {isEnding
-                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  : <span>{lang === "es" ? "Terminar sesión" : "End session"}</span>
-                }
-              </button>
+              <div className="flex flex-col gap-1.5 h-full">
+                <button
+                  onClick={() => {
+                    const hasUserTurns = messages.some(m => m.speaker === "user");
+                    if (!hasUserTurns) { setShowEarlyExit(true); }
+                    else { void handleEnd("manual_stop"); }
+                  }}
+                  disabled={isEnding || isStarting}
+                  onMouseDown={e => e.preventDefault()}
+                  className="w-20 flex-1 rounded-xl border border-zinc-700 text-zinc-300 text-[9px] font-mono tracking-wider uppercase leading-snug hover:border-zinc-400 hover:text-white active:scale-[0.98] transition-all disabled:opacity-25 disabled:pointer-events-none flex items-center justify-center text-center px-1"
+                >
+                  {isEnding
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <span>{lang === "es" ? "Terminar sesión" : "End session"}</span>
+                  }
+                </button>
+                {messages.some(m => m.speaker === "user") && (
+                  <button
+                    onClick={handleMidSessionDownload}
+                    onMouseDown={e => e.preventDefault()}
+                    title={lang === "es" ? "Descargar log de conversación" : "Download conversation log"}
+                    className="w-20 flex items-center justify-center gap-1 text-[8px] font-mono tracking-widest uppercase text-zinc-600 hover:text-zinc-300 transition-colors"
+                  >
+                    <Download className="w-2.5 h-2.5" />
+                    log
+                  </button>
+                )}
+              </div>
             </div>
           ) : (
             /* Client: seller notes + textarea */
@@ -1564,6 +1562,17 @@ export function Arena({
                   {lang === "es" ? "↓ Ok, sigue · ↑ No estoy de acuerdo · Enter envía" : "↓ Keep going · ↑ Disagree · Enter sends"}
                 </p>
                 <div className="flex items-center gap-1.5">
+                  {messages.some(m => m.speaker === "user") && (
+                    <button
+                      onClick={handleMidSessionDownload}
+                      onMouseDown={e => e.preventDefault()}
+                      title={lang === "es" ? "Descargar log de conversación" : "Download conversation log"}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[8px] font-mono tracking-widest uppercase border transition-all text-zinc-600 border-zinc-800 hover:text-zinc-400 hover:border-zinc-600"
+                    >
+                      <Download className="w-2.5 h-2.5" />
+                      log
+                    </button>
+                  )}
                   <button
                     onClick={() => setCoachOn(prev => !prev)}
                     onMouseDown={e => e.preventDefault()}
