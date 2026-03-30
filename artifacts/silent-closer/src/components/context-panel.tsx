@@ -295,7 +295,14 @@ function ArenaAdvancedForm({
   const icons = isSeller ? ARENA_ADV_ICONS_SELLER : ARENA_ADV_ICONS_CLIENT;
 
   const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState<string[]>(Array(questions.length).fill(""));
+  const [answers, setAnswers] = useState<string[]>(() => Array(questions.length).fill(""));
+
+  // Reset when role changes (question count changes)
+  useEffect(() => {
+    setStep(0);
+    setAnswers(Array(questions.length).fill(""));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role]);
 
   const setAnswer = (v: string) =>
     setAnswers(prev => { const n = [...prev]; n[step] = v; return n; });
@@ -321,7 +328,7 @@ function ArenaAdvancedForm({
         {labels.map((label, i) => {
           const Icon = icons[i];
           const isCurrent = i === step;
-          const isFilled = answers[i].trim().length > 0;
+          const isFilled = (answers[i] ?? "").trim().length > 0;
           return (
             <button
               key={i}

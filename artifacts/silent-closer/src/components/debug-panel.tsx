@@ -4,7 +4,7 @@
  * Toggle: "AI $" button (bottom-right) or Ctrl+Shift+D.
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Pin, PinOff, X, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -113,6 +113,14 @@ function Kpi({
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
+// ── Heavy-call thresholds ──────────────────────────────────────────────────────
+// Fires if single call exceeds ABS tokens OR is MULT times the running session avg
+const HEAVY_ABS   = 900;   // tokens — absolute floor
+const HEAVY_MULT  = 1.75;  // multiplier over session average
+const HEAVY_MIN_N = 3;     // minimum calls before using relative threshold
+
+interface HeavyNotif { tokens: number; cost: number | null; endpoint: string }
+
 export function DebugPanel({ sessionId }: { sessionId?: string | null }) {
   const [open,       rawSetOpen]   = useState(() => getLS(LS_OPEN,   false));
   const [pinned,     rawSetPinned] = useState(() => getLS(LS_PINNED, false));
@@ -121,6 +129,12 @@ export function DebugPanel({ sessionId }: { sessionId?: string | null }) {
   const [mode, setMode] = useState<"all" | "copilot" | "arena">("all");
   const [data, setData] = useState<UsageSnapshot | null>(null);
   const [err,  setErr]  = useState<string | null>(null);
+  const [heavyNotif, setHeavyNotif] = useState<HeavyNotif | null>(null);
+  const [notifVisible, setNotifVisible] = useState(false);
+
+  const lastCallIdRef  = useRef<string | null>(null);
+  const notifTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fadeTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const setOpen   = (v: boolean) => { rawSetOpen(v);   setLS(LS_OPEN,   v); };
   const setPinned = (v: boolean) => { rawSetPinned(v); setLS(LS_PINNED, v); };
@@ -155,6 +169,40 @@ export function DebugPanel({ sessionId }: { sessionId?: string | null }) {
     return () => clearInterval(id);
   }, [fetchData]);
 
+  // Heavy-call detection: fires whenever recentCalls updates
+  useEffect(() => {
+    if (!data?.recentCalls.length) return;
+    const latest = data.recentCalls[0];
+    if (!latest || latest.callId === lastCallIdRef.current) return;
+    lastCallIdRef.current = latest.callId;
+
+    // Compare against session average (excluding the latest call itself)
+    const sessionCalls = sessionId
+      ? data.recentCalls.filter(c => c.sessionId === sessionId)
+      : data.recentCalls;
+    const prevCalls = sessionCalls.slice(1);
+    const avgTokens = prevCalls.length > 0
+      ? prevCalls.reduce((s, c) => s + c.totalTokens, 0) / prevCalls.length
+      : null;
+
+    const isHeavyAbsolute = latest.totalTokens >= HEAVY_ABS;
+    const isHeavyRelative = avgTokens !== null
+      && sessionCalls.length >= HEAVY_MIN_N
+      && latest.totalTokens >= avgTokens * HEAVY_MULT;
+
+    if (isHeavyAbsolute || isHeavyRelative) {
+      // Cancel any in-flight timers
+      if (notifTimerRef.current)  clearTimeout(notifTimerRef.current);
+      if (fadeTimerRef.current)   clearTimeout(fadeTimerRef.current);
+      // Trigger notification
+      setHeavyNotif({ tokens: latest.totalTokens, cost: latest.estimatedCostUsd, endpoint: latest.endpoint });
+      setNotifVisible(true);
+      // Hide after 3.5s (start fade 400ms before)
+      notifTimerRef.current = setTimeout(() => setNotifVisible(false), 3100);
+      fadeTimerRef.current  = setTimeout(() => setHeavyNotif(null),    3600);
+    }
+  }, [data, sessionId]);
+
   const session  = data?.sessions.find(s => s.sessionId === sessionId) ?? null;
   const alert    = session ? getAlert(session) : null;
   const dominant = data ? getDominantRoute(data.routes) : null;
@@ -171,6 +219,32 @@ export function DebugPanel({ sessionId }: { sessionId?: string | null }) {
 
   return (
     <>
+      {/* ── Heavy-call notification chip ─────────────────────────────────── */}
+      {heavyNotif && (
+        <div
+          className={cn(
+            "fixed right-3 z-50 pointer-events-none",
+            "transition-all duration-300",
+            notifVisible
+              ? "bottom-11 opacity-100 translate-y-0"
+              : "bottom-9 opacity-0 translate-y-1",
+          )}
+        >
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-900 border border-amber-500/40 shadow-lg shadow-black/60">
+            <span className="text-amber-400 text-[13px] leading-none">⚡</span>
+            <div className="flex flex-col gap-0">
+              <span className="text-[9px] font-mono font-bold text-amber-300 whitespace-nowrap tracking-wide">
+                {fmtK(heavyNotif.tokens)} tok
+                {heavyNotif.cost !== null ? ` · ${fmt$(heavyNotif.cost)}` : ""}
+              </span>
+              <span className="text-[7.5px] font-mono text-zinc-500 tracking-widest uppercase whitespace-nowrap">
+                {routeLabel(heavyNotif.endpoint)} — heavy
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Trigger button ───────────────────────────────────────────────── */}
       <button
         onClick={() => setOpen(!open)}
