@@ -1395,7 +1395,7 @@ export function Arena({
                 className="flex items-center gap-1.5 text-[9px] font-mono tracking-widest uppercase text-zinc-600 hover:text-zinc-300 transition-colors"
               >
                 <Download className="w-3 h-3" />
-                {lang === "es" ? "descargar log" : "download log"}
+                log
               </button>
             </div>
           )}
