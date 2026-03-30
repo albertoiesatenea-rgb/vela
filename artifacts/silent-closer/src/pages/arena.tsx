@@ -1088,8 +1088,8 @@ export function Arena({
 
           {role === "seller" ? (
             /* Seller: textarea (with sparkles icon) + end button side by side */
-            <div className="flex gap-2 items-start">
-              <div className="relative flex-1">
+            <div className="grid gap-2" style={{gridTemplateColumns: "1fr auto"}}>
+              <div className="relative">
                 <textarea
                   ref={textareaRef}
                   value={input}
@@ -1122,7 +1122,7 @@ export function Arena({
                 }}
                 disabled={isEnding || isStarting}
                 onMouseDown={e => e.preventDefault()}
-                className="w-20 shrink-0 rounded-xl border border-zinc-700 text-zinc-300 text-[9px] font-mono tracking-wider uppercase leading-snug hover:border-zinc-400 hover:text-white active:scale-[0.98] transition-all disabled:opacity-25 disabled:pointer-events-none flex items-center justify-center text-center px-1"
+                className="w-20 h-full rounded-xl border border-zinc-700 text-zinc-300 text-[9px] font-mono tracking-wider uppercase leading-snug hover:border-zinc-400 hover:text-white active:scale-[0.98] transition-all disabled:opacity-25 disabled:pointer-events-none flex items-center justify-center text-center px-1"
               >
                 {isEnding
                   ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
