@@ -9,6 +9,7 @@ import { Arena } from "@/pages/arena";
 import type { ArenaRole } from "@/pages/arena";
 import { cn } from "@/lib/utils";
 import { buildCopilotAuditLog, triggerAuditLogDownload } from "@/lib/audit-log";
+import { DebugPanel } from "@/components/debug-panel";
 
 // ── Overlay brand header used in end-of-call screens ────────────────────────
 function WizardOverlayHeader() {
@@ -1453,6 +1454,8 @@ export default function CopilotPage() {
             : T[lang].KBD}
         </p>
       </div>
+
+      <DebugPanel sessionId={sessionId || null} />
     </div>
   );
 }

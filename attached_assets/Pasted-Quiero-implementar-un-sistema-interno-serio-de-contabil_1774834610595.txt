@@ -1,0 +1,207 @@
+Quiero implementar un sistema interno serio de contabilidad de tokens, coste y latencia en mi app, basado en el código ACTUAL.
+
+IMPORTANTE
+No quiero una chapuza decorativa.
+No quiero un contador aproximado metido en un rincón.
+Quiero una capa de observabilidad real de uso de IA, útil para:
+- saber cuánto cuesta cada llamada
+- saber cuánto cuesta cada sesión
+- comparar Copiloto vs Arena
+- detectar qué rutas y flujos gastan más
+- optimizar después con datos reales
+
+OBJETIVO
+Añadir medición interna para TODAS las llamadas al modelo en:
+- POST /api/copilot/analyze
+- POST /api/copilot/summarize
+- POST /api/copilot/context-label
+- POST /api/arena/start
+- POST /api/arena/turn
+- POST /api/arena/suggest
+- POST /api/arena/finish
+y cualquier otra llamada futura a OpenAI
+
+REGLA CLAVE
+Usa siempre los usage reales de la respuesta de OpenAI cuando estén disponibles:
+- prompt_tokens
+- completion_tokens
+- total_tokens
+
+No quiero estimaciones si ya existe usage real.
+Solo estima el coste monetario a partir de esos usage reales y del modelo usado.
+
+ARQUITECTURA
+Quiero una implementación limpia y centralizada.
+
+Hazlo así:
+1. Crear una capa común de tracking para llamadas a IA
+2. Centralizar el registro de usage, coste y latencia
+3. Asociar cada llamada a:
+   - route
+   - sessionId
+   - mode
+   - modelo
+4. Acumular por sesión y por flujo
+5. Exponer una vista debug o panel simple dentro de la app
+
+No dupliques lógica en cada ruta si se puede evitar.
+Si ya hay un helper o cliente OpenAI común, intégralo ahí.
+Si no existe, crea una abstracción limpia.
+
+DATOS QUE QUIERO REGISTRAR POR CADA LLAMADA
+Cada llamada al modelo debe registrar al menos:
+
+- timestamp
+- requestId o callId único
+- route
+- flow_name
+- mode: copilot | arena | other
+- sessionId si existe
+- model
+- prompt_tokens
+- completion_tokens
+- total_tokens
+- estimated_cost
+- latency_ms
+- status: ok | error | partial
+- max_tokens configurado
+- endpoint lógico (por ejemplo: analyze, summarize, suggest, terminal_state, finish)
+- notes opcional si hubo parse error, fallback o retry
+
+MODELO DE DATOS
+Si estás en TypeScript, crea tipos claros para algo como:
+
+- AiUsageRecord
+- UsageStatus
+- SessionUsageSummary
+- RouteUsageSummary
+- DailyUsageSummary
+- UsageStore
+
+CÁLCULO DE COSTE
+Crear una función única y centralizada para coste, algo tipo:
+- estimateModelCost(model, promptTokens, completionTokens)
+
+No quiero precios hardcodeados en 20 sitios.
+Quiero una tabla o config central única por modelo.
+
+Como ahora todo usa gpt-4o-mini, puedes empezar por ese modelo, pero deja la función preparada para soportar otros modelos.
+Si el modelo no está en la tabla, registra el usage igual y marca el coste como null o unknown de forma explícita.
+
+ESTADO Y ALMACENAMIENTO
+Para esta fase, no quiero base de datos.
+Quiero una solución simple y útil.
+
+Implementación válida:
+- store en memoria en backend
+- acumulados por sesión en Map
+- historial reciente de llamadas
+- limpieza razonable para no crecer infinito
+
+Por ejemplo:
+- guardar últimos N registros
+- guardar resúmenes por sesión
+- limpiar sesiones antiguas cerradas
+
+No hace falta persistencia al reiniciar todavía.
+
+RELACIÓN CON LAS SESIONES ACTUALES
+Necesito distinguir claramente:
+- sesiones de Copiloto
+- sesiones de Arena
+
+Si una ruta no tiene sessionId real hoy, revisa cómo asociarla de la forma más limpia posible.
+Prioridad:
+- no romper la app
+- no inventar IDs raros si ya existe uno usable
+- mantener trazabilidad útil
+
+PANEL / DEBUG UI
+Quiero una forma simple de ver esta información dentro de la app.
+
+No ensuciar la UI principal.
+Quiero una de estas dos opciones:
+- integrar en un panel debug existente si ya hay uno
+- o crear una vista debug/admin simple, limpia y colapsable
+
+El panel debe mostrar como mínimo:
+
+PARA LA SESIÓN ACTUAL
+- sessionId
+- modo
+- llamadas realizadas
+- prompt tokens acumulados
+- completion tokens acumulados
+- total tokens acumulados
+- coste estimado acumulado
+- latencia media
+- modelo principal usado
+
+PARA VISIÓN GLOBAL RECIENTE
+- coste estimado del día o desde arranque
+- tokens del día o desde arranque
+- rutas que más gastan
+- sesiones más caras recientes
+- última llamada registrada
+
+No quiero dashboards gigantes ni gráficos innecesarios.
+Quiero datos útiles, legibles y rápidos.
+
+LOGS / EXPORT
+Si es fácil y limpio, añade estos datos también al audit log o al menos deja la estructura preparada para que luego puedan incluirse.
+No es imprescindible meterlo todo ya en el export, pero sí quiero que quede preparado.
+
+CASOS ESPECIALES QUE DEBES CONTEMPLAR
+- errores de OpenAI sin usage
+- respuestas parciales
+- parse fallido pero llamada exitosa
+- fallbacks
+- llamadas pequeñas como detectTerminalState
+- múltiples llamadas dentro de un mismo turno de Arena
+- summarize/full_report
+- suggest
+
+Quiero que el sistema capture esas diferencias.
+No quiero que todo parezca una sola llamada homogénea.
+
+RUTAS Y FLUJOS ACTUALES A TENER EN CUENTA
+Ten presente la arquitectura actual:
+- /copilot/analyze con BASE_SYSTEM_PROMPT muy grande y call_memory
+- /copilot/summarize
+- /copilot/context-label
+- /arena/start
+- /arena/turn
+- detectTerminalState dentro de arena/turn
+- /arena/suggest
+- /arena/finish
+
+Quiero que luego pueda ver claramente cuánto cuesta cada uno de estos flujos.
+
+REGLAS DE IMPLEMENTACIÓN
+- no romper ninguna funcionalidad actual
+- no cambiar UX principal del producto
+- no meter base de datos
+- no meter librerías absurdas si no hacen falta
+- no duplicar lógica
+- no hacer un contador falso basado en heurísticas si ya hay usage real
+- no esconder errores
+
+CRITERIOS DE ACEPTACIÓN
+Esto solo estará bien hecho si:
+- cada llamada al modelo queda registrada
+- puedo ver tokens reales por llamada
+- puedo ver coste estimado por llamada
+- puedo ver acumulado por sesión
+- puedo distinguir Copiloto vs Arena
+- puedo detectar qué ruta gasta más
+- la implementación está centralizada y limpia
+- no se rompe nada del producto actual
+
+AL FINAL DE LA TAREA
+Explícame de forma breve y precisa:
+1. qué archivos has creado o tocado
+2. dónde registras el usage real de OpenAI
+3. cómo calculas el coste
+4. dónde puedo ver el coste por sesión y por ruta
+5. qué limitaciones tiene esta v1
+6. qué faltaría para una v2 con persistencia histórica

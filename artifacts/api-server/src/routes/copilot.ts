@@ -6,7 +6,7 @@ import {
   CallSummarizeResponse,
 } from "@workspace/api-zod";
 import { openai } from "@workspace/integrations-openai-ai-server";
-import { logAICall, estimateCost } from "../lib/ai-tracker";
+import { logAICall } from "../lib/ai-tracker";
 
 const router: IRouter = Router();
 
@@ -330,13 +330,14 @@ router.post("/copilot/analyze", async (req, res) => {
     if (usage) {
       logAICall({
         route: "copilot/analyze",
+        endpoint: "analyze",
         sessionId,
         mode: "copilot",
         model: "gpt-4o-mini",
+        maxTokensConfigured: 900,
         promptTokens: usage.prompt_tokens,
         completionTokens: usage.completion_tokens,
         totalTokens: usage.total_tokens,
-        estimatedCostUsd: estimateCost(usage.prompt_tokens, usage.completion_tokens),
         latencyMs,
         status: "ok",
       });
@@ -368,13 +369,14 @@ router.post("/copilot/analyze", async (req, res) => {
     const latencyMs = Date.now() - t0;
     logAICall({
       route: "copilot/analyze",
+      endpoint: "analyze",
       sessionId,
       mode: "copilot",
       model: "gpt-4o-mini",
+      maxTokensConfigured: 900,
       promptTokens: 0,
       completionTokens: 0,
       totalTokens: 0,
-      estimatedCostUsd: 0,
       latencyMs,
       status: "error",
     });
@@ -480,13 +482,14 @@ ${fullReportInstructions}`;
     if (usage) {
       logAICall({
         route: "copilot/summarize",
+        endpoint: wantsFullReport ? "summarize-full" : "summarize",
         sessionId,
         mode: "copilot",
         model: "gpt-4o-mini",
+        maxTokensConfigured: wantsFullReport ? 1600 : 400,
         promptTokens: usage.prompt_tokens,
         completionTokens: usage.completion_tokens,
         totalTokens: usage.total_tokens,
-        estimatedCostUsd: estimateCost(usage.prompt_tokens, usage.completion_tokens),
         latencyMs,
         status: "ok",
       });
@@ -543,12 +546,13 @@ router.post("/copilot/context-label", async (req, res) => {
     if (rawUsage) {
       logAICall({
         route: "copilot/context-label",
+        endpoint: "context-label",
         mode: "copilot",
         model: "gpt-4o-mini",
+        maxTokensConfigured: 25,
         promptTokens: rawUsage.prompt_tokens,
         completionTokens: rawUsage.completion_tokens,
         totalTokens: rawUsage.total_tokens,
-        estimatedCostUsd: estimateCost(rawUsage.prompt_tokens, rawUsage.completion_tokens),
         latencyMs,
         status: "ok",
       });

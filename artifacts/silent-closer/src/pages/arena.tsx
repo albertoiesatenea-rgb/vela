@@ -864,24 +864,38 @@ export function Arena({
           </div>
 
           {/* Hero verdict */}
-          {isWin ? (
-            /* Win layout — vertical centered, no horizontal space problem */
+          {isClosed ? (
+            /* CERRADO — vertical centrado, celebración completa */
             <div className={cn(
               "rounded-2xl px-5 py-6 flex flex-col items-center gap-3",
-              outcomeBg,
-              "ring-1 ring-white/10",
+              outcomeBg, "ring-1 ring-white/10",
             )}>
-              <div className={cn("shrink-0", outcomeColor)}>
-                {isClosed
-                  ? <Trophy className="w-16 h-16 drop-shadow-[0_0_14px_rgba(52,211,153,0.6)]" style={{ animation: "arena-win-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) both" }} />
-                  : <TrendingUp className="w-16 h-16" style={{ animation: "arena-win-pop 0.45s cubic-bezier(0.34,1.56,0.64,1) both" }} />}
-              </div>
+              <Trophy
+                className="w-16 h-16 drop-shadow-[0_0_14px_rgba(52,211,153,0.6)]"
+                style={{ animation: "arena-win-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) both" }}
+              />
               <div className="flex flex-col items-center gap-0.5">
                 <p className="text-[9px] font-mono tracking-[0.2em] uppercase text-zinc-500">{t.OUTCOME_LABEL}</p>
                 <p className={cn("text-5xl font-mono font-black tracking-tight leading-none", outcomeColor)}>
-                  {isClosed
-                    ? (lang === "es" ? "CERRADO"  : "CLOSED")
-                    : (lang === "es" ? "AVANCE"   : "PROGRESS")}
+                  {lang === "es" ? "CERRADO" : "CLOSED"}
+                </p>
+                <p className="text-[10px] font-mono text-zinc-500 mt-0.5">{outcomeName}</p>
+              </div>
+            </div>
+          ) : summary.outcome === "next_step" ? (
+            /* AVANCE — horizontal compacto, sin justify-between */
+            <div className={cn(
+              "rounded-2xl px-5 py-4 flex items-center gap-4",
+              outcomeBg, "ring-1 ring-white/10",
+            )}>
+              <TrendingUp
+                className={cn("w-12 h-12 shrink-0", outcomeColor)}
+                style={{ animation: "arena-win-pop 0.45s cubic-bezier(0.34,1.56,0.64,1) both" }}
+              />
+              <div className="flex flex-col gap-0.5">
+                <p className="text-[9px] font-mono tracking-[0.2em] uppercase text-zinc-500">{t.OUTCOME_LABEL}</p>
+                <p className={cn("text-4xl font-mono font-black tracking-tight leading-none", outcomeColor)}>
+                  {lang === "es" ? "AVANCE" : "PROGRESS"}
                 </p>
                 <p className="text-[10px] font-mono text-zinc-500 mt-0.5">{outcomeName}</p>
               </div>

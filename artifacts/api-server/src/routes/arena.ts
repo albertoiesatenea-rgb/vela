@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { openai } from "@workspace/integrations-openai-ai-server";
-import { logAICall, logSessionTotal, estimateCost } from "../lib/ai-tracker";
+import { logAICall, closeSession } from "../lib/ai-tracker";
 
 const router = Router();
 
@@ -239,14 +239,15 @@ Rules: honest score weighted by result (closed vs tough client → min 7; lost �
     const usage = completion.usage;
     if (usage) {
       logAICall({
-        route: "arena/finish/debrief",
+        route: "arena/finish",
+        endpoint: "debrief",
         sessionId,
         mode: "arena",
         model: "gpt-4o-mini",
+        maxTokensConfigured: 300,
         promptTokens: usage.prompt_tokens,
         completionTokens: usage.completion_tokens,
         totalTokens: usage.total_tokens,
-        estimatedCostUsd: estimateCost(usage.prompt_tokens, usage.completion_tokens),
         latencyMs,
         status: "ok",
       });
@@ -329,14 +330,15 @@ One word only:`;
     const usage = completion.usage;
     if (usage) {
       logAICall({
-        route: "arena/turn/terminal",
+        route: "arena/turn",
+        endpoint: "terminal-state",
         sessionId,
         mode: "arena",
         model: "gpt-4o-mini",
+        maxTokensConfigured: 5,
         promptTokens: usage.prompt_tokens,
         completionTokens: usage.completion_tokens,
         totalTokens: usage.total_tokens,
-        estimatedCostUsd: estimateCost(usage.prompt_tokens, usage.completion_tokens),
         latencyMs,
         status: "ok",
       });
@@ -389,13 +391,14 @@ router.post("/arena/start", async (req, res) => {
     if (usage) {
       logAICall({
         route: "arena/start",
+        endpoint: "opening",
         sessionId: id,
         mode: "arena",
         model: "gpt-4o-mini",
+        maxTokensConfigured: 150,
         promptTokens: usage.prompt_tokens,
         completionTokens: usage.completion_tokens,
         totalTokens: usage.total_tokens,
-        estimatedCostUsd: estimateCost(usage.prompt_tokens, usage.completion_tokens),
         latencyMs,
         status: "ok",
       });
@@ -472,13 +475,14 @@ router.post("/arena/turn", async (req, res) => {
     if (usage) {
       logAICall({
         route: "arena/turn",
+        endpoint: "turn",
         sessionId: arenaSessionId,
         mode: "arena",
         model: "gpt-4o-mini",
+        maxTokensConfigured: 300,
         promptTokens: usage.prompt_tokens,
         completionTokens: usage.completion_tokens,
         totalTokens: usage.total_tokens,
-        estimatedCostUsd: estimateCost(usage.prompt_tokens, usage.completion_tokens),
         latencyMs,
         status: "ok",
       });
@@ -530,8 +534,8 @@ router.post("/arena/finish", async (req, res) => {
     ? await generateDebrief(session.turns, session.context, session.lang, session.outcome ?? "manual_stop", arenaSessionId)
     : null;
 
-  // Log session total before clearing
-  logSessionTotal(arenaSessionId);
+  // Close session — logs totals, keeps record 10 min for debug panel
+  closeSession(arenaSessionId);
 
   res.json({
     turns: session.turns,
@@ -620,13 +624,14 @@ Only the ideal seller response. Natural, conversational, tactically sound. 2-3 s
     if (usage) {
       logAICall({
         route: "arena/suggest",
+        endpoint: "suggest",
         sessionId: arenaSessionId,
         mode: "arena",
         model: "gpt-4o-mini",
+        maxTokensConfigured: 200,
         promptTokens: usage.prompt_tokens,
         completionTokens: usage.completion_tokens,
         totalTokens: usage.total_tokens,
-        estimatedCostUsd: estimateCost(usage.prompt_tokens, usage.completion_tokens),
         latencyMs,
         status: "ok",
       });
