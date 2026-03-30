@@ -384,7 +384,7 @@ const ADV_TOTAL = 6;
 
 const ADV_STEP_ICONS = [Package, Users, Target, ShieldOff, User, FileText];
 
-function AdvancedForm({ onSubmit, lang, ctaLabel }: { onSubmit: (context: string) => void; lang: Lang; ctaLabel?: string }) {
+function AdvancedForm({ onSubmit, lang, ctaLabel, children }: { onSubmit: (context: string) => void; lang: Lang; ctaLabel?: string; children?: ReactNode }) {
   const t = CP[lang];
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<string[]>(Array(ADV_TOTAL).fill(""));
@@ -452,6 +452,8 @@ function AdvancedForm({ onSubmit, lang, ctaLabel }: { onSubmit: (context: string
           className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors font-mono"
         />
       </div>
+
+      {children}
 
       {/* Nav — only the launch CTA; step navigation via icon clicks or Enter */}
       <button
@@ -534,6 +536,47 @@ function ArenaProfilePicker({
   );
 }
 
+// ── Copilot client-profile picker (no random, no difficulty) ─────────────────
+function CopilotClientPicker({
+  lang,
+  value,
+  onChange,
+}: { lang: Lang; value: string | undefined; onChange: (v: string | undefined) => void }) {
+  const items = CLIENT_PROFILES[lang].filter(p => p.id !== "random");
+  const chipBase = "font-mono transition-all border text-[9px] px-2 py-0.5 rounded-full";
+  const chip = (active: boolean) => cn(chipBase,
+    active
+      ? "bg-sky-500/20 border-sky-500/60 text-sky-300"
+      : "bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500"
+  );
+  return (
+    <div className="flex flex-col gap-1.5">
+      <p className="text-[9px] font-mono text-zinc-500 uppercase tracking-[0.2em]">
+        {lang === "es" ? "Perfil estimado del cliente" : "Estimated client profile"}
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {items.map(p => (
+          <button
+            key={p.id}
+            onMouseDown={e => e.preventDefault()}
+            onClick={() => onChange(value === p.id ? undefined : p.id)}
+            className={chip(value === p.id)}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+      {value && (
+        <p className="text-[8px] font-mono text-zinc-600 leading-snug">
+          {lang === "es"
+            ? "La IA usará este perfil como referencia inicial. Si la conversación revela algo distinto, las sugerencias se adaptan solas."
+            : "The AI will use this as an initial reference. If the conversation reveals a different profile, suggestions adapt automatically."}
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ── ContextSetup — full-screen setup view ────────────────────────────────────
 export function ContextSetup({
   onContextReady,
@@ -565,6 +608,10 @@ export function ContextSetup({
   const [showAdvancedOpts, setShowAdvancedOpts] = useState(
     () => localStorage.getItem("arena_opts_open") === "1"
   );
+
+  // Copilot client-profile hint
+  const [copilotClientProfile, setCopilotClientProfile] = useState<string | undefined>(undefined);
+  const [showCopilotOpts, setShowCopilotOpts] = useState(false);
 
   const quickRef = useRef<HTMLTextAreaElement>(null);
 
@@ -600,7 +647,15 @@ export function ContextSetup({
         });
       }
     } else {
-      onContextReady(ctx);
+      // Copilot: optionally append client-profile hint so the AI has it from the start
+      let finalCtx = ctx;
+      if (copilotClientProfile) {
+        const profileLabel = CLIENT_PROFILES[lang].find(p => p.id === copilotClientProfile)?.label ?? copilotClientProfile;
+        finalCtx += lang === "es"
+          ? `\n\n[Perfil estimado del cliente: ${profileLabel}. Usa esto como referencia inicial en tus sugerencias, con flexibilidad si la conversación revela señales distintas.]`
+          : `\n\n[Estimated client profile: ${profileLabel}. Use this as an initial reference in your suggestions, staying flexible if the conversation reveals different signals.]`;
+      }
+      onContextReady(finalCtx);
     }
   };
 
@@ -799,6 +854,29 @@ export function ContextSetup({
               </div>
             </div>
 
+            {/* ── Copilot-only: client profile hint (collapsible) ── */}
+            {appMode === "copilot" && (
+              <div className="flex flex-col gap-2">
+                <button
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={() => setShowCopilotOpts(v => !v)}
+                  className="self-start flex items-center gap-1.5 text-[10px] font-mono text-zinc-500 hover:text-zinc-300 transition-colors"
+                >
+                  {showCopilotOpts
+                    ? <><ChevronUp className="w-3 h-3" />{lang === "es" ? "Ocultar" : "Hide"}</>
+                    : <><ChevronDown className="w-3 h-3" />{lang === "es" ? "Opciones" : "Options"}</>
+                  }
+                </button>
+                {showCopilotOpts && (
+                  <CopilotClientPicker
+                    lang={lang}
+                    value={copilotClientProfile}
+                    onChange={setCopilotClientProfile}
+                  />
+                )}
+              </div>
+            )}
+
             {/* ── Arena-only: profile + difficulty chips (collapsible) ── */}
             {appMode === "arena" && (
               <div className="flex flex-col gap-2">
@@ -840,7 +918,13 @@ export function ContextSetup({
 
         {/* ── Advanced form — Copilot ──────────────────────────────────── */}
         {contextMode === "advanced" && appMode === "copilot" && (
-          <AdvancedForm onSubmit={handleSubmit} lang={lang} ctaLabel={ctaLabel} />
+          <AdvancedForm onSubmit={handleSubmit} lang={lang} ctaLabel={ctaLabel}>
+            <CopilotClientPicker
+              lang={lang}
+              value={copilotClientProfile}
+              onChange={setCopilotClientProfile}
+            />
+          </AdvancedForm>
         )}
 
         {/* ── Advanced form — Arena ────────────────────────────────────── */}

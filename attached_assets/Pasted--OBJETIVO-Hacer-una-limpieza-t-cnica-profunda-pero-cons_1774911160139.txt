@@ -1,0 +1,174 @@
+## OBJETIVO
+Hacer una limpieza técnica profunda pero conservadora del codebase de Closer Wizard para reducir complejidad accidental, redundancia, inconsistencias, dead code, coste evitable y consumo innecesario de tokens, sin cambiar funcionalidad, sin romper flujos y sin tocar el comportamiento visible del producto salvo para eliminar ruido técnico o código sobrante.
+
+## CONTEXTO
+- La app actual ya tiene dos modos principales funcionando: Copiloto y Arena.
+- Hay frontend React/Vite/Tailwind y API server Express.
+- Existen además Debug Panel, AI Tracker, Audit Log exportable y feature flags de compatibilidad.
+- No quiero un rediseño ni una reescritura. Quiero una limpieza quirúrgica, segura y útil.
+- El objetivo es dejar una base más limpia antes de entrar en fase de testeo intensivo con conversaciones reales.
+- Quiero que el trabajo se centre en:
+  - purgar código que no se use;
+  - eliminar redundancias;
+  - corregir inconsistencias de estructura y naming si son de bajo riesgo;
+  - detectar secuencias torpes o llamadas innecesarias;
+  - reducir coste/token waste donde exista;
+  - simplificar procesos y ramas sin valor;
+  - dejar el sistema más mantenible sin tocar el producto que ya funciona.
+
+Archivos / zonas relevantes a revisar como mínimo:
+- `artifacts/silent-closer/src/**`
+- `artifacts/api-server/src/**`
+- `docs/**`
+
+## RESTRICCIONES
+- No tocar Copiloto ni Arena a nivel de comportamiento funcional visible, salvo para eliminar código muerto, redundancias o ineficiencias técnicas sin alterar el resultado para el usuario.
+- No rehacer arquitectura.
+- No cambiar rutas API ni schemas públicos existentes.
+- No romper:
+  - `POST /api/copilot/analyze`
+  - `POST /api/copilot/summarize`
+  - `POST /api/copilot/context-label`
+  - `POST /api/arena/start`
+  - `POST /api/arena/turn`
+  - `POST /api/arena/suggest`
+  - `POST /api/arena/finish`
+  - `GET /api/debug/usage`
+- No eliminar ni degradar:
+  - Debug Panel
+  - AI Tracker
+  - Audit Log export
+  - feature flags `LEGACY_PROMPTS` y `LEGACY_ARENA`
+- No cambiar outputs JSON, claves de localStorage o contratos de datos salvo que haya código claramente muerto y el cambio sea 100% seguro.
+- No instalar dependencias nuevas salvo necesidad estricta y justificada.
+- No hacer refactors grandes “por limpieza”.
+- No tocar copy/UI/UX salvo que el cambio sea estrictamente una simplificación técnica sin impacto visual o funcional.
+- Si una limpieza es dudosa o de riesgo medio/alto, no la apliques: repórtala y déjala fuera.
+
+## ENFOQUE DE TRABAJO
+Quiero que trabajes en este orden:
+
+### Fase 1 — Auditoría técnica
+Haz primero una auditoría del codebase y detecta:
+- archivos no usados
+- imports no usados
+- tipos, helpers o constantes no usados
+- ramas legacy muertas o duplicadas
+- lógica duplicada entre frontend y backend
+- estados, props, efectos o handlers redundantes
+- secuencias innecesarias o llamadas repetidas
+- prompts con instrucciones repetidas o bloques inflados sin valor
+- sitios donde se estén consumiendo tokens o latencia de forma innecesaria
+- incoherencias de naming, estructura o flujo que generen deuda
+- diferencias entre documentación y código real
+
+### Fase 2 — Aplicar solo cambios low-risk
+Aplica solo cambios de riesgo bajo y valor claro.
+Prioriza:
+1. eliminar dead code real;
+2. deduplicar utilidades o bloques repetidos;
+3. simplificar ramas innecesarias;
+4. limpiar imports/estados/props/handlers sobrantes;
+5. reducir token waste o llamadas redundantes sin alterar comportamiento;
+6. mejorar consistencia estructural sin reescribir módulos enteros.
+
+### Fase 3 — Reporte final
+Entregar un reporte claro con:
+- qué se eliminó
+- qué se simplificó
+- qué se optimizó
+- qué NO se tocó por riesgo
+- si hay divergencias entre docs y código
+- impacto esperado en mantenimiento, coste, tokens o claridad
+
+## CAMBIOS QUE SÍ QUIERO
+Revisa y limpia específicamente estas áreas si aplica:
+
+### 1. Código muerto y redundante
+- archivos no importados
+- componentes no usados
+- funciones/helpers sin uso
+- tipos/interfaces sobrantes
+- imports y variables muertas
+- branches inalcanzables
+- duplicados evidentes
+
+### 2. Frontend
+- estados redundantes
+- efectos innecesarios
+- props que no se usan
+- render branches duplicados
+- lógica repetida entre vistas/modos
+- componentes que pueden simplificarse sin cambiar UX
+- handlers o transforms repetidos
+
+### 3. Backend
+- utilidades duplicadas
+- bloques de prompt repetidos
+- secuencias de llamadas innecesarias
+- ramas legacy sobrantes no protegidas por feature flag
+- pasos intermedios sin valor
+- validaciones redundantes
+- parsing o transforms repetidos
+
+### 4. Coste / tokens / latencia
+- reducir instrucciones infladas sin degradar comportamiento
+- eliminar bloques de prompt repetidos o innecesarios
+- evitar mandar contexto redundante
+- detectar llamadas API prescindibles
+- revisar secuencias de Arena y Copiloto para gasto evitable
+- mantener comportamiento funcional equivalente
+
+### 5. Logs / tracking / audit
+- limpiar ruido técnico
+- deduplicar donde haga falta
+- mantener íntegro el valor del AI tracker y del audit log
+- no romper exportaciones ni visibilidad de debug
+
+### 6. Documentación
+- comparar docs con código real
+- actualizar solo los docs que hayan quedado claramente desalineados por la limpieza
+- no rehacer toda la documentación
+- si algo depende del código real y los docs estaban desactualizados, anotarlo claramente
+
+## CAMBIOS QUE NO QUIERO
+- refactorizar por gusto
+- mover archivos masivamente sin necesidad
+- reescribir prompts enteros si basta con compactarlos
+- tocar UI por estética
+- tocar naming si no aporta claridad real
+- eliminar feature flags
+- hacer “optimización” que cambie comportamiento
+- tocar partes críticas sin evidencia
+
+## ENTREGABLES
+- [ ] Limpieza aplicada solo en cambios low-risk
+- [ ] Dead code eliminado
+- [ ] Redundancias obvias eliminadas
+- [ ] Coste/token waste revisado y reducido si había margen claro
+- [ ] Reporte final en un archivo tipo `CLEANUP_REPORT.md` con:
+  - lista de archivos tocados
+  - qué se eliminó
+  - qué se simplificó
+  - qué se dejó fuera por riesgo
+  - posibles divergencias docs vs código
+- [ ] Docs actualizados solo si era necesario
+- [ ] App compilando sin errores
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] La app compila sin errores
+- [ ] No hay regresión visible en Copiloto
+- [ ] No hay regresión visible en Arena
+- [ ] No cambian rutas ni schemas públicos
+- [ ] Debug Panel sigue funcionando
+- [ ] AI Tracker sigue funcionando
+- [ ] Audit Log sigue funcionando
+- [ ] Feature flags `LEGACY_PROMPTS` y `LEGACY_ARENA` siguen funcionando
+- [ ] No se han introducido dependencias nuevas salvo necesidad justificada
+- [ ] El codebase queda más limpio y más fácil de mantener
+- [ ] Existe un reporte final claro y accionable
+- [ ] Si hubo optimización de tokens/coste, queda explicada con ejemplos concretos
+- [ ] Si algo parecía buena idea pero era arriesgado, se reporta y no se toca
+
+## NOTA IMPORTANTE
+Si detectas que la documentación no refleja bien el estado actual del código, no rehagas todos los docs. Actualiza solo los documentos mínimos afectados por la limpieza y deja anotadas las divergencias relevantes en el reporte final.
