@@ -1,0 +1,147 @@
+Quiero implementar dentro de mi app un sistema interno de medición de coste y tokens por llamada, por sesión y por flujo.
+
+IMPORTANTE:
+No quiero solo depender del budget global de Replit.
+Quiero visibilidad real dentro del producto.
+Quiero saber cuánto está costando usar mi app de verdad.
+
+OBJETIVO
+Añadir un contador interno de uso/coste para todas las llamadas a IA, tanto en:
+- COPILOTO
+- ARENA
+- cualquier otro flujo que llame al modelo
+
+SIN cambiar la experiencia principal del usuario.
+Esto debe ser una capa de observabilidad / debug / control, no un rediseño del producto.
+
+QUÉ QUIERO MEDIR
+Por cada llamada al modelo, registrar al menos:
+- timestamp
+- route / flujo
+- sessionId
+- mode: copilot | arena | other
+- modelo usado
+- input tokens
+- output tokens
+- total tokens
+- coste estimado de esa llamada
+- duración si es fácil medirla
+- status: ok | error | partial
+
+QUÉ QUIERO ACUMULAR
+1. Coste por llamada
+2. Coste acumulado por sesión
+3. Coste acumulado por modo:
+   - Copiloto
+   - Arena
+4. Coste acumulado del día
+5. Número de llamadas por sesión
+6. Media de tokens por llamada
+7. Media de coste por sesión
+
+REGLA CLAVE
+No quiero aproximaciones vagas si la respuesta de OpenAI ya trae usage real.
+Usa los usage tokens reales de la respuesta cuando estén disponibles.
+Solo estima si de verdad no hay usage disponible.
+
+COSTE
+Implementa una función centralizada para calcular coste estimado según:
+- modelo
+- input tokens
+- output tokens
+
+No hardcodees el coste en veinte sitios.
+Quiero algo limpio tipo:
+- estimateModelCost(...)
+- recordAiUsage(...)
+
+Si ya existe una capa o helper para llamadas al modelo, integrar ahí esta medición.
+
+ARQUITECTURA
+Quiero una implementación limpia y extensible.
+
+Hazlo así:
+1. Crear una capa central de tracking de uso de IA
+2. Registrar cada llamada al modelo desde un solo punto o desde los puntos más controlados posibles
+3. Asociar el consumo a sessionId cuando exista
+4. Permitir obtener agregados por sesión y por ruta
+
+No quiero una solución dispersa y parcheada.
+
+ALMACENAMIENTO
+Para esta fase, solución simple:
+- almacenamiento en memoria si es suficiente
+o
+- almacenamiento ligero local/servidor si ya existe infraestructura útil
+
+No meter base de datos solo para esto en esta fase.
+Pero sí dejarlo estructurado para poder persistirlo más adelante.
+
+UI / DEBUG
+Quiero una forma simple de visualizar esta info dentro de la app.
+
+Opción válida:
+- un panel debug pequeño
+- una vista admin/debug
+- o una sección colapsable en debug
+
+No quiero ensuciar la UI principal de usuario.
+
+El panel o vista debe mostrar al menos:
+- coste estimado de la sesión actual
+- tokens de la sesión actual
+- llamadas realizadas en la sesión actual
+- modelo usado
+- coste total del día si es fácil
+- coste por modo si es fácil
+
+Si ya tienes un modo debug, intégralo ahí.
+Si no, crea una vista simple y limpia.
+
+RUTAS / FLUJOS A CUBRIR
+Revisa e instrumenta todas las llamadas actuales al modelo.
+No asumas solo Copiloto.
+Incluye también Arena y cualquier flujo adicional que use IA.
+
+QUÉ NO QUIERO
+- no quiero rehacer toda la app
+- no quiero una pantalla enterprise gigante
+- no quiero gráficos innecesarios
+- no quiero base de datos
+- no quiero lógica duplicada
+- no quiero costes decorativos sin trazabilidad
+
+QUÉ SÍ QUIERO
+- coste real o estimado fiable
+- visibilidad por llamada y por sesión
+- estructura limpia
+- fácil de mantener
+- útil para optimizar tokens después
+
+TIPADOS
+Si estás en TypeScript, crea tipos claros para algo como:
+- AiUsageRecord
+- SessionUsageSummary
+- UsageByRoute
+- UsageByMode
+
+EXPORT / LOGS
+Si es fácil, añadir esta información también al log descargable o al menos dejarla accesible para futura exportación.
+No hace falta que sea el foco principal ahora, pero sí dejarlo preparado.
+
+CRITERIOS DE ACEPTACIÓN
+Esto solo estará bien hecho si:
+- cada llamada al modelo queda registrada con tokens y coste
+- puedo ver el coste estimado de una sesión
+- puedo distinguir gasto de Copiloto vs Arena
+- el cálculo de coste no está duplicado por todo el proyecto
+- no se rompe ninguna funcionalidad actual
+- puedo usar esta información para detectar qué flujo gasta más
+
+AL FINAL DE LA TAREA
+Explícame brevemente:
+1. qué archivos has creado o tocado
+2. dónde registras el uso de IA
+3. cómo calculas el coste
+4. dónde puedo ver el coste por sesión
+5. qué limitaciones tiene esta primera versión

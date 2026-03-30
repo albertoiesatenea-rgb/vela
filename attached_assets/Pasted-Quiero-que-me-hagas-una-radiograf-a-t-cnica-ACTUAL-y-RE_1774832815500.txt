@@ -1,0 +1,225 @@
+Quiero que me hagas una radiografía técnica ACTUAL y REAL de esta app, basada en el código actual, no en documentación antigua ni en suposiciones.
+
+IMPORTANTE:
+No quiero teoría.
+No quiero resumen de producto.
+No quiero visión general bonita.
+Quiero información técnica concreta, precisa y actualizada para poder optimizar costes, tokens y arquitectura de llamadas al modelo.
+
+Tu trabajo es inspeccionar el código actual y devolverme exactamente esta información, en este orden y con este formato.
+
+==================================================
+1. STACK Y ESTRUCTURA ACTUAL
+==================================================
+Devuélveme:
+
+- frontend stack exacto
+- backend stack exacto
+- rutas API actuales relacionadas con IA
+- archivos principales implicados en:
+  - setup
+  - copiloto
+  - arena
+  - logs/export
+  - llamadas al modelo
+  - prompts
+  - estado de sesión
+
+Formato:
+## STACK
+...
+## RUTAS IA
+...
+## ARCHIVOS CLAVE
+...
+
+==================================================
+2. TODAS LAS LLAMADAS AL MODELO
+==================================================
+Quiero una lista completa de TODAS las llamadas actuales al modelo o modelos de IA.
+
+Para cada llamada, dime:
+- nombre de la ruta o función
+- archivo exacto
+- cuándo se dispara
+- qué modelo usa
+- qué manda al modelo
+- qué espera recibir
+- si usa system prompt, user prompt o ambos
+- si reutiliza contexto o lo reconstruye
+- si guarda estado o memoria
+- si hace retries, parseos, fallbacks o truncamientos
+
+Formato:
+## CALL 1
+- ruta / función:
+- archivo:
+- trigger:
+- modelo:
+- input enviado:
+- output esperado:
+- prompts usados:
+- estado / memoria:
+- errores / retries / fallbacks:
+
+Repite para todas.
+
+==================================================
+3. PROMPTS ACTUALES REALES
+==================================================
+Quiero ver el contenido ACTUAL de los prompts reales que usa la app hoy.
+
+Para cada flujo, pega:
+- system prompt
+- user prompt template
+- cualquier helper prompt
+- cualquier prompt de resumen, scoring, arena o export si aplica
+
+Si son muy largos, resume solo si es imprescindible, pero mantén:
+- estructura
+- reglas
+- campos importantes
+- redundancias visibles
+- partes repetidas
+
+Formato:
+## PROMPT: nombre
+Archivo:
+Uso:
+Contenido:
+...
+
+==================================================
+4. PAYLOAD REAL ENVIADO EN CADA FLUJO
+==================================================
+Para cada llamada al modelo, quiero saber el payload real que se construye hoy.
+
+Es decir:
+- qué piezas entran de verdad
+- qué se concatena
+- qué partes se repiten en cada turno
+- qué se manda siempre
+- qué se manda solo a veces
+
+Ejemplo de cosas que quiero ver:
+- contexto sesión
+- memoria táctica
+- transcript parcial
+- último fragmento
+- estado arena
+- rol usuario
+- logs previos
+- config
+- idioma
+- etc.
+
+Formato:
+## PAYLOAD: nombre del flujo
+Siempre incluye:
+...
+A veces incluye:
+...
+Se reconstruye desde:
+...
+Posible redundancia:
+...
+
+==================================================
+5. GESTIÓN DE ESTADO Y MEMORIA
+==================================================
+Explícame cómo se guarda hoy el estado en:
+- copiloto
+- arena
+
+Para cada uno, dime:
+- dónde vive el estado
+- qué se guarda por sesión
+- cómo se actualiza
+- qué parte del estado se vuelve a enviar al modelo
+- qué parte solo se usa en frontend
+- si hay context pack, memory pack o algo parecido
+- si se podría cachear mejor
+
+Formato:
+## ESTADO COPILOTO
+...
+## ESTADO ARENA
+...
+
+==================================================
+6. EXPORTACIÓN DE LOGS ACTUAL
+==================================================
+Quiero entender exactamente qué se puede exportar hoy.
+
+Dime:
+- qué logs existen hoy
+- desde qué pantallas o flujos se descargan
+- qué contienen
+- en qué formato
+- qué diferencias hay entre copiloto y arena
+- si ya existe export audit-ready o no
+- qué información del razonamiento interno queda fuera
+
+Formato:
+## LOGS ACTUALES
+...
+## CARENCIAS DEL LOG
+...
+
+==================================================
+7. POSIBLES DESPERDICIOS DE TOKENS
+==================================================
+Haz una revisión específica buscando gasto inútil.
+
+Señálame:
+- contexto repetido
+- prompts demasiado largos
+- instrucciones redundantes
+- memoria demasiado gorda
+- payloads que recrean demasiado
+- llamadas que parecen innecesarias
+- análisis que podrían compactarse
+- sitios donde se manda más de lo necesario
+
+No optimices todavía.
+Solo detecta.
+
+Formato:
+## DESPERDICIO 1
+- dónde:
+- por qué:
+- impacto probable:
+...
+
+==================================================
+8. MÉTRICAS Y VISIBILIDAD DE COSTE
+==================================================
+Dime si hoy existe algo para medir:
+- tokens por llamada
+- tokens por sesión
+- coste estimado
+- llamadas por ruta
+- debug útil
+
+Y si no existe, di claramente que no existe.
+
+Formato:
+## MÉTRICAS ACTUALES
+...
+## LO QUE FALTA
+...
+
+==================================================
+9. RESUMEN EJECUTIVO FINAL
+==================================================
+Termina con un resumen corto y brutalmente útil:
+
+- 5 archivos más importantes para entender el coste real de la app
+- 5 puntos donde probablemente se esté yendo más token
+- 5 dudas o huecos que aún quedarían si el código no deja algo claro
+
+IMPORTANTE FINAL
+No me propongas soluciones todavía.
+No me digas “sería recomendable”.
+No me hagas consultoría abstracta.
+Solo dame la radiografía técnica actual y real de la app para que luego otro modelo pueda diseñar una optimización seria.
