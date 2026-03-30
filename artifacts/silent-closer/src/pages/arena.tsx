@@ -1290,6 +1290,16 @@ export function Arena({
           >
             {theme === "dark" ? <Sun className="w-3 h-3" /> : <Moon className="w-3 h-3" />}
           </button>
+          {messages.some(m => m.speaker === "user") && (
+            <button
+              onClick={handleMidSessionDownload}
+              onMouseDown={e => e.preventDefault()}
+              title={lang === "es" ? "Descargar log de conversación" : "Download conversation log"}
+              className="text-zinc-500 hover:text-zinc-200 transition-colors"
+            >
+              <Download className="w-3 h-3" />
+            </button>
+          )}
           <button
             onClick={onExit}
             className="text-[9px] tracking-widest uppercase text-zinc-500 hover:text-zinc-200 transition-colors"
@@ -1567,20 +1577,6 @@ export function Arena({
             </>
           )}
 
-          {/* Download log — visible for both roles once user has sent at least one message */}
-          {messages.some(m => m.speaker === "user") && (
-            <div className="flex justify-end">
-              <button
-                onClick={handleMidSessionDownload}
-                onMouseDown={e => e.preventDefault()}
-                title={lang === "es" ? "Descargar log de conversación" : "Download conversation log"}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[8px] font-mono tracking-widest uppercase border transition-all text-zinc-600 border-zinc-800 hover:text-zinc-400 hover:border-zinc-600"
-              >
-                <Download className="w-2.5 h-2.5" />
-                log
-              </button>
-            </div>
-          )}
         </div>
       </div>
 
