@@ -703,6 +703,7 @@ export function Arena({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const restartAbortRef = useRef<{ cancelled: boolean } | null>(null);
 
   const aiLabel = role === "seller" ? t.AI_AS_CLIENT : t.AI_AS_SELLER;
   const roleTag = role === "seller" ? t.ROLE_TAG_SELLER : t.ROLE_TAG_CLIENT;
@@ -792,6 +793,55 @@ export function Arena({
     setPendingExitReason("");
     await handleEnd(outcome);
   }, [pendingExitReason, handleEnd]);
+
+  const handleRestart = useCallback(() => {
+    // Cancel any in-flight restart
+    if (restartAbortRef.current) restartAbortRef.current.cancelled = true;
+    const abort = { cancelled: false };
+    restartAbortRef.current = abort;
+
+    // Reset all conversation state
+    setMessages([]);
+    setArenaSessionId(null);
+    setIsStarting(true);
+    setIsEnding(false);
+    setIsSending(false);
+    setIsShortcutPending(false);
+    setCoachLiteMap({});
+    setLatestJourney(null);
+    setConversationState(null);
+    setInput("");
+    setNoteText("");
+    setNoteCount(0);
+    setSellerNotes([]);
+    setExitStep(null);
+    setPendingExitReason("");
+    setExitNote(null);
+    setPendingOutcome(null);
+    setAllTurns([]);
+
+    void (async () => {
+      try {
+        const res = await fetch("/api/arena/start", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ role, lang, context, ...arenaConfig }),
+        });
+        const data = await res.json() as { arenaSessionId: string; openingMessage: string };
+        if (abort.cancelled) return;
+        setArenaSessionId(data.arenaSessionId);
+        setMessages([{ index: 0, speaker: "ai", message: data.openingMessage }]);
+        setConversationState(inferState(data.openingMessage, lang));
+      } catch {
+        if (!abort.cancelled) {
+          setMessages([{ index: 0, speaker: "ai", message: lang === "en" ? "Ready." : "Listo." }]);
+          setArenaSessionId("offline-" + Date.now());
+        }
+      } finally {
+        if (!abort.cancelled) setIsStarting(false);
+      }
+    })();
+  }, [role, lang, context, arenaConfig]);
 
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || isSending || !arenaSessionId) return;
@@ -1483,6 +1533,16 @@ export function Arena({
                 </div>
               </div>
             )}
+            {isShortcutPending && (
+              <div className="flex items-center gap-4 py-1">
+                {role === "client" && coachOn && <div className="w-44 shrink-0" />}
+                <div className="flex items-center gap-1.5 px-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 animate-bounce" style={{ animationDelay: "0ms" }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 animate-bounce" style={{ animationDelay: "160ms" }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 animate-bounce" style={{ animationDelay: "320ms" }} />
+                </div>
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </div>
         )}
@@ -1523,6 +1583,14 @@ export function Arena({
                         className="flex-1 py-1.5 rounded-lg border text-[9px] font-mono tracking-wide transition-all disabled:opacity-30 disabled:pointer-events-none text-zinc-500 border-zinc-800 hover:border-zinc-600 hover:text-zinc-300 text-center leading-snug"
                       >
                         {t.CLIENT_EXIT_QUIT}
+                      </button>
+                      <button
+                        onClick={() => { setExitStep(null); handleRestart(); }}
+                        disabled={isEnding}
+                        title={lang === "es" ? "Reiniciar conversación" : "Restart conversation"}
+                        className="px-2.5 py-1.5 rounded-lg border text-[9px] font-mono tracking-wide transition-all disabled:opacity-30 disabled:pointer-events-none text-zinc-500 border-zinc-800 hover:border-sky-400/40 hover:text-sky-400 text-center leading-snug"
+                      >
+                        ↺
                       </button>
                     </div>
                   </>
@@ -1617,6 +1685,16 @@ export function Arena({
                     log
                   </button>
                 )}
+                <button
+                  onClick={handleRestart}
+                  onMouseDown={e => e.preventDefault()}
+                  disabled={isEnding || isStarting}
+                  title={lang === "es" ? "Reiniciar conversación" : "Restart conversation"}
+                  className="w-20 flex items-center justify-center gap-1 text-[8px] font-mono tracking-widest uppercase text-zinc-600 hover:text-sky-400 transition-colors disabled:opacity-25 disabled:pointer-events-none"
+                >
+                  <span className="text-[10px]">↺</span>
+                  {lang === "es" ? "reiniciar" : "restart"}
+                </button>
               </div>
             </div>
           ) : (
