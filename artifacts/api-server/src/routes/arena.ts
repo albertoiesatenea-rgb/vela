@@ -71,17 +71,23 @@ const DIFFICULTY_DESC: Record<string, string> = {
 };
 
 // ── Terminal state keywords (for conditional detection) ───────────────────────
+// Keywords that strongly suggest a terminal state — intentionally narrow.
+// Broad phrases like "de acuerdo", "siguiente paso", "cuándo podemos" are
+// normal conversation and should NOT trigger terminal detection on their own.
 const TERMINAL_HINTS: Record<Lang, string[]> = {
   es: [
-    "de acuerdo", "trato hecho", "vamos adelante", "siguiente paso", "cuándo podemos",
-    "me has convencido", "lo pensaré", "no me interesa", "no estoy dispuesto",
-    "no puedo seguir", "adiós", "hasta luego", "no voy a", "descartado", "imposible",
-    "cerramos", "firmamos", "perfecto, adelante", "ya no",
+    "trato hecho", "cerramos", "firmamos", "me lo quedo", "me apunto", "lo compro",
+    "cuándo firmo", "cuándo firma", "voy a pagar", "pago con", "con tarjeta", "bizum",
+    "mándame el contrato", "mándame la propuesta", "cuando quieras empezamos",
+    "no me interesa en absoluto", "definitivamente no", "no voy a comprar",
+    "no quiero saber más", "hasta aquí", "no seguimos",
+    "adiós", "hasta luego",
   ],
   en: [
-    "agreed", "deal", "let's go", "next step", "when can we", "you convinced me",
-    "i'll think about it", "not interested", "won't do this", "can't continue",
-    "goodbye", "bye", "ruled out", "impossible", "let's close", "sign", "perfect, let's",
+    "deal", "let's close", "i'll take it", "i'll buy", "send me the contract",
+    "when do i sign", "i'll pay with", "by card", "send the proposal",
+    "not interested at all", "definitely not", "won't buy", "stop here",
+    "goodbye", "bye",
   ],
 };
 
@@ -280,29 +286,31 @@ async function detectTerminalState(
   }).join("\n");
 
   const prompt = lang === "es"
-    ? `Analiza esta conversación de venta y determina si ha llegado a un estado terminal claro.
+    ? `Analiza esta conversación de venta y determina si ha llegado a un estado terminal CLARO E INEQUÍVOCO.
 Responde ÚNICAMENTE con una de estas palabras:
 none | closed | next_step | lost | broken
 
-none = sigue abierta
-closed = cliente aceptó la oferta o cerró trato
-next_step = cliente aceptó avanzar (reunión, demo, propuesta)
-lost = cliente rechazó definitivamente
-broken = ruptura total o conversación imposible
+Definiciones ESTRICTAS — en caso de duda responde none:
+none = conversación abierta, en proceso, o ambigua
+closed = cliente cerró explícitamente (dijo que compra, cuándo firma, cómo paga)
+next_step = cliente COMPROMETIÓ un paso concreto: confirmó fecha de reunión, pidió contrato/propuesta, preguntó por formas de pago, confirmó disponibilidad para llamada concreta — NO vale solo "lo pensaré" ni "me parece bien"
+lost = cliente rechazó DEFINITIVAMENTE, sin vuelta atrás
+broken = ruptura total, corte de conversación
 
 Conversación:
 ${recent}
 
 Responde solo con la palabra:`
-    : `Analyze this sales conversation and determine if it reached a clear terminal state.
+    : `Analyze this sales conversation and determine if it has reached a CLEAR AND UNAMBIGUOUS terminal state.
 Reply with ONLY one word:
 none | closed | next_step | lost | broken
 
-none = still open
-closed = client accepted the offer or closed deal
-next_step = client agreed to move forward
-lost = client definitively rejected
-broken = total breakdown
+STRICT definitions — when in doubt reply none:
+none = still open, in progress, or ambiguous
+closed = client explicitly closed (said they'll buy, asked when to sign, asked how to pay)
+next_step = client COMMITTED to a concrete action: confirmed meeting date, requested contract/proposal, asked about payment methods, confirmed specific availability — "I'll think about it" does NOT qualify
+lost = client DEFINITIVELY rejected, no turning back
+broken = total breakdown, client cut off
 
 Conversation:
 ${recent}

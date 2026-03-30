@@ -894,20 +894,12 @@ export function Arena({
             >
               {lang === "es" ? "Descargar informe (.md)" : "Download report (.md)"}
             </button>
-            <div className="flex gap-3 pt-0.5">
-              <button
-                onClick={handleExportLog}
-                className="flex-1 text-center text-[10px] font-mono text-zinc-600 hover:text-zinc-300 py-1.5 transition-colors"
-              >
-                {t.EXPORT}
-              </button>
-              <button
-                onClick={onExit}
-                className="flex-1 text-center text-[10px] font-mono text-zinc-500 hover:text-zinc-200 py-1.5 transition-colors"
-              >
-                {t.CLOSE}
-              </button>
-            </div>
+            <button
+              onClick={onExit}
+              className="w-full text-center text-[10px] font-mono text-zinc-500 hover:text-zinc-200 py-1.5 transition-colors"
+            >
+              {t.CLOSE}
+            </button>
           </div>
 
         </div>
