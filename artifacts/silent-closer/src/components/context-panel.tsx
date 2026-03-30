@@ -863,15 +863,15 @@ export function SessionBar({
           {momentum && (
             <div className={cn(
               "flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-mono tracking-widest uppercase transition-all duration-700",
-              momentum === "green" && "border-green-800 text-green-400 bg-green-950/40",
+              momentum === "green" && "border-teal-800 text-teal-400 bg-teal-950/40",
               momentum === "amber" && "border-amber-800 text-amber-400 bg-amber-950/40",
-              momentum === "red"   && "border-red-800 text-red-400 bg-red-950/40",
+              momentum === "red"   && "border-orange-800 text-orange-400 bg-orange-950/40",
             )}>
               <div className={cn(
                 "w-1 h-1 rounded-full",
-                momentum === "green" && "bg-green-500",
+                momentum === "green" && "bg-teal-400",
                 momentum === "amber" && "bg-amber-500",
-                momentum === "red"   && "bg-red-500 animate-pulse",
+                momentum === "red"   && "bg-orange-400 animate-pulse",
               )} />
               <span>{MOMENTUM_LABELS[lang as "es" | "en"][momentum]}</span>
             </div>
@@ -890,7 +890,7 @@ export function SessionBar({
           {/* End session button — larger hit area */}
           <button
             onClick={(e) => { e.stopPropagation(); onClearSession(); }}
-            className="text-[10px] font-mono text-zinc-400 hover:text-red-400 px-3 py-2 rounded-lg hover:bg-red-950/25 transition-all"
+            className="text-[10px] font-mono text-zinc-400 hover:text-orange-400 px-3 py-2 rounded-lg hover:bg-orange-950/25 transition-all"
           >
             {endLabel ?? t.END}
           </button>

@@ -243,15 +243,15 @@ function getOutcomeBg(outcome: FinalOutcome): string {
 
 // ── State indicator ───────────────────────────────────────────────────────────
 const STATE_DOT: Record<ConversationState, string> = {
-  favorable: "bg-emerald-400",
+  favorable: "bg-teal-400",
   tense: "bg-amber-400",
-  critical: "bg-red-400",
+  critical: "bg-orange-400",
 };
 
 const STATE_TEXT: Record<ConversationState, string> = {
-  favorable: "text-emerald-400",
+  favorable: "text-teal-400",
   tense: "text-amber-400",
-  critical: "text-red-400",
+  critical: "text-orange-400",
 };
 
 function StateIndicator({ state, lang }: { state: ConversationState | null; lang: Lang }) {
@@ -935,10 +935,10 @@ export function Arena({
                 <div className="flex items-baseline gap-1">
                   <span className={cn(
                     "text-3xl font-mono font-bold tabular-nums",
-                    debrief.score <= 3 ? "text-red-400"
+                    debrief.score <= 3 ? "text-orange-400"
                     : debrief.score <= 5 ? "text-amber-400"
                     : debrief.score <= 7 ? "text-zinc-200"
-                    : "text-emerald-400"
+                    : "text-teal-400"
                   )}>
                     {debrief.score}
                   </span>

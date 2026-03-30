@@ -80,7 +80,7 @@ export function TacticalDisplay({
             </p>
           )}
           {avoid && (
-            <p className="text-[18px] font-mono text-red-500 uppercase tracking-wide font-semibold text-center">
+            <p className="text-[18px] font-mono text-orange-400 uppercase tracking-wide font-semibold text-center">
               {avoid}
             </p>
           )}

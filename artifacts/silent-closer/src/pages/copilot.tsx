@@ -245,8 +245,8 @@ function DetailPanel({ detail, avoid, lang }: { detail: Detail; avoid?: string; 
       {detail.next_move && <DetailField fieldKey="SIGUIENTE" value={detail.next_move} prefix={labels.SIGUIENTE} />}
       {detail.support   && <DetailField fieldKey="APOYO"     value={detail.support}   prefix={labels.APOYO} />}
       {avoid && (
-        <p className="font-mono w-full text-center text-[21px] font-semibold uppercase tracking-wide text-red-500">
-          <span className="text-[9px] tracking-[0.2em] uppercase align-middle mr-2 font-normal text-red-700">
+        <p className="font-mono w-full text-center text-[21px] font-semibold uppercase tracking-wide text-orange-400">
+          <span className="text-[9px] tracking-[0.2em] uppercase align-middle mr-2 font-normal text-orange-600">
             {tx.AVOID} ·
           </span>
           {avoid}
@@ -1207,10 +1207,10 @@ export default function CopilotPage() {
             onClick={handleMicToggle}
             className={cn(
               "flex items-center gap-1.5 px-2 py-1 rounded-full transition-colors cursor-pointer",
-              isSessionListening ? "bg-red-500/10 text-red-400" : "text-muted-foreground"
+              isSessionListening ? "bg-sky-500/10 text-sky-400" : "text-muted-foreground"
             )}
           >
-            <div className={cn("w-2 h-2 rounded-full", isSessionListening ? "bg-red-500 animate-pulse" : "bg-zinc-600")} />
+            <div className={cn("w-2 h-2 rounded-full", isSessionListening ? "bg-sky-400 animate-pulse" : "bg-zinc-600")} />
             <span className="text-[10px] font-mono tracking-widest uppercase">
               {isSessionListening ? T[lang].LISTENING : T[lang].PAUSED}
             </span>
@@ -1371,12 +1371,12 @@ export default function CopilotPage() {
             className={cn(
               "px-6 py-2.5 rounded-full font-mono text-xs font-semibold tracking-widest uppercase transition-all flex items-center gap-2",
               isSessionListening
-                ? "bg-red-500/15 text-red-400 border border-red-500/25 hover:bg-red-500/25"
+                ? "bg-sky-500/15 text-sky-400 border border-sky-500/25 hover:bg-sky-500/25"
                 : "bg-white/8 text-white border border-white/15 hover:bg-white/15"
             )}
           >
             {isSessionListening
-              ? <><div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />{T[lang].PAUSE}</>
+              ? <><div className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />{T[lang].PAUSE}</>
               : <><Mic className="w-3.5 h-3.5" />{T[lang].START_LISTENING}</>}
           </button>
         )}
@@ -1409,7 +1409,7 @@ export default function CopilotPage() {
                 inputMode === "listen" ? "bg-white text-black shadow" : "text-zinc-300 hover:text-white"
               )}
             >
-              {isSessionListening ? <Mic className="w-3 h-3 text-red-500" /> : <Mic className="w-3 h-3" />}
+              {isSessionListening ? <Mic className="w-3 h-3 text-sky-400" /> : <Mic className="w-3 h-3" />}
               {T[lang].MODE_LISTEN}
             </button>
             <button
