@@ -371,7 +371,7 @@ function ArenaAdvancedForm({
 // ── Step-by-step Advanced form ───────────────────────────────────────────────
 const ADV_TOTAL = 6;
 
-const ADV_STEP_ICONS = [User, Users, Target, Briefcase, ShieldOff, FileText];
+const ADV_STEP_ICONS = [Package, Users, Target, ShieldOff, User, FileText];
 
 function AdvancedForm({ onSubmit, lang, ctaLabel }: { onSubmit: (context: string) => void; lang: Lang; ctaLabel?: string }) {
   const t = CP[lang];
