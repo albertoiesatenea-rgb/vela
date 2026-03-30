@@ -1546,12 +1546,12 @@ export function Arena({
 
 // ── Bold markdown renderer ────────────────────────────────────────────────────
 function BoldText({ text, className }: { text?: string; className?: string }) {
-  const parts = (text ?? "").split(/\*\*(.+?)\*\*/g);
+  const parts = (text ?? "").split(/\*\*([\s\S]+?)\*\*/g);
   return (
     <span className={className}>
       {parts.map((part, i) =>
         i % 2 === 1
-          ? <strong key={i} className="font-bold text-white">{part}</strong>
+          ? <strong key={i} className="font-semibold text-white">{part}</strong>
           : part
       )}
     </span>
@@ -1580,8 +1580,8 @@ function MessageRow({
       <div className={cn(
         "max-w-[80%] px-4 py-2.5 rounded-xl text-sm leading-relaxed",
         isUser
-          ? "bg-zinc-800 border border-zinc-700 text-white text-right"
-          : "bg-zinc-950 border border-zinc-700 text-zinc-100 text-left"
+          ? "bg-zinc-800 border border-zinc-700 text-zinc-300 text-right"
+          : "bg-zinc-950 border border-zinc-700 text-zinc-300 text-left"
       )}>
         <BoldText text={msg.message} />
       </div>
