@@ -1544,17 +1544,6 @@ export function Arena({
                   {lang === "es" ? "↓ Ok, sigue · ↑ No estoy de acuerdo · Enter envía" : "↓ Keep going · ↑ Disagree · Enter sends"}
                 </p>
                 <div className="flex items-center gap-1.5">
-                  {allTurns.length > 0 && (
-                    <button
-                      onClick={handleMidSessionDownload}
-                      onMouseDown={e => e.preventDefault()}
-                      title={lang === "es" ? "Descargar log de conversación" : "Download conversation log"}
-                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[8px] font-mono tracking-widest uppercase border transition-all text-zinc-600 border-zinc-800 hover:text-zinc-400 hover:border-zinc-600"
-                    >
-                      <Download className="w-2.5 h-2.5" />
-                      log
-                    </button>
-                  )}
                   <button
                     onClick={() => setCoachOn(prev => !prev)}
                     onMouseDown={e => e.preventDefault()}
@@ -1572,6 +1561,21 @@ export function Arena({
                 </div>
               </div>
             </>
+          )}
+
+          {/* Download log — visible for both roles once there are turns */}
+          {allTurns.length > 0 && (
+            <div className="flex justify-end">
+              <button
+                onClick={handleMidSessionDownload}
+                onMouseDown={e => e.preventDefault()}
+                title={lang === "es" ? "Descargar log de conversación" : "Download conversation log"}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[8px] font-mono tracking-widest uppercase border transition-all text-zinc-600 border-zinc-800 hover:text-zinc-400 hover:border-zinc-600"
+              >
+                <Download className="w-2.5 h-2.5" />
+                log
+              </button>
+            </div>
           )}
         </div>
       </div>
