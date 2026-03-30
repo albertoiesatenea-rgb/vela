@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Loader2, Sun, Moon, Sparkles, Trophy, Star } from "lucide-react";
+import { Loader2, Sun, Moon, Sparkles, Trophy, TrendingUp } from "lucide-react";
 import { WizardIcon } from "@/components/context-panel";
 import { cn } from "@/lib/utils";
 import { buildArenaAuditLog, triggerAuditLogDownload } from "@/lib/audit-log";
@@ -420,6 +420,22 @@ function ClientOutcomeBar({
   );
 }
 
+// ── Profile label translations ────────────────────────────────────────────────
+const CLIENT_PROFILE_LABEL: Record<string, Record<"es"|"en", string>> = {
+  analytical:      { es: "Analítico",          en: "Analytical" },
+  emotional:       { es: "Emocional",           en: "Emotional" },
+  insecure:        { es: "Inseguro",            en: "Insecure" },
+  dominant:        { es: "Dominante",           en: "Dominant" },
+  indecisive:      { es: "Indeciso",            en: "Indecisive" },
+  hard_negotiator: { es: "Negociador duro",     en: "Hard negotiator" },
+};
+const DIFFICULTY_LABEL: Record<string, Record<"es"|"en", string>> = {
+  easy:   { es: "Fácil",   en: "Easy" },
+  normal: { es: "Normal",  en: "Normal" },
+  hard:   { es: "Difícil", en: "Hard" },
+  brutal: { es: "Brutal",  en: "Brutal" },
+};
+
 // ── Arena component ───────────────────────────────────────────────────────────
 export function Arena({
   context,
@@ -736,11 +752,11 @@ export function Arena({
               </p>
               <p className="text-[10px] font-mono text-zinc-500 mt-0.5">{outcomeName}</p>
             </div>
-            <div className={cn("shrink-0", outcomeColor)}>
+            <div className={cn("shrink-0 mr-1", outcomeColor)}>
               {summary.outcome === "closed"
                 ? <Trophy className="w-10 h-10" />
                 : summary.outcome === "next_step"
-                  ? <Star className="w-10 h-10" />
+                  ? <TrendingUp className="w-10 h-10" />
                   : summary.outcome === "lost"
                     ? <span className="text-5xl font-mono leading-none select-none">✗</span>
                     : <span className="text-4xl font-mono leading-none select-none text-zinc-600">·</span>}
@@ -832,13 +848,17 @@ export function Arena({
             {arenaConfig.clientProfile && (
               <div className="flex flex-col gap-0">
                 <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{lang === "es" ? "CLIENTE" : "CLIENT"}</p>
-                <p className="text-xs font-mono font-semibold text-white capitalize">{arenaConfig.clientProfile.replace(/_/g, " ")}</p>
+                <p className="text-xs font-mono font-semibold text-white">
+                  {CLIENT_PROFILE_LABEL[arenaConfig.clientProfile]?.[lang] ?? arenaConfig.clientProfile.replace(/_/g, " ")}
+                </p>
               </div>
             )}
             {arenaConfig.difficulty && (
               <div className="flex flex-col gap-0">
                 <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{lang === "es" ? "DIFICULTAD" : "DIFFICULTY"}</p>
-                <p className="text-xs font-mono font-semibold text-white capitalize">{arenaConfig.difficulty}</p>
+                <p className="text-xs font-mono font-semibold text-white">
+                  {DIFFICULTY_LABEL[arenaConfig.difficulty]?.[lang] ?? arenaConfig.difficulty}
+                </p>
               </div>
             )}
             <div className="flex flex-col gap-0">
