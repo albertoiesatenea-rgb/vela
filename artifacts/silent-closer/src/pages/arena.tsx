@@ -990,7 +990,7 @@ export function Arena({
                 />
                 <button
                   onClick={() => void handleEnd("manual_stop")}
-                  disabled={isEnding || isStarting || messages.length < 2}
+                  disabled={isEnding || isStarting}
                   onMouseDown={e => e.preventDefault()}
                   className="w-20 shrink-0 rounded-xl border border-zinc-700 text-zinc-300 text-[9px] font-mono tracking-wider uppercase leading-snug hover:border-zinc-400 hover:text-white active:scale-[0.98] transition-all disabled:opacity-25 disabled:pointer-events-none flex items-center justify-center text-center px-1"
                 >
