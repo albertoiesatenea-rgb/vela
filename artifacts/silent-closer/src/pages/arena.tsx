@@ -999,9 +999,9 @@ export function Arena({
           )}
 
           {role === "seller" ? (
-            /* Seller: textarea + end button side by side + suggestion below */
-            <div className="flex flex-col gap-2">
-              <div className="flex gap-2 items-stretch">
+            /* Seller: textarea (with sparkles icon) + end button side by side */
+            <div className="flex gap-2 items-stretch">
+              <div className="relative flex-1">
                 <textarea
                   ref={textareaRef}
                   value={input}
@@ -1011,37 +1011,35 @@ export function Arena({
                   rows={3}
                   disabled={isStarting || isSending}
                   autoFocus
-                  className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors resize-none leading-relaxed disabled:opacity-40"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 pr-9 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors resize-none leading-relaxed disabled:opacity-40"
                 />
                 <button
-                  onClick={() => {
-                    const hasUserTurns = messages.some(m => m.speaker === "user");
-                    if (!hasUserTurns) { setShowEarlyExit(true); }
-                    else { void handleEnd("manual_stop"); }
-                  }}
-                  disabled={isEnding || isStarting}
+                  onClick={() => void fetchSuggestion()}
+                  disabled={isSuggesting || isStarting || isSending || messages.length < 1}
                   onMouseDown={e => e.preventDefault()}
-                  className="w-20 shrink-0 rounded-xl border border-zinc-700 text-zinc-300 text-[9px] font-mono tracking-wider uppercase leading-snug hover:border-zinc-400 hover:text-white active:scale-[0.98] transition-all disabled:opacity-25 disabled:pointer-events-none flex items-center justify-center text-center px-1"
+                  title={lang === "es" ? "Respuesta ideal" : "Ideal response"}
+                  className="absolute top-2 right-2 p-1.5 rounded-lg text-zinc-500 hover:text-sky-400 hover:bg-white/8 transition-all disabled:opacity-25 disabled:pointer-events-none"
                 >
-                  {isEnding
+                  {isSuggesting
                     ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    : <span>{lang === "es" ? "Terminar sesión" : "End session"}</span>
+                    : <Sparkles className="w-3.5 h-3.5" />
                   }
                 </button>
               </div>
-
-              {/* Suggested response button */}
               <button
-                onClick={() => void fetchSuggestion()}
-                disabled={isSuggesting || isStarting || isSending || messages.length < 1}
+                onClick={() => {
+                  const hasUserTurns = messages.some(m => m.speaker === "user");
+                  if (!hasUserTurns) { setShowEarlyExit(true); }
+                  else { void handleEnd("manual_stop"); }
+                }}
+                disabled={isEnding || isStarting}
                 onMouseDown={e => e.preventDefault()}
-                className="flex items-center gap-1.5 self-start px-3 py-1.5 rounded-lg border border-zinc-800 text-zinc-500 text-[9px] font-mono tracking-widest uppercase hover:border-sky-400/50 hover:text-sky-300 active:scale-[0.98] transition-all disabled:opacity-25 disabled:pointer-events-none"
+                className="w-20 shrink-0 rounded-xl border border-zinc-700 text-zinc-300 text-[9px] font-mono tracking-wider uppercase leading-snug hover:border-zinc-400 hover:text-white active:scale-[0.98] transition-all disabled:opacity-25 disabled:pointer-events-none flex items-center justify-center text-center px-1"
               >
-                {isSuggesting
-                  ? <Loader2 className="w-3 h-3 animate-spin" />
-                  : <Sparkles className="w-3 h-3" />
+                {isEnding
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : <span>{lang === "es" ? "Terminar sesión" : "End session"}</span>
                 }
-                <span>{lang === "es" ? "Respuesta ideal" : "Ideal response"}</span>
               </button>
             </div>
           ) : (
