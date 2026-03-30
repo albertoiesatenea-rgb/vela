@@ -1558,6 +1558,49 @@ function BoldText({ text, className }: { text?: string; className?: string }) {
   );
 }
 
+// ── Rich text renderer (for AI seller messages) ───────────────────────────────
+// Handles: **bold**, paragraph breaks (\n\n), line breaks (\n), bullet lists (- item)
+function RichText({ text }: { text?: string }) {
+  const raw = (text ?? "").trim();
+  const blocks = raw.split(/\n\n+/);
+
+  return (
+    <div className="flex flex-col gap-2">
+      {blocks.map((block, bi) => {
+        const lines = block.split("\n").filter(l => l.trim() !== "");
+        if (lines.length === 0) return null;
+
+        const allBullets = lines.every(l => /^[ \t]*-[ \t]/.test(l));
+
+        if (allBullets) {
+          return (
+            <ul key={bi} className="flex flex-col gap-1">
+              {lines.map((line, li) => (
+                <li key={li} className="flex gap-2 items-start">
+                  <span className="text-zinc-500 shrink-0 mt-px select-none">—</span>
+                  <span><BoldText text={line.replace(/^[ \t]*-[ \t]*/, "")} /></span>
+                </li>
+              ))}
+            </ul>
+          );
+        }
+
+        if (lines.length === 1) {
+          return <p key={bi}><BoldText text={lines[0]} /></p>;
+        }
+
+        return (
+          <div key={bi} className="flex flex-col gap-0.5">
+            {lines.map((line, li) => (
+              <p key={li}><BoldText text={line} /></p>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Message row ───────────────────────────────────────────────────────────────
 function MessageRow({
   msg,
@@ -1578,12 +1621,15 @@ function MessageRow({
         {isUser ? youLabel : aiLabel}
       </span>
       <div className={cn(
-        "max-w-[80%] px-4 py-2.5 rounded-xl text-sm leading-relaxed",
+        "px-4 py-2.5 rounded-xl text-sm leading-relaxed",
         isUser
-          ? "bg-zinc-800 border border-zinc-700 text-zinc-300 text-right"
-          : "bg-zinc-950 border border-zinc-700 text-zinc-300 text-left"
+          ? "max-w-[80%] bg-zinc-800 border border-zinc-700 text-zinc-300 text-right"
+          : "max-w-[90%] bg-zinc-950 border border-zinc-700 text-zinc-300 text-left"
       )}>
-        <BoldText text={msg.message} />
+        {isUser
+          ? <BoldText text={msg.message} />
+          : <RichText text={msg.message} />
+        }
       </div>
     </div>
   );

@@ -1,0 +1,105 @@
+## OBJETIVO
+Mejorar la legibilidad de los mensajes del vendedor IA en Arena `client` mode para que sean mucho más fáciles de escanear y entender: menos bloque denso, más jerarquía visual, más resaltado de ideas clave y mejor visibilidad de la pregunta final.
+
+## CONTEXTO
+- En Arena `client` mode el usuario hace de cliente y la IA responde como vendedor.
+- El problema actual no es solo el contenido; es también la forma en que se presenta.
+- Ahora mismo el vendedor puede soltar bloques de texto difíciles de leer, con muy poco texto resaltado y sin jerarquía clara.
+- Aunque la respuesta no sea terrible, visualmente se siente pesada, complicada y poco didáctica.
+- Quiero que el mensaje del vendedor sea más fácil de consumir dentro del chat.
+- No quiero convertir cada respuesta en una plantilla rígida ni en un ladrillo con formato raro.
+- Quiero que el contenido se vea más claro, más escaneable y más útil para aprender.
+
+Archivos probablemente implicados:
+- `artifacts/silent-closer/src/pages/arena.tsx`
+- cualquier componente que renderice mensajes de Arena
+- si existe helper de render markdown/rich text en chat, usarlo
+- si hace falta, el prompt del vendedor IA en `artifacts/api-server/src/routes/arena.ts`
+
+## RESTRICCIONES
+- No tocar Copiloto
+- No rehacer Arena desde cero
+- No romper `start / turn / suggest / finish`
+- No cambiar seller mode salvo que comparta renderer y sea un cambio visual seguro
+- No convertir todos los mensajes en listas por defecto
+- No meter formatos agresivos o recargados
+- No instalar dependencias nuevas salvo necesidad real
+- Mantener el look general minimalista de la app
+
+## CAMBIO EXACTO
+Quiero mejorar cómo se muestran los mensajes del vendedor IA en `client` mode con estas reglas:
+
+### 1. Mejor jerarquía visual
+- Resaltar en **negrita** más ideas importantes, no solo una cifra suelta
+- Resaltar especialmente:
+  - objeción principal
+  - conclusión importante
+  - condición clave
+  - pregunta final
+- La pregunta final no debe quedar enterrada al final de un párrafo enorme
+
+### 2. Mensajes más escaneables
+Cuando la IA enumere opciones, condiciones o palancas, usar formato visual más claro:
+- frases separadas
+- saltos de línea
+- bullets si realmente hay 2 o 3 opciones claras
+
+Ejemplo de uso correcto:
+- **Opción 1:** bajar precio
+- **Opción 2:** mejorar renta
+- **Opción 3:** asumir que no encaja
+
+No usar bullets por sistema. Solo cuando ordenen mejor el mensaje.
+
+### 3. Estructura de lectura más limpia
+Priorizar esta lógica visual:
+- una idea principal arriba
+- luego la aclaración breve
+- luego la pregunta o siguiente paso claramente separado
+
+### 4. Pregunta final visible
+Si el vendedor hace una pregunta, debe verse muy clara.
+Opciones válidas:
+- en una línea separada
+- con negrita parcial
+- con más espacio antes
+
+Ejemplo:
+**La pregunta real es esta:**  
+¿Te encajaría si bajáramos el esfuerzo mensual a 300 €?
+
+### 5. Menos bloque corrido
+Evitar respuestas que sean un párrafo largo y uniforme.
+Aunque el contenido sea el mismo, dividirlo mejor para que sea más fácil de leer en chat.
+
+### 6. Si hace falta, ajustar el prompt
+Si el problema viene de que el vendedor genera texto demasiado compacto y mal estructurado, ajustar también el prompt del vendedor IA para que:
+- escriba más claro
+- use frases más cortas
+- separe mejor ideas
+- use listas solo cuando ayuden
+- deje la pregunta final muy visible
+
+## IMPLEMENTACIÓN
+Haz el cambio por la vía más limpia posible:
+1. primero revisar si basta con mejorar el renderer / formateo visual del mensaje;
+2. si no basta, ajustar también el prompt del vendedor IA para inducir respuestas más legibles;
+3. no meter una capa compleja de markdown si basta con un render simple, seguro y controlado.
+
+## ENTREGABLES
+- [ ] Mejor render visual de los mensajes del vendedor IA en Arena `client` mode
+- [ ] Más uso útil de negrita y separación visual
+- [ ] Preguntas finales mucho más visibles
+- [ ] Uso de bullets cuando de verdad ayuden a entender opciones
+- [ ] Ajuste del prompt solo si hace falta para mejorar estructura y claridad
+- [ ] No tocar nada innecesario fuera de ese flujo
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] Los mensajes del vendedor son más fáciles de leer de un vistazo
+- [ ] La idea principal se identifica rápido
+- [ ] Las cifras, condiciones e ideas clave se resaltan mejor
+- [ ] Si hay una pregunta, se ve claramente y no queda enterrada
+- [ ] Si hay varias opciones, se muestran de forma más escaneable
+- [ ] Ya no da sensación de bloque denso difícil de leer
+- [ ] La app compila sin errores
+- [ ] No hay regresión en Arena
