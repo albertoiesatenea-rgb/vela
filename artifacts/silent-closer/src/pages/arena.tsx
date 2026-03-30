@@ -837,6 +837,9 @@ export function Arena({
     const expectedUserIdx = messages.length;
     const expectedAiIdx = messages.length + 1;
 
+    // Client message appears immediately; loading indicator for vendor shows in same render
+    const cannedMsg = direction === "agree" ? t.CLIENT_ACCEPT_MSG : t.CLIENT_OBJECTION_MSG;
+    setMessages(prev => [...prev, { index: expectedUserIdx, speaker: "user" as const, message: cannedMsg }]);
     setIsSending(true);
 
     try {
@@ -851,12 +854,6 @@ export function Arena({
         terminalSignal?: ArenaOutcome;
         coachLite?: CoachLite;
       };
-      // Show client message first, then vendor after a natural beat
-      setMessages(prev => [
-        ...prev,
-        { index: expectedUserIdx, speaker: "user" as const, message: data.generatedUserMessage },
-      ]);
-      await new Promise<void>(r => setTimeout(r, 650));
       setMessages(prev => [
         ...prev,
         { index: expectedAiIdx, speaker: "ai" as const, message: data.aiMessage },
@@ -878,7 +875,7 @@ export function Arena({
       setIsSending(false);
       setTimeout(() => textareaRef.current?.focus(), 50);
     }
-  }, [isSending, arenaSessionId, messages.length, lang]);
+  }, [isSending, arenaSessionId, messages.length, lang, t]);
 
   // Arrow key shortcuts for client mode (↓ = agree comodín, ↑ = object comodín)
   useEffect(() => {
