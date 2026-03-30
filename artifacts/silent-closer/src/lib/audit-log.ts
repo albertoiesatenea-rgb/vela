@@ -61,6 +61,17 @@ export interface CopilotTurnData {
   why_this_turn_exists: string | null;
 }
 
+export interface ArenaTurnCoach {
+  explanation: string;
+}
+
+export interface ArenaTurnJourney {
+  stages: Record<string, string>;
+  now_help?: string;
+  next_help?: string;
+  premature_close_risk?: string;
+}
+
 export interface ArenaTurnData {
   arena_role_of_user: string;
   ai_role_this_turn: string;
@@ -73,6 +84,8 @@ export interface ArenaTurnData {
   terminal_state_source: string | null;
   tension_or_momentum: string | null;
   hidden_reasoning_summary: string | null;
+  coach?: ArenaTurnCoach;
+  journey?: ArenaTurnJourney;
 }
 
 export interface AuditTurn {
@@ -189,6 +202,16 @@ export interface ArenaMessageEntry {
   message: string;
 }
 
+export interface ArenaCoachEntry {
+  explanation: string;
+  journey?: {
+    stages: Record<string, string>;
+    now_help?: string;
+    next_help?: string;
+    premature_close_risk?: string;
+  };
+}
+
 export interface ArenaSessionData {
   sessionId: string | null;
   lang: AuditLang;
@@ -204,6 +227,8 @@ export interface ArenaSessionData {
   exitNote: { text: string; outcome: string } | null;
   debrief: { score: number; critique: string[] } | null;
   runtimeInstructions?: string[];
+  // Coach and journey data keyed by AI message index (optional — absent in old sessions)
+  coachLiteMap?: Record<number, ArenaCoachEntry>;
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
@@ -479,6 +504,9 @@ export function buildArenaAuditLog(data: ArenaSessionData): AuditLog {
       }
     }
 
+    // Attach coach / journey if available for this AI message
+    const coachEntry = !isUserMsg && data.coachLiteMap ? data.coachLiteMap[msg.index] : undefined;
+
     const arena: ArenaTurnData = {
       arena_role_of_user: data.role,
       ai_role_this_turn: aiRole,
@@ -491,6 +519,13 @@ export function buildArenaAuditLog(data: ArenaSessionData): AuditLog {
       terminal_state_source: isTerminal ? data.outcomeSource : null,
       tension_or_momentum: stateAfter,
       hidden_reasoning_summary: hiddenReasoning,
+      coach: coachEntry ? { explanation: coachEntry.explanation } : undefined,
+      journey: coachEntry?.journey ? {
+        stages: coachEntry.journey.stages as Record<string, string>,
+        now_help: coachEntry.journey.now_help,
+        next_help: coachEntry.journey.next_help,
+        premature_close_risk: coachEntry.journey.premature_close_risk,
+      } : undefined,
     };
 
     turns.push({
@@ -711,6 +746,29 @@ export function renderAuditLogMarkdown(log: AuditLog): string {
       sections.push(`terminal_state_source: ${nul(a.terminal_state_source)}`);
       sections.push(`tension_or_momentum: ${nul(a.tension_or_momentum)}`);
       sections.push(`hidden_reasoning_summary: ${nul(a.hidden_reasoning_summary)}`);
+
+      if (a.coach) {
+        sections.push("");
+        sections.push("#### COACH_ANALYSIS");
+        sections.push("");
+        sections.push(`explanation: |`);
+        sections.push(`  ${a.coach.explanation.replace(/\n/g, "\n  ")}`);
+      }
+
+      if (a.journey) {
+        sections.push("");
+        sections.push("#### JOURNEY_STATE");
+        sections.push("");
+        if (a.journey.stages && Object.keys(a.journey.stages).length > 0) {
+          sections.push("stages:");
+          for (const [stageId, status] of Object.entries(a.journey.stages)) {
+            sections.push(`  ${stageId}: ${status}`);
+          }
+        }
+        sections.push(`now_help: ${nul(a.journey.now_help)}`);
+        sections.push(`next_help: ${nul(a.journey.next_help)}`);
+        sections.push(`premature_close_risk: ${nul(a.journey.premature_close_risk)}`);
+      }
     }
   }
 

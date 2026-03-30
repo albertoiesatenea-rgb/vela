@@ -981,6 +981,7 @@ export function Arena({
       exitNote: exitNote ?? null,
       debrief: summary.debrief ?? null,
       runtimeInstructions: sellerNotes.length > 0 ? sellerNotes : undefined,
+      coachLiteMap: Object.keys(coachLiteMap).length > 0 ? coachLiteMap : undefined,
     });
     triggerAuditLogDownload(log, arenaSessionId);
   };
@@ -1006,9 +1007,10 @@ export function Arena({
       exitNote: null,
       debrief: null,
       runtimeInstructions: sellerNotes.length > 0 ? sellerNotes : undefined,
+      coachLiteMap: Object.keys(coachLiteMap).length > 0 ? coachLiteMap : undefined,
     });
     triggerAuditLogDownload(log, arenaSessionId);
-  }, [messages, arenaSessionId, lang, role, context, sellerNotes]);
+  }, [messages, arenaSessionId, lang, role, context, sellerNotes, coachLiteMap]);
 
   const handleDownloadReport = () => {
     if (!summary) return;

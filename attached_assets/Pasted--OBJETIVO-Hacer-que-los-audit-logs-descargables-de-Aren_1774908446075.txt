@@ -1,0 +1,75 @@
+## OBJETIVO
+Hacer que los audit logs descargables de Arena incluyan también toda la información visible del `coach` y del `journey`, para que el usuario pueda exportar un log completo en `.md` y enviárselo a ChatGPT u otro auditor para revisar mejor el comportamiento y proponer mejoras de prompt.
+
+## CONTEXTO
+- Arena ya permite descargar audit logs en `.md`.
+- Esos logs se construyen en cliente a partir del estado de sesión, no con una llamada API adicional.
+- El sistema actual de audit log ya tiene schema estructurado con:
+  - `meta`
+  - `context`
+  - `config`
+  - `turns`
+  - `readable_transcript`
+  - `summary`
+  - `audit_hints`
+- En Arena, cada turno ya guarda información específica como:
+  - estado conversacional antes/después,
+  - terminal state,
+  - source del terminal state,
+  - tensión/momentum,
+  - `hidden_reasoning_summary` heurístico.
+- Pero ahora quiero que también se exporte lo que ya existe o ya se está mostrando en UI como `coach` y `journey`, para tener logs realmente útiles de cara a análisis externo de prompts y comportamiento.
+
+Archivos probablemente implicados:
+- `artifacts/silent-closer/src/lib/audit-log.ts`
+- `artifacts/silent-closer/src/pages/arena.tsx`
+- `artifacts/api-server/src/routes/arena.ts`
+- `docs/05-arena-logic.md`
+- `docs/04-prompts.md`
+- si aplica, cualquier tipo/shape de estado de turnos de Arena en frontend
+
+## RESTRICCIONES
+- No tocar Copiloto
+- No rehacer Arena
+- No romper `start / turn / finish`
+- No cambiar la descarga actual de logs salvo para enriquecerla
+- No convertir el log en un bloque caótico o poco legible
+- No meter texto ornamental
+- Mantener compatibilidad con sesiones viejas o turnos donde `coach` / `journey` no existan
+- No instalar dependencias nuevas salvo necesidad real
+
+## CAMBIO EXACTO
+
+### 1. Guardar `coach` y `journey` en el estado de cada turno de Arena
+Si hoy el backend ya devuelve `coach` o `coachLite` y `journey`, asegurar que el frontend los guarda por turno en el estado de sesión.
+Si todavía no se están guardando completos, ampliarlo.
+
+### 2. Extender el schema del audit log de Arena
+Ampliar el tipo de `ArenaTurnData` para incluir explícitamente algo como:
+
+```ts
+coach?: {
+  signal?: string
+  mission?: string
+  next_move?: string
+  reading?: string
+  strategy?: string
+  why_this_response?: string
+  alternative?: string
+}
+
+journey?: {
+  stages?: Array<{
+    id: string
+    label: string
+    help?: string
+    status: "done" | "current" | "upcoming"
+  }>
+  now_label?: string
+  now_help?: string
+  next_label?: string
+  next_help?: string
+  goal?: string
+  steps_remaining?: number | null
+  premature_close_risk?: "low" | "medium" | "high" | null
+}
