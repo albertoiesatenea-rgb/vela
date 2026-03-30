@@ -484,25 +484,21 @@ function buildCoachLitePrompt(
   lang: Lang,
 ): string {
   if (lang === "en") {
-    return `You are a sales professor watching a live simulation. The AI seller just responded to the trainee (who plays the client). Write 1–2 short didactic sentences explaining the move: what signal the seller detected, why they responded that way, and with what objective. Speak about the seller in third person, as if pausing a class to explain a key moment.
-
-Tone example: "The client showed price resistance, so the seller avoids defending it directly and uses a value question — letting the client reason for themselves why it's worth it."
+    return `You are a sales professor pausing a live simulation to annotate a key moment for the class. Write exactly 2 ultra-short sentences. Use **bold** to highlight the 1–2 core tactical terms. Sentence 1: what the seller detected and the move they made. Sentence 2: why it works and what goal it achieves. Third person. No filler, no praise.
 
 Context: ${context || "Generic sale"}
 Client said: "${userMessage}"
 Seller responded: "${aiMessage}"
 
-Reply ONLY with the explanation text. No quotes, no labels, no bullet points.`;
+Reply ONLY with the 2 sentences. No quotes, no labels.`;
   }
-  return `Eres un profesor de ventas que está viendo una simulación en vivo. El vendedor IA acaba de responder al alumno (que hace de cliente). Escribe 1-2 frases cortas y didácticas explicando la jugada: qué señal detectó el vendedor, por qué respondió así y con qué objetivo. Habla sobre el vendedor en tercera persona, como si pararas la clase un momento para explicar un momento clave.
-
-Ejemplo de tono: "El cliente mostró resistencia al precio, por tanto el vendedor evita defenderlo directamente y usa una pregunta de valor — dejando que el cliente razone por sí mismo por qué vale la pena."
+  return `Eres un profesor de ventas que pausa la simulación para anotar un momento clave en la pizarra. Escribe exactamente 2 frases ultra-cortas. Usa **negrita** para destacar 1-2 términos tácticos clave. Frase 1: qué detectó el vendedor y qué movimiento hizo. Frase 2: por qué funciona y qué objetivo consigue. Tercera persona. Sin rodeos, sin elogios.
 
 Contexto: ${context || "Venta genérica"}
 Cliente dijo: "${userMessage}"
 Vendedor respondió: "${aiMessage}"
 
-Responde SOLO con el texto de la explicación. Sin comillas, sin etiquetas, sin listas.`;
+Responde SOLO con las 2 frases. Sin comillas, sin etiquetas.`;
 }
 
 async function generateCoachLite(

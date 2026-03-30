@@ -576,15 +576,15 @@ function Confetti({ active, intensity = "high" }: { active: boolean; intensity?:
 // ── CoachNote component — didactic side panel ─────────────────────────────────
 function CoachNote({ explanation, lang }: { explanation: string; lang: Lang }) {
   return (
-    <div className="flex flex-col gap-1.5 pt-1 pr-3 border-r border-teal-500/20">
-      <div className="flex items-center gap-1">
-        <GraduationCap className="w-2.5 h-2.5 text-teal-400/50 shrink-0" />
-        <span className="text-[7px] font-mono tracking-[0.2em] uppercase text-teal-400/50">
-          {lang === "es" ? "análisis" : "analysis"}
+    <div className="flex flex-col gap-2 pt-1 pr-4 border-r-2 border-teal-500/30">
+      <div className="flex items-center gap-1.5">
+        <GraduationCap className="w-3 h-3 text-teal-400/70 shrink-0" />
+        <span className="text-[8px] font-mono tracking-[0.18em] uppercase text-teal-400/60">
+          {lang === "es" ? "táctica" : "tactic"}
         </span>
       </div>
-      <p className="text-[11px] text-zinc-400 leading-relaxed">
-        {explanation}
+      <p className="text-[12px] text-zinc-300 leading-[1.6] font-light">
+        <BoldText text={explanation} className="text-zinc-300" />
       </p>
     </div>
   );
@@ -593,12 +593,13 @@ function CoachNote({ explanation, lang }: { explanation: string; lang: Lang }) {
 // ── CoachNote skeleton — shown while AI + coach are loading ───────────────────
 function CoachNoteSkeleton() {
   return (
-    <div className="flex flex-col gap-2 pt-1 pr-3 border-r border-teal-500/10">
-      <div className="w-12 h-1.5 bg-teal-500/10 rounded animate-pulse" />
-      <div className="flex flex-col gap-1.5">
-        <div className="w-full h-1.5 bg-zinc-800/60 rounded animate-pulse" />
-        <div className="w-full h-1.5 bg-zinc-800/60 rounded animate-pulse" />
-        <div className="w-3/4 h-1.5 bg-zinc-800/60 rounded animate-pulse" />
+    <div className="flex flex-col gap-2 pt-1 pr-4 border-r-2 border-teal-500/15">
+      <div className="w-14 h-2 bg-teal-500/15 rounded animate-pulse" />
+      <div className="flex flex-col gap-2">
+        <div className="w-full h-2 bg-zinc-800/70 rounded animate-pulse" />
+        <div className="w-full h-2 bg-zinc-800/70 rounded animate-pulse" />
+        <div className="w-4/5 h-2 bg-zinc-800/70 rounded animate-pulse" />
+        <div className="w-2/3 h-2 bg-zinc-800/50 rounded animate-pulse" />
       </div>
     </div>
   );
@@ -648,18 +649,10 @@ export function Arena({
   const [noteText, setNoteText] = useState("");
   const [noteCount, setNoteCount] = useState(0);
   const [sellerNotes, setSellerNotes] = useState<string[]>([]);
-  // CoachLite (client mode only): coach data per message index, per-message open state
+  // CoachLite (client mode only): coach data per message index, global on/off
   const [coachLiteMap, setCoachLiteMap] = useState<Record<number, CoachLite>>({});
-  const [openCoachMsgs, setOpenCoachMsgs] = useState<Set<number>>(new Set());
+  const [coachOn, setCoachOn] = useState(false);
   const [loadingPhase, setLoadingPhase] = useState(0);
-
-  const toggleCoach = useCallback((idx: number) => {
-    setOpenCoachMsgs(prev => {
-      const next = new Set(prev);
-      if (next.has(idx)) next.delete(idx); else next.add(idx);
-      return next;
-    });
-  }, []);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -1273,15 +1266,14 @@ export function Arena({
         ) : (
           <div className={cn(
             "mx-auto flex flex-col gap-5 transition-[max-width] duration-300",
-            role === "client" && openCoachMsgs.size > 0 ? "max-w-4xl" : "max-w-2xl"
+            role === "client" && coachOn ? "max-w-4xl" : "max-w-2xl"
           )}>
             {messages.map((msg, i) => {
-              const hasCoach = role === "client" && msg.speaker === "ai" && !!coachLiteMap[msg.index];
-              const isCoachOpen = hasCoach && openCoachMsgs.has(msg.index);
+              const showCoachSlot = role === "client" && coachOn && msg.speaker === "ai";
               if (msg.speaker === "note") {
                 return (
                   <div key={i} className="flex items-center gap-2 py-0.5">
-                    {isCoachOpen && <div className="w-44 shrink-0" />}
+                    {role === "client" && coachOn && <div className="w-60 shrink-0" />}
                     <div className="flex-1 h-px bg-zinc-800" />
                     <span className="text-[8px] font-mono tracking-widest uppercase text-zinc-600 shrink-0 flex items-center gap-1">
                       <StickyNote className="w-2.5 h-2.5" />
@@ -1292,52 +1284,51 @@ export function Arena({
                 );
               }
               return (
-                <div key={i} className="flex items-start gap-0">
-                  {/* Left coach slot — expands when this message's coach note is open */}
-                  {isCoachOpen && (
-                    <div className="w-44 shrink-0 self-start">
-                      <CoachNote explanation={coachLiteMap[msg.index].explanation} lang={lang} />
+                <div key={i} className="flex items-start">
+                  {/* Left coach slot */}
+                  {showCoachSlot && (
+                    <div className="w-60 shrink-0 self-start">
+                      {coachLiteMap[msg.index]
+                        ? <CoachNote explanation={coachLiteMap[msg.index].explanation} lang={lang} />
+                        : null}
                     </div>
                   )}
-                  {/* Message + inline coach toggle */}
-                  <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                  {/* Message */}
+                  <div className="flex-1 min-w-0">
                     <MessageRow msg={msg} youLabel={t.YOU} aiLabel={aiLabel} />
-                    {hasCoach && (
-                      <button
-                        onClick={() => toggleCoach(msg.index)}
-                        className="flex items-center gap-1 text-[8px] font-mono tracking-wide text-teal-400/40 hover:text-teal-300/70 transition-colors self-start pl-0 mt-0.5"
-                      >
-                        <GraduationCap className="w-2.5 h-2.5" />
-                        {isCoachOpen
-                          ? (lang === "es" ? "ocultar análisis" : "hide analysis")
-                          : (lang === "es" ? "ver análisis" : "see analysis")}
-                      </button>
-                    )}
                   </div>
                 </div>
               );
             })}
             {isSending && (
-              <div className="flex flex-col gap-1.5">
-                {role === "client" ? (
-                  <>
-                    <span className="text-[9px] tracking-widest uppercase text-sky-400/70">{aiLabel}</span>
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-sky-400/60 animate-pulse shrink-0" />
-                      <span className="text-[11px] font-mono text-zinc-500 italic">
-                        {COACH_LOADING[lang][loadingPhase]}
-                      </span>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <span className="text-[9px] tracking-widest uppercase text-zinc-600">{aiLabel}</span>
-                    <div className="flex items-center gap-1.5 text-zinc-600">
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      <span className="text-xs">{t.SENDING}</span>
-                    </div>
-                  </>
+              <div className="flex items-start">
+                {/* Coach skeleton during loading */}
+                {role === "client" && coachOn && (
+                  <div className="w-60 shrink-0">
+                    <CoachNoteSkeleton />
+                  </div>
                 )}
+                <div className="flex-1 min-w-0">
+                  {role === "client" ? (
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[9px] tracking-widest uppercase text-sky-400/70">{aiLabel}</span>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-1.5 h-1.5 rounded-full bg-sky-400/60 animate-pulse shrink-0" />
+                        <span className="text-[11px] font-mono text-zinc-500 italic">
+                          {COACH_LOADING[lang][loadingPhase]}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[9px] tracking-widest uppercase text-zinc-600">{aiLabel}</span>
+                      <div className="flex items-center gap-1.5 text-zinc-600">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        <span className="text-xs">{t.SENDING}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -1507,9 +1498,25 @@ export function Arena({
                 autoFocus
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors resize-none leading-relaxed disabled:opacity-40"
               />
-              <p className="text-[9px] text-zinc-600 tracking-widest">
-                {lang === "es" ? "↓ Ok, sigue · ↑ No estoy de acuerdo · Enter envía" : "↓ Keep going · ↑ Disagree · Enter sends"}
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-[9px] text-zinc-600 tracking-widest">
+                  {lang === "es" ? "↓ Ok, sigue · ↑ No estoy de acuerdo · Enter envía" : "↓ Keep going · ↑ Disagree · Enter sends"}
+                </p>
+                <button
+                  onClick={() => setCoachOn(prev => !prev)}
+                  onMouseDown={e => e.preventDefault()}
+                  title={lang === "es" ? "Activar anotaciones de táctica" : "Toggle tactical notes"}
+                  className={cn(
+                    "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[8px] font-mono tracking-widest uppercase border transition-all",
+                    coachOn
+                      ? "text-teal-300 border-teal-500/50 bg-teal-500/10"
+                      : "text-zinc-600 border-zinc-800 hover:text-zinc-400 hover:border-zinc-600"
+                  )}
+                >
+                  <GraduationCap className="w-2.5 h-2.5" />
+                  coach
+                </button>
+              </div>
             </>
           )}
         </div>
