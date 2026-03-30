@@ -857,12 +857,11 @@ export function Arena({
         terminalSignal?: ArenaOutcome;
         coachLite?: CoachLite;
       };
-      // Replace client message with actual generated one, then append vendor message
-      setMessages(prev => {
-        const updated = [...prev];
-        updated[expectedUserIdx] = { index: expectedUserIdx, speaker: "user" as const, message: data.generatedUserMessage };
-        return [...updated, { index: expectedAiIdx, speaker: "ai" as const, message: data.aiMessage }];
-      });
+      // Keep the canned message already shown — just append the vendor response
+      setMessages(prev => [
+        ...prev,
+        { index: expectedAiIdx, speaker: "ai" as const, message: data.aiMessage },
+      ]);
       setConversationState(inferState(data.aiMessage, lang));
       if (data.coachLite) {
         setCoachLiteMap(prev => ({ ...prev, [expectedAiIdx]: data.coachLite! }));
