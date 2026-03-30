@@ -56,38 +56,78 @@
 }
 
 /* ── Light theme ──────────────────────────────────────────────────── */
-/* Swaps the zinc/black/white palette so all bg-zinc-900 etc. invert */
 html.light {
   color-scheme: light;
 
   /* Semantic tokens */
   --background: 0 0% 100%;
   --foreground: 0 0% 4%;
-  --muted: 0 0% 94%;
-  --muted-foreground: 0 0% 45%;
-  --border: 0 0% 88%;
-  --input: 0 0% 94%;
-  --ring: 0 0% 60%;
-  --card: 0 0% 97%;
+  --muted: 0 0% 93%;
+  --muted-foreground: 0 0% 38%;
+  --border: 0 0% 83%;
+  --input: 0 0% 93%;
+  --ring: 0 0% 55%;
+  --card: 0 0% 96%;
   --card-foreground: 0 0% 4%;
   --primary: 0 0% 4%;
   --primary-foreground: 0 0% 98%;
 
+  /* Black ↔ White swap */
   --color-black: #ffffff;
   --color-white: #000000;
 
-  /* Zinc palette — mirrored (950↔50, 900↔100, ...) */
-  --color-zinc-950: #fafafa;
-  --color-zinc-900: #f4f4f5;
-  --color-zinc-800: #e4e4e7;
-  --color-zinc-700: #d4d4d8;
-  --color-zinc-600: #a1a1aa;
-  --color-zinc-500: #71717a;
-  --color-zinc-400: #52525b;
-  --color-zinc-300: #3f3f46;
-  --color-zinc-200: #27272a;
-  --color-zinc-100: #18181b;
-  --color-zinc-50:  #09090b;
+  /* ── Zinc — redesigned for light mode (all WCAG AA or better) ── */
+  /* Rule: text-zinc-400+ must be readable on both white and zinc-950 bg */
+  --color-zinc-950: #f3f3f3;   /* page/container bg — subtle off-white   */
+  --color-zinc-900: #e6e6e6;   /* panel bg — clearly distinct from white  */
+  --color-zinc-800: #cccccc;   /* borders/dividers — visible              */
+  --color-zinc-700: #aaaaaa;   /* soft/decorative borders                 */
+  --color-zinc-600: #666666;   /* secondary text — 5.4:1 on white ✓      */
+  --color-zinc-500: #4d4d4d;   /* medium text — 9:1 on white ✓           */
+  --color-zinc-400: #383838;   /* primary secondary text — 11:1 ✓        */
+  --color-zinc-300: #222222;   /* prominent text — 14:1 ✓                */
+  --color-zinc-200: #141414;
+  --color-zinc-100: #080808;
+  --color-zinc-50:  #000000;
+
+  /* ── Accent text — dark variants so they read on white/tinted bg ── */
+
+  /* Amber (copilot APOYO content, difficulty chips, momentum, debrief) */
+  --color-amber-200: #78350f;   /* amber-900 — copilot card content     */
+  --color-amber-300: #92400e;   /* amber-800                            */
+  --color-amber-400: #b45309;   /* amber-700                            */
+  --color-amber-600: #92400e;   /* amber-600 → darker for △ markers    */
+
+  /* Sky (copilot LECTURA content, client profile chips, Arena label)  */
+  --color-sky-200: #0c4a6e;    /* sky-900  — copilot card content      */
+  --color-sky-300: #0c4a6e;    /* sky-900                              */
+  --color-sky-400: #075985;    /* sky-800                              */
+
+  /* Teal (copilot MISION content, seller profile chips) */
+  --color-teal-200: #134e4a;   /* teal-900 — copilot card content      */
+  --color-teal-300: #134e4a;   /* teal-900                             */
+  --color-teal-400: #0f766e;   /* teal-700                             */
+
+  /* Green (momentum favorable, report checkmarks) */
+  --color-green-400: #15803d;  /* green-700 */
+  --color-green-500: #16a34a;  /* green-600 */
+  --color-green-600: #166534;  /* green-800 */
+
+  /* Red (momentum critical, debrief low score) */
+  --color-red-400: #b91c1c;    /* red-700  */
+  --color-red-500: #991b1b;    /* red-800  */
+
+  /* Emerald (outcome closed, debrief score >7, client "deal" button) */
+  --color-emerald-400: #065f46; /* emerald-900 — very dark, reads on light */
+  --color-emerald-500: #047857; /* emerald-800 */
+
+  /* ── Momentum / state badge bg — flip dark bg to light tint ── */
+  /* In dark mode these are near-black backgrounds.                   */
+  /* In light mode we flip them to pastel equivalents.                */
+  --color-green-950:   #f0fdf4; /* near-mint  */
+  --color-amber-950:   #fffbeb; /* near-cream */
+  --color-red-950:     #fef2f2; /* near-blush */
+  --color-emerald-950: #ecfdf5; /* near-mint (emerald) */
 }
 
 @layer base {
