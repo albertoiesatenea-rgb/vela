@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Loader2, Sun, Moon } from "lucide-react";
+import { Loader2, Sun, Moon, Sparkles } from "lucide-react";
 import { WizardIcon } from "@/components/context-panel";
 import { cn } from "@/lib/utils";
 import { buildArenaAuditLog, triggerAuditLogDownload } from "@/lib/audit-log";
@@ -455,6 +455,8 @@ export function Arena({
   const [conversationState, setConversationState] = useState<ConversationState | null>(null);
   // Terminal state detection (seller mode)
   const [pendingOutcome, setPendingOutcome] = useState<Exclude<ArenaOutcome, "none" | "manual_stop"> | null>(null);
+  // Suggested response
+  const [isSuggesting, setIsSuggesting] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -599,6 +601,27 @@ export function Arena({
       handleSend();
     }
   };
+
+  const fetchSuggestion = useCallback(async () => {
+    if (!arenaSessionId || isSuggesting || messages.length < 1) return;
+    setIsSuggesting(true);
+    try {
+      const res = await fetch("/api/arena/suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ arenaSessionId, lang }),
+      });
+      const data = await res.json() as { suggestion?: string };
+      if (data.suggestion) {
+        setInput(data.suggestion);
+        setTimeout(() => textareaRef.current?.focus(), 50);
+      }
+    } catch {
+      // silently ignore
+    } finally {
+      setIsSuggesting(false);
+    }
+  }, [arenaSessionId, isSuggesting, messages.length, lang]);
 
   const handleExportLog = () => {
     if (!summary) return;
@@ -951,29 +974,45 @@ export function Arena({
           )}
 
           {role === "seller" ? (
-            /* Seller: textarea + end button side by side */
-            <div className="flex gap-2 items-stretch">
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={t.PLACEHOLDER}
-                rows={3}
-                disabled={isStarting || isSending}
-                autoFocus
-                className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors resize-none leading-relaxed disabled:opacity-40"
-              />
+            /* Seller: textarea + end button side by side + suggestion below */
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-2 items-stretch">
+                <textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={t.PLACEHOLDER}
+                  rows={3}
+                  disabled={isStarting || isSending}
+                  autoFocus
+                  className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors resize-none leading-relaxed disabled:opacity-40"
+                />
+                <button
+                  onClick={() => void handleEnd("manual_stop")}
+                  disabled={isEnding || isStarting || messages.length < 2}
+                  onMouseDown={e => e.preventDefault()}
+                  className="w-20 shrink-0 rounded-xl border border-zinc-700 text-zinc-300 text-[9px] font-mono tracking-wider uppercase leading-snug hover:border-zinc-400 hover:text-white active:scale-[0.98] transition-all disabled:opacity-25 disabled:pointer-events-none flex items-center justify-center text-center px-1"
+                >
+                  {isEnding
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <span>{lang === "es" ? "Terminar sesión" : "End session"}</span>
+                  }
+                </button>
+              </div>
+
+              {/* Suggested response button */}
               <button
-                onClick={() => void handleEnd("manual_stop")}
-                disabled={isEnding || isStarting || messages.length < 2}
+                onClick={() => void fetchSuggestion()}
+                disabled={isSuggesting || isStarting || isSending || messages.length < 1}
                 onMouseDown={e => e.preventDefault()}
-                className="w-20 shrink-0 rounded-xl border border-zinc-700 text-zinc-300 text-[9px] font-mono tracking-wider uppercase leading-snug hover:border-zinc-400 hover:text-white active:scale-[0.98] transition-all disabled:opacity-25 disabled:pointer-events-none flex items-center justify-center text-center px-1"
+                className="flex items-center gap-1.5 self-start px-3 py-1.5 rounded-lg border border-zinc-800 text-zinc-500 text-[9px] font-mono tracking-widest uppercase hover:border-sky-400/50 hover:text-sky-300 active:scale-[0.98] transition-all disabled:opacity-25 disabled:pointer-events-none"
               >
-                {isEnding
-                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  : <span>{lang === "es" ? "Terminar sesión" : "End session"}</span>
+                {isSuggesting
+                  ? <Loader2 className="w-3 h-3 animate-spin" />
+                  : <Sparkles className="w-3 h-3" />
                 }
+                <span>{lang === "es" ? "Respuesta ideal" : "Ideal response"}</span>
               </button>
             </div>
           ) : (

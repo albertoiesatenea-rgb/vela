@@ -440,4 +440,64 @@ router.post("/arena/finish", async (req, res) => {
   setTimeout(() => sessions.delete(arenaSessionId), 5 * 60 * 1000);
 });
 
+// ── POST /api/arena/suggest ───────────────────────────────────────────────────
+// Returns the ideal next seller response given the conversation so far.
+router.post("/arena/suggest", async (req, res) => {
+  const { arenaSessionId, lang } = req.body as {
+    arenaSessionId?: string;
+    lang?: Lang;
+  };
+
+  if (!arenaSessionId) {
+    res.status(400).json({ error: "arenaSessionId required" });
+    return;
+  }
+
+  const session = sessions.get(arenaSessionId);
+  if (!session) {
+    res.status(404).json({ error: "Session not found" });
+    return;
+  }
+
+  const effectiveLang = lang ?? session.lang;
+
+  const transcript = session.turns.map(t => {
+    const sp = t.speaker === "user"
+      ? (effectiveLang === "es" ? "VENDEDOR" : "SELLER")
+      : (effectiveLang === "es" ? "CLIENTE" : "CLIENT");
+    return `${sp}: ${t.message}`;
+  }).join("\n");
+
+  const prompt = effectiveLang === "es"
+    ? `Eres un experto en ventas. Dado el contexto y la conversación actual, escribe la respuesta PERFECTA que debería dar el vendedor ahora mismo para avanzar la venta.
+
+Contexto de la sesión: ${session.context || "venta genérica"}
+
+Conversación hasta ahora:
+${transcript}
+
+Escribe SOLO el texto de la respuesta ideal del vendedor. Natural, conversacional, tácticamente correcta. 2-3 frases máximo. Nada más.`
+    : `You are an expert sales professional. Given the context and conversation so far, write the PERFECT response the seller should give right now to advance the sale.
+
+Session context: ${session.context || "generic sale"}
+
+Conversation so far:
+${transcript}
+
+Write ONLY the ideal seller response text. Natural, conversational, tactically sound. 2-3 sentences max. Nothing else.`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_tokens: 200,
+      temperature: 0.5,
+      messages: [{ role: "user", content: prompt }],
+    });
+    const suggestion = completion.choices[0]?.message?.content?.trim() ?? "";
+    res.json({ suggestion });
+  } catch {
+    res.status(500).json({ error: "Failed to generate suggestion" });
+  }
+});
+
 export default router;
