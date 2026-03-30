@@ -864,36 +864,47 @@ export function Arena({
           </div>
 
           {/* Hero verdict */}
-          <div className={cn(
-            "rounded-2xl px-5 flex items-center gap-5",
-            isClosed ? "py-6" : "py-4",
-            outcomeBg,
-            isWin && "ring-1 ring-white/10",
-          )}>
-            <div className="flex flex-col gap-0.5 min-w-0">
-              <p className="text-[9px] font-mono tracking-[0.2em] uppercase text-zinc-500">{t.OUTCOME_LABEL}</p>
-              <p className={cn(
-                "font-mono font-black tracking-tight leading-none",
-                isClosed ? "text-5xl" : summary.outcome === "next_step" ? "text-4xl" : "text-3xl",
-                outcomeColor,
-              )}>
-                {summary.outcome === "closed"     ? (lang === "es" ? "CERRADO"  : "CLOSED")
-                  : summary.outcome === "next_step" ? (lang === "es" ? "AVANCE"   : "PROGRESS")
-                  : summary.outcome === "lost"      ? (lang === "es" ? "PERDIDO"  : "LOST")
-                  :                                   (lang === "es" ? "PARADO"   : "STOPPED")}
-              </p>
-              <p className="text-[10px] font-mono text-zinc-500 mt-0.5">{outcomeName}</p>
+          {isWin ? (
+            /* Win layout — vertical centered, no horizontal space problem */
+            <div className={cn(
+              "rounded-2xl px-5 py-6 flex flex-col items-center gap-3",
+              outcomeBg,
+              "ring-1 ring-white/10",
+            )}>
+              <div className={cn("shrink-0", outcomeColor)}>
+                {isClosed
+                  ? <Trophy className="w-16 h-16 drop-shadow-[0_0_14px_rgba(52,211,153,0.6)]" style={{ animation: "arena-win-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) both" }} />
+                  : <TrendingUp className="w-16 h-16" style={{ animation: "arena-win-pop 0.45s cubic-bezier(0.34,1.56,0.64,1) both" }} />}
+              </div>
+              <div className="flex flex-col items-center gap-0.5">
+                <p className="text-[9px] font-mono tracking-[0.2em] uppercase text-zinc-500">{t.OUTCOME_LABEL}</p>
+                <p className={cn("text-5xl font-mono font-black tracking-tight leading-none", outcomeColor)}>
+                  {isClosed
+                    ? (lang === "es" ? "CERRADO"  : "CLOSED")
+                    : (lang === "es" ? "AVANCE"   : "PROGRESS")}
+                </p>
+                <p className="text-[10px] font-mono text-zinc-500 mt-0.5">{outcomeName}</p>
+              </div>
             </div>
-            <div className={cn("shrink-0", outcomeColor)}>
-              {summary.outcome === "closed"
-                ? <Trophy className="w-14 h-14 drop-shadow-[0_0_12px_rgba(52,211,153,0.6)]" style={{ animation: "arena-win-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) both" }} />
-                : summary.outcome === "next_step"
-                  ? <TrendingUp className="w-14 h-14" style={{ animation: "arena-win-pop 0.45s cubic-bezier(0.34,1.56,0.64,1) both" }} />
-                  : summary.outcome === "lost"
-                    ? <span className="text-5xl font-mono leading-none select-none">✗</span>
-                    : <span className="text-4xl font-mono leading-none select-none text-zinc-600">·</span>}
+          ) : (
+            /* Non-win layout — horizontal */
+            <div className={cn("rounded-2xl px-5 py-4 flex items-center justify-between gap-4", outcomeBg)}>
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <p className="text-[9px] font-mono tracking-[0.2em] uppercase text-zinc-500">{t.OUTCOME_LABEL}</p>
+                <p className={cn("text-3xl font-mono font-black tracking-tight leading-none", outcomeColor)}>
+                  {summary.outcome === "lost"
+                    ? (lang === "es" ? "PERDIDO" : "LOST")
+                    : (lang === "es" ? "PARADO"  : "STOPPED")}
+                </p>
+                <p className="text-[10px] font-mono text-zinc-500 mt-0.5">{outcomeName}</p>
+              </div>
+              <div className={cn("shrink-0 mr-1", outcomeColor)}>
+                {summary.outcome === "lost"
+                  ? <span className="text-5xl font-mono leading-none select-none">✗</span>
+                  : <span className="text-4xl font-mono leading-none select-none text-zinc-600">·</span>}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Exit note — client mode only */}
           {exitNote?.text && role === "client" && (
