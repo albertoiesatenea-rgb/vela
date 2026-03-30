@@ -630,6 +630,74 @@ router.post("/arena/note", (req, res) => {
   res.json({ ok: true, noteCount: session.sellerNotes.length });
 });
 
+// ── POST /api/arena/repitch ───────────────────────────────────────────────────
+// Generates a new AI seller turn without a user message (triggered after a note is injected)
+router.post("/arena/repitch", async (req, res) => {
+  const { arenaSessionId } = req.body as { arenaSessionId?: string };
+  if (!arenaSessionId) { res.status(400).json({ error: "arenaSessionId required" }); return; }
+  const session = sessions.get(arenaSessionId);
+  if (!session) { res.status(404).json({ error: "Session not found" }); return; }
+
+  const historyLen = session.turns.length;
+  const windowedTurns = USE_OPTIMIZED_ARENA && historyLen > ARENA_HISTORY_WINDOW
+    ? session.turns.slice(-ARENA_HISTORY_WINDOW)
+    : session.turns;
+
+  const triggerMsg = session.lang === "en"
+    ? "[The client's coach just updated your constraints. Without mentioning it, naturally restate your position according to the updated restrictions — keep it conversational, 1-3 sentences.]"
+    : "[El entrenador del cliente acaba de actualizar tus restricciones. Sin mencionarlo, replantea tu posición de forma natural según las restricciones actualizadas — 1-3 frases conversacionales.]";
+
+  const gptMessages: { role: "system" | "user" | "assistant"; content: string }[] = [
+    {
+      role: "system",
+      content: buildSystemPrompt(
+        session.role, session.context, session.lang,
+        historyLen,
+        session.clientProfile, session.sellerProfile, session.difficulty,
+        session.sellerNotes,
+      ),
+    },
+    ...windowedTurns.map(t => ({
+      role: (t.speaker === "user" ? "user" : "assistant") as "user" | "assistant",
+      content: t.message,
+    })),
+    { role: "user", content: triggerMsg },
+  ];
+
+  const t0 = Date.now();
+  let aiResponse = "";
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_tokens: 300,
+      temperature: 0.7,
+      messages: gptMessages,
+    });
+    const latencyMs = Date.now() - t0;
+    const usage = completion.usage;
+    if (usage) {
+      logAICall({
+        route: "arena/repitch",
+        endpoint: "turn",
+        sessionId: arenaSessionId,
+        mode: "arena",
+        model: "gpt-4o-mini",
+        maxTokensConfigured: 300,
+        promptTokens: usage.prompt_tokens,
+        completionTokens: usage.completion_tokens,
+        latencyMs,
+      });
+    }
+    aiResponse = completion.choices[0]?.message?.content?.trim() ?? "";
+  } catch {
+    aiResponse = session.lang === "en" ? "Let me reconsider that." : "Déjame replantear eso.";
+  }
+
+  const newIndex = session.turns.length;
+  session.turns.push({ index: newIndex, timestamp: new Date().toISOString(), speaker: "ai", message: aiResponse });
+  res.json({ message: aiResponse, index: newIndex });
+});
+
 // ── POST /api/arena/suggest ───────────────────────────────────────────────────
 router.post("/arena/suggest", async (req, res) => {
   const { arenaSessionId, lang } = req.body as {

@@ -14,7 +14,7 @@ type FinalOutcome = Exclude<ArenaOutcome, "none">;
 
 interface ArenaMessage {
   index: number;
-  speaker: "user" | "ai";
+  speaker: "user" | "ai" | "note";
   message: string;
 }
 
@@ -736,17 +736,39 @@ export function Arena({
   }, [input, sendMessage]);
 
   const submitNote = useCallback(async () => {
-    if (!noteText.trim() || !arenaSessionId) return;
+    const note = noteText.trim();
+    if (!note || !arenaSessionId) return;
+    // Clear immediately, don't wait for fetch
+    setNoteText("");
+    setShowNotePanel(false);
+    setIsSending(true);
     try {
       await fetch("/api/arena/note", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ arenaSessionId, note: noteText.trim() }),
+        body: JSON.stringify({ arenaSessionId, note }),
       });
       setNoteCount(c => c + 1);
+      // Insert a visual note marker in the conversation
+      setMessages(prev => [
+        ...prev,
+        { index: -1, speaker: "note", message: note },
+      ]);
+      // Trigger the seller to repitch with the new constraint
+      const res = await fetch("/api/arena/repitch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ arenaSessionId }),
+      });
+      const data = await res.json() as { message?: string; index?: number };
+      if (data.message) {
+        setMessages(prev => [
+          ...prev,
+          { index: data.index ?? prev.length, speaker: "ai", message: data.message! },
+        ]);
+      }
     } catch { /* silent */ }
-    setNoteText("");
-    setShowNotePanel(false);
+    setIsSending(false);
     setTimeout(() => textareaRef.current?.focus(), 50);
   }, [noteText, arenaSessionId]);
 
@@ -1175,7 +1197,18 @@ export function Arena({
         ) : (
           <div className="max-w-2xl mx-auto flex flex-col gap-5">
             {messages.map((msg, i) => (
-              <MessageRow key={i} msg={msg} youLabel={t.YOU} aiLabel={aiLabel} />
+              msg.speaker === "note" ? (
+                <div key={i} className="flex items-center gap-2 py-0.5">
+                  <div className="flex-1 h-px bg-zinc-800" />
+                  <span className="text-[8px] font-mono tracking-widest uppercase text-zinc-600 shrink-0 flex items-center gap-1">
+                    <StickyNote className="w-2.5 h-2.5" />
+                    {msg.message}
+                  </span>
+                  <div className="flex-1 h-px bg-zinc-800" />
+                </div>
+              ) : (
+                <MessageRow key={i} msg={msg} youLabel={t.YOU} aiLabel={aiLabel} />
+              )
             ))}
             {isSending && (
               <div className="flex flex-col gap-1">
