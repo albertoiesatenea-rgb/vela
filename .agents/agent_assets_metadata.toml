@@ -6,3 +6,57 @@ id = "6O3CRRG4W69tBncJ0bhTE"
 uri = "file://closer-wizard-system-doc.txt"
 type = "text"
 title = "Closer Wizard — Documentación del Sistema (para GPT personalizado)"
+
+[[outputs]]
+id = "7ZKLD_4SSqBH6tXg6T6kb"
+uri = "file://docs/README.md"
+type = "text"
+title = "Índice"
+
+[[outputs]]
+id = "ppwtK9uyvXhD_CFudncUb"
+uri = "file://docs/architecture.md"
+type = "text"
+title = "Arquitectura"
+
+[[outputs]]
+id = "8JuN46WFXd3QdkW5GQz16"
+uri = "file://docs/api-routes.md"
+type = "text"
+title = "API Routes"
+
+[[outputs]]
+id = "MEZM3YQmLTa4rhTEREyOE"
+uri = "file://docs/prompts.md"
+type = "text"
+title = "Prompts"
+
+[[outputs]]
+id = "7u5X42hZEy_yIZRrhD0t9"
+uri = "file://docs/arena-logic.md"
+type = "text"
+title = "Arena Logic"
+
+[[outputs]]
+id = "zXDHKgU5OsycNE6F9AFTl"
+uri = "file://docs/ai-tracking.md"
+type = "text"
+title = "AI Tracking"
+
+[[outputs]]
+id = "wzHwNDUYljtCBeMKNQ6Vb"
+uri = "file://docs/audit-log.md"
+type = "text"
+title = "Audit Log"
+
+[[outputs]]
+id = "6hHUGq2CYpKUxnJ8QGvFE"
+uri = "file://docs/debug-panel.md"
+type = "text"
+title = "Debug Panel"
+
+[[outputs]]
+id = "BJg8Hey81IT8Li1pGGOtB"
+uri = "file://docs/feature-flags.md"
+type = "text"
+title = "Feature Flags"
