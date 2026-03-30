@@ -1,0 +1,35 @@
+## OBJETIVO
+Endurecer el comportamiento de Arena en client mode para que la IA que hace de vendedor maneje mejor objeciones económicas repetidas, evite contradicciones y deje de repetir argumentos ya rechazados.
+
+## CONTEXTO
+- Archivo principal: artifacts/api-server/src/routes/arena.ts
+- Referencia de prompts: 04-prompts.md
+- Hoy, en client mode, el prompt del vendedor solo fuerza personalidad y respuesta natural de 1-3 frases.
+- En la sesión auditada, la IA vendedora contradijo si el precio/condiciones eran negociables y repitió beneficios de largo plazo pese a que el cliente dijo varias veces que su veto era pagar 650€/mes de cashflow negativo.
+- No hace falta rehacer Arena ni tocar seller mode.
+
+## RESTRICCIONES
+- No modificar rutas API ni shape de respuestas de /api/arena/start, /turn, /suggest o /finish.
+- No tocar seller mode cuando la IA juega de cliente/prospecto.
+- Mantener max_tokens actuales.
+- No instalar dependencias nuevas.
+- No reescribir el archivo entero si basta con editar la construcción del prompt de client mode y, solo si ayuda, la lógica de suggest.
+
+## ENTREGABLES
+- [ ] artifacts/api-server/src/routes/arena.ts modificado
+- [ ] Prompt de client mode reforzado con reglas explícitas para:
+  - manejo de objeción económica repetida
+  - anti-contradicción factual
+  - pregunta de diagnóstico antes de seguir argumentando
+  - prohibición de repetir el mismo ángulo tras rechazo explícito
+  - salida honesta si no hay encaje real
+- [ ] Si existe helper de prompts reutilizable, extraer solo lo mínimo necesario sin refactor amplio
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] Si el cliente repite una objeción económica dos veces, la IA deja de insistir con beneficios vagos de largo plazo
+- [ ] La IA no dice primero que algo es negociable y luego que es fijo sin explicar el matiz
+- [ ] La IA formula al menos una pregunta de cuantificación o diagnóstico antes de volver a argumentar
+- [ ] La IA evita frases vacías tipo “estoy aquí para ayudarte” cuando no aportan acción concreta
+- [ ] En casos sin salida realista, la IA responde con descarte honesto y profesional en vez de repetir el pitch
+- [ ] Arena sigue compilando y funcionando igual en start/turn/suggest/finish
+- [ ] No hay regresión en seller mode

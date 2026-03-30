@@ -42,6 +42,7 @@ export interface SessionConfig {
   arena_role: string | null;
   arena_variant: string | null;
   arena_state_model: string | null;
+  runtime_instructions: string[] | null;
 }
 
 export interface CopilotTurnData {
@@ -202,6 +203,7 @@ export interface ArenaSessionData {
   allMessages: ArenaMessageEntry[];
   exitNote: { text: string; outcome: string } | null;
   debrief: { score: number; critique: string[] } | null;
+  runtimeInstructions?: string[];
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
@@ -288,6 +290,7 @@ export function buildCopilotAuditLog(data: CopilotSessionData): AuditLog {
     arena_role: null,
     arena_variant: null,
     arena_state_model: null,
+    runtime_instructions: null,
   };
 
   // Turns
@@ -432,6 +435,9 @@ export function buildArenaAuditLog(data: ArenaSessionData): AuditLog {
     arena_role: data.role,
     arena_variant: null,
     arena_state_model: "keyword_heuristic + gpt-4o-mini",
+    runtime_instructions: data.runtimeInstructions && data.runtimeInstructions.length > 0
+      ? data.runtimeInstructions
+      : null,
   };
 
   // Build exchange-based turns — group messages as AI-open + user + AI-response triplets
@@ -618,7 +624,22 @@ export function renderAuditLogMarkdown(log: AuditLog): string {
   sections.push(`arena_role: ${nul(log.config.arena_role)}`);
   sections.push(`arena_variant: ${nul(log.config.arena_variant)}`);
   sections.push(`arena_state_model: ${nul(log.config.arena_state_model)}`);
+  sections.push(`runtime_instructions_active: ${log.config.runtime_instructions && log.config.runtime_instructions.length > 0 ? "yes" : "no"}`);
   sections.push("");
+
+  // ── HIDDEN_RUNTIME_INSTRUCTIONS
+  if (log.config.runtime_instructions && log.config.runtime_instructions.length > 0) {
+    sections.push("## HIDDEN_RUNTIME_INSTRUCTIONS");
+    sections.push("");
+    sections.push("# These constraints were injected mid-session by the trainer/user and applied");
+    sections.push("# to the AI seller in real-time. They are not visible in the conversation");
+    sections.push("# transcript but directly influenced the seller's responses from that point on.");
+    sections.push("");
+    log.config.runtime_instructions.forEach((instr, i) => {
+      sections.push(`${i + 1}. ${instr}`);
+    });
+    sections.push("");
+  }
 
   // ── TURN_LOG
   sections.push("## TURN_LOG");

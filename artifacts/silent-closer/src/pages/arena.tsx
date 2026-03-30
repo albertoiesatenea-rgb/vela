@@ -596,6 +596,7 @@ export function Arena({
   // Seller notes (client mode only)
   const [noteText, setNoteText] = useState("");
   const [noteCount, setNoteCount] = useState(0);
+  const [sellerNotes, setSellerNotes] = useState<string[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -747,6 +748,7 @@ export function Arena({
         body: JSON.stringify({ arenaSessionId, note }),
       });
       setNoteCount(c => c + 1);
+      setSellerNotes(prev => [...prev, note]);
       // Insert a visual note marker in the conversation
       setMessages(prev => [
         ...prev,
@@ -814,6 +816,7 @@ export function Arena({
       allMessages: allTurns,
       exitNote: exitNote ?? null,
       debrief: summary.debrief ?? null,
+      runtimeInstructions: sellerNotes.length > 0 ? sellerNotes : undefined,
     });
     triggerAuditLogDownload(log, arenaSessionId);
   };

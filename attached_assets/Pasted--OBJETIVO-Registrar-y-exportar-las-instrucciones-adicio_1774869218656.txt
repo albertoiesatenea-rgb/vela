@@ -1,0 +1,27 @@
+## OBJETIVO
+Registrar y exportar las instrucciones adicionales ocultas de Arena (por ejemplo, restricciones para el vendedor cuando el usuario juega de cliente) para que el audit log sea auditable de verdad.
+
+## CONTEXTO
+- Arena hoy documenta en /api/arena/start solo: role, lang, context, clientProfile, sellerProfile, difficulty.
+- El audit log documentado exporta meta, context, config, turns, summary y audit_hints, pero no refleja una capa de instrucciones ocultas adicionales para el vendedor/cliente.
+- Existe una funcionalidad nueva con una caja de instrucciones adicionales mientras el usuario hace de cliente, pero esa capa no aparece en el export y distorsiona la auditoría posterior.
+
+## RESTRICCIONES
+- No romper el flujo actual de Arena.
+- No tocar Copiloto.
+- No reescribir todo el sistema de audit log si basta con extender schema, persistencia de sesión y renderer markdown.
+- Mantener compatibilidad si el campo viene vacío o no se usa.
+
+## ENTREGABLES
+- [ ] Extender el estado de sesión de Arena para guardar `additionalSellerInstructions` y/o un campo equivalente neutral si aplica a ambos lados.
+- [ ] Aceptar ese campo en el punto correcto del flujo de Arena.
+- [ ] Incluir ese campo en el objeto exportado por `buildArenaAuditLog`.
+- [ ] Renderizarlo en el markdown final en una sección visible tipo `Hidden runtime instructions` o `Additional scenario constraints`.
+- [ ] Si existe debug panel o resumen de sesión aplicable, mostrar que la sesión tuvo instrucciones adicionales activas, sin necesidad de enseñar toda la UI interna.
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] Si una sesión de Arena usa instrucciones adicionales, el export `.md` las muestra explícitamente.
+- [ ] Si no hay instrucciones adicionales, no cambia el comportamiento actual del export.
+- [ ] Un auditor externo puede entender por qué el vendedor no negoció precio si existía una instrucción tipo `precio no negociable`.
+- [ ] La app compila sin errores.
+- [ ] No hay regresión en start / turn / finish de Arena.
