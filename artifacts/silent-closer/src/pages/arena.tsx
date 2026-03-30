@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Loader2, Sun, Moon, Sparkles } from "lucide-react";
+import { Loader2, Sun, Moon, Sparkles, Trophy, Star } from "lucide-react";
 import { WizardIcon } from "@/components/context-panel";
 import { cn } from "@/lib/utils";
 import { buildArenaAuditLog, triggerAuditLogDownload } from "@/lib/audit-log";
@@ -221,10 +221,10 @@ function getOutcomeLabel(outcome: FinalOutcome, t: typeof T["es"]): string {
 
 function getOutcomeColor(outcome: FinalOutcome): string {
   const map: Record<FinalOutcome, string> = {
-    closed: "text-emerald-400",
-    next_step: "text-sky-400",
-    lost: "text-red-400",
-    broken: "text-amber-400",
+    closed:      "text-emerald-400",
+    next_step:   "text-teal-400",
+    lost:        "text-amber-400",
+    broken:      "text-zinc-400",
     manual_stop: "text-zinc-400",
   };
   return map[outcome];
@@ -232,10 +232,10 @@ function getOutcomeColor(outcome: FinalOutcome): string {
 
 function getOutcomeBg(outcome: FinalOutcome): string {
   const map: Record<FinalOutcome, string> = {
-    closed: "bg-emerald-400/10 border-emerald-400/20",
-    next_step: "bg-sky-400/10 border-sky-400/20",
-    lost: "bg-red-400/10 border-red-400/20",
-    broken: "bg-amber-400/10 border-amber-400/20",
+    closed:      "bg-emerald-400/10 border-emerald-400/20",
+    next_step:   "bg-teal-400/10 border-teal-400/20",
+    lost:        "bg-amber-400/10 border-amber-400/20",
+    broken:      "bg-zinc-800/60 border-zinc-700/40",
     manual_stop: "bg-zinc-800/60 border-zinc-700/40",
   };
   return map[outcome];
@@ -713,19 +713,20 @@ export function Arena({
     const debrief = summary.debrief;
 
     return (
-      <div className="fixed inset-0 bg-black flex flex-col items-center justify-center px-6 overflow-y-auto py-8">
-        <div className="w-full max-w-sm flex flex-col gap-5">
+      <div className="fixed inset-0 bg-black flex flex-col items-center justify-center px-6 overflow-y-auto py-5">
+        <div className="w-full max-w-sm flex flex-col gap-3">
 
+          {/* Brand */}
           <div className="flex items-center gap-2">
-            <WizardIcon className="w-5 h-5 text-zinc-400" />
+            <WizardIcon className="w-4 h-4 text-zinc-400" />
             <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-zinc-400">Closer Wizard</span>
             <span className="text-zinc-700 text-[10px]">·</span>
             <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-zinc-500">{t.ARENA}</span>
           </div>
 
           {/* Hero verdict */}
-          <div className={cn("rounded-2xl px-5 py-5 flex items-center justify-between gap-4", outcomeBg)}>
-            <div className="flex flex-col gap-1 min-w-0">
+          <div className={cn("rounded-2xl px-5 py-4 flex items-center justify-between gap-4", outcomeBg)}>
+            <div className="flex flex-col gap-0.5 min-w-0">
               <p className="text-[9px] font-mono tracking-[0.2em] uppercase text-zinc-500">{t.OUTCOME_LABEL}</p>
               <p className={cn("text-3xl font-mono font-black tracking-tight leading-none", outcomeColor)}>
                 {summary.outcome === "closed"     ? (lang === "es" ? "CERRADO"  : "CLOSED")
@@ -733,34 +734,35 @@ export function Arena({
                   : summary.outcome === "lost"      ? (lang === "es" ? "PERDIDO"  : "LOST")
                   :                                   (lang === "es" ? "PARADO"   : "STOPPED")}
               </p>
-              <p className="text-[11px] font-mono text-zinc-500 mt-0.5">{outcomeName}</p>
+              <p className="text-[10px] font-mono text-zinc-500 mt-0.5">{outcomeName}</p>
             </div>
-            <span className={cn("text-6xl font-mono leading-none shrink-0 select-none", outcomeColor)}>
-              {summary.outcome === "closed" ? "✓"
-                : summary.outcome === "next_step" ? "→"
-                : summary.outcome === "lost" ? "✗"
-                : "·"}
-            </span>
+            <div className={cn("shrink-0", outcomeColor)}>
+              {summary.outcome === "closed"
+                ? <Trophy className="w-10 h-10" />
+                : summary.outcome === "next_step"
+                  ? <Star className="w-10 h-10" />
+                  : summary.outcome === "lost"
+                    ? <span className="text-5xl font-mono leading-none select-none">✗</span>
+                    : <span className="text-4xl font-mono leading-none select-none text-zinc-600">·</span>}
+            </div>
           </div>
 
-          {/* Exit note — only for client mode when reason was given */}
+          {/* Exit note — client mode only */}
           {exitNote?.text && role === "client" && (
-            <div className="border border-zinc-800 rounded-xl px-4 py-3 flex flex-col gap-1">
+            <div className="border border-zinc-800 rounded-xl px-3 py-2.5 flex flex-col gap-0.5">
               <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{t.CLIENT_EXIT_NOTE_LABEL}</p>
-              <p className="text-sm font-mono text-zinc-300 leading-relaxed">{exitNote.text}</p>
+              <p className="text-xs font-mono text-zinc-300 leading-relaxed">{exitNote.text}</p>
             </div>
           )}
 
-          {/* Debrief block — all seller sessions */}
+          {/* Debrief block */}
           {role === "seller" && debrief && (
-            <div className="flex flex-col gap-4 border border-zinc-800 rounded-xl px-4 py-4 bg-zinc-950">
-
-              {/* Score */}
-              <div className="flex flex-col gap-0.5">
+            <div className="flex flex-col gap-2.5 border border-zinc-800 rounded-xl px-4 py-3 bg-zinc-950">
+              <div className="flex flex-col gap-0">
                 <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{t.DEBRIEF_SCORE}</p>
                 <div className="flex items-baseline gap-1">
                   <span className={cn(
-                    "text-4xl font-mono font-bold tabular-nums",
+                    "text-3xl font-mono font-bold tabular-nums",
                     debrief.score <= 3 ? "text-red-400"
                     : debrief.score <= 5 ? "text-amber-400"
                     : debrief.score <= 7 ? "text-zinc-200"
@@ -768,19 +770,17 @@ export function Arena({
                   )}>
                     {debrief.score}
                   </span>
-                  <span className="text-lg font-mono text-zinc-600">/ 10</span>
+                  <span className="text-base font-mono text-zinc-600">/ 10</span>
                 </div>
               </div>
-
-              {/* Critique bullets */}
               {debrief.critique.length > 0 && (
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-1">
                   <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{t.DEBRIEF_CRITIQUE}</p>
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-col gap-1.5">
                     {debrief.critique.map((point, i) => (
                       <div key={i} className="flex gap-2">
-                        <span className="text-zinc-600 font-mono text-xs shrink-0 mt-0.5">—</span>
-                        <p className="text-xs font-mono text-zinc-300 leading-relaxed">{point}</p>
+                        <span className="text-zinc-600 font-mono text-[10px] shrink-0">—</span>
+                        <p className="text-[11px] font-mono text-zinc-300 leading-relaxed">{point}</p>
                       </div>
                     ))}
                   </div>
@@ -795,13 +795,13 @@ export function Arena({
               <button
                 onClick={() => setTranscriptOpen(o => !o)}
                 onMouseDown={e => e.preventDefault()}
-                className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/3 transition-colors"
+                className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-white/3 transition-colors"
               >
                 <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{t.TRANSCRIPT_LABEL}</p>
                 <span className={cn("text-zinc-600 text-xs font-mono transition-transform duration-200", transcriptOpen ? "rotate-180" : "")}>▾</span>
               </button>
               {transcriptOpen && (
-                <div className="flex flex-col gap-2 max-h-64 overflow-y-auto px-4 pb-3 pr-5 scrollbar-thin border-t border-zinc-800/60">
+                <div className="flex flex-col gap-2 max-h-52 overflow-y-auto px-4 pb-3 pr-5 scrollbar-thin border-t border-zinc-800/60">
                   <div className="h-2" />
                   {allTurns.map((turn, i) => {
                     const isUser = turn.speaker === "user";
@@ -827,50 +827,46 @@ export function Arena({
             </div>
           )}
 
-          {/* Stats row */}
-          <div className="flex gap-6 border-t border-white/8 pt-4">
-            <div className="flex flex-col gap-0.5">
-              <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{t.ROLE_USED}</p>
-              <p className="text-sm font-mono font-semibold text-white uppercase">{roleName}</p>
-            </div>
-            <div className="flex flex-col gap-0.5">
+          {/* Session info — compact grid */}
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-white/8 pt-3">
+            {arenaConfig.clientProfile && (
+              <div className="flex flex-col gap-0">
+                <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{lang === "es" ? "CLIENTE" : "CLIENT"}</p>
+                <p className="text-xs font-mono font-semibold text-white capitalize">{arenaConfig.clientProfile.replace(/_/g, " ")}</p>
+              </div>
+            )}
+            {arenaConfig.difficulty && (
+              <div className="flex flex-col gap-0">
+                <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{lang === "es" ? "DIFICULTAD" : "DIFFICULTY"}</p>
+                <p className="text-xs font-mono font-semibold text-white capitalize">{arenaConfig.difficulty}</p>
+              </div>
+            )}
+            <div className="flex flex-col gap-0">
               <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{t.TURNS}</p>
-              <p className="text-sm font-mono font-semibold text-white">{summary.userTurns}</p>
+              <p className="text-xs font-mono font-semibold text-white">{summary.userTurns} / {summary.totalTurns}</p>
             </div>
-            <div className="flex flex-col gap-0.5">
-              <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{t.TOTAL}</p>
-              <p className="text-sm font-mono font-semibold text-white">{summary.totalTurns}</p>
-            </div>
+            {summary.context && (
+              <div className="col-span-2 flex flex-col gap-0 mt-0.5">
+                <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{lang === "es" ? "CONTEXTO" : "CONTEXT"}</p>
+                <p className="text-[11px] font-mono text-zinc-400 leading-relaxed line-clamp-2">{summary.context}</p>
+              </div>
+            )}
           </div>
 
-          {/* Context */}
-          {summary.context && (
-            <div className="border-t border-white/8 pt-4">
-              <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500 mb-1.5">
-                {lang === "es" ? "CONTEXTO" : "CONTEXT"}
-              </p>
-              <p className="text-xs font-mono text-zinc-400 leading-relaxed line-clamp-3">
-                {summary.context}
-              </p>
-            </div>
-          )}
-
           {/* Actions */}
-          <div className="flex flex-col gap-2 border-t border-white/8 pt-4">
-            {/* Retry */}
+          <div className="flex flex-col gap-1.5 border-t border-white/8 pt-3">
             {onRetry && (
               <button
                 onClick={onRetry}
-                className="w-full bg-white text-black text-xs font-mono font-bold py-3 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all"
+                className="w-full bg-white text-black text-xs font-mono font-bold py-2.5 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all"
               >
                 {role === "client" ? t.CLIENT_RETRY : t.DEBRIEF_RETRY}
               </button>
             )}
-            {/* Report download */}
             <button
               onClick={handleDownloadReport}
               className={cn(
-                "w-full text-xs font-mono font-bold py-3 rounded-xl active:scale-[0.98] transition-all",
+                "w-full text-xs font-mono font-bold py-2.5 rounded-xl active:scale-[0.98] transition-all",
                 onRetry
                   ? "border border-zinc-800 text-zinc-300 hover:border-zinc-600 hover:text-white"
                   : "bg-white text-black hover:bg-zinc-100"
@@ -878,19 +874,20 @@ export function Arena({
             >
               {lang === "es" ? "Descargar informe (.md)" : "Download report (.md)"}
             </button>
-            {/* Audit log */}
-            <button
-              onClick={handleExportLog}
-              className="w-full text-center text-[10px] font-mono text-zinc-500 hover:text-zinc-300 py-2 transition-colors"
-            >
-              {t.EXPORT}
-            </button>
-            <button
-              onClick={onExit}
-              className="w-full text-center text-[10px] font-mono text-zinc-500 hover:text-zinc-200 py-2 transition-colors"
-            >
-              {t.CLOSE}
-            </button>
+            <div className="flex gap-3 pt-0.5">
+              <button
+                onClick={handleExportLog}
+                className="flex-1 text-center text-[10px] font-mono text-zinc-600 hover:text-zinc-300 py-1.5 transition-colors"
+              >
+                {t.EXPORT}
+              </button>
+              <button
+                onClick={onExit}
+                className="flex-1 text-center text-[10px] font-mono text-zinc-500 hover:text-zinc-200 py-1.5 transition-colors"
+              >
+                {t.CLOSE}
+              </button>
+            </div>
           </div>
 
         </div>
