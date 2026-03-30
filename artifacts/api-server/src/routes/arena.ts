@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { openai } from "@workspace/integrations-openai-ai-server";
+import { logAICall, logSessionTotal, estimateCost } from "../lib/ai-tracker";
 
 const router = Router();
 
@@ -32,44 +33,84 @@ interface ArenaSession {
 // ── In-memory session store ───────────────────────────────────────────────────
 const sessions = new Map<string, ArenaSession>();
 
-// ── Personality & difficulty descriptors ─────────────────────────────────────
+// ── Optimization flags ────────────────────────────────────────────────────────
+// LEGACY_ARENA=true → disable windowing and conditional terminal detection
+const USE_OPTIMIZED_ARENA = process.env["LEGACY_ARENA"] !== "true";
+
+// History window: only send last N turns verbatim to the model (seller mode)
+const ARENA_HISTORY_WINDOW = 12;   // 6 exchanges
+// Max turns for debrief transcript (avoids bloated inputs on long sessions)
+const DEBRIEF_MAX_TURNS    = 15;
+// Max turns for suggest transcript
+const SUGGEST_MAX_TURNS    = 10;
+
+// ── Personality & difficulty descriptors (compact) ────────────────────────────
 const CLIENT_PROFILE_DESC: Record<string, string> = {
-  analytical:      "Eres analítico: necesitas datos, números y evidencia antes de decidir. Haces muchas preguntas técnicas y específicas. Los argumentos emocionales no te convencen.",
-  emotional:       "Eres emocional: decides basándote en confianza, sensaciones y relación personal. Te afectan los testimonios y casos de éxito. La conexión con el vendedor importa mucho.",
-  insecure:        "Eres inseguro: tienes muchas dudas y miedo a equivocarte. Necesitas validación y garantías constantes. Postpones decisiones y buscas opiniones externas.",
-  dominant:        "Eres dominante: tomas el control de la conversación, interrumpes con frecuencia, marcas tú los tiempos y necesitas sentir que tienes el poder en la negociación.",
-  indecisive:      "Eres indeciso: cambias de opinión, necesitas mucho tiempo, dices 'me lo pienso' repetidamente y es difícil que te comprometas a nada.",
-  hard_negotiator: "Eres un negociador duro: presionas siempre en precio, pides descuentos agresivos, comparas con la competencia y amenazas con no cerrar si no obtienes condiciones.",
+  analytical:      "Analítico: necesitas datos y evidencia antes de decidir. Haces preguntas técnicas. Los argumentos emocionales no te convencen.",
+  emotional:       "Emocional: decides por confianza y relación personal. Te influyen testimonios y la conexión con el vendedor.",
+  insecure:        "Inseguro: muchas dudas, miedo a equivocarte, necesitas validación constante. Postpones y buscas opiniones externas.",
+  dominant:        "Dominante: tomas el control, interrumpes, marcas tú los tiempos. Necesitas sentir que tienes el poder.",
+  indecisive:      "Indeciso: cambias de opinión, dices 'me lo pienso' repetidamente, difícil que te comprometas.",
+  hard_negotiator: "Negociador duro: presionas siempre en precio, pides descuentos agresivos, comparas con competencia, amenazas con no cerrar.",
 };
 
 const SELLER_PROFILE_DESC: Record<string, string> = {
-  communicative: "Eres comunicativo: hablas mucho, construyes relación, usas anécdotas y ejemplos. A veces te extiendes demasiado.",
-  authoritative: "Eres autoritario: proyectas mucha seguridad, eres directo y asertivo, controlas la conversación y rebates objeciones con firmeza.",
-  technical:     "Eres técnico: hablas en detalle de características, especificaciones y datos. Eres muy preciso pero a veces poco emocional.",
-  passive:       "Eres pasivo: escuchas mucho, no presionas, esperas que el cliente llegue a sus conclusiones. Puedes parecer poco convencido de tu propio producto.",
-  aggressive:    "Eres agresivo: presionas para cerrar, creas urgencia artificial, no aceptas 'no' fácilmente y puedes incomodar al cliente.",
-  consultive:    "Eres consultivo: haces muchas preguntas, entiendes primero las necesidades del cliente y adaptas tu solución antes de argumentar.",
+  communicative: "Comunicativo: construyes relación con anécdotas y ejemplos. A veces te extiendes demasiado.",
+  authoritative: "Autoritario: directo, asertivo, controlas la conversación, rebates objeciones con firmeza.",
+  technical:     "Técnico: hablas de características y datos con detalle. Preciso pero a veces poco emocional.",
+  passive:       "Pasivo: escuchas mucho, no presionas, esperas que el cliente llegue a sus conclusiones.",
+  aggressive:    "Agresivo: presionas para cerrar, creas urgencia, no aceptas 'no' fácilmente.",
+  consultive:    "Consultivo: haces muchas preguntas, entiendes necesidades primero y adaptas tu solución.",
 };
 
 const DIFFICULTY_DESC: Record<string, string> = {
-  easy:   "Sé fácil de convencer. Tienes pocas objeciones y estás bastante abierto a escuchar.",
-  normal: "Sé realista. Tienes algunas objeciones válidas y necesitas buenos argumentos para convencerte.",
-  hard:   "Sé exigente. Tienes muchas objeciones, comparas mucho con la competencia y eres difícil de convencer.",
-  brutal: "Sé muy difícil. Eres escéptico, cuestionas todo, tienes objeciones fuertes y solo cederás ante argumentos verdaderamente sólidos.",
+  easy:   "Pocas objeciones, abierto a escuchar.",
+  normal: "Algunas objeciones válidas, necesitas buenos argumentos.",
+  hard:   "Muchas objeciones, comparas con competencia, difícil de convencer.",
+  brutal: "Escéptico, cuestionas todo, objeciones fuertes, solo cedes ante argumentos muy sólidos.",
 };
+
+// ── Terminal state keywords (for conditional detection) ───────────────────────
+const TERMINAL_HINTS: Record<Lang, string[]> = {
+  es: [
+    "de acuerdo", "trato hecho", "vamos adelante", "siguiente paso", "cuándo podemos",
+    "me has convencido", "lo pensaré", "no me interesa", "no estoy dispuesto",
+    "no puedo seguir", "adiós", "hasta luego", "no voy a", "descartado", "imposible",
+    "cerramos", "firmamos", "perfecto, adelante", "ya no",
+  ],
+  en: [
+    "agreed", "deal", "let's go", "next step", "when can we", "you convinced me",
+    "i'll think about it", "not interested", "won't do this", "can't continue",
+    "goodbye", "bye", "ruled out", "impossible", "let's close", "sign", "perfect, let's",
+  ],
+};
+
+function shouldCheckTerminal(turns: ArenaTurn[], lang: Lang): boolean {
+  if (turns.length < 4) return false;
+  // Safety net: always check every 3 turns after turn 6
+  if (turns.length >= 6 && turns.length % 3 === 0) return true;
+  // Keyword detection on last AI message
+  const lastMsg = turns[turns.length - 1]?.message.toLowerCase() ?? "";
+  return TERMINAL_HINTS[lang].some(kw => lastMsg.includes(kw));
+}
 
 // ── Prompt builders ───────────────────────────────────────────────────────────
 function buildSystemPrompt(
   role: ArenaRole,
   context: string,
   lang: Lang,
+  historyLen: number,
   clientProfile?: string,
   sellerProfile?: string,
   difficulty?: string,
 ): string {
-  const langRule = lang === "en"
-    ? "Respond only in English."
-    : "Responde solo en español.";
+  const langRule = lang === "en" ? "Respond only in English." : "Responde solo en español.";
+
+  const windowNote = USE_OPTIMIZED_ARENA && historyLen > ARENA_HISTORY_WINDOW
+    ? (lang === "en"
+        ? `\n[Conversation has ${historyLen} turns total. Showing last ${ARENA_HISTORY_WINDOW} for efficiency. Stay consistent with your assigned personality and context.]`
+        : `\n[Conversación de ${historyLen} turnos totales. Se muestran solo los últimos ${ARENA_HISTORY_WINDOW} por eficiencia. Mantén coherencia con tu personalidad y el contexto asignados.]`)
+    : "";
 
   if (role === "seller") {
     const profileNote = clientProfile && CLIENT_PROFILE_DESC[clientProfile]
@@ -81,38 +122,20 @@ function buildSystemPrompt(
 
     return `Eres el cliente/prospecto en una simulación de conversación de venta.
 
-Contexto de la sesión:
-${context || "Conversación de venta genérica."}
-${profileNote}${diffNote}
+Contexto: ${context || "Conversación de venta genérica."}${profileNote}${diffNote}${windowNote}
 
-Tu papel es el de la otra parte: el cliente, inversor, prospecto o interlocutor.
-Responde siempre como esa persona. Mantén tu personalidad y nivel de dificultad de forma consistente durante toda la conversación.
-
-Reglas:
-- Sé coherente con el contexto y tu personalidad asignada.
-- Responde con 1-3 frases conversacionales naturales.
-- No añadas etiquetas, explicaciones ni metacomentarios.
-- Solo el texto de tu respuesta como cliente.
+Tu papel es la otra parte. Mantén tu personalidad de forma consistente. Responde con 1-3 frases conversacionales naturales. Sin etiquetas ni metacomentarios. Solo el texto.
 ${langRule}`;
   } else {
     const profileNote = sellerProfile && SELLER_PROFILE_DESC[sellerProfile]
       ? `\nPERSONALIDAD: ${SELLER_PROFILE_DESC[sellerProfile]}`
       : "";
 
-    return `Eres un vendedor/consultor en una simulación de conversación de venta.
+    return `Eres el vendedor/consultor en una simulación de conversación de venta.
 
-Contexto de la sesión:
-${context || "Conversación de venta genérica."}
-${profileNote}
+Contexto: ${context || "Conversación de venta genérica."}${profileNote}${windowNote}
 
-Tu papel es el del vendedor: guías la conversación, gestionas objeciones, presentas argumentos y trabajas hacia un cierre o avance.
-Mantén tu personalidad de forma consistente durante toda la conversación.
-
-Reglas:
-- Sé coherente con el contexto y tu estilo de venta asignado.
-- Responde con 1-3 frases conversacionales naturales.
-- No añadas etiquetas, explicaciones ni metacomentarios.
-- Solo el texto de tu respuesta como vendedor.
+Tu papel es el vendedor. Mantén tu personalidad de forma consistente. Responde con 1-3 frases conversacionales naturales. Sin etiquetas ni metacomentarios. Solo el texto.
 ${langRule}`;
   }
 }
@@ -126,95 +149,79 @@ function buildOpeningPrompt(
 ): string {
   const langRule = lang === "en" ? "Write in English." : "Escribe en español.";
   const profileHint = role === "seller" && clientProfile && CLIENT_PROFILE_DESC[clientProfile]
-    ? ` Personalidad del cliente: ${CLIENT_PROFILE_DESC[clientProfile]}`
+    ? ` Personalidad: ${CLIENT_PROFILE_DESC[clientProfile]}`
     : role === "client" && sellerProfile && SELLER_PROFILE_DESC[sellerProfile]
-    ? ` Personalidad del vendedor: ${SELLER_PROFILE_DESC[sellerProfile]}`
+    ? ` Personalidad: ${SELLER_PROFILE_DESC[sellerProfile]}`
     : "";
 
-  if (role === "seller") {
-    return `Genera el primer mensaje de un cliente/prospecto que inicia o responde a un primer contacto de venta.
-Contexto: ${context || "conversación de venta genérica"}${profileHint}
-Escribe 1-2 frases naturales como si fueras el cliente. Sin etiquetas. Solo el texto.
-${langRule}`;
-  } else {
-    return `Genera el primer mensaje de un vendedor experto que inicia una conversación de venta.
-Contexto: ${context || "conversación de venta genérica"}${profileHint}
-Escribe 1-2 frases naturales como si fueras el vendedor. Sin etiquetas. Solo el texto.
-${langRule}`;
-  }
+  const who = role === "seller" ? "cliente/prospecto" : "vendedor experto";
+  const whoEn = role === "seller" ? "client/prospect" : "expert seller";
+
+  return lang === "en"
+    ? `Generate the opening message of a ${whoEn} starting a sales conversation. Context: ${context || "generic sale"}${profileHint}. Write 1-2 natural sentences as that person. No labels. Text only. ${langRule}`
+    : `Genera el primer mensaje de un ${who} que inicia o responde a una conversación de venta. Contexto: ${context || "venta genérica"}${profileHint}. Escribe 1-2 frases naturales como esa persona. Sin etiquetas. Solo el texto. ${langRule}`;
 }
 
-// ── Debrief generator (for lost/broken sessions, seller role only) ────────────
+// ── Debrief generator ─────────────────────────────────────────────────────────
 async function generateDebrief(
   turns: ArenaTurn[],
   context: string,
   lang: Lang,
   outcome: Exclude<ArenaOutcome, "none">,
+  sessionId?: string,
 ): Promise<{ score: number; critique: string[] } | null> {
-  const transcript = turns.map(t => {
+  // Limit transcript to avoid bloated debrief inputs on long sessions
+  const relevantTurns = USE_OPTIMIZED_ARENA && turns.length > DEBRIEF_MAX_TURNS
+    ? turns.slice(-DEBRIEF_MAX_TURNS)
+    : turns;
+
+  const transcript = relevantTurns.map(t => {
     const sp = t.speaker === "user"
       ? (lang === "es" ? "VENDEDOR" : "SELLER")
       : (lang === "es" ? "CLIENTE" : "CLIENT");
     return `${sp}: ${t.message}`;
   }).join("\n");
 
-  const outcomeLineEs = {
-    closed:      "Resultado final: VENTA CERRADA (el vendedor ganó).",
-    next_step:   "Resultado final: AVANCE CONSEGUIDO (paso adelante logrado).",
-    lost:        "Resultado final: VENTA PERDIDA (el cliente se fue sin comprar).",
-    broken:      "Resultado final: CONVERSACIÓN ROTA (el cliente cortó el contacto).",
-    manual_stop: "Resultado final: SESIÓN TERMINADA MANUALMENTE (sin resultado definitivo).",
-  }[outcome];
-  const outcomeLineEn = {
-    closed:      "Final result: SALE CLOSED (seller won).",
-    next_step:   "Final result: NEXT STEP ACHIEVED (progress made).",
-    lost:        "Final result: SALE LOST (client left without buying).",
-    broken:      "Final result: CONVERSATION BROKEN (client cut contact).",
-    manual_stop: "Final result: SESSION ENDED MANUALLY (no definitive outcome).",
-  }[outcome];
+  const outcomeLabels: Record<string, { es: string; en: string }> = {
+    closed:      { es: "VENTA CERRADA (el vendedor ganó).",        en: "SALE CLOSED (seller won)." },
+    next_step:   { es: "AVANCE CONSEGUIDO (paso adelante).",       en: "NEXT STEP ACHIEVED (progress made)." },
+    lost:        { es: "VENTA PERDIDA (el cliente no compró).",    en: "SALE LOST (client left without buying)." },
+    broken:      { es: "CONVERSACIÓN ROTA (cliente cortó).",       en: "CONVERSATION BROKEN (client cut contact)." },
+    manual_stop: { es: "SESIÓN TERMINADA MANUALMENTE.",            en: "SESSION ENDED MANUALLY." },
+  };
+  const outcomeLine = lang === "es"
+    ? `Resultado: ${outcomeLabels[outcome]?.es ?? outcome}`
+    : `Result: ${outcomeLabels[outcome]?.en ?? outcome}`;
 
   const prompt = lang === "es"
-    ? `Eres un coach de ventas experto. Analiza esta conversación de venta y evalúa al vendedor con precisión y sin rodeos.
+    ? `Eres coach de ventas experto. Evalúa al vendedor con precisión y sin rodeos.
 
-Contexto de la sesión: ${context || "venta genérica"}
-${outcomeLineEs}
+Contexto: ${context || "venta genérica"}
+${outcomeLine}
+${turns.length > DEBRIEF_MAX_TURNS ? `[Conversación de ${turns.length} turnos; se analizan los últimos ${relevantTurns.length}]` : ""}
 
 Conversación:
 ${transcript}
 
-Responde ÚNICAMENTE con un JSON válido con este formato:
-{
-  "score": <número entero del 1 al 10>,
-  "critique": ["punto de mejora 1", "punto de mejora 2", "punto de mejora 3"]
-}
+Responde SOLO con JSON válido:
+{"score":<1-10>,"critique":["frase 1","frase 2","frase 3"]}
 
-Reglas:
-- score: puntuación honesta del vendedor teniendo muy en cuenta el resultado final (1=desastre, 5=mediocre, 8=bueno, 10=perfecto). Si la venta se cerró contra un cliente difícil, la nota mínima es 7. Si se perdió, la nota máxima es 6.
-- critique: exactamente 3 frases cortas y accionables con lo más concreto que el vendedor debe mejorar para la próxima vez
-- Comienza cada frase con un verbo en imperativo (Escucha, Controla, Adapta, Gestiona, Presenta...)
-- Sé específico con la conversación real, no genérico
-- Responde solo con el JSON, sin texto extra`
-    : `You are an expert sales coach. Analyze this sales conversation and evaluate the seller honestly and directly.
+Reglas: score honesto pesando el resultado (cerrada contra cliente difícil → mínimo 7; perdida → máximo 6). critique: exactamente 3 frases cortas accionables, imperativo (Escucha, Controla, Adapta...), específicas a esta conversación.`
+    : `You are an expert sales coach. Evaluate the seller honestly and directly.
 
-Session context: ${context || "generic sale"}
-${outcomeLineEn}
+Context: ${context || "generic sale"}
+${outcomeLine}
+${turns.length > DEBRIEF_MAX_TURNS ? `[Conversation had ${turns.length} turns; analyzing last ${relevantTurns.length}]` : ""}
 
 Conversation:
 ${transcript}
 
-Reply ONLY with valid JSON in this exact format:
-{
-  "score": <integer 1 to 10>,
-  "critique": ["improvement point 1", "improvement point 2", "improvement point 3"]
-}
+Reply ONLY with valid JSON:
+{"score":<1-10>,"critique":["point 1","point 2","point 3"]}
 
-Rules:
-- score: honest seller rating that heavily weighs the final result (1=disaster, 5=mediocre, 8=good, 10=perfect). If the sale was closed against a tough client, minimum score is 7. If lost, maximum score is 6.
-- critique: exactly 3 short actionable sentences with the most concrete things the seller must improve next time
-- Start each sentence with an imperative verb (Listen, Control, Adapt, Handle, Present...)
-- Be specific to the actual conversation, not generic
-- Reply only with the JSON, no extra text`;
+Rules: honest score weighted by result (closed vs tough client → min 7; lost → max 6). critique: exactly 3 short actionable sentences, imperative (Listen, Control, Adapt...), specific to this conversation.`;
 
+  const t0 = Date.now();
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -222,6 +229,22 @@ Rules:
       temperature: 0.4,
       messages: [{ role: "user", content: prompt }],
     });
+    const latencyMs = Date.now() - t0;
+    const usage = completion.usage;
+    if (usage) {
+      logAICall({
+        route: "arena/finish/debrief",
+        sessionId,
+        mode: "arena",
+        model: "gpt-4o-mini",
+        promptTokens: usage.prompt_tokens,
+        completionTokens: usage.completion_tokens,
+        totalTokens: usage.total_tokens,
+        estimatedCostUsd: estimateCost(usage.prompt_tokens, usage.completion_tokens),
+        latencyMs,
+        status: "ok",
+      });
+    }
     const raw = completion.choices[0]?.message?.content?.trim() ?? "";
     const parsed = JSON.parse(raw) as { score: number; critique: string[] };
     if (typeof parsed.score === "number" && Array.isArray(parsed.critique)) {
@@ -237,14 +260,16 @@ Rules:
 }
 
 // ── Terminal state detector ───────────────────────────────────────────────────
-// Only runs in seller mode (AI plays client). In client mode, user controls outcome manually.
-// Requires at least 4 turns to have meaningful signal.
 async function detectTerminalState(
   turns: ArenaTurn[],
   role: ArenaRole,
   lang: Lang,
+  sessionId?: string,
 ): Promise<Exclude<ArenaOutcome, "manual_stop">> {
   if (role === "client") return "none";
+
+  // Skip if terminal check not warranted (saves the extra API call in most turns)
+  if (USE_OPTIMIZED_ARENA && !shouldCheckTerminal(turns, lang)) return "none";
   if (turns.length < 4) return "none";
 
   const recent = turns.slice(-6).map(t => {
@@ -256,30 +281,35 @@ async function detectTerminalState(
 
   const prompt = lang === "es"
     ? `Analiza esta conversación de venta y determina si ha llegado a un estado terminal claro.
-Responde ÚNICAMENTE con una de estas palabras (sin explicación):
-- none — no hay cierre claro todavía, la conversación sigue abierta
-- closed — el cliente ha comprado, aceptado la oferta o cerrado el trato
-- next_step — el cliente ha aceptado avanzar (reunión, demo, propuesta, llamada)
-- lost — la conversación está perdida, el cliente ha rechazado definitivamente
-- broken — ruptura total, conversación imposible o cortada
+Responde ÚNICAMENTE con una de estas palabras:
+none | closed | next_step | lost | broken
 
-Conversación reciente:
+none = sigue abierta
+closed = cliente aceptó la oferta o cerró trato
+next_step = cliente aceptó avanzar (reunión, demo, propuesta)
+lost = cliente rechazó definitivamente
+broken = ruptura total o conversación imposible
+
+Conversación:
 ${recent}
 
 Responde solo con la palabra:`
-    : `Analyze this sales conversation and determine if it has reached a clear terminal state.
-Reply with ONLY one of these words (no explanation):
-- none — no clear closure yet, conversation is still open
-- closed — client has bought, accepted the offer, or closed the deal
-- next_step — client agreed to move forward (meeting, demo, proposal, call)
-- lost — conversation is lost, client has definitively rejected
-- broken — total breakdown, conversation is impossible or cut off
+    : `Analyze this sales conversation and determine if it reached a clear terminal state.
+Reply with ONLY one word:
+none | closed | next_step | lost | broken
 
-Recent conversation:
+none = still open
+closed = client accepted the offer or closed deal
+next_step = client agreed to move forward
+lost = client definitively rejected
+broken = total breakdown
+
+Conversation:
 ${recent}
 
-Reply with one word only:`;
+One word only:`;
 
+  const t0 = Date.now();
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -287,6 +317,22 @@ Reply with one word only:`;
       temperature: 0,
       messages: [{ role: "user", content: prompt }],
     });
+    const latencyMs = Date.now() - t0;
+    const usage = completion.usage;
+    if (usage) {
+      logAICall({
+        route: "arena/turn/terminal",
+        sessionId,
+        mode: "arena",
+        model: "gpt-4o-mini",
+        promptTokens: usage.prompt_tokens,
+        completionTokens: usage.completion_tokens,
+        totalTokens: usage.total_tokens,
+        estimatedCostUsd: estimateCost(usage.prompt_tokens, usage.completion_tokens),
+        latencyMs,
+        status: "ok",
+      });
+    }
     const raw = completion.choices[0]?.message?.content?.trim().toLowerCase() ?? "none";
     if (["closed", "next_step", "lost", "broken", "none"].includes(raw)) {
       return raw as Exclude<ArenaOutcome, "manual_stop">;
@@ -315,38 +361,44 @@ router.post("/arena/start", async (req, res) => {
 
   const id = crypto.randomUUID();
   const session: ArenaSession = {
-    id,
-    role,
-    lang,
+    id, role, lang,
     context: context.trim(),
     turns: [],
     createdAt: new Date().toISOString(),
-    clientProfile,
-    sellerProfile,
-    difficulty,
+    clientProfile, sellerProfile, difficulty,
   };
 
   let openingMessage = "";
+  const t0 = Date.now();
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       max_tokens: 150,
       messages: [{ role: "user", content: buildOpeningPrompt(role, context, lang, clientProfile, sellerProfile) }],
     });
+    const latencyMs = Date.now() - t0;
+    const usage = completion.usage;
+    if (usage) {
+      logAICall({
+        route: "arena/start",
+        sessionId: id,
+        mode: "arena",
+        model: "gpt-4o-mini",
+        promptTokens: usage.prompt_tokens,
+        completionTokens: usage.completion_tokens,
+        totalTokens: usage.total_tokens,
+        estimatedCostUsd: estimateCost(usage.prompt_tokens, usage.completion_tokens),
+        latencyMs,
+        status: "ok",
+      });
+    }
     openingMessage = completion.choices[0]?.message?.content?.trim() ?? "";
   } catch {
     openingMessage = lang === "en" ? "Hello, I'm ready." : "Hola, estoy listo.";
   }
 
-  session.turns.push({
-    index: 0,
-    timestamp: new Date().toISOString(),
-    speaker: "ai",
-    message: openingMessage,
-  });
-
+  session.turns.push({ index: 0, timestamp: new Date().toISOString(), speaker: "ai", message: openingMessage });
   sessions.set(id, session);
-
   res.json({ arenaSessionId: id, openingMessage });
 });
 
@@ -375,11 +427,24 @@ router.post("/arena/turn", async (req, res) => {
     message: userMessage.trim(),
   });
 
+  // ── History windowing: use full history or last N turns ───────────────────
+  const historyLen = session.turns.length;
+  const windowedTurns = USE_OPTIMIZED_ARENA && historyLen > ARENA_HISTORY_WINDOW
+    ? session.turns.slice(-ARENA_HISTORY_WINDOW)
+    : session.turns;
+
   const gptMessages: { role: "system" | "user" | "assistant"; content: string }[] = [
-    { role: "system", content: buildSystemPrompt(session.role, session.context, session.lang, session.clientProfile, session.sellerProfile, session.difficulty) },
+    {
+      role: "system",
+      content: buildSystemPrompt(
+        session.role, session.context, session.lang,
+        historyLen,
+        session.clientProfile, session.sellerProfile, session.difficulty,
+      ),
+    },
   ];
 
-  for (const turn of session.turns) {
+  for (const turn of windowedTurns) {
     gptMessages.push({
       role: turn.speaker === "user" ? "user" : "assistant",
       content: turn.message,
@@ -387,12 +452,29 @@ router.post("/arena/turn", async (req, res) => {
   }
 
   let aiMessage = "";
+  const t0 = Date.now();
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       max_tokens: 300,
       messages: gptMessages,
     });
+    const latencyMs = Date.now() - t0;
+    const usage = completion.usage;
+    if (usage) {
+      logAICall({
+        route: "arena/turn",
+        sessionId: arenaSessionId,
+        mode: "arena",
+        model: "gpt-4o-mini",
+        promptTokens: usage.prompt_tokens,
+        completionTokens: usage.completion_tokens,
+        totalTokens: usage.total_tokens,
+        estimatedCostUsd: estimateCost(usage.prompt_tokens, usage.completion_tokens),
+        latencyMs,
+        status: "ok",
+      });
+    }
     aiMessage = completion.choices[0]?.message?.content?.trim() ?? "";
   } catch {
     aiMessage = session.lang === "en" ? "(No response)" : "(Sin respuesta)";
@@ -405,8 +487,10 @@ router.post("/arena/turn", async (req, res) => {
     message: aiMessage,
   });
 
-  // Detect terminal state (seller mode only, fast classification call)
-  const terminalSignal = await detectTerminalState(session.turns, session.role, session.lang);
+  // ── Conditional terminal detection ────────────────────────────────────────
+  const terminalSignal = await detectTerminalState(
+    session.turns, session.role, session.lang, arenaSessionId,
+  );
 
   res.json({ aiMessage, terminalSignal });
 });
@@ -433,12 +517,13 @@ router.post("/arena/finish", async (req, res) => {
   session.outcome = outcome ?? "manual_stop";
 
   const userTurns = session.turns.filter(t => t.speaker === "user").length;
-
-  // Generate debrief for seller sessions that had actual user participation
   const needsDebrief = session.role === "seller" && userTurns > 0;
   const debrief = needsDebrief
-    ? await generateDebrief(session.turns, session.context, session.lang, session.outcome ?? "manual_stop")
+    ? await generateDebrief(session.turns, session.context, session.lang, session.outcome ?? "manual_stop", arenaSessionId)
     : null;
+
+  // Log session total before clearing
+  logSessionTotal(arenaSessionId);
 
   res.json({
     turns: session.turns,
@@ -459,7 +544,6 @@ router.post("/arena/finish", async (req, res) => {
 });
 
 // ── POST /api/arena/suggest ───────────────────────────────────────────────────
-// Returns the ideal next seller response given the conversation so far.
 router.post("/arena/suggest", async (req, res) => {
   const { arenaSessionId, lang } = req.body as {
     arenaSessionId?: string;
@@ -479,31 +563,43 @@ router.post("/arena/suggest", async (req, res) => {
 
   const effectiveLang = lang ?? session.lang;
 
-  const transcript = session.turns.map(t => {
+  // Limit transcript for suggest — recent context is what matters
+  const relevantTurns = USE_OPTIMIZED_ARENA && session.turns.length > SUGGEST_MAX_TURNS
+    ? session.turns.slice(-SUGGEST_MAX_TURNS)
+    : session.turns;
+
+  const transcript = relevantTurns.map(t => {
     const sp = t.speaker === "user"
       ? (effectiveLang === "es" ? "VENDEDOR" : "SELLER")
       : (effectiveLang === "es" ? "CLIENTE" : "CLIENT");
     return `${sp}: ${t.message}`;
   }).join("\n");
 
+  const truncNote = session.turns.length > SUGGEST_MAX_TURNS
+    ? (effectiveLang === "es"
+        ? `[Se muestran los últimos ${SUGGEST_MAX_TURNS} de ${session.turns.length} turnos]\n`
+        : `[Showing last ${SUGGEST_MAX_TURNS} of ${session.turns.length} turns]\n`)
+    : "";
+
   const prompt = effectiveLang === "es"
-    ? `Eres un experto en ventas. Dado el contexto y la conversación actual, escribe la respuesta PERFECTA que debería dar el vendedor ahora mismo para avanzar la venta.
+    ? `Eres experto en ventas. Escribe la respuesta PERFECTA que debería dar el vendedor ahora para avanzar la venta.
 
-Contexto de la sesión: ${session.context || "venta genérica"}
-
-Conversación hasta ahora:
+Contexto: ${session.context || "venta genérica"}
+${truncNote}
+Conversación:
 ${transcript}
 
-Escribe SOLO el texto de la respuesta ideal del vendedor. Natural, conversacional, tácticamente correcta. 2-3 frases máximo. Nada más.`
-    : `You are an expert sales professional. Given the context and conversation so far, write the PERFECT response the seller should give right now to advance the sale.
+Solo el texto de la respuesta ideal del vendedor. Natural, conversacional, tácticamente correcto. 2-3 frases máximo.`
+    : `You are an expert sales professional. Write the PERFECT response the seller should give now to advance the sale.
 
-Session context: ${session.context || "generic sale"}
-
-Conversation so far:
+Context: ${session.context || "generic sale"}
+${truncNote}
+Conversation:
 ${transcript}
 
-Write ONLY the ideal seller response text. Natural, conversational, tactically sound. 2-3 sentences max. Nothing else.`;
+Only the ideal seller response. Natural, conversational, tactically sound. 2-3 sentences max.`;
 
+  const t0 = Date.now();
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -511,6 +607,22 @@ Write ONLY the ideal seller response text. Natural, conversational, tactically s
       temperature: 0.5,
       messages: [{ role: "user", content: prompt }],
     });
+    const latencyMs = Date.now() - t0;
+    const usage = completion.usage;
+    if (usage) {
+      logAICall({
+        route: "arena/suggest",
+        sessionId: arenaSessionId,
+        mode: "arena",
+        model: "gpt-4o-mini",
+        promptTokens: usage.prompt_tokens,
+        completionTokens: usage.completion_tokens,
+        totalTokens: usage.total_tokens,
+        estimatedCostUsd: estimateCost(usage.prompt_tokens, usage.completion_tokens),
+        latencyMs,
+        status: "ok",
+      });
+    }
     const suggestion = completion.choices[0]?.message?.content?.trim() ?? "";
     res.json({ suggestion });
   } catch {

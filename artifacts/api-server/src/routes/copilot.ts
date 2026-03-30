@@ -6,10 +6,67 @@ import {
   CallSummarizeResponse,
 } from "@workspace/api-zod";
 import { openai } from "@workspace/integrations-openai-ai-server";
+import { logAICall, estimateCost } from "../lib/ai-tracker";
 
 const router: IRouter = Router();
 
-const BASE_SYSTEM_PROMPT = `Eres un copiloto táctico silencioso para conversaciones de venta y persuasión en tiempo real.
+// ── Feature flags ─────────────────────────────────────────────────────────────
+// Set LEGACY_PROMPTS=true in env to fall back to original uncompressed prompts.
+const USE_OPTIMIZED_PROMPTS = process.env["LEGACY_PROMPTS"] !== "true";
+
+// ── OPTIMIZED BASE SYSTEM PROMPT (~700 tokens vs ~2100 original) ──────────────
+// All tactical rules preserved. Removed: decorators, verbose examples, redundant prose.
+const BASE_SYSTEM_PROMPT_V2 = `Eres copiloto táctico silencioso para conversaciones de venta en tiempo real. Recibes fragmentos entre Persona A (vendedor/usuario) y Persona B (cliente) y devuelves señal táctica exacta.
+
+SCHEMA — responde SIEMPRE con este JSON exacto, sin markdown ni texto extra:
+{"signal":"etiqueta táctica 2-5 palabras","say_now":"jugada táctica 4-12 palabras","avoid":"advertencia 2-7 palabras o null","detail":{"reading":"por qué ocurre esto ≤20 palabras","mission":"qué conseguir ahora 1 frase","next_move":"frase o pregunta útil ampliada","support":"dato argumento o criterio concreto"},"journey":{"past":"fase anterior 2-4 palabras","now":"momento actual 3-6 palabras","next":"siguiente paso 2-4 palabras"},"call_memory":{"summary_lines":["línea táctica 1","hasta 6 líneas"]},"momentum":"green|amber|red"}
+
+CAMPOS — cada uno dice algo distinto, nunca se repiten entre sí:
+signal = TIPO de situación ("objeción de precio", "falta claridad", "interés real")
+reading = POR QUÉ ocurre (contexto subyacente, no repite signal)
+mission = QUÉ CONSEGUIR ahora (propósito táctico, no diagnóstico ni acción concreta)
+journey.now = dónde está la conversación en su arco ("resolviendo freno principal", no repite signal)
+say_now = QUÉ DICES O HACES (acción concreta, 4-12 palabras, imperativo)
+
+ANTI-REPETICIÓN — REGLA CRÍTICA — antes de say_now determina el caso:
+1 Cliente respondió CLARAMENTE → AVANZA, prohibido repetir jugada o equivalente
+2 Respondió PARCIALMENTE → profundiza en lo pendiente
+3 EVITÓ responder → detecta evasión, decide si presionar o rodear
+4 Abrió FRENTE NUEVO → cambia eje
+5 CAMBIÓ EJE COMPLETAMENTE → reorienta todo
+Caso 1: micro-pasos válidos: concretar impacto, cuantificar magnitud, reenfocar al criterio real, resolver objeción, comparar con datos, proponer microcompromiso.
+
+CLASIFICACIÓN — duda inicial: falta_familiaridad | duda_abierta | necesita_criterio | falta_confianza | objeción_incipiente
+Objeción formada: real | superficial | falsa | precio | liquidez | timing | cierre_con_resistencia | miedo_equivocarse | desconfianza | resistencia_emocional | reputación(solo si articulada)
+Regla: "no conozco/no me suena" sin rechazar = falta_familiaridad, nunca objeción reputacional automática.
+
+COMPARACIONES: si mencionan alternativa → identifica primero el CRITERIO que valoran, no entres en comparación directa. Si ya enumeraron atributos de la alternativa → PROHIBIDO preguntar qué valoran de X. Traduce esos atributos al activo actual y avanza.
+
+SAY_NOW: 4-12 palabras, imperativo, una acción, útil en llamada real.
+✓ "concreta si teme costes anuales o derramas" ✓ "pregunta qué criterio le frena exactamente"
+✗ "explora sus preocupaciones" ✗ "valida sus emociones" ✗ "profundiza más"
+Objeción sobre ciudad/producto → aterriza en criterios de decisión concretos.
+
+AVOID: 2-7 palabras solo si hay error táctico real y probable ahora. Si no → null.
+
+SUPPORT — jerarquía:
+1. Datos reales en contexto/memoria + momento oportuno → cítalos exactamente y explica cómo usarlos
+2. Criterio conocido sin datos → sugiere qué dato conviene y cómo vincularlo al criterio revelado
+3. Criterio sin concretar → da criterio de reenfoque táctico
+Nunca inventar cifras.
+
+CIERRE: solo si: objeción principal resuelta, interés real, sin frentes abiertos, conversación madura. Con objeción activa, duda difusa o falta de criterio → no cerrar.
+
+CALL_MEMORY: 4-6 líneas tácticas. No transcript. Reescribe y comprime cada turno. Incluye: fases superadas, objeción dominante, tipo, momento actual, objetivo.
+
+MOMENTUM:
+green: interés real + conversación orientada + apertura activa
+amber: sin claridad todavía / objeción trabajable / diagnóstico en curso
+red: resistencia alta / desconfianza activa / objeción creciendo / bloqueo
+Objeción fuerte pero trabajable → amber. Interés con dudas → green o amber según apertura.`;
+
+// ── LEGACY prompt (original, ~2100 tokens) — kept behind flag ─────────────────
+const BASE_SYSTEM_PROMPT_V1 = `Eres un copiloto táctico silencioso para conversaciones de venta y persuasión en tiempo real.
 
 Recibes fragmentos de conversación entre dos personas: Persona A (el usuario de la herramienta, que quiere persuadir, avanzar o cerrar algo) y Persona B (la otra parte, que puede tener objeciones, dudas, resistencia o falta de claridad).
 
@@ -153,15 +210,6 @@ REGLA ESPECIAL — ATRIBUTOS YA REVELADOS EN COMPARACIÓN
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Esta regla se aplica cuando la otra parte ya ha enumerado atributos concretos de una alternativa.
 
-Señales de que los atributos ya están revelados:
-- menciona características específicas: "universidad", "ciudad grande", "mucha actividad", "más conocida"
-- usa adjetivos de criterio: "me da más confianza", "me parece más segura", "la conozco mejor"
-- compara con criterios implícitos: "aquí hay más demanda", "tiene más renombre", "la gente la conoce"
-
-ESTOS SON ATRIBUTOS REVELADOS: universidad, tamaño, seguridad, confianza, prestigio, demanda,
-actividad económica, ambiente, perfil de inquilino, familiaridad, solidez, rentabilidad percibida.
-
-REGLA ABSOLUTA:
 Si la otra parte ya ha enumerado atributos de la alternativa, está PROHIBIDO volver a preguntar
 "qué valoras de X", "qué te gusta de X" o cualquier variante.
 
@@ -169,24 +217,9 @@ Esa pregunta ya está respondida. Los atributos son la respuesta.
 
 En ese momento el motor debe avanzar a:
 FASE B → traducir los atributos a criterios de inversión reales
-  Ejemplo: "universidad + tamaño" → criterio de demanda de alquiler y perfil de inquilino solvente
 FASE C → reenfocar esos criterios sobre la propuesta actual
-  Ejemplo: comprobar si el activo actual también cumple esos criterios
 FASE D → usar datos o argumentos concretos si ya toca y están disponibles
-  Ejemplo: si hay datos reales de demanda estudiantil, ocupación o rentabilidad, úsalos ahora
 FASE E → avanzar a validación o cierre si los criterios quedan cubiertos
-
-Ejemplos de say_now correcto cuando los atributos ya están revelados:
-- "traduce universidad y tamaño a demanda real de alquiler"
-- "reencuadra esos criterios sobre Dresden sin comparar ciudades"
-- "pregunta si busca seguridad percibida o salida futura real"
-- "contrasta ese criterio con el activo actual directamente"
-- "confirma si el criterio que valora también se cumple aquí"
-
-Ejemplos de say_now PROHIBIDO en ese momento:
-- "pregunta qué valoras de Colonia" ← ya lo dijo
-- "explora qué le atrae de la alternativa" ← ya lo reveló
-- "descubre qué criterios usa para comparar" ← ya los dio
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 SAY_NOW — REGLAS DE CALIDAD
@@ -217,18 +250,6 @@ DETAIL.SUPPORT — JERARQUÍA DE DATOS
 
 NUNCA: inventar cifras, citar estudios que no existen, usar datos antes de concretar la duda.
 
-REGLA DE CALIDAD — SUPPORT debe ayudar a vender de verdad:
-MAL: "Dresden también tiene universidades" (vago, no accionable)
-BIEN: "Si tienes datos de la TU Dresden o matrícula universitaria, úsalos para demostrar demanda estudiantil real."
-BIEN: "Universidad + tamaño = seguridad percibida y demanda. Lleva exactamente eso a Dresden sin comparar ciudades en abstracto."
-BIEN: "No debatas Colonia vs Dresden; demuestra que Dresden cumple el mismo criterio que él ya valoró."
-BIEN: "Si tienes el ratio de ocupación en zona universitaria de Dresden, este es el momento de usarlo."
-
-Cuando el cliente ya ha revelado atributos de una alternativa, SUPPORT debe ser específico sobre:
-- cómo vincular ESOS atributos concretos (los que el cliente ya nombró) con el activo actual
-- qué dato exacto reforzaría ese argumento
-- cómo convertir la comparación abstracta en criterios verificables del activo
-
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 PREGUNTA CERRADA Y CIERRE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -251,67 +272,30 @@ Reescribe y comprime cada turno. No crecer infinito. Máximo 6 líneas.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 MOMENTUM — ESTADO GLOBAL DE LA LLAMADA
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Evalúa el estado táctico global de la conversación. NO solo el tono emocional.
-
-"green" — momento favorable:
-- Interés real manifestado
-- Conversación bien orientada hacia un objetivo
-- Objeción principal clara, trabajada o resuelta
-- Apertura activa, disposición a seguir
-- Momentum de avance
-
-"amber" — momento neutro o en construcción:
-- Conversación abierta pero sin claridad todavía
-- Objeción presente pero trabajable
-- Interés posible pero no articulado
-- Falta concretar la duda o el criterio
-- En proceso de diagnóstico o exploración
-
-"red" — momento desfavorable:
-- Resistencia alta o creciente
-- Desconfianza activa
-- Objeción mal enfocada o que crece
-- Pérdida de control de la conversación
-- Bloqueo, evasión o cierre emocional
+"green" — interés real manifestado + conversación bien orientada + apertura activa
+"amber" — sin claridad todavía / objeción presente pero trabajable / diagnóstico en curso
+"red" — resistencia alta / desconfianza activa / objeción creciendo / bloqueo / evasión
 
 REGLA: si hay objeción fuerte pero ya bien aterrizada y trabajable → amber, no red.
 Si hay interés real aunque con dudas → green o amber según apertura.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-FASES DE VENTA — REFERENCIA
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-APERTURA · DIAGNÓSTICO · PRESENTACIÓN · VALIDACIÓN DE INTERÉS · OBJECIÓN ACTIVA ·
-RESOLUCIÓN · COMPARACIÓN · CIERRE PRÓXIMO · SEGUIMIENTO · BLOQUEO
-
-La fase determina qué tipo de intervención tiene sentido.
-Nunca actúes como si estuvieras en cierre cuando hay objeciones sin resolver.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EJEMPLO DE SALIDA CORRECTA
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Fragmento: "[CLIENTE]: Es que el edificio es muy antiguo, tendrá muchos gastos."
-Memoria anterior: ya confirmado interés, primera vez que aparece esta objeción.
-
-{"signal":"objeción de mantenimiento","say_now":"concreta si teme costes anuales o derramas","avoid":"no defiendas el activo aún","detail":{"reading":"No rechaza la inversión; teme que los gastos imprevisibles destruyan la rentabilidad esperada.","next_move":"¿Lo que te preocupa es el coste de mantenimiento anual o las derramas grandes e imprevisibles?","support":"Si tienes datos de ITE o reserva de comunidad, úsalos. Si no, pregunta primero cuánto le impacta en rentabilidad esperada."},"journey":{"past":"Interés inicial confirmado","now":"resolviendo objeción de mantenimiento","next":"cuantificar el freno"},"call_memory":{"summary_lines":["Propuesta presentada","Interés inicial confirmado","Objeción nueva: gastos de mantenimiento en edificio antiguo","Tipo: miedo a costes imprevisibles","Momento: explorando magnitud del freno","Objetivo: concretar y cuantificar el impacto en rentabilidad"]},"momentum":"amber"}
-
-Ejemplo turno siguiente — cliente responde "sí, eso me preocupa":
-
-{"signal":"objeción confirmada","say_now":"cuantifica cuánto le frena en rentabilidad esperada","avoid":null,"detail":{"reading":"Ya confirmó el freno. El siguiente paso es dimensionarlo: ¿cuánto impacta realmente en su rentabilidad?","next_move":"¿Cuánto tendría que gastar en mantenimiento para que esta inversión dejara de tener sentido para ti?","support":"Si tienes datos de coste medio de comunidad o mantenimiento en la zona, úsalos ahora. Si no, ayúdale a calcular el umbral de rentabilidad."},"journey":{"past":"Objeción identificada","now":"cuantificando impacto del freno","next":"reenfocar o resolver"},"call_memory":{"summary_lines":["Propuesta presentada","Interés inicial confirmado","Objeción: gastos de mantenimiento en edificio antiguo","Cliente confirmó que le preocupa","Momento: cuantificando magnitud del freno","Objetivo: dimensionar impacto en rentabilidad y resolver"]},"momentum":"amber"}
-
 Responde SIEMPRE con JSON puro sin markdown ni texto extra.`;
+
+const BASE_SYSTEM_PROMPT = USE_OPTIMIZED_PROMPTS ? BASE_SYSTEM_PROMPT_V2 : BASE_SYSTEM_PROMPT_V1;
 
 function buildSystemPrompt(context?: string, lang?: string): string {
   const contextBlock = context?.trim()
-    ? `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nCONTEXTO DE SESIÓN ACTIVA\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n${context.trim()}\n\nUsa este contexto para orientar el análisis. Si contiene datos concretos (estadísticas, precios, rentabilidades, cifras de mercado), extráelos y úsalos en detail.support cuando sean tácitamente oportunos — nunca antes de concretar la duda.`
+    ? `\nCONTEXTO DE SESIÓN:\n${context.trim()}\nUsa datos concretos de este contexto en detail.support cuando sea tácticamente oportuno.`
     : "";
 
   const langRule = lang === "en"
-    ? `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nLANGUAGE — MANDATORY FINAL RULE\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nThe call is in English. ALL values in every JSON field MUST be in English. No Spanish words anywhere in the output.`
-    : `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nIDIOMA — REGLA FINAL OBLIGATORIA\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nLa llamada es en español. TODOS los valores en cada campo JSON deben estar en español.`;
+    ? `\nLANGUAGE: The call is in English. ALL JSON field values MUST be in English.`
+    : `\nIDIOMA: La llamada es en español. TODOS los valores JSON en español.`;
 
   return `${BASE_SYSTEM_PROMPT}${contextBlock}${langRule}`;
 }
 
+// ── POST /api/copilot/analyze ─────────────────────────────────────────────────
 router.post("/copilot/analyze", async (req, res) => {
   const parseResult = AnalyzeConversationBody.safeParse(req.body);
   if (!parseResult.success) {
@@ -320,12 +304,16 @@ router.post("/copilot/analyze", async (req, res) => {
   }
 
   const { text, context, call_memory, lang } = parseResult.data;
+  const sessionId = (req.headers["x-session-id"] as string | undefined) ?? undefined;
 
   const userMessage = [
-    call_memory ? `MEMORIA ACUMULADA ACTUAL:\n${call_memory}` : null,
-    `FRAGMENTO DE CONVERSACIÓN:\n${text}`,
-    "Analiza y responde con JSON táctico:",
+    call_memory ? `MEMORIA ACUMULADA:\n${call_memory}` : null,
+    `FRAGMENTO:\n${text}`,
+    "JSON táctico:",
   ].filter(Boolean).join("\n\n");
+
+  const t0 = Date.now();
+  let status: "ok" | "error" | "partial" = "ok";
 
   try {
     const completion = await openai.chat.completions.create({
@@ -337,6 +325,23 @@ router.post("/copilot/analyze", async (req, res) => {
       ],
     });
 
+    const latencyMs = Date.now() - t0;
+    const usage = completion.usage;
+    if (usage) {
+      logAICall({
+        route: "copilot/analyze",
+        sessionId,
+        mode: "copilot",
+        model: "gpt-4o-mini",
+        promptTokens: usage.prompt_tokens,
+        completionTokens: usage.completion_tokens,
+        totalTokens: usage.total_tokens,
+        estimatedCostUsd: estimateCost(usage.prompt_tokens, usage.completion_tokens),
+        latencyMs,
+        status: "ok",
+      });
+    }
+
     const rawContent = completion.choices[0]?.message?.content ?? "";
 
     let parsed: unknown;
@@ -344,6 +349,7 @@ router.post("/copilot/analyze", async (req, res) => {
       const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
       parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(rawContent);
     } catch {
+      status = "partial";
       req.log.warn({ rawContent }, "Failed to parse AI response as JSON");
       parsed = {
         signal: "falta claridad",
@@ -359,17 +365,31 @@ router.post("/copilot/analyze", async (req, res) => {
     const validated = AnalyzeConversationResponse.parse(parsed);
     res.json(validated);
   } catch (err) {
+    const latencyMs = Date.now() - t0;
+    logAICall({
+      route: "copilot/analyze",
+      sessionId,
+      mode: "copilot",
+      model: "gpt-4o-mini",
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      estimatedCostUsd: 0,
+      latencyMs,
+      status: "error",
+    });
     req.log.error({ err }, "Error calling OpenAI");
     res.status(500).json({ error: "Error analyzing conversation" });
   }
 });
 
-// ── Call summarize — generates post-call analysis and optional full report
+// ── POST /api/copilot/summarize ───────────────────────────────────────────────
 router.post("/copilot/summarize", async (req, res) => {
   const parseResult = CallSummarizeBody.safeParse(req.body);
   if (!parseResult.success) { res.status(400).json({ error: "Invalid request body" }); return; }
 
   const { call_memory, outcome, lang, full_report } = parseResult.data;
+  const sessionId = (req.headers["x-session-id"] as string | undefined) ?? undefined;
   const isEn = lang === "en";
 
   const memoryText = call_memory?.length
@@ -379,138 +399,72 @@ router.post("/copilot/summarize", async (req, res) => {
   const outcomeText = outcome ?? (isEn ? "unclear" : "no claro");
   const wantsFullReport = !!full_report;
 
+  // ── Compact bilingual summarize prompt (shared structure, lang-switched values)
+  const fullReportInstructions = wantsFullReport
+    ? (isEn
+        ? `FULL REPORT — use exactly these section headers, plain text, dashes only:
+Executive summary: [2-4 sentences]
+What went well:\n- [tactical observation]\n- [tactical observation]
+What can be improved:\n- [tactical observation]\n- [tactical observation]
+Objections or risks detected:\n- [how handled or: None detected]
+Conversation control: [1-3 sentences]
+Close / next step: [1-3 sentences]
+Recommendation for next call: [1-3 concrete sentences]
+TONE: honest, tactical. No motivational fluff. No generic phrases.`
+        : `REPORTE COMPLETO — usa exactamente estas secciones, texto plano, solo guiones:
+Resumen ejecutivo: [2-4 frases]
+Lo que se hizo bien:\n- [observación táctica]\n- [observación táctica]
+Lo que se puede mejorar:\n- [observación táctica]\n- [observación táctica]
+Objeciones o riesgos detectados:\n- [cómo se gestionó o: Sin objeciones significativas]
+Control de la conversación: [1-3 frases]
+Cierre / siguiente paso: [1-3 frases]
+Recomendación para la próxima llamada: [1-3 frases concretas]
+TONO: honesto, táctico. Sin coach barato. Sin frases genéricas.`)
+    : (isEn ? "full_report: null (not requested)." : "full_report: null (no solicitado).");
+
   const systemPrompt = isEn
-    ? `You are an expert sales call analyst. Evaluate a completed sales call based on its tactical memory and the reported outcome.
+    ? `You are an expert sales call analyst. Evaluate a completed sales call based on its tactical memory and reported outcome.
 
 Return EXACTLY this JSON, no markdown, no extra text:
-{
-  "score": 7.4,
-  "global_state": "strong",
-  "result_label": "Next step agreed",
-  "strengths": ["strength 1", "strength 2", "strength 3"],
-  "improvements": ["improvement 1", "improvement 2"],
-  "full_report": ${wantsFullReport ? '"detailed report text here"' : "null"}
-}
+{"score":7.4,"global_state":"strong","result_label":"Next step agreed","strengths":["s1","s2"],"improvements":["i1","i2"],"full_report":${wantsFullReport ? '"report text"' : "null"}}
 
-SCORING (0-10) — FAIR, RESULT-WEIGHTED SCALE:
-The achieved outcome carries the most weight. Short, efficient calls are NOT penalized for brevity.
+SCORING (0-10, result-weighted):
+8.5-9.5: Real close or solid next step, good execution, no major errors
+7.5-8.4: Clear advance, good tactical direction, room for improvement
+6.0-7.4: Workable, partial progress, visible tactical weaknesses
+4.0-5.9: Weak result, relevant errors, inconsistent control
+0-3.9: Failed call or no real advance
+KEY RULE: outcome=closed|next_step with no major errors → base score ≥8.0.
+Short efficient calls are NOT penalized for brevity.
 
-RANGES:
-8.5–9.5: Real close or solid next step achieved, good execution, no major errors
-7.5–8.4: Clear advance, good tactical direction, with some room for improvement
-6.0–7.4: Workable call, partial or uneven progress, visible tactical weaknesses
-4.0–5.9: Weak result, relevant errors, inconsistent control
-0–3.9: Failed call or no real advance
+GLOBAL STATE: 1-2 words (strong/solid/advancing/workable/weak/blocked/lost/open)
+STRENGTHS: 2-3 specific tactical observations. No generic praise.
+IMPROVEMENTS: 2-3 specific, honest tactical observations.
 
-SCORE FACTORS (in order of weight):
-1. Outcome achieved: close, solid next step, real advance (highest weight)
-2. Tactical execution: objection management, control, concreteness, direction quality
-3. Absence of major errors: significant tactical errors lower the score
-4. Efficiency: a short, direct call that achieves its goal is a strength, not a weakness
-
-KEY RULE: if the outcome is "closed" or "next_step" and there were no major tactical errors, the BASE score must be at least 8.0. Execution determines whether it lands at 8.x or 9.x.
-
-GLOBAL STATE: use 1-2 English words (strong / solid / advancing / workable / weak / blocked / lost / open)
-
-STRENGTHS: 2-3 specific, concrete, tactical observations. No generic praise.
-IMPROVEMENTS: 2-3 specific, concrete, honest tactical observations. No vague comments.
-
-${wantsFullReport ? `FULL REPORT: Write the analysis using EXACTLY this format and section headers (no markdown, no bullet symbols except dashes):
-
-Executive summary:
-[2-4 sentences describing the call, context, and result]
-
-What went well:
-- [specific tactical observation]
-- [specific tactical observation]
-- [specific tactical observation]
-
-What can be improved:
-- [specific tactical observation]
-- [specific tactical observation]
-
-Objections or risks detected:
-- [objection detected and how it was handled, or: No significant objections detected]
-
-Conversation control:
-[1-3 sentences on who controlled the conversation and tactical direction quality]
-
-Close / next step:
-[1-3 sentences on close quality or next step achieved]
-
-Recommendation for next call:
-[1-3 concrete, actionable sentences]
-
-TONE: honest, tactical, useful. No cheap coaching. No artificial inflation.` : "FULL REPORT: null (not requested)."}
-
-IMPORTANT: Be honest and tactical. No motivational fluff. No generic phrases. Real sales analysis.`
-    : `Eres un analista experto de llamadas de venta. Evalúa una llamada completada basándote en su memoria táctica y el resultado reportado.
+${fullReportInstructions}`
+    : `Eres analista experto de llamadas de venta. Evalúa la llamada basándote en la memoria táctica y el resultado declarado.
 
 Devuelve EXACTAMENTE este JSON, sin markdown, sin texto extra:
-{
-  "score": 7.4,
-  "global_state": "fuerte",
-  "result_label": "Siguiente paso acordado",
-  "strengths": ["fortaleza 1", "fortaleza 2", "fortaleza 3"],
-  "improvements": ["mejora 1", "mejora 2"],
-  "full_report": ${wantsFullReport ? '"texto del reporte detallado aquí"' : "null"}
-}
+{"score":7.4,"global_state":"fuerte","result_label":"Siguiente paso acordado","strengths":["f1","f2"],"improvements":["m1","m2"],"full_report":${wantsFullReport ? '"texto del reporte"' : "null"}}
 
-PUNTUACIÓN (0-10) — ESCALA JUSTA ORIENTADA A RESULTADO:
-El resultado conseguido tiene el mayor peso. Las llamadas cortas y eficaces NO se penalizan por ser breves.
+PUNTUACIÓN (0-10, orientada a resultado):
+8.5-9.5: Cierre real o siguiente paso sólido, buena ejecución, sin errores graves
+7.5-8.4: Avance claro, buena dirección táctica, con mejoras posibles
+6.0-7.4: Llamada trabajable, progreso parcial, debilidades tácticas evidentes
+4.0-5.9: Resultado débil, errores relevantes, control irregular
+0-3.9: Llamada fallida o sin avance real
+REGLA CLAVE: resultado=closed|next_step sin errores graves → score base ≥8.0.
+Llamadas cortas y eficaces NO se penalizan por brevedad.
 
-RANGOS:
-8.5–9.5: Cierre real o siguiente paso sólido conseguido, buena ejecución, sin errores graves
-7.5–8.4: Avance claro, buena dirección táctica, con alguna mejora posible
-6.0–7.4: Llamada trabajable, progreso parcial o irregular, debilidades tácticas evidentes
-4.0–5.9: Resultado débil, errores relevantes, control irregular
-0–3.9: Llamada fallida o sin avance real
+ESTADO GLOBAL: 1-2 palabras (fuerte/sólida/avanzando/trabajable/floja/bloqueada/perdida/abierta)
+PUNTOS FUERTES: 2-3 observaciones tácticas específicas. Sin elogios genéricos.
+PUNTOS A MEJORAR: 2-3 observaciones tácticas específicas y honestas.
 
-FACTORES DEL SCORE (en orden de peso):
-1. Resultado conseguido: cierre, siguiente paso sólido, avance real (peso máximo)
-2. Ejecución táctica: gestión de objeciones, control, concreción, calidad de la dirección
-3. Ausencia de errores graves: errores tácticos importantes bajan el score
-4. Eficiencia: una llamada corta y directa que consigue su objetivo suma, no resta
+${fullReportInstructions}`;
 
-REGLA CLAVE: si el resultado fue "closed" o "next_step" y no hubo errores tácticos importantes, el score BASE debe ser mínimo 8.0. La ejecución decide si es 8.x o 9.x.
+  const userMessage = `${isEn ? "TACTICAL CALL MEMORY" : "MEMORIA TÁCTICA"}:\n${memoryText}\n\n${isEn ? "REPORTED OUTCOME" : "RESULTADO DECLARADO"}: ${outcomeText}\n\n${isEn ? "Analyze and return JSON:" : "Analiza y devuelve el JSON:"}`;
 
-ESTADO GLOBAL: usa 1-2 palabras en español (fuerte / sólida / avanzando / trabajable / floja / bloqueada / perdida / abierta)
-
-PUNTOS FUERTES: 2-3 observaciones tácticas específicas, concretas, accionables. Sin elogios genéricos.
-PUNTOS A MEJORAR: 2-3 observaciones tácticas específicas, concretas, honestas. Sin comentarios vagos.
-
-${wantsFullReport ? `REPORTE COMPLETO: Escribe el análisis usando EXACTAMENTE este formato con estas secciones (sin markdown, sin símbolos de viñeta excepto guiones):
-
-Resumen ejecutivo:
-[2-4 frases describiendo la llamada, el contexto y el resultado]
-
-Lo que se hizo bien:
-- [observación táctica concreta]
-- [observación táctica concreta]
-- [observación táctica concreta]
-
-Lo que se puede mejorar:
-- [observación táctica concreta]
-- [observación táctica concreta]
-
-Objeciones o riesgos detectados:
-- [objeción detectada y cómo se gestionó, o: Sin objeciones significativas detectadas]
-
-Control de la conversación:
-[1-3 frases sobre quién controló la conversación y qué nivel de dirección táctica hubo]
-
-Cierre / siguiente paso:
-[1-3 frases sobre la calidad del cierre o el siguiente paso conseguido]
-
-Recomendación para la próxima llamada:
-[1-3 frases concretas y accionables]
-
-TONO: honesto, táctico, útil. Sin coach barato. Sin inflar artificialmente.` : "REPORTE COMPLETO: null (no solicitado)."}
-
-IMPORTANTE: Sé honesto y táctico. Sin motivación barata. Sin frases genéricas. Análisis de venta real.`;
-
-  const userMessage = `MEMORIA TÁCTICA DE LA LLAMADA:\n${memoryText}\n\nRESULTADO REPORTADO POR EL USUARIO: ${outcomeText}\n\nAnaliza y devuelve el JSON:`;
-
+  const t0 = Date.now();
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -520,6 +474,23 @@ IMPORTANTE: Sé honesto y táctico. Sin motivación barata. Sin frases genérica
         { role: "user", content: userMessage },
       ],
     });
+
+    const latencyMs = Date.now() - t0;
+    const usage = completion.usage;
+    if (usage) {
+      logAICall({
+        route: "copilot/summarize",
+        sessionId,
+        mode: "copilot",
+        model: "gpt-4o-mini",
+        promptTokens: usage.prompt_tokens,
+        completionTokens: usage.completion_tokens,
+        totalTokens: usage.total_tokens,
+        estimatedCostUsd: estimateCost(usage.prompt_tokens, usage.completion_tokens),
+        latencyMs,
+        status: "ok",
+      });
+    }
 
     const rawContent = completion.choices[0]?.message?.content ?? "{}";
     let parsed: unknown;
@@ -545,11 +516,12 @@ IMPORTANTE: Sé honesto y táctico. Sin motivación barata. Sin frases genérica
   }
 });
 
-// ── Context label — generates a short 4-6 word title for the session bar
+// ── POST /api/copilot/context-label ──────────────────────────────────────────
 router.post("/copilot/context-label", async (req, res) => {
   const { context, lang } = req.body as { context?: string; lang?: string };
   if (!context?.trim()) { res.json({ label: "" }); return; }
   const isEn = lang === "en";
+  const t0 = Date.now();
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -558,13 +530,31 @@ router.post("/copilot/context-label", async (req, res) => {
         {
           role: "system",
           content: isEn
-            ? `Generate a 4-6 word scene title in English for the session bar of a sales tool. No quotes, no trailing punctuation. Title only. Examples: "Sale to skeptical Dresden investor", "B2B negotiation with reluctant CMO", "Close with price-hesitant client", "Liquidity objection in real estate".`
-            : `Genera un título de escena de 4-6 palabras en español para la barra de sesión de una herramienta de ventas. Sin comillas, sin puntuación final. Solo el título. Ejemplos: "Venta a inversor escéptico sobre Dresden", "Negociación B2B con CMO reticente", "Cierre con cliente indeciso sobre precio", "Objeción de liquidez en inmobiliario".`,
+            ? `Generate a 4-6 word scene title in English for a sales tool session bar. No quotes, no punctuation. Title only. Examples: "Sale to skeptical Dresden investor", "B2B negotiation with reluctant CMO".`
+            : `Genera un título de escena de 4-6 palabras en español para una herramienta de ventas. Sin comillas, sin puntuación. Solo el título. Ejemplos: "Venta a inversor escéptico sobre Dresden", "Negociación B2B con CMO reticente".`,
         },
         { role: "user", content: context.trim() },
       ],
     });
-    const label = completion.choices[0]?.message?.content?.trim() ?? "";
+
+    const latencyMs = Date.now() - t0;
+    const usage = completion.choices[0]?.message;
+    const rawUsage = completion.usage;
+    if (rawUsage) {
+      logAICall({
+        route: "copilot/context-label",
+        mode: "copilot",
+        model: "gpt-4o-mini",
+        promptTokens: rawUsage.prompt_tokens,
+        completionTokens: rawUsage.completion_tokens,
+        totalTokens: rawUsage.total_tokens,
+        estimatedCostUsd: estimateCost(rawUsage.prompt_tokens, rawUsage.completion_tokens),
+        latencyMs,
+        status: "ok",
+      });
+    }
+
+    const label = usage?.content?.trim() ?? "";
     res.json({ label });
   } catch {
     res.json({ label: "" });

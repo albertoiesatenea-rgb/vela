@@ -1,0 +1,223 @@
+Quiero una optimización seria de tokens, coste y latencia de mi app, basada en el código ACTUAL, sin cambiar la funcionalidad visible, la potencia táctica ni la operativa del producto.
+
+IMPORTANTE
+No quiero rediseño.
+No quiero simplificaciones funcionales.
+No quiero perder calidad.
+No quiero “ahorrar tokens” a costa de volver la herramienta más tonta o menos útil.
+
+El objetivo es:
+- mismo producto por fuera
+- menos gasto por dentro
+- menos redundancia
+- menos payload inútil
+- misma o mejor robustez
+
+CONTEXTO TÉCNICO ACTUAL QUE DEBES TOMAR COMO VERDAD
+Ya he inspeccionado la app actual y estos son los hallazgos clave:
+
+1. COPILOTO
+- /api/copilot/analyze usa gpt-4o-mini con max_tokens=900
+- envía en cada turno un BASE_SYSTEM_PROMPT de ~2.100 tokens fijos
+- ese prompt incluye ejemplos completos que suman ~400 tokens
+- se reenvía entero en CADA turno
+- además manda contexto de sesión variable + call_memory comprimida + fragmento actual
+- no hay historial completo, solo call_memory
+
+2. ARENA
+- /api/arena/turn usa gpt-4o-mini con max_tokens=300
+- en cada turno se reenvía el historial completo de la conversación como mensajes nativos GPT
+- el historial crece sin truncado ni compresión
+- además, en seller mode, se hace otra llamada extra detectTerminalState en cada turno
+- /api/arena/suggest también manda transcript completo
+- /api/arena/finish manda transcript completo para debrief
+
+3. MÉTRICAS
+- hoy no se registran usage.prompt_tokens ni usage.completion_tokens
+- no existe coste por llamada, por sesión, por ruta ni por modo
+
+4. ESTADO
+- Copiloto ya usa una call_memory compacta
+- Arena no usa memory pack ni resumen, solo historial completo creciente
+
+OBJETIVO DE ESTA TAREA
+Optimizar internamente la app para reducir tokens y llamadas innecesarias SIN cambiar:
+- pantallas
+- flujos
+- nombres visibles
+- schema de salida de Copiloto
+- comportamiento esperado de Arena
+- utilidad táctica del producto
+
+REGLA ABSOLUTA
+Si una optimización pone en riesgo calidad o comportamiento, no la fuerces sin red de seguridad.
+Quiero una implementación segura:
+- con validación
+- con fallback
+- con cambios limpios
+
+ESTRATEGIA QUE QUIERO QUE SIGAS
+
+FASE 1 — INSTRUMENTACIÓN Y BASE SEGURA
+Antes de optimizar, añade visibilidad real del consumo:
+- registrar usage.prompt_tokens, usage.completion_tokens y total_tokens cuando OpenAI los devuelva
+- registrar por llamada:
+  - ruta
+  - sessionId
+  - modo: copilot | arena
+  - modelo
+  - input tokens
+  - output tokens
+  - total tokens
+  - coste estimado
+  - latencia
+  - status ok | error | partial
+- agregar por sesión y por ruta
+- exponerlo en debug o logs internos de forma útil
+
+Además, añade una forma simple de activar/desactivar optimizaciones mediante flags internas si hace falta.
+Quiero poder mantener un camino legacy por seguridad si algún cambio sale mal.
+
+FASE 2 — OPTIMIZACIÓN DE COPILOTO
+Optimiza /api/copilot/analyze sin cambiar el output visible ni el schema.
+
+Objetivos concretos:
+1. Reducir drásticamente el tamaño del BASE_SYSTEM_PROMPT
+2. Mantener toda la lógica táctica importante
+3. Mantener mismo schema JSON final
+4. Mantener utilidad táctica igual o mejor
+
+Qué quiero que revises y optimices:
+- eliminar redundancias del prompt base
+- comprimir definiciones que hoy están explicadas de forma larga
+- reducir o eliminar ejemplos extensos si no aportan valor real
+- evitar repetir explicaciones obvias del schema si se puede imponer de otra forma
+- compactar instrucciones sin perder reglas críticas
+- unificar reglas duplicadas
+- mantener reglas esenciales:
+  - anti-repetición
+  - diferencia entre signal / reading / mission / journey.now / say_now
+  - reglas de support
+  - cierre / no cierre prematuro
+  - call_memory útil
+  - momentum
+
+Además:
+- preconstruir y cachear por sesión el bloque de contexto formateado para no recomponerlo inútilmente en cada turno
+- cachear serialización de memory pack si tiene sentido
+- no enviar texto redundante si ya puede ir compacto
+
+IMPORTANTE:
+No quiero una simple “cache de strings” que no ahorre tokens reales.
+Quiero ahorro real en payload al modelo.
+
+FASE 3 — OPTIMIZACIÓN DE ARENA
+Optimiza Arena sin cambiar la experiencia visible de conversación.
+
+Objetivos:
+1. dejar de reenviar historial completo sin límite
+2. mantener coherencia conversacional
+3. mantener personalidad / contexto / rol
+4. reducir latencia y tokens
+
+Qué quiero que implementes:
+- introducir una memoria compacta de Arena por sesión, tipo arenaMemory o summaryPack
+- usar un contexto híbrido:
+  - resumen compacto acumulado
+  - últimos N turnos recientes
+- no enviar siempre todo el historial completo si no hace falta
+- elegir un windowing conservador y seguro
+
+REGLA DE SEGURIDAD
+Haz esta optimización de forma prudente.
+No quiero que Arena “olvide” lo importante.
+Prefiero un ahorro sólido y conservador antes que una compresión agresiva.
+
+Además:
+- revisa las descripciones largas de perfil/dificultad dentro del system prompt de Arena y compáctalas
+- revisa /arena/suggest para que no mande transcript completo si no hace falta
+- revisa /arena/finish para que el debrief use una fuente eficiente sin perder calidad
+- revisa detectTerminalState
+
+OPTIMIZACIÓN ESPECÍFICA DE detectTerminalState
+Hoy hay una llamada adicional en seller mode en cada turno.
+Quiero que estudies si se puede ahorrar esa llamada sin perder funcionalidad.
+
+Opciones válidas, elige la más limpia:
+- integrar terminal state en la misma llamada principal de arena/turn
+- o ejecutar la detección solo cuando tenga sentido real
+- o alguna alternativa equivalente
+
+Pero:
+- no quiero perder la capacidad actual de detectar cierre / next_step / lost / broken
+- no quiero añadir una lógica frágil
+
+FASE 4 — SUMMARIZE Y FULL REPORT
+Revisa /api/copilot/summarize y cualquier debrief/report largo.
+
+Quiero que optimices especialmente:
+- prompts duplicados ES/EN si se pueden estructurar mejor
+- instrucciones largas de formato
+- generación de full_report costosa con poca señal de entrada
+
+Pero sin cambiar el comportamiento visible.
+Si el full_report hoy se mantiene, debe seguir existiendo.
+Solo quiero que cueste menos o esté mejor resuelto.
+
+FASE 5 — VALIDACIÓN / NO REGRESIONES
+No quiero optimizar a ciegas.
+
+Implementa una validación razonable:
+- tests o fixtures simples si es viable
+- al menos una comparación manual o automática con casos de ejemplo
+- asegurar que:
+  - Copiloto sigue devolviendo el mismo schema
+  - Arena sigue respondiendo de forma coherente
+  - no se rompe el flujo de cierre
+  - no se rompe el export/log
+
+Si hay una optimización con riesgo, déjala detrás de flag o conserva fallback legacy.
+
+LO QUE QUIERO QUE ME ENTREGUES
+1. Instrumentación de tokens/coste/latencia por llamada y por sesión
+2. Optimización real del prompt de Copiloto
+3. Optimización real del manejo de contexto/memoria en Copiloto
+4. Optimización real del manejo de historial en Arena
+5. Revisión de detectTerminalState para ahorrar llamada o latencia
+6. Optimización de suggest / finish / summarize donde tenga sentido
+7. Ninguna regresión funcional visible
+
+LO QUE NO QUIERO
+- no rehacer toda la app
+- no cambiar pantallas
+- no cambiar arquitectura de producto
+- no quitar funcionalidades
+- no reducir capacidad táctica por ahorrar
+- no meter base de datos
+- no inventar soluciones enormes
+- no dejarme una app “barata” pero peor
+
+CRITERIOS DE ACEPTACIÓN
+Esto solo estará bien hecho si:
+- el consumo de tokens baja de forma real o claramente probable
+- la latencia baja donde hoy hay llamadas redundantes
+- Copiloto sigue funcionando igual para el usuario
+- Arena sigue funcionando igual para el usuario
+- no cambia el schema de Copiloto
+- no empeora claramente la calidad de respuesta
+- puedo medir por sesión cuánto cuesta cada flujo
+- existe una forma de fallback o control si alguna optimización sale mal
+
+IMPORTANTE FINAL
+Quiero que pienses como ingeniero de producto obsesionado con eficiencia sin degradación.
+No me hagas consultoría abstracta.
+Inspecciona el código real y aplica optimización concreta.
+
+AL FINAL DE LA TAREA
+Explícame de forma breve y precisa:
+1. qué archivos has tocado
+2. qué optimizaciones ahorran más tokens de verdad
+3. cuánto ahorro estimas en Copiloto por turno y por sesión
+4. cuánto ahorro estimas en Arena por turno y por sesión
+5. qué cambios has dejado detrás de flags o fallback
+6. qué has dejado intacto a propósito para no arriesgar calidad
