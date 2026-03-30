@@ -131,10 +131,14 @@ const T = {
     OUTCOME_LABEL: "RESULTADO",
     // Debrief
     DEBRIEF_SCORE: "PUNTUACIÓN",
-    DEBRIEF_CRITIQUE: "QUÉ FALLÓ",
+    DEBRIEF_CRITIQUE: "QUÉ MEJORAR",
     DEBRIEF_RETRY: "Intentar de nuevo",
     CLIENT_RETRY: "Repetir",
     DEBRIEF_LOADING: "Analizando sesión...",
+    // Manual end modal
+    MANUAL_END_TITLE: "¿Cómo fue la sesión?",
+    MANUAL_END_CONFIRM: "Cerrar sesión",
+    TRANSCRIPT_LABEL: "CONVERSACIÓN",
   },
   en: {
     ARENA: "ARENA",
@@ -192,10 +196,14 @@ const T = {
     OUTCOME_LABEL: "OUTCOME",
     // Debrief
     DEBRIEF_SCORE: "SCORE",
-    DEBRIEF_CRITIQUE: "WHAT WENT WRONG",
+    DEBRIEF_CRITIQUE: "POINTS TO IMPROVE",
     DEBRIEF_RETRY: "Try again",
     CLIENT_RETRY: "Repeat",
     DEBRIEF_LOADING: "Analyzing session...",
+    // Manual end modal
+    MANUAL_END_TITLE: "How did the session go?",
+    MANUAL_END_CONFIRM: "Close session",
+    TRANSCRIPT_LABEL: "CONVERSATION",
   },
 };
 
@@ -267,25 +275,31 @@ function OutcomeModal({
   onConfirm,
   onContinue,
 }: {
-  detectedOutcome: Exclude<ArenaOutcome, "none" | "manual_stop">;
+  detectedOutcome?: Exclude<ArenaOutcome, "none" | "manual_stop"> | null;
   lang: Lang;
   onConfirm: (outcome: FinalOutcome) => void;
   onContinue: () => void;
 }) {
   const t = T[lang];
-  const [correcting, setCorrecting] = useState(false);
+  const isManual = !detectedOutcome;
+  const [correcting, setCorrecting] = useState(isManual);
 
-  const outcomes: Array<{ key: FinalOutcome; label: string }> = [
+  const aiOutcomes: Array<{ key: FinalOutcome; label: string }> = [
     { key: "closed", label: t.OUTCOME_CLOSED },
     { key: "next_step", label: t.OUTCOME_NEXT_STEP },
     { key: "lost", label: t.OUTCOME_LOST },
     { key: "broken", label: t.OUTCOME_BROKEN },
   ];
+  const manualOutcomes: Array<{ key: FinalOutcome; label: string }> = [
+    ...aiOutcomes,
+    { key: "manual_stop", label: t.OUTCOME_MANUAL_STOP },
+  ];
+  const outcomes = isManual ? manualOutcomes : aiOutcomes;
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center px-6 z-50">
       <div className="w-full max-w-xs bg-zinc-950 border border-zinc-800 rounded-2xl p-5 flex flex-col gap-4">
-        {!correcting ? (
+        {!correcting && detectedOutcome ? (
           <>
             <div className="flex flex-col gap-1">
               <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">
@@ -319,7 +333,7 @@ function OutcomeModal({
         ) : (
           <>
             <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">
-              {t.MODAL_CORRECT_PROMPT}
+              {isManual ? t.MANUAL_END_TITLE : t.MODAL_CORRECT_PROMPT}
             </p>
             <div className="flex flex-col gap-2">
               {outcomes.map(({ key, label }) => (
@@ -336,12 +350,22 @@ function OutcomeModal({
                   {label}
                 </button>
               ))}
-              <button
-                onClick={() => setCorrecting(false)}
-                className="w-full py-1.5 text-[10px] font-mono text-zinc-600 hover:text-zinc-400 transition-colors"
-              >
-                ← {lang === "es" ? "Volver" : "Back"}
-              </button>
+              {!isManual && (
+                <button
+                  onClick={() => setCorrecting(false)}
+                  className="w-full py-1.5 text-[10px] font-mono text-zinc-600 hover:text-zinc-400 transition-colors"
+                >
+                  ← {lang === "es" ? "Volver" : "Back"}
+                </button>
+              )}
+              {isManual && (
+                <button
+                  onClick={onContinue}
+                  className="w-full py-1.5 text-[10px] font-mono text-zinc-600 hover:text-zinc-400 transition-colors"
+                >
+                  ← {lang === "es" ? "Cancelar" : "Cancel"}
+                </button>
+              )}
             </div>
           </>
         )}
@@ -431,6 +455,8 @@ export function Arena({
   const [conversationState, setConversationState] = useState<ConversationState | null>(null);
   // Terminal state detection (seller mode)
   const [pendingOutcome, setPendingOutcome] = useState<Exclude<ArenaOutcome, "none" | "manual_stop"> | null>(null);
+  // Manual end modal
+  const [showManualEndModal, setShowManualEndModal] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -670,6 +696,34 @@ export function Arena({
             </div>
           )}
 
+          {/* Conversation transcript */}
+          {allTurns.length > 0 && (
+            <div className="flex flex-col gap-2 border border-zinc-800 rounded-xl px-4 py-3 bg-zinc-950">
+              <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500 mb-1">{t.TRANSCRIPT_LABEL}</p>
+              <div className="flex flex-col gap-2 max-h-52 overflow-y-auto pr-1 scrollbar-thin">
+                {allTurns.map((turn, i) => {
+                  const isUser = turn.speaker === "user";
+                  return (
+                    <div key={i} className={cn("flex gap-2", isUser ? "flex-row-reverse" : "flex-row")}>
+                      <span className={cn(
+                        "text-[8px] font-mono tracking-widest uppercase shrink-0 mt-1",
+                        isUser ? "text-teal-400" : "text-sky-400"
+                      )}>
+                        {isUser ? (lang === "es" ? "TÚ" : "YOU") : (role === "seller" ? t.AI_AS_CLIENT : t.AI_AS_SELLER)}
+                      </span>
+                      <p className={cn(
+                        "text-[11px] font-mono leading-relaxed text-zinc-300",
+                        isUser ? "text-right" : "text-left"
+                      )}>
+                        {turn.message}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Stats row */}
           <div className="flex gap-6 border-t border-white/8 pt-4">
             <div className="flex flex-col gap-0.5">
@@ -738,13 +792,22 @@ export function Arena({
   return (
     <div className="fixed inset-0 bg-black flex flex-col font-mono overflow-hidden">
 
-      {/* Outcome confirmation modal (seller mode only) */}
+      {/* Outcome confirmation modal — AI-detected */}
       {pendingOutcome && (
         <OutcomeModal
           detectedOutcome={pendingOutcome}
           lang={lang}
           onConfirm={(outcome) => void handleEnd(outcome)}
           onContinue={() => setPendingOutcome(null)}
+        />
+      )}
+
+      {/* Outcome picker — manual end (seller presses "Terminar sesión") */}
+      {showManualEndModal && (
+        <OutcomeModal
+          lang={lang}
+          onConfirm={(outcome) => { setShowManualEndModal(false); void handleEnd(outcome); }}
+          onContinue={() => setShowManualEndModal(false)}
         />
       )}
 
@@ -920,7 +983,7 @@ export function Arena({
             </p>
             {role === "seller" && (
               <button
-                onClick={() => void handleEnd("manual_stop")}
+                onClick={() => setShowManualEndModal(true)}
                 disabled={isEnding || isStarting || messages.length < 2}
                 className="text-[9px] font-mono tracking-widest uppercase text-zinc-500 hover:text-zinc-200 transition-colors disabled:opacity-30 disabled:pointer-events-none"
               >
