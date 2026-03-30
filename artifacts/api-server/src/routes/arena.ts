@@ -236,9 +236,18 @@ function buildOpeningPrompt(
   const who = role === "seller" ? "cliente/prospecto" : "vendedor experto";
   const whoEn = role === "seller" ? "client/prospect" : "expert seller";
 
-  return lang === "en"
-    ? `Generate the opening message of a ${whoEn} starting a sales conversation. Context: ${context || "generic sale"}${profileHint}. Write 1-2 natural sentences as that person. No labels. Text only. ${langRule}`
-    : `Genera el primer mensaje de un ${who} que inicia o responde a una conversación de venta. Contexto: ${context || "venta genérica"}${profileHint}. Escribe 1-2 frases naturales como esa persona. Sin etiquetas. Solo el texto. ${langRule}`;
+  if (lang === "en") {
+    if (role === "client") {
+      // AI plays the expert seller — opening must be 1 sentence, hook-first, with a real invented name+company
+      return `You are an expert seller opening a sales conversation. Context: ${context || "generic sale"}${profileHint}. Invent a specific real-sounding name and company for yourself (e.g. "I'm Sara Voss from Clearpath Advisory" — no placeholders, no brackets). Write EXACTLY ONE sentence. It must be a hook, a provocative question, or a brief concrete reference to the prospect's pain — not a product explanation. Use **bold** for the most important word or number. No labels. Text only. ${langRule}`;
+    }
+    return `Generate the opening message of a ${whoEn} starting a sales conversation. Context: ${context || "generic sale"}${profileHint}. Write 1 short natural sentence as that person. No labels. Text only. ${langRule}`;
+  }
+  if (role === "client") {
+    // AI plays the expert seller — opening must be 1 sentence, hook-first, with a real invented name+company
+    return `Eres un vendedor experto que abre una conversación de ventas. Contexto: ${context || "venta genérica"}${profileHint}. Invéntate un nombre y empresa reales y concretos (ej: "Soy Marcos Reina de Solvinova" — sin corchetes, sin variables). Escribe EXACTAMENTE UNA frase. Tiene que ser un gancho, una pregunta provocadora o una referencia concreta al dolor del prospecto — no una explicación del producto. Usa **negrita** para la palabra o cifra más importante. Sin etiquetas. Solo el texto. ${langRule}`;
+  }
+  return `Genera el primer mensaje de un ${who} que inicia una conversación de venta. Contexto: ${context || "venta genérica"}${profileHint}. Escribe 1 frase corta y natural como esa persona. Sin etiquetas. Solo el texto. ${langRule}`;
 }
 
 // ── Debrief generator ─────────────────────────────────────────────────────────
@@ -545,21 +554,25 @@ function buildCoachLitePrompt(
   lang: Lang,
 ): string {
   if (lang === "en") {
-    return `You are a sales professor pausing a live simulation to annotate a key moment for the class. Write exactly 2 ultra-short sentences. Use **bold** to highlight the 1–2 core tactical terms. Sentence 1: what the seller detected and the move they made. Sentence 2: why it works and what goal it achieves. Third person. No filler, no praise.
+    return `You are a sales professor annotating a live simulation for the class. Third person, present simple tense. Max 4 lines. Use **bold** for tactical terms, numbers, and key conclusions — not decoratively, only where it adds clarity. If there are 2 or more distinct elements, use a dash list: "- **Term:** brief explanation". Never end two consecutive lines with a period. No filler, no praise.
+
+Structure: what the seller detects → what move they execute → why it works.
 
 Context: ${context || "Generic sale"}
 Client said: "${userMessage}"
 Seller responded: "${aiMessage}"
 
-Reply ONLY with the 2 sentences. No quotes, no labels.`;
+Reply ONLY with the annotation. No quotes, no labels.`;
   }
-  return `Eres un profesor de ventas que pausa la simulación para anotar un momento clave en la pizarra. Escribe exactamente 2 frases ultra-cortas. Usa **negrita** para destacar 1-2 términos tácticos clave. Frase 1: qué detectó el vendedor y qué movimiento hizo. Frase 2: por qué funciona y qué objetivo consigue. Tercera persona. Sin rodeos, sin elogios.
+  return `Eres un profesor de ventas que anota un momento clave de la simulación. Tercera persona, presente simple. Máximo 4 líneas. Usa **negrita** para términos tácticos, cifras y conclusiones directas — no como decoración, solo donde aporte claridad. Si hay 2 o más elementos distintos, usa lista con guión: "- **Término:** explicación breve". Nunca termines dos líneas consecutivas con punto. Sin rodeos, sin elogios.
+
+Estructura: qué detecta el vendedor → qué movimiento ejecuta → por qué funciona.
 
 Contexto: ${context || "Venta genérica"}
 Cliente dijo: "${userMessage}"
 Vendedor respondió: "${aiMessage}"
 
-Responde SOLO con las 2 frases. Sin comillas, sin etiquetas.`;
+Responde SOLO con la anotación. Sin comillas, sin etiquetas.`;
 }
 
 async function generateCoachLite(

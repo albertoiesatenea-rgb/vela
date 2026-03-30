@@ -405,52 +405,6 @@ function OutcomeModal({
   );
 }
 
-// ── Client mode outcome buttons ───────────────────────────────────────────────
-function ClientOutcomeBar({
-  lang,
-  disabled,
-  onShortcut,
-  onEndChat,
-}: {
-  lang: Lang;
-  disabled: boolean;
-  onShortcut: (direction: "agree" | "object") => void;
-  onEndChat: () => void;
-}) {
-  const t = T[lang];
-
-  return (
-    <div className="flex gap-2 pt-1">
-      {/* Accept — AI generates a contextual positive response */}
-      <button
-        onClick={() => onShortcut("agree")}
-        disabled={disabled}
-        className="flex-1 py-2 rounded-lg border text-[10px] font-mono tracking-wide transition-all disabled:opacity-30 disabled:pointer-events-none text-sky-400 border-sky-400/30 hover:border-sky-400/60 hover:bg-sky-400/5"
-      >
-        {t.CLIENT_ACCEPT}
-      </button>
-
-      {/* Objection — AI generates a contextual specific objection */}
-      <button
-        onClick={() => onShortcut("object")}
-        disabled={disabled}
-        className="flex-1 py-2 rounded-lg border text-[10px] font-mono tracking-wide transition-all disabled:opacity-30 disabled:pointer-events-none text-amber-400 border-amber-400/30 hover:border-amber-400/60 hover:bg-amber-400/5"
-      >
-        {t.CLIENT_OBJECTION}
-      </button>
-
-      {/* End chat — opens exit panel */}
-      <button
-        onClick={onEndChat}
-        disabled={disabled}
-        className="flex-1 py-2 rounded-lg border text-[10px] font-mono tracking-wide transition-all disabled:opacity-30 disabled:pointer-events-none text-zinc-300 border-zinc-700 hover:border-zinc-500 hover:text-white"
-      >
-        {t.CLIENT_END_CHAT}
-      </button>
-    </div>
-  );
-}
-
 // ── Profile label translations ────────────────────────────────────────────────
 const CLIENT_PROFILE_LABEL: Record<string, Record<"es"|"en", string>> = {
   analytical:  { es: "Analítico",   en: "Analytical" },
@@ -592,19 +546,18 @@ function Confetti({ active, intensity = "high" }: { active: boolean; intensity?:
   );
 }
 
-// ── CoachNote component — didactic side panel ─────────────────────────────────
 function CoachNote({ explanation, lang }: { explanation: string; lang: Lang }) {
   return (
-    <div className="flex flex-col gap-2 pt-1 pr-4 border-r-2 border-teal-500/30">
-      <div className="flex items-center gap-1.5">
-        <GraduationCap className="w-3 h-3 text-teal-400/70 shrink-0" />
-        <span className="text-[8px] font-mono tracking-[0.18em] uppercase text-teal-400/60">
+    <div className="mt-2 ml-[18px] px-3 py-2.5 rounded-lg bg-teal-950/20 border border-teal-500/12">
+      <div className="flex items-center gap-1.5 mb-2">
+        <GraduationCap className="w-3 h-3 text-teal-400/55 shrink-0" />
+        <span className="text-[8px] font-mono tracking-[0.2em] uppercase text-teal-400/50">
           {lang === "es" ? "táctica" : "tactic"}
         </span>
       </div>
-      <p className="text-[12px] text-zinc-300 leading-[1.6] font-light">
-        <BoldText text={explanation} className="text-zinc-300" />
-      </p>
+      <div className="text-[11.5px] text-zinc-300 leading-[1.65] font-light [&_strong]:text-white">
+        <RichText text={explanation} />
+      </div>
     </div>
   );
 }
@@ -612,13 +565,12 @@ function CoachNote({ explanation, lang }: { explanation: string; lang: Lang }) {
 // ── CoachNote skeleton — shown while AI + coach are loading ───────────────────
 function CoachNoteSkeleton() {
   return (
-    <div className="flex flex-col gap-2 pt-1 pr-4 border-r-2 border-teal-500/15">
-      <div className="w-14 h-2 bg-teal-500/15 rounded animate-pulse" />
-      <div className="flex flex-col gap-2">
-        <div className="w-full h-2 bg-zinc-800/70 rounded animate-pulse" />
-        <div className="w-full h-2 bg-zinc-800/70 rounded animate-pulse" />
-        <div className="w-4/5 h-2 bg-zinc-800/70 rounded animate-pulse" />
-        <div className="w-2/3 h-2 bg-zinc-800/50 rounded animate-pulse" />
+    <div className="mt-2 ml-[18px] px-3 py-2.5 rounded-lg bg-teal-950/10 border border-teal-500/8">
+      <div className="w-12 h-2 bg-teal-500/15 rounded animate-pulse mb-3" />
+      <div className="flex flex-col gap-1.5">
+        <div className="w-full h-2 bg-zinc-800/60 rounded animate-pulse" />
+        <div className="w-full h-2 bg-zinc-800/60 rounded animate-pulse" />
+        <div className="w-3/4 h-2 bg-zinc-800/40 rounded animate-pulse" />
       </div>
     </div>
   );
@@ -1441,18 +1393,12 @@ export function Arena({
             <span className="text-xs tracking-widest uppercase">{t.STARTING}</span>
           </div>
         ) : (
-          <div className={cn(
-            "mx-auto flex flex-col gap-5 transition-[max-width] duration-300",
-            role === "client" && coachOn ? "max-w-4xl" : "max-w-2xl"
-          )}>
+          <div className="mx-auto flex flex-col gap-5 max-w-2xl">
             {messages.map((msg, i) => {
-              // Only show coach slot (spacer + note) when there's actual coach data for this message.
-              // This prevents a blank 240px spacer from appearing on the opening AI message (index 0).
-              const showCoachSlot = role === "client" && coachOn && msg.speaker === "ai" && !!coachLiteMap[msg.index];
+              const showCoachNote = role === "client" && coachOn && msg.speaker === "ai" && !!coachLiteMap[msg.index];
               if (msg.speaker === "note") {
                 return (
                   <div key={i} className="flex items-center gap-2 py-0.5">
-                    {role === "client" && coachOn && <div className="w-60 shrink-0" />}
                     <div className="flex-1 h-px bg-zinc-800" />
                     <span className="text-[8px] font-mono tracking-widest uppercase text-zinc-600 shrink-0 flex items-center gap-1">
                       <StickyNote className="w-2.5 h-2.5" />
@@ -1463,51 +1409,36 @@ export function Arena({
                 );
               }
               return (
-                <div key={i} className="flex items-start">
-                  {/* Left coach slot */}
-                  {showCoachSlot && (
-                    <div className="w-60 shrink-0 self-start">
-                      {coachLiteMap[msg.index]
-                        ? <CoachNote explanation={coachLiteMap[msg.index].explanation} lang={lang} />
-                        : null}
-                    </div>
+                <div key={i} className="flex flex-col">
+                  <MessageRow msg={msg} youLabel={t.YOU} aiLabel={aiLabel} />
+                  {showCoachNote && (
+                    <CoachNote explanation={coachLiteMap[msg.index]!.explanation} lang={lang} />
                   )}
-                  {/* Message */}
-                  <div className="flex-1 min-w-0">
-                    <MessageRow msg={msg} youLabel={t.YOU} aiLabel={aiLabel} />
-                  </div>
                 </div>
               );
             })}
             {isSending && (
-              <div className="flex items-start">
-                {/* Coach skeleton during loading */}
-                {role === "client" && coachOn && (
-                  <div className="w-60 shrink-0">
-                    <CoachNoteSkeleton />
+              <div className="flex flex-col">
+                {role === "client" ? (
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[9px] tracking-widest uppercase text-sky-400/70">{aiLabel}</span>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-sky-400/60 animate-pulse shrink-0" />
+                      <span className="text-[11px] font-mono text-zinc-500 italic">
+                        {COACH_LOADING[lang][loadingPhase]}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[9px] tracking-widest uppercase text-zinc-600">{aiLabel}</span>
+                    <div className="flex items-center gap-1.5 text-zinc-600">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      <span className="text-xs">{t.SENDING}</span>
+                    </div>
                   </div>
                 )}
-                <div className="flex-1 min-w-0">
-                  {role === "client" ? (
-                    <div className="flex flex-col gap-1.5">
-                      <span className="text-[9px] tracking-widest uppercase text-sky-400/70">{aiLabel}</span>
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-1.5 h-1.5 rounded-full bg-sky-400/60 animate-pulse shrink-0" />
-                        <span className="text-[11px] font-mono text-zinc-500 italic">
-                          {COACH_LOADING[lang][loadingPhase]}
-                        </span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[9px] tracking-widest uppercase text-zinc-600">{aiLabel}</span>
-                      <div className="flex items-center gap-1.5 text-zinc-600">
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                        <span className="text-xs">{t.SENDING}</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                {role === "client" && coachOn && <CoachNoteSkeleton />}
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -1519,9 +1450,8 @@ export function Arena({
       <div className="shrink-0 border-t border-white/6 px-4 py-3">
         <div className="max-w-2xl mx-auto flex flex-col gap-2">
 
-          {/* Client mode: outcome shortcuts OR exit panel */}
-          {role === "client" && !isStarting && messages.length >= 1 && (
-            exitStep !== null ? (
+          {/* Client mode: exit panel (only shown when active) */}
+          {role === "client" && !isStarting && messages.length >= 1 && exitStep !== null && (
               <div className="flex flex-col gap-2 px-3 py-3 bg-zinc-950 border border-zinc-800 rounded-xl">
                 {exitStep === "outcomes" ? (
                   /* Step 1 — choose outcome */
@@ -1591,14 +1521,6 @@ export function Arena({
                   </>
                 )}
               </div>
-            ) : (
-              <ClientOutcomeBar
-                lang={lang}
-                disabled={isEnding || isSending}
-                onShortcut={(direction) => void sendShortcut(direction)}
-                onEndChat={() => setExitStep("outcomes")}
-              />
-            )
           )}
 
           {role === "seller" ? (
@@ -1680,17 +1602,32 @@ export function Arena({
                   )}
                 </div>
               )}
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={t.PLACEHOLDER}
-                rows={2}
-                disabled={isStarting || isSending}
-                autoFocus
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors resize-none leading-relaxed disabled:opacity-40"
-              />
+              <div className="grid gap-2" style={{gridTemplateColumns: "1fr auto"}}>
+                <textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={t.PLACEHOLDER}
+                  rows={2}
+                  disabled={isStarting || isSending}
+                  autoFocus
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors resize-none leading-relaxed disabled:opacity-40"
+                />
+                {messages.length >= 1 && (
+                  <button
+                    onClick={() => setExitStep("outcomes")}
+                    disabled={isEnding || isSending || isStarting}
+                    onMouseDown={e => e.preventDefault()}
+                    className="w-20 rounded-xl border border-zinc-700 text-zinc-300 text-[9px] font-mono tracking-wider uppercase leading-snug hover:border-zinc-400 hover:text-white active:scale-[0.98] transition-all disabled:opacity-25 disabled:pointer-events-none flex items-center justify-center text-center px-1"
+                  >
+                    {isEnding
+                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      : <span>{lang === "es" ? "Terminar chat" : "End chat"}</span>
+                    }
+                  </button>
+                )}
+              </div>
               <div className="flex items-center justify-between">
                 <p className="text-[9px] text-zinc-600 tracking-widest">
                   {lang === "es" ? "↓ Ok, sigue · ↑ No estoy de acuerdo · Enter envía" : "↓ Keep going · ↑ Disagree · Enter sends"}
