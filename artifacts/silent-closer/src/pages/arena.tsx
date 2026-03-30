@@ -973,21 +973,23 @@ export function Arena({
                 <span className={cn("text-zinc-600 text-xs font-mono transition-transform duration-200", transcriptOpen ? "rotate-180" : "")}>▾</span>
               </button>
               {transcriptOpen && (
-                <div className="flex flex-col gap-2 max-h-52 overflow-y-auto px-4 pb-3 pr-5 scrollbar-thin border-t border-zinc-800/60">
-                  <div className="h-2" />
+                <div className="flex flex-col gap-3 max-h-52 overflow-y-auto px-4 pb-3 scrollbar-thin border-t border-zinc-800/60">
+                  <div className="h-1" />
                   {allTurns.map((turn, i) => {
                     const isUser = turn.speaker === "user";
                     return (
-                      <div key={i} className={cn("flex gap-2", isUser ? "flex-row-reverse" : "flex-row")}>
+                      <div key={i} className={cn("flex flex-col gap-0.5", isUser ? "items-end" : "items-start")}>
                         <span className={cn(
-                          "text-[8px] font-mono tracking-widest uppercase shrink-0 mt-1",
+                          "text-[8px] font-mono tracking-widest uppercase",
                           isUser ? "text-teal-400" : "text-sky-400"
                         )}>
                           {isUser ? (lang === "es" ? "TÚ" : "YOU") : (role === "seller" ? t.AI_AS_CLIENT : t.AI_AS_SELLER)}
                         </span>
                         <p className={cn(
-                          "text-[11px] font-mono leading-relaxed text-zinc-300",
-                          isUser ? "text-right" : "text-left"
+                          "text-[11px] font-mono leading-relaxed px-2.5 py-1.5 rounded-lg max-w-[88%]",
+                          isUser
+                            ? "bg-zinc-800 text-white text-right"
+                            : "bg-zinc-900 text-zinc-200 text-left border border-zinc-700/60"
                         )}>
                           {turn.message}
                         </p>
@@ -1024,7 +1026,7 @@ export function Arena({
             {summary.context && (
               <div className="col-span-2 flex flex-col gap-0 mt-0.5">
                 <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">{lang === "es" ? "CONTEXTO" : "CONTEXT"}</p>
-                <p className="text-[11px] font-mono text-zinc-400 leading-relaxed line-clamp-2">{summary.context}</p>
+                <p className="text-[11px] font-mono text-zinc-300 leading-relaxed line-clamp-2">{summary.context}</p>
               </div>
             )}
           </div>
@@ -1343,8 +1345,8 @@ function MessageRow({
       <div className={cn(
         "max-w-[80%] px-4 py-2.5 rounded-xl text-sm leading-relaxed",
         isUser
-          ? "bg-zinc-900 border border-zinc-700 text-white text-right"
-          : "bg-transparent border border-zinc-800 text-zinc-200 text-left"
+          ? "bg-zinc-800 border border-zinc-700 text-white text-right"
+          : "bg-zinc-950 border border-zinc-700 text-zinc-100 text-left"
       )}>
         {msg.message}
       </div>
