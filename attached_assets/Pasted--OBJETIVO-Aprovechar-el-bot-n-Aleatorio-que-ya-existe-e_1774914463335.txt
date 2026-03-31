@@ -1,0 +1,410 @@
+## OBJETIVO
+Aprovechar el botón `Aleatorio` que ya existe en Arena para que siga funcionando con click normal como hasta ahora, pero además ofrezca presets rápidos al hacer hover o abrir un popover, incluyendo un preset `Immvest` orientado exactamente al negocio real de Immvest.
+
+## CONTEXTO
+- En Arena ya existe un botón `Aleatorio`.
+- Hoy ese botón, al hacer click, genera un contexto aleatorio.
+- No quiero crear otro botón ni rehacer esa parte.
+- Quiero que ese mismo botón haga dos cosas:
+  1. **click normal** → mantener el comportamiento actual de caso aleatorio total;
+  2. **hover / popover / apertura secundaria** → mostrar presets rápidos opcionales para orientar el caso aleatorio.
+- La UX debe seguir siendo ligera, rápida y poco invasiva.
+- No quiero convertir esto en un formulario ni en una segunda pantalla.
+
+## PRESETS RÁPIDOS QUE QUIERO
+Cuando el usuario interactúe con el hover/popover del botón `Aleatorio`, mostrar estas opciones rápidas:
+
+- `Immvest`
+- `SaaS`
+- `B2B`
+- `High ticket`
+- `Coaching`
+- `Challenge`
+
+## REGLA CLAVE
+- Si el usuario hace **click directo** en `Aleatorio`, todo sigue igual: caso aleatorio total.
+- Si el usuario elige uno de los presets rápidos del hover/popover, el sistema genera un caso aleatorio **orientado** a ese preset.
+
+## RESTRICCIONES
+- No tocar Copiloto
+- No rehacer Arena
+- No eliminar ni cambiar el click normal actual de `Aleatorio`
+- No crear un botón nuevo aparte
+- No meter una UI invasiva
+- No romper `start / turn / finish`
+- No convertir esto en un selector largo o complejo
+- No instalar dependencias nuevas salvo necesidad real
+- Mantener el estilo minimalista actual
+
+## CAMBIO EXACTO
+
+### 1. Mantener el botón actual
+El botón `Aleatorio` actual debe seguir existiendo y seguir funcionando con un click normal exactamente como hasta ahora.
+
+### 2. Añadir comportamiento secundario al mismo botón
+Ese mismo botón debe permitir una interacción secundaria (hover, popover, click expandido o la solución UX más limpia) para mostrar presets rápidos:
+
+- Immvest
+- SaaS
+- B2B
+- High ticket
+- Coaching
+- Challenge
+
+### 3. Lógica general
+- `Aleatorio` sin preset = random total
+- `Aleatorio` + preset = random orientado dentro de ese tipo de caso
+- Esto no sustituye el perfil del cliente
+- Esto orienta el contexto / escenario / tipo de venta
+
+Separar bien:
+- **perfil del cliente** = cómo se comporta
+- **preset aleatorio** = de qué va el caso
+
+## ESPECIFICACIÓN ESPECIAL DEL PRESET `IMMVEST`
+
+Cuando el usuario seleccione `Immvest`, el sistema debe generar escenarios alineados exactamente con este negocio:
+
+### Qué vende Immvest
+Immvest vende **inversión inmobiliaria en Alemania** a personas hispanohablantes que quieren:
+- construir patrimonio,
+- mejorar su situación fiscal,
+- comprar un inmueble con financiación,
+- y no tener que buscar, analizar y gestionar todo por su cuenta.
+
+Immvest **no vende “un piso” sin más**, ni funciona como una inmobiliaria tradicional de catálogo.  
+Vende una **oportunidad de inversión ya filtrada, revisada y estructurada**, con una lógica clara de:
+- compra,
+- financiación,
+- alquiler,
+- gestión,
+- y construcción patrimonial a medio/largo plazo.
+
+Immvest debe presentarse como un **socio que selecciona activos**, no como un escaparate de inmuebles.
+
+### Qué tipo de activos y modelo maneja
+Los escenarios `Immvest` deben girar en torno a:
+- inmuebles en Alemania,
+- normalmente ya alquilados o con lógica de alquiler,
+- revisados en:
+  - ubicación,
+  - edificio,
+  - reformas,
+  - alquiler,
+  - potencial de renta,
+  - encaje con el objetivo del inversor.
+
+El modelo debe reflejar que:
+- se busca **conservar al máximo el capital propio**;
+- no se entra para “ganar mucho dinero desde el primer mes”;
+- no se promete cashflow alto inmediato;
+- se vende una inversión más estable y pensada para construir patrimonio con el tiempo.
+
+### Lógica financiera de Immvest
+El preset `Immvest` debe entender y usar esta lógica:
+
+- La entrada no se plantea como “poner mucho dinero de golpe”.
+- La comunicación comercial de Immvest gira en torno a **proteger al máximo el capital propio**.
+- En perfiles adecuados se puede hablar incluso de **financiación del 100% del valor del inmueble**, aunque eso depende del banco, del activo y del perfil.
+- Eso **no implica necesariamente** que también se financien todos los gastos de compra.
+- El foco no es “cuánto ganas el primer mes”, sino:
+  - cuánto capital inmovilizas,
+  - cuánta liquidez conservas,
+  - cómo se construye patrimonio con el tiempo.
+
+### Lógica fiscal y patrimonial
+Los escenarios `Immvest` deben tener en cuenta esta lógica comercial:
+
+- la fiscalidad forma parte del argumento,
+- pero **no debe venderse como garantía automática ni como promesa cerrada**;
+- se debe presentar como una lógica real que depende del perfil concreto y que puede validarse con asesor.
+
+En el marco comercial de Immvest, el sistema debe poder usar como parte del razonamiento:
+- AfA,
+- intereses,
+- gastos deducibles,
+- y la idea de que en Alemania la salida a largo plazo puede tener una ventaja fiscal muy potente si se cumplen las condiciones aplicables.
+
+También debe reflejar esta lógica:
+- el cashflow negativo **no se vende como invalidador automático** de la operación;
+- se presenta como una **aportación mensual controlada** para construir patrimonio;
+- la alternativa no es “nada de aportación”, sino muchas veces poner más entrada de golpe y quedarse más descapitalizado.
+
+### Lógica temporal del modelo
+El sistema debe entender que el modelo de Immvest es de:
+- estabilidad,
+- crecimiento del valor,
+- financiación apalancada,
+- fiscalidad,
+- y construcción de patrimonio a medio/largo plazo.
+
+No debe presentar el producto como:
+- pelotazo rápido,
+- cashflow alto inmediato,
+- inversión especulativa pura.
+
+### Proceso real de Immvest
+Los escenarios deben reflejar este proceso comercial y operativo:
+
+1. entender el perfil del inversor  
+2. filtrar si realmente quiere invertir o solo informarse  
+3. explicar cómo trabaja Immvest  
+4. presentar una inversión concreta  
+5. si encaja, cerrar una **reserva con depósito de 1.500 €** para bloquear el inmueble  
+6. ese depósito **no es un coste final**, sino un depósito que según vuestro proceso se devuelve íntegramente al firmar en notaría  
+7. después, el equipo financiero compara financiación con bancos alemanes  
+8. según vuestro guion interno, se comparan condiciones entre **más de 600 bancos alemanes**  
+9. si la financiación se aprueba, se firma la compra  
+10. después, una empresa de gestión se encarga del alquiler y de la relación con el inquilino
+
+### Modelo de venta de Immvest
+Los escenarios `Immvest` deben respetar este estilo comercial:
+
+- venta por videollamada
+- consultiva
+- guiada
+- muy orientada al cierre
+- nada improvisada
+- pensada para detectar si el cliente encaja
+- y, si encaja, avanzar hacia la reserva
+
+La llamada **no** debe plantearse como:
+- charla abierta,
+- exploración infinita,
+- reunión para “ver opciones” sin compromiso.
+
+La llamada **sí** debe plantearse como:
+- conversación estructurada para detectar encaje,
+- filtrar intención real,
+- presentar una inversión concreta,
+- y mover hacia reserva si tiene sentido.
+
+### Secuencia comercial típica
+El preset `Immvest` debe generar escenarios compatibles con esta secuencia de venta:
+
+- apertura
+- diagnóstico
+- detección de motivación
+- filtro de intención
+- posicionamiento de Immvest
+- explicación del proceso
+- pre-cierre
+- presentación del inmueble
+- objeciones
+- cierre
+
+### Lógica de presentación del inmueble
+Cuando el escenario llegue a presentación de inversión, seguir esta lógica:
+
+- ciudad
+- zona
+- edificio
+- inmueble
+- situación del alquiler
+- números
+- encaje con el objetivo del cliente
+- pregunta de avance
+
+Evitar preguntas blandas tipo:
+- “¿qué te parece?”
+
+Usar mejor la lógica real de Immvest:
+- primero preguntar **qué es lo que más le ha gustado de la inversión**
+- después **si la ve encajando con lo que busca**
+
+### Reto comercial principal
+El sistema debe entender que en Immvest no basta con explicar bien una inversión.
+
+Hay que distinguir rápido entre:
+- **comprador real**
+- **turista**
+
+Un turista es alguien que:
+- solo quiere información,
+- quiere ver opciones,
+- quiere entender el modelo,
+- pero no tiene intención real de decidir.
+
+Si el escenario detecta un turista o un perfil sin intención real:
+- la conversación debe poder cortarse con elegancia,
+- sin eternizar la videollamada,
+- sin regalar una reunión inútil.
+
+También debe poder detectar:
+- no decisión,
+- exceso de análisis,
+- dependencia de pareja, amigos o asesores,
+- y frenos de intención real.
+
+### Objeciones típicas de Immvest
+Los escenarios `Immvest` deben incluir objeciones frecuentes como:
+
+- “he visto otro más barato”
+- “la rentabilidad me parece baja”
+- “en España se gana más”
+- “los intereses están altos”
+- “quiero esperar”
+- “quiero pensarlo”
+- “tengo que hablarlo con mi pareja”
+- “no conozco la zona”
+- “el cashflow es negativo”
+- “la ventaja fiscal no es segura”
+
+También pueden girar en torno a:
+- precio
+- rentabilidad
+- intereses
+- fiscalidad
+- zona
+- alquiler
+- gastos
+- confianza
+- momento
+- terceros
+
+### Filosofía de respuesta de Immvest
+La forma de responder en `Immvest` debe ser:
+
+- simple
+- directa
+- concreta
+- orientada a recuperar lógica
+- sin tecnicismos innecesarios
+- sin sobreexplicar
+- sin abrir debates que no ayudan
+- con foco en:
+  - seguridad,
+  - estructura,
+  - financiación,
+  - fiscalidad,
+  - construcción de patrimonio,
+  - y avance hacia decisión
+
+### Respuestas orientativas que el preset debe saber sostener
+Sin convertirlas en texto fijo obligatorio, el preset `Immvest` debe poder generar razonamientos alineados con ideas como estas:
+
+- Si el cliente dice que el cashflow es negativo:
+  - la lógica correcta no es negar el dato,
+  - sino explicar que eso no invalida automáticamente la operación,
+  - porque puede significar una aportación mensual controlada en lugar de una gran entrada de golpe.
+
+- Si el cliente compara con España:
+  - la respuesta correcta no es discutir por discutir,
+  - sino reencuadrar la comparación en:
+    - capital inmovilizado,
+    - estructura,
+    - gestión,
+    - fiscalidad,
+    - y patrimonio construido con el tiempo.
+
+- Si el cliente dice que los intereses están altos:
+  - la lógica correcta es volver a si la operación funciona hoy con condiciones reales,
+  - no discutir en abstracto sobre si el tipo parece alto o bajo.
+
+- Si el cliente dice que prefiere esperar a que bajen tipos:
+  - la lógica correcta es explicar que esperar no garantiza una mejor operación,
+  - porque puede cambiar también el precio del activo,
+  - y que la pregunta correcta es si hoy la operación tiene sentido.
+
+- Si el cliente duda de la ventaja fiscal:
+  - la respuesta correcta no debe venderla como promesa segura,
+  - sino como lógica fiscal real a validar según perfil concreto.
+
+### Perfil psicológico del cliente en Immvest
+El preset debe poder generar clientes o respuestas adaptadas a tres lecturas principales:
+- emocional
+- analítico
+- escéptico
+
+Y ajustar el tono según eso, manteniendo siempre el foco en:
+- decisión,
+- filtro,
+- avance,
+- o descarte si no hay intención real.
+
+### Qué espero del preset `Immvest`
+Cuando el usuario elige `Immvest`, Arena debe generar escenarios de práctica realistas para ese contexto:
+- venta por videollamada,
+- cliente hispanohablante,
+- compra de inmueble como inversión,
+- foco en patrimonio / fiscalidad / financiación / estructura,
+- posibilidad de objeciones reales de Immvest,
+- posibilidad de detectar turistas,
+- posibilidad de presentar una inversión concreta,
+- posibilidad de avanzar hacia reserva,
+- y posibilidad también de descartar con elegancia si no hay compra real.
+
+Esto debe funcionar tanto en:
+- modo vendedor
+- modo cliente
+
+## OTROS PRESETS
+Los demás presets no necesitan tanta especificación, pero deben orientar el caso correctamente:
+
+### SaaS
+Casos de software / herramienta / demo / ROI / adopción / implementación / “ya usamos otra herramienta”.
+
+### B2B
+Casos de venta a empresa más genéricos: presupuesto, decisor, proceso, confianza, timing, propuesta.
+
+### High ticket
+Casos más emocionales o de ticket alto B2C: precio, confianza, urgencia, miedo a equivocarse, cierre más directo.
+
+### Coaching
+Casos de formación / mentoría / coaching con objeciones tipo precio, aplicabilidad, resultados, desconfianza, “me lo pienso”.
+
+### Challenge
+Casos especiales de venta creativa o aparentemente imposible:
+- vender hielo a un esquimal
+- vender clases de inglés a un inglés
+- vender un paraguas en el desierto
+- vender un boli a alguien que no quiere escribir
+- etc.
+
+## UX
+- No quiero un dropdown enorme
+- No quiero una pantalla extra
+- No quiero complicar el setup
+- El usuario debe poder seguir usando `Aleatorio` con un solo click como hasta ahora
+- El hover/popover debe sentirse como una capa opcional útil
+- Si se ignora, todo sigue funcionando igual
+
+## BACKEND / LÓGICA
+Si hace falta, añadir una pista opcional tipo:
+- `randomPreset`
+o equivalente
+
+Valores posibles:
+- `immvest`
+- `saas`
+- `b2b`
+- `high_ticket`
+- `coaching`
+- `challenge`
+
+Si no existe, comportamiento actual de random total.
+
+## ENTREGABLES
+- [ ] El botón `Aleatorio` sigue funcionando igual con click normal
+- [ ] Ese mismo botón ofrece presets rápidos al hover/popover o interacción secundaria
+- [ ] Los presets visibles son exactamente:
+  - Immvest
+  - SaaS
+  - B2B
+  - High ticket
+  - Coaching
+  - Challenge
+- [ ] `Immvest` queda orientado exactamente al contexto real descrito arriba
+- [ ] Los demás presets orientan correctamente el tipo de caso
+- [ ] No se rompe ningún flujo actual de Arena
+- [ ] La UI sigue limpia
+- [ ] La app compila sin errores
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] Click normal en `Aleatorio` = caso aleatorio total, como ahora
+- [ ] Interacción secundaria en `Aleatorio` muestra presets rápidos
+- [ ] Seleccionar `Immvest` genera escenarios alineados con venta de inversión inmobiliaria de Immvest
+- [ ] El preset `Immvest` funciona tanto en modo vendedor como en modo cliente
+- [ ] No se mezcla preset con perfil de cliente
+- [ ] No hay regresión en Arena
+- [ ] La app compila sin errores

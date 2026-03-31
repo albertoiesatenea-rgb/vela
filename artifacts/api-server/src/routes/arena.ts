@@ -29,6 +29,7 @@ interface ArenaSession {
   sellerProfile?: string;
   difficulty?: string;
   forceTerminal?: boolean;
+  randomPreset?: string;
   sellerNotes: string[];
 }
 
@@ -71,6 +72,79 @@ const DIFFICULTY_DESC: Record<string, string> = {
   normal: "Algunas objeciones válidas, necesitas buenos argumentos.",
   hard:   "Muchas objeciones, comparas con competencia, difícil de convencer.",
   brutal: "Escéptico, cuestionas todo, objeciones fuertes, solo cedes ante argumentos muy sólidos.",
+};
+
+// ── Random preset context descriptors ─────────────────────────────────────────
+// Injected into system prompts when the session was started with a randomPreset.
+const PRESET_SYSTEM_DESC: Record<string, { es: string; en: string }> = {
+  immvest: {
+    es: `MARCO DE VENTA — IMMVEST (inversión inmobiliaria en Alemania):
+Immvest no vende pisos sueltos: vende oportunidades de inversión ya filtradas, revisadas y estructuradas para el inversor hispanohablante.
+El cliente objetivo quiere construir patrimonio, mejorar su situación fiscal y comprar con financiación, sin gestionar por su cuenta la búsqueda, el análisis y la gestión del inmueble.
+Activo típico: inmueble en Alemania ya alquilado, con análisis de ubicación, edificio, alquiler y potencial patrimonial.
+Lógica financiera: conservar el capital propio al máximo. En perfiles adecuados se puede hablar de financiación del 100% del valor del inmueble (los gastos de compra van aparte y no están financiados automáticamente).
+Cashflow negativo: NO es un invalidador automático. Puede equivaler a una aportación mensual controlada para construir patrimonio, versus inmovilizar más capital de golpe y quedarse descapitalizado.
+Fiscalidad (AfA, intereses, gastos deducibles): forma parte del argumento comercial, pero no se vende como garantía cerrada ni promesa automática — se presenta como lógica real a validar según el perfil concreto del cliente.
+Proceso de cierre: el siguiente paso concreto es una RESERVA con depósito de 1.500€ (se devuelve íntegro al firmar en notaría). El equipo financiero compara después condiciones entre más de 600 bancos alemanes. Si se aprueba financiación, se firma la compra. Una empresa de gestión se encarga del alquiler y la relación con el inquilino.
+Objeciones comunes: cashflow negativo, tipos de interés altos, prefiero invertir en España, la ventaja fiscal no es segura, quiero pensarlo, tengo que hablarlo con mi pareja, no conozco la zona, la rentabilidad me parece baja.
+Detectar turista vs comprador real: si el cliente solo quiere información sin intención de decidir, el vendedor debe saber cortar con elegancia en lugar de eternizar la videollamada.
+La llamada es de tipo consultivo, estructurada, muy orientada al cierre — no una charla abierta. El objetivo es detectar encaje, filtrar intención real y, si encaja, mover hacia la reserva.`,
+    en: `SALES FRAME — IMMVEST (real estate investment in Germany):
+Immvest doesn't sell individual apartments: it sells pre-vetted, structured investment opportunities for Spanish-speaking investors.
+Target client: professional who wants to build wealth, improve their tax situation and buy with financing, without managing the search, analysis and property management themselves.
+Typical asset: already-rented apartment in Germany, analyzed for location, building quality, rent level and wealth-building potential.
+Financial logic: minimize own capital at entry. For suitable profiles, financing up to 100% of the property value can be discussed (purchase costs are separate and not automatically financed).
+Negative cashflow: NOT an automatic deal-killer. It can mean a controlled monthly contribution to build wealth, versus tying up more capital upfront and becoming illiquid.
+Tax logic (AfA, interest, deductible costs): part of the commercial argument, but not sold as a guaranteed outcome — presented as real logic to validate per client profile.
+Closing process: the concrete next step is a RESERVATION with a €1,500 deposit (fully refunded at notary signing). The financial team then compares offers from 600+ German banks. If financing is approved, the purchase is signed. A management company handles tenant relations.
+Common objections: negative cashflow, high interest rates, I prefer Spain, the tax benefit isn't guaranteed, I want to think about it, I need to discuss with my partner, I don't know the area, the yield seems low.
+Distinguish tourist vs real buyer: if client only wants information with no intention to decide, the seller should gracefully end the call rather than drag it out.
+The call is consultative, structured, very close-oriented — not an open exploration. Goal: detect fit, filter real intent, and if it fits, move toward the reservation.`,
+  },
+  saas: {
+    es: `MARCO DE VENTA — SAAS:
+Software como servicio: demo, piloto, ROI, adopción interna, integración con herramientas existentes, proceso de aprobación técnico y directivo.
+Objeciones típicas: ya tenemos otra herramienta y funciona suficientemente bien, el precio es alto para el equipo, el tiempo de implementación es un problema, necesito aprobación técnica o del equipo directivo, el cambio genera fricción interna.`,
+    en: `SALES FRAME — SAAS:
+Software as a service: demo, pilot, ROI, internal adoption, integration with existing tools, technical and executive approval process.
+Common objections: we already have a tool that works well enough, the price is high, implementation time is a problem, I need technical or executive approval, switching creates internal friction.`,
+  },
+  b2b: {
+    es: `MARCO DE VENTA — B2B:
+Venta a empresa: propuesta formal, proceso interno de compra, múltiples decisores, presupuesto anual, timing y prioridades internas del comprador.
+Objeciones típicas: no es el momento, tenemos que evaluarlo internamente con el comité, el precio está fuera del presupuesto actual, ya tenemos proveedor y no veo urgencia de cambiar, necesita aprobación de dirección.`,
+    en: `SALES FRAME — B2B:
+Business-to-business sale: formal proposal, internal buying process, multiple decision makers, annual budget, timing and internal priorities.
+Common objections: it's not the right time, we need to evaluate it internally with the committee, the price is outside current budget, we already have a supplier and see no urgency to change, needs executive approval.`,
+  },
+  high_ticket: {
+    es: `MARCO DE VENTA — HIGH TICKET:
+Venta de alto valor personal o empresarial (>5.000€): precio, confianza personal, miedo a equivocarse en una decisión grande, urgencia real vs artificial, cierre más directo.
+Objeciones típicas: es mucho dinero para algo que no sé si me va a funcionar, no sé si es para mí, quiero pensarlo más, prefiero esperar, hay opciones más baratas.
+El vendedor ancla valor antes de hablar de precio. No hace descuentos. Maneja el miedo a la decisión y la falta de confianza, no solo la objeción de precio. La confianza en el vendedor o en el producto es muchas veces el freno real.`,
+    en: `SALES FRAME — HIGH TICKET:
+High-value personal or business sale (>€5,000): price, personal trust, fear of making a big wrong decision, real vs artificial urgency, more direct closing.
+Common objections: that's a lot of money for something I'm not sure will work for me, I don't know if it's right for me, I want to think about it more, I'd rather wait, there are cheaper alternatives.
+The seller anchors value before price. No discounts. Handles fear of commitment and lack of trust — not just the price objection. Trust in the seller or product is often the real blocker.`,
+  },
+  coaching: {
+    es: `MARCO DE VENTA — COACHING / FORMACIÓN:
+Venta de formación, mentoría individual o corporativa, coaching: resultados prometidos y demostrables, aplicabilidad real al caso concreto del cliente, desconfianza en el método, el coach o la transferencia real al trabajo.
+Objeciones típicas: no tengo tiempo, ya lo intenté antes y no funcionó, ¿cómo sé que funciona para mi caso concreto?, es caro para lo que es, prefiero libros o YouTube, el equipo no va a aplicar lo que aprenda.`,
+    en: `SALES FRAME — COACHING / TRAINING:
+Sale of individual or corporate training, mentoring, or coaching: demonstrable promised results, real applicability to the client's specific situation, distrust of the method, coach, or real knowledge transfer.
+Common objections: I don't have time, I tried it before and it didn't work, how do I know it works for my specific case?, it's expensive for what it is, I prefer books or YouTube, the team won't apply what they learn.`,
+  },
+  challenge: {
+    es: `MARCO DE VENTA — CHALLENGE (venta creativa/imposible):
+Escenario de práctica extremo o absurdo: vender algo que el cliente claramente no necesita o que parece imposible de venderle.
+Ejemplos: paraguas en el desierto, clases de español a un hispanohablante nativo, bolígrafo a alguien que solo escribe en digital, hielo a un pescador con cámara frigorífica llena.
+El vendedor debe encontrar ángulos creativos, inesperados y reales para intentar convencer. El cliente puede ceder si el vendedor encuentra el ángulo correcto. Resistencia inicial alta pero no cierre total si el argumento es realmente bueno.`,
+    en: `SALES FRAME — CHALLENGE (creative/impossible sale):
+Extreme or absurd practice scenario: selling something the client clearly doesn't need or that seems impossible to sell.
+Examples: umbrella in the desert, English lessons to a native speaker, pen to someone who only writes digitally, ice to a fisherman with a full freezer.
+The seller must find creative, unexpected and real angles to try to convince. The client can give in if the seller finds the right angle. High initial resistance but not total shutdown if the argument is genuinely good.`,
+  },
 };
 
 // ── Terminal state keywords (for conditional detection) ───────────────────────
@@ -129,6 +203,7 @@ function buildSystemPrompt(
   sellerProfile?: string,
   difficulty?: string,
   sellerNotes?: string[],
+  randomPreset?: string,
 ): string {
   const langRule = lang === "en" ? "Respond only in English." : "Responde solo en español.";
 
@@ -136,6 +211,10 @@ function buildSystemPrompt(
     ? (lang === "en"
         ? `\n[Conversation has ${historyLen} turns total. Showing last ${ARENA_HISTORY_WINDOW} for efficiency. Stay consistent with your assigned personality and context.]`
         : `\n[Conversación de ${historyLen} turnos totales. Se muestran solo los últimos ${ARENA_HISTORY_WINDOW} por eficiencia. Mantén coherencia con tu personalidad y el contexto asignados.]`)
+    : "";
+
+  const presetBlock = randomPreset && PRESET_SYSTEM_DESC[randomPreset]
+    ? `\n\n${PRESET_SYSTEM_DESC[randomPreset][lang === "en" ? "en" : "es"]}`
     : "";
 
   if (role === "seller") {
@@ -148,7 +227,7 @@ function buildSystemPrompt(
 
     return `Eres el cliente/prospecto en una simulación de conversación de venta.
 
-Contexto: ${context || "Conversación de venta genérica."}${profileNote}${diffNote}${windowNote}
+Contexto: ${context || "Conversación de venta genérica."}${profileNote}${diffNote}${presetBlock}${windowNote}
 
 Tu papel es la otra parte. Mantén tu personalidad de forma consistente. Responde con 1-3 frases conversacionales naturales. Usa **negrita** para marcar objeciones clave, precios, plazos o compromisos importantes. Sin más etiquetas ni metacomentarios.
 ${langRule}`;
@@ -162,7 +241,7 @@ ${langRule}`;
 
     return `Eres el vendedor en una simulación de venta. Actúas como un comercial experimentado: preciso, honesto y sin relleno.
 
-Contexto: ${context || "Conversación de venta genérica."}${profileNote}${notesBlock}${windowNote}
+Contexto: ${context || "Conversación de venta genérica."}${profileNote}${notesBlock}${presetBlock}${windowNote}
 
 MOVIMIENTOS DISPONIBLES — elige exactamente uno por turno:
 1. Diagnosticar con una pregunta concreta (no genérica)
@@ -226,6 +305,7 @@ function buildOpeningPrompt(
   lang: Lang,
   clientProfile?: string,
   sellerProfile?: string,
+  randomPreset?: string,
 ): string {
   const langRule = lang === "en" ? "Write in English." : "Escribe en español.";
   const profileHint = role === "seller" && clientProfile && CLIENT_PROFILE_DESC[clientProfile]
@@ -234,19 +314,23 @@ function buildOpeningPrompt(
     ? ` Personalidad: ${SELLER_PROFILE_DESC[sellerProfile]}`
     : "";
 
+  const presetHint = randomPreset && PRESET_SYSTEM_DESC[randomPreset]
+    ? ` [${PRESET_SYSTEM_DESC[randomPreset][lang === "en" ? "en" : "es"].split("\n")[0]}]`
+    : "";
+
   const who = role === "seller" ? "cliente/prospecto" : "vendedor experto";
   const whoEn = role === "seller" ? "client/prospect" : "expert seller";
 
   if (lang === "en") {
     if (role === "client") {
-      return `You are an expert seller opening a sales conversation. Context: ${context || "generic sale"}${profileHint}. Invent a specific real-sounding name and company for yourself (e.g. "I'm Sara Voss from Clearpath Advisory" — no placeholders, no brackets). Write EXACTLY ONE sentence. Do what a top-tier seller would genuinely do to open: a precise observation, a direct reference to the prospect's situation, a short hook, or a well-placed question — vary the approach, never explain the product. Use **bold** on the most important word or number if relevant. No labels. Text only. ${langRule}`;
+      return `You are an expert seller opening a sales conversation. Context: ${context || "generic sale"}${profileHint}${presetHint}. Invent a specific real-sounding name and company for yourself (e.g. "I'm Sara Voss from Clearpath Advisory" — no placeholders, no brackets). Write EXACTLY ONE sentence. Do what a top-tier seller would genuinely do to open: a precise observation, a direct reference to the prospect's situation, a short hook, or a well-placed question — vary the approach, never explain the product. Use **bold** on the most important word or number if relevant. No labels. Text only. ${langRule}`;
     }
-    return `Generate the opening message of a ${whoEn} starting a sales conversation. Context: ${context || "generic sale"}${profileHint}. Write 1 short natural sentence as that person. No labels. Text only. ${langRule}`;
+    return `Generate the opening message of a ${whoEn} starting a sales conversation. Context: ${context || "generic sale"}${profileHint}${presetHint}. Write 1 short natural sentence as that person. No labels. Text only. ${langRule}`;
   }
   if (role === "client") {
-    return `Eres un vendedor experto que abre una conversación de ventas. Contexto: ${context || "venta genérica"}${profileHint}. Invéntate un nombre y empresa reales y concretos (ej: "Soy Marcos Reina de Solvinova" — sin corchetes, sin variables). Escribe EXACTAMENTE UNA frase. Haz lo que haría un vendedor de primer nivel: puede ser una observación directa, una referencia al problema del prospecto, un gancho potente, o una pregunta bien colocada — varía el enfoque, nunca expliques el producto. Usa **negrita** en la palabra o cifra más importante si aporta. Sin etiquetas. Solo el texto. ${langRule}`;
+    return `Eres un vendedor experto que abre una conversación de ventas. Contexto: ${context || "venta genérica"}${profileHint}${presetHint}. Invéntate un nombre y empresa reales y concretos (ej: "Soy Marcos Reina de Solvinova" — sin corchetes, sin variables). Escribe EXACTAMENTE UNA frase. Haz lo que haría un vendedor de primer nivel: puede ser una observación directa, una referencia al problema del prospecto, un gancho potente, o una pregunta bien colocada — varía el enfoque, nunca expliques el producto. Usa **negrita** en la palabra o cifra más importante si aporta. Sin etiquetas. Solo el texto. ${langRule}`;
   }
-  return `Genera el primer mensaje de un ${who} que inicia una conversación de venta. Contexto: ${context || "venta genérica"}${profileHint}. Escribe 1 frase corta y natural como esa persona. Sin etiquetas. Solo el texto. ${langRule}`;
+  return `Genera el primer mensaje de un ${who} que inicia una conversación de venta. Contexto: ${context || "venta genérica"}${profileHint}${presetHint}. Escribe 1 frase corta y natural como esa persona. Sin etiquetas. Solo el texto. ${langRule}`;
 }
 
 // ── Debrief generator ─────────────────────────────────────────────────────────
@@ -481,7 +565,7 @@ One word only:`;
 
 // ── POST /api/arena/start ─────────────────────────────────────────────────────
 router.post("/arena/start", async (req, res) => {
-  const { role, lang = "es", context = "", clientProfile, sellerProfile, difficulty, forceTerminal } = req.body as {
+  const { role, lang = "es", context = "", clientProfile, sellerProfile, difficulty, forceTerminal, randomPreset } = req.body as {
     role?: ArenaRole;
     lang?: Lang;
     context?: string;
@@ -489,6 +573,7 @@ router.post("/arena/start", async (req, res) => {
     sellerProfile?: string;
     difficulty?: string;
     forceTerminal?: boolean;
+    randomPreset?: string;
   };
 
   if (!role || !["seller", "client"].includes(role)) {
@@ -511,6 +596,7 @@ router.post("/arena/start", async (req, res) => {
     createdAt: new Date().toISOString(),
     clientProfile: resolvedClientProfile, sellerProfile, difficulty,
     forceTerminal: forceTerminal === true,
+    randomPreset: randomPreset && PRESET_SYSTEM_DESC[randomPreset] ? randomPreset : undefined,
     sellerNotes: [],
   };
 
@@ -520,7 +606,7 @@ router.post("/arena/start", async (req, res) => {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       max_tokens: 150,
-      messages: [{ role: "user", content: buildOpeningPrompt(role, context, lang, clientProfile, sellerProfile) }],
+      messages: [{ role: "user", content: buildOpeningPrompt(role, context, lang, clientProfile, sellerProfile, session.randomPreset) }],
     });
     const latencyMs = Date.now() - t0;
     const usage = completion.usage;
@@ -869,7 +955,7 @@ router.post("/arena/turn", async (req, res) => {
         session.role, session.context, session.lang,
         historyLen,
         session.clientProfile, session.sellerProfile, session.difficulty,
-        session.sellerNotes,
+        session.sellerNotes, session.randomPreset,
       ),
     },
   ];
@@ -1032,7 +1118,7 @@ router.post("/arena/repitch", async (req, res) => {
         session.role, session.context, session.lang,
         historyLen,
         session.clientProfile, session.sellerProfile, session.difficulty,
-        session.sellerNotes,
+        session.sellerNotes, session.randomPreset,
       ),
     },
     ...windowedTurns.map(t => ({
