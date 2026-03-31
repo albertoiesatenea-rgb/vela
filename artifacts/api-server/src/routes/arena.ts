@@ -581,26 +581,32 @@ router.post("/arena/preset-context", async (req, res) => {
     return;
   }
 
-  const presetLine = PRESET_SYSTEM_DESC[preset][lang === "en" ? "en" : "es"].split("\n")[0];
+  const presetDesc = PRESET_SYSTEM_DESC[preset][lang === "en" ? "en" : "es"];
+
+  const challengeExtra = preset === "challenge"
+    ? (lang === "en"
+        ? "\n\nCRITICAL CONSTRAINT: The scenario MUST be absurd or impossible — the client must clearly NOT need what's being sold, and it must be obvious why. No normal sales scenarios allowed. Examples of valid absurdity: umbrella to someone who lives in a rainless desert, sunscreen to a vampire, English lessons to a native English professor at Oxford, a GPS to a monk who never leaves the monastery. Invent something new and specific each time — the more unexpected and creative, the better."
+        : "\n\nRESTRICCIÓN CRÍTICA: El escenario DEBE ser absurdo o imposible — el cliente claramente NO necesita lo que se le vende y debe ser obvio por qué. No se admiten escenarios de venta normales. Ejemplos de absurdidad válida: paraguas a alguien que vive en un desierto sin lluvia, protector solar a un vampiro, clases de español a un filólogo nativohablante, GPS a un monje que nunca sale del monasterio. Inventa algo nuevo y específico cada vez — cuanto más inesperado y creativo, mejor.")
+    : "";
 
   const prompt = lang === "en"
-    ? `Generate ONE specific sales simulation scenario (1–2 sentences). Type: ${presetLine}. The user will play as the ${role === "seller" ? "seller" : "client/prospect"}.
+    ? `Generate ONE sales simulation scenario (1–2 sentences max).
 
-Invent concrete, realistic details every time — vary them freely:
-- Buyer: profession, approximate age, invented name or company if relevant
-- Their main objection or situation at this moment
-- Stage of the conversation (first call, follow-up, near closing, etc.)
+Rules for this preset:
+${presetDesc}${challengeExtra}
 
-Be creative. Never repeat the same profile or situation twice.
+The user will play as the ${role === "seller" ? "seller" : "client/prospect"}. Invent concrete details every time — vary them freely: buyer profession, approximate age, name or company if relevant, their specific situation or main objection, and the stage of the conversation (first call, follow-up, near closing, etc.).
+
+Be creative. Never repeat the same profile or situation.
 Return ONLY the scenario text. No labels, no quotes, no extra text.`
-    : `Genera UN escenario concreto de simulación de venta (máximo 2 frases). Tipo: ${presetLine}. El usuario jugará como ${role === "seller" ? "el vendedor" : "el cliente/prospecto"}.
+    : `Genera UN escenario de simulación de venta (máximo 2 frases).
 
-Inventa detalles realistas y distintos cada vez — varía libremente:
-- Comprador: profesión, edad aproximada, nombre o empresa inventada si aporta
-- Su objeción principal o situación en este momento concreto
-- Fase de la conversación (primera llamada, seguimiento, cerca del cierre, etc.)
+Reglas de este preset:
+${presetDesc}${challengeExtra}
 
-Sé creativo. Nunca repitas el mismo perfil ni situación.
+El usuario jugará como ${role === "seller" ? "el vendedor" : "el cliente/prospecto"}. Inventa detalles concretos distintos cada vez: profesión del comprador, edad aproximada, nombre o empresa si aporta, su situación concreta u objeción principal, y la fase de la conversación (primera llamada, seguimiento, cerca del cierre, etc.).
+
+Sé creativo e impredecible. Nunca repitas el mismo perfil ni situación.
 Devuelve SOLO el texto del escenario. Sin etiquetas, sin comillas, sin texto extra.`;
 
   try {
