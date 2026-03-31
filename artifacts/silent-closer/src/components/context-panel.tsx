@@ -273,6 +273,17 @@ async function fetchPresetContext(preset: string, role: ArenaRole, lang: Lang): 
   return data.context || pickRandomContext(role, lang);
 }
 
+async function fetchAdaptContext(text: string, fromRole: ArenaRole, toRole: ArenaRole, lang: Lang): Promise<string> {
+  const res = await fetch("/api/arena/adapt-context", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, fromRole, toRole, lang }),
+  });
+  if (!res.ok) throw new Error("adapt-context failed");
+  const data = await res.json() as { context: string };
+  return data.context || text;
+}
+
 // ── Arena Advanced Form ───────────────────────────────────────────────────────
 const ARENA_ADV_ICONS_SELLER = [Package, Building, Lightbulb, ShieldOff];
 const ARENA_ADV_ICONS_CLIENT = [User, Briefcase, MessageSquare];
@@ -733,18 +744,20 @@ export function ContextSetup({
   };
 
   const handleRoleSwitch = (newRole: ArenaRole) => {
+    const prevRole = arenaRole;
     setArenaRole(newRole);
-    if (isRandomCtx) {
-      if (randomPreset) {
-        setIsGeneratingCtx(true);
-        fetchPresetContext(randomPreset, newRole, lang)
-          .then(ctx => { setQuickText(ctx); setIsRandomCtx(true); })
-          .catch(() => { setQuickText(pickRandomContext(newRole, lang)); setIsRandomCtx(true); })
-          .finally(() => { setIsGeneratingCtx(false); focusAndScrollTop(); });
-      } else {
-        setQuickText(pickRandomContext(newRole, lang));
-        focusAndScrollTop();
-      }
+    if (randomPreset && isRandomCtx) {
+      setIsGeneratingCtx(true);
+      fetchPresetContext(randomPreset, newRole, lang)
+        .then(ctx => { setQuickText(ctx); setIsRandomCtx(true); })
+        .catch(() => { setQuickText(pickRandomContext(newRole, lang)); setIsRandomCtx(true); })
+        .finally(() => { setIsGeneratingCtx(false); focusAndScrollTop(); });
+    } else if (quickText.trim()) {
+      setIsGeneratingCtx(true);
+      fetchAdaptContext(quickText, prevRole, newRole, lang)
+        .then(ctx => { setQuickText(ctx); })
+        .catch(() => {})
+        .finally(() => { setIsGeneratingCtx(false); focusAndScrollTop(); });
     }
   };
 

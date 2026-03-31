@@ -473,46 +473,86 @@ router.post("/arena/preset-context", async (req, res) => {
 
   const presetDesc = PRESET_SYSTEM_DESC[preset][lang === "en" ? "en" : "es"];
 
+  const isSeller = role === "seller";
+
   const challengeExtra = preset === "challenge"
     ? (lang === "en"
-        ? "\n\nCRITICAL CONSTRAINT: The scenario MUST be absurd — the client clearly does NOT need what's being sold. No normal sales scenarios. The key is precision: use specific numbers, locations, or facts that make the absurdity funny and credible (e.g. 'A top-tier umbrella is being sold. The client lives in the Atacama desert — last year it rained 0.3mm total.' or 'A pool heater is for sale. The buyer is a penguin researcher stationed in Antarctica.'). Vary the product AND the client profile wildly each time. BANNED tropes (too generic, don't use): coat in tropical city, sunscreen to vampire, GPS to monk. Those are overused — invent something fresh."
-        : "\n\nRESTRICCIÓN CRÍTICA: El escenario DEBE ser absurdo — el cliente claramente NO necesita lo que se le vende. No se admiten ventas normales. La clave es la precisión: usa datos concretos, cifras o hechos específicos que hagan el absurdo gracioso y creíble (ej: 'Se está vendiendo un superparaguas. El cliente vive en el desierto de Atacama, lluvia total el año pasado: 0,3 mm.' o 'Se vende un calefactor de piscina. El comprador es investigador de pingüinos en la Antártida.'). Varía el producto Y el perfil del cliente radicalmente en cada generación. TROPOS PROHIBIDOS (demasiado genéricos, no usar): abrigo en ciudad tropical, protector solar a vampiro, GPS a monje, piscina en el desierto. Están sobreutilizados — inventa algo fresco y específico.")
+        ? isSeller
+          ? "\n\nCRITICAL CONSTRAINT: The scenario MUST be absurd — the client clearly does NOT need what's being sold. No normal sales scenarios. The key is precision: use specific numbers, locations, or facts that make the absurdity funny and credible (e.g. 'I have to sell a top-tier umbrella. The client lives in the Atacama desert — last year it rained 0.3mm total.' or 'I need to sell a pool heater to a penguin researcher stationed in Antarctica.'). Vary the product AND client profile wildly each time. BANNED tropes: coat in tropical city, sunscreen to vampire, GPS to monk. Overused — invent something fresh."
+          : "\n\nCRITICAL CONSTRAINT: The scenario MUST be absurd — you clearly do NOT need what's being sold. No normal sales scenarios. The key is precision: use specific numbers, locations, or facts that make the absurdity funny and credible (e.g. 'Someone is trying to sell me a top-tier umbrella. I live in the Atacama desert — last year it rained 0.3mm total.' or 'A salesperson is trying to sell me a pool heater. I'm a penguin researcher in Antarctica.'). Vary the product AND your profile wildly each time. BANNED tropes: coat in tropical city, sunscreen to vampire, GPS to monk. Overused — invent something fresh."
+        : isSeller
+          ? "\n\nRESTRICCIÓN CRÍTICA: El escenario DEBE ser absurdo — el cliente claramente NO necesita lo que le vas a vender. No se admiten ventas normales. La clave es la precisión: usa datos concretos, cifras o hechos específicos que hagan el absurdo gracioso y creíble (ej: 'Tengo que vender un superparaguas. El cliente vive en el desierto de Atacama, lluvia total el año pasado: 0,3 mm.' o 'Tengo que convencer a un investigador de pingüinos en la Antártida de que compre un calefactor de piscina.'). Varía el producto Y el perfil del cliente radicalmente. TROPOS PROHIBIDOS: abrigo en ciudad tropical, protector solar a vampiro, GPS a monje. Sobreutilizados — inventa algo fresco."
+          : "\n\nRESTRICCIÓN CRÍTICA: El escenario DEBE ser absurdo — tú claramente NO necesitas lo que te están vendiendo. No se admiten ventas normales. La clave es la precisión: usa datos concretos, cifras o hechos específicos que hagan el absurdo gracioso y creíble (ej: 'Me están intentando vender un superparaguas. Vivo en el desierto de Atacama, lluvia total el año pasado: 0,3 mm.' o 'Un vendedor quiere venderme un calefactor de piscina. Soy investigador de pingüinos en la Antártida.'). Varía el producto Y tu perfil radicalmente. TROPOS PROHIBIDOS: abrigo en ciudad tropical, protector solar a vampiro, GPS a monje. Sobreutilizados — inventa algo fresco.")
     : "";
 
   const isImmvest = preset === "immvest";
 
   const prompt = lang === "en"
     ? isImmvest
-      ? `Generate ONE Immvest sales simulation scenario (2–3 sentences).
+      ? isSeller
+        ? `Generate ONE Immvest sales simulation scenario (2–3 sentences) written from the SELLER's perspective (first person as seller).
 
 Rules:
 ${presetDesc}
 
-Write in THIRD PERSON — describe the scene from the outside, no first person ("I sell", "my product"). The scenario must read naturally regardless of who plays seller or buyer. Invent concrete details: buyer profile (profession, age, capital available), their main objection or concern, and the stage of the conversation (first call, follow-up, near closing, etc.). Vary every time.
+Write as the seller: "I need to sell to...", "My prospect is...", "The client is X, who has Y capital and...". Invent concrete details: buyer profile (profession, age, capital, main objection, conversation stage). Vary every time.
 
 Return ONLY the scenario text. No labels, no quotes.`
-      : `Generate ONE punchy sales simulation scenario. ONE or TWO short sentences max — no fluff.
+        : `Generate ONE Immvest sales simulation scenario (2–3 sentences) written from the BUYER/CLIENT's perspective (first person as client).
 
-Rules for this preset:
+Rules:
+${presetDesc}
+
+Write as the client: "A salesperson is trying to get me to invest in...", "I'm being approached about...", "I have X capital and someone wants me to...". Invent concrete details about yourself (profession, capital, main concern, stage). Vary every time.
+
+Return ONLY the scenario text. No labels, no quotes.`
+      : isSeller
+        ? `Generate ONE punchy sales scenario (1–2 short sentences) from the SELLER's perspective. No fluff.
+
+Rules:
 ${presetDesc}${challengeExtra}
 
-Write in THIRD PERSON — no "I", no "my". Describe the scene neutrally (e.g. "A salesperson is offering X to Y, who..."). Be inventive and specific. Vary every time.
+First person as seller: "I have to sell X to Y, who...", "My prospect is...". Be inventive. Vary every time.
+Return ONLY the scenario text. No labels, no quotes.`
+        : `Generate ONE punchy sales scenario (1–2 short sentences) from the BUYER/CLIENT's perspective. No fluff.
+
+Rules:
+${presetDesc}${challengeExtra}
+
+First person as client: "Someone is trying to sell me X...", "I'm being offered Y...". Be inventive. Vary every time.
 Return ONLY the scenario text. No labels, no quotes.`
     : isImmvest
-      ? `Genera UN escenario de simulación de venta con Immvest (2-3 frases).
+      ? isSeller
+        ? `Genera UN escenario de simulación de venta con Immvest (2-3 frases) en primera persona como VENDEDOR.
 
 Reglas:
 ${presetDesc}
 
-Escribe en TERCERA PERSONA — describe la escena desde fuera, sin primera persona ("vendo", "mi producto"). El escenario debe funcionar igual si el usuario juega como vendedor o como cliente. Inventa detalles concretos: perfil del comprador (profesión, edad, capital disponible), su objeción o preocupación principal, y la fase de la conversación (primera llamada, seguimiento, cerca del cierre, etc.). Varía cada vez.
+Escribe como el vendedor: "Tengo que vender a...", "Mi prospecto es...", "El cliente es X, tiene Y de capital y...". Inventa detalles concretos: perfil del comprador (profesión, edad, capital, objeción principal, fase de la conversación). Varía cada vez.
 
 Devuelve SOLO el texto. Sin etiquetas, sin comillas.`
-      : `Genera UN escenario de simulación de venta. UNA o DOS frases cortas máximo — sin relleno.
+        : `Genera UN escenario de simulación de venta con Immvest (2-3 frases) en primera persona como CLIENTE/COMPRADOR.
 
-Reglas de este preset:
+Reglas:
+${presetDesc}
+
+Escribe como el cliente: "Me están intentando convencer de invertir en...", "Un vendedor me propone...", "Tengo X de capital y alguien quiere que...". Inventa detalles concretos sobre ti mismo (profesión, capital, preocupación principal, fase). Varía cada vez.
+
+Devuelve SOLO el texto. Sin etiquetas, sin comillas.`
+      : isSeller
+        ? `Genera UN escenario de venta corto (1-2 frases) en primera persona como VENDEDOR. Sin relleno.
+
+Reglas:
 ${presetDesc}${challengeExtra}
 
-Escribe en TERCERA PERSONA — sin "yo", sin "mi". Describe la escena de forma neutra (ej: "Un vendedor ofrece X a Y, que..."). Sé inventivo y específico. Varía cada vez.
+Primera persona como vendedor: "Tengo que vender X a Y, que...", "Mi prospecto es...". Sé inventivo. Varía cada vez.
+Devuelve SOLO el texto. Sin etiquetas, sin comillas.`
+        : `Genera UN escenario de venta corto (1-2 frases) en primera persona como CLIENTE. Sin relleno.
+
+Reglas:
+${presetDesc}${challengeExtra}
+
+Primera persona como cliente: "Me están intentando vender X...", "Un vendedor me ofrece Y...". Sé inventivo. Varía cada vez.
 Devuelve SOLO el texto. Sin etiquetas, sin comillas.`;
 
   try {
@@ -526,6 +566,42 @@ Devuelve SOLO el texto. Sin etiquetas, sin comillas.`;
     res.json({ context });
   } catch {
     res.status(500).json({ error: "Generation failed" });
+  }
+});
+
+// ── POST /api/arena/adapt-context ────────────────────────────────────────────
+// Rewrites an existing context text to match a different role perspective.
+// Used when the user switches role (seller ↔ client) with text already written.
+router.post("/arena/adapt-context", async (req, res) => {
+  const { text, fromRole, toRole, lang = "es" } = req.body as {
+    text?: string;
+    fromRole?: ArenaRole;
+    toRole?: ArenaRole;
+    lang?: Lang;
+  };
+
+  if (!text?.trim()) { res.status(400).json({ error: "text required" }); return; }
+  if (!fromRole || !toRole || fromRole === toRole) { res.status(400).json({ error: "Invalid roles" }); return; }
+
+  const prompt = lang === "en"
+    ? fromRole === "seller"
+      ? `Rewrite this sales scenario from the BUYER/CLIENT's first-person perspective. Keep every concrete detail (product, numbers, names, location). Only change who is speaking: the user is now the client, not the seller.\n\nOriginal (seller POV): ${text.trim()}\n\nRewrite (client POV, same length). Return ONLY the rewritten text, no quotes, no labels.`
+      : `Rewrite this sales scenario from the SELLER's first-person perspective. Keep every concrete detail (product, numbers, names, location). Only change who is speaking: the user is now the seller, not the client.\n\nOriginal (client POV): ${text.trim()}\n\nRewrite (seller POV, same length). Return ONLY the rewritten text, no quotes, no labels.`
+    : fromRole === "seller"
+      ? `Reescribe este escenario de venta en primera persona como CLIENTE. Mantén todos los detalles concretos exactamente iguales (producto, cifras, nombres, lugar). Solo cambia quién habla: ahora el usuario es el cliente, no el vendedor.\n\nOriginal (perspectiva vendedor): ${text.trim()}\n\nReescritura (perspectiva cliente, misma longitud). Devuelve SOLO el texto, sin comillas, sin etiquetas.`
+      : `Reescribe este escenario de venta en primera persona como VENDEDOR. Mantén todos los detalles concretos exactamente iguales (producto, cifras, nombres, lugar). Solo cambia quién habla: ahora el usuario es el vendedor, no el cliente.\n\nOriginal (perspectiva cliente): ${text.trim()}\n\nReescritura (perspectiva vendedor, misma longitud). Devuelve SOLO el texto, sin comillas, sin etiquetas.`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_tokens: 150,
+      temperature: 0.2,
+      messages: [{ role: "user", content: prompt }],
+    });
+    const context = completion.choices[0]?.message?.content?.trim() ?? text.trim();
+    res.json({ context });
+  } catch {
+    res.json({ context: text.trim() });
   }
 });
 
