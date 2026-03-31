@@ -589,30 +589,49 @@ router.post("/arena/preset-context", async (req, res) => {
         : "\n\nRESTRICCIÓN CRÍTICA: El escenario DEBE ser absurdo o imposible — el cliente claramente NO necesita lo que se le vende y debe ser obvio por qué. No se admiten escenarios de venta normales. Ejemplos de absurdidad válida: paraguas a alguien que vive en un desierto sin lluvia, protector solar a un vampiro, clases de español a un filólogo nativohablante, GPS a un monje que nunca sale del monasterio. Inventa algo nuevo y específico cada vez — cuanto más inesperado y creativo, mejor.")
     : "";
 
+  const isImmvest = preset === "immvest";
+  const roleLabel = role === "seller"
+    ? (lang === "en" ? "seller" : "vendedor")
+    : (lang === "en" ? "client/prospect" : "cliente/prospecto");
+
   const prompt = lang === "en"
-    ? `Generate ONE sales simulation scenario (1–2 sentences max).
+    ? isImmvest
+      ? `Generate ONE Immvest sales simulation scenario (2–3 sentences).
+
+Rules:
+${presetDesc}
+
+The user plays as the ${roleLabel}. Invent concrete details: buyer profile (profession, age, capital available), their main objection or concern, and the stage of the conversation (first call, follow-up, near closing, etc.). Vary every time.
+
+Return ONLY the scenario text. No labels, no quotes.`
+      : `Generate ONE punchy sales simulation scenario. ONE or TWO short sentences max — no fluff, no long setup.
 
 Rules for this preset:
 ${presetDesc}${challengeExtra}
 
-The user will play as the ${role === "seller" ? "seller" : "client/prospect"}. Invent concrete details every time — vary them freely: buyer profession, approximate age, name or company if relevant, their specific situation or main objection, and the stage of the conversation (first call, follow-up, near closing, etc.).
+The user plays as the ${roleLabel}. Be inventive and specific. Vary every time. No verbose descriptions.
+Return ONLY the scenario text. No labels, no quotes.`
+    : isImmvest
+      ? `Genera UN escenario de simulación de venta con Immvest (2-3 frases).
 
-Be creative. Never repeat the same profile or situation.
-Return ONLY the scenario text. No labels, no quotes, no extra text.`
-    : `Genera UN escenario de simulación de venta (máximo 2 frases).
+Reglas:
+${presetDesc}
+
+El usuario jugará como ${roleLabel}. Inventa detalles concretos: perfil del comprador (profesión, edad, capital disponible), su objeción o preocupación principal, y la fase de la conversación (primera llamada, seguimiento, cerca del cierre, etc.). Varía cada vez.
+
+Devuelve SOLO el texto. Sin etiquetas, sin comillas.`
+      : `Genera UN escenario de simulación de venta. UNA o DOS frases cortas máximo — sin relleno, sin descripciones largas. Directo al grano, ingenioso con pocas palabras.
 
 Reglas de este preset:
 ${presetDesc}${challengeExtra}
 
-El usuario jugará como ${role === "seller" ? "el vendedor" : "el cliente/prospecto"}. Inventa detalles concretos distintos cada vez: profesión del comprador, edad aproximada, nombre o empresa si aporta, su situación concreta u objeción principal, y la fase de la conversación (primera llamada, seguimiento, cerca del cierre, etc.).
-
-Sé creativo e impredecible. Nunca repitas el mismo perfil ni situación.
-Devuelve SOLO el texto del escenario. Sin etiquetas, sin comillas, sin texto extra.`;
+El usuario jugará como ${roleLabel}. Sé inventivo y específico. Varía cada vez. Sin verbosidad.
+Devuelve SOLO el texto. Sin etiquetas, sin comillas.`;
 
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      max_tokens: 120,
+      max_tokens: isImmvest ? 120 : 65,
       temperature: 0.95,
       messages: [{ role: "user", content: prompt }],
     });
