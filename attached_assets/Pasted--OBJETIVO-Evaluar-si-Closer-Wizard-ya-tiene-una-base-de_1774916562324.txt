@@ -1,0 +1,180 @@
+## OBJETIVO
+Evaluar si Closer Wizard ya tiene una base de inteligencia comercial suficientemente compartida entre Copilot y Arena, o si hace falta crear una capa central tipo `sales brain` / `shared sales intelligence` para que las mejoras de criterio comercial afecten a todo el sistema y no solo a una superficie concreta.
+
+## CONTEXTO
+- La app ya tiene dos grandes superficies:
+  - **Copilot**: análisis táctico en tiempo real para llamadas reales
+  - **Arena**: simulación / práctica, especialmente útil para testear conversaciones y comportamiento comercial
+- El problema que quiero revisar no es visual ni de UX.
+- El problema es de **arquitectura de inteligencia comercial**.
+
+### Preocupación principal
+Me preocupa que estemos mejorando habilidades comerciales, detección de objeciones, lectura de situaciones, timing, criterio de avance, etc., pero que esas mejoras se queden **aisladas** en una sola parte del sistema.
+
+Ejemplo:
+- mejoramos el vendedor IA de Arena
+- o el coach / journey / lógica de Arena
+- pero luego Copilot no hereda esa mejora
+- o Copilot mejora una lectura de señal y Arena no la usa
+
+No quiero tener:
+- un “cerebro de Arena”
+- un “cerebro de Copilot”
+- y reglas comerciales duplicadas o divergentes
+
+Quiero saber si hoy eso ya está resuelto de forma aceptable o si hay una deuda estructural real.
+
+### Objetivo a medio plazo
+Quiero que el sistema pueda **mejorar su cerebro comercial de forma periódica** a través de pequeños parches o iteraciones, como si fueran **mini-formaciones de ventas acumulativas**.
+
+Es decir:
+- detectar una mejora comercial concreta,
+- incorporarla al sistema,
+- y que esa mejora pase a formar parte del criterio general del producto,
+- no solo de una pantalla o un prompt aislado.
+
+No quiero que cada parche sea una ocurrencia local.
+Quiero saber si la arquitectura actual permite ese aprendizaje acumulativo o si antes hace falta una capa central que actúe como fuente de verdad.
+
+### Qué necesito de esta evaluación
+Quiero que revises la arquitectura actual y me respondas con criterio:
+1. si ya existe una base suficientemente común y no hace falta tocar nada importante;
+2. o si realmente hay una fragmentación entre modos y merece la pena crear una capa central compartida de inteligencia comercial.
+
+No quiero teoría genérica.
+Quiero juicio técnico y de producto aplicado al estado real de la app.
+
+## REFERENCIAS IMPORTANTES
+Ten en cuenta el estado actual documentado de:
+- arquitectura general
+- rutas API
+- prompts
+- arena logic
+- ai tracking
+- audit log
+- feature flags
+- estado actual del proyecto
+
+## PREGUNTAS QUE QUIERO QUE ME RESPONDAS
+Quiero que analices y respondas explícitamente a estas preguntas:
+
+### 1. ¿Existe ya un cerebro compartido suficiente?
+Es decir:
+- ¿la lógica comercial central ya está lo bastante unificada?
+- ¿o hoy cada superficie tiene su propia lógica embebida en prompts, rutas o UI?
+
+### 2. ¿Dónde vive hoy la inteligencia comercial real?
+Quiero que identifiques si hoy vive sobre todo en:
+- prompts sueltos
+- rutas del backend
+- helpers de frontend
+- debriefs
+- coach / journey
+- documentación
+- o mezcla caótica de todo eso
+
+### 3. ¿Hay riesgo real de fragmentación?
+Evalúa si es probable que:
+- Arena mejore por un lado
+- Copilot mejore por otro
+- y el sistema termine con comportamientos comerciales inconsistentes
+
+### 4. ¿La arquitectura actual soporta mejora acumulativa?
+Quiero que valores si hoy la app está preparada para que pequeños parches periódicos funcionen como **mini-formaciones comerciales acumulativas** que alimenten a todo el sistema.
+
+Dicho de otro modo:
+- si aprendo una regla mejor de ventas,
+- o una forma mejor de leer objeciones,
+- o una mejor lógica de cierre,
+- ¿hoy se puede integrar de forma limpia y compartida?
+- ¿o acabaría metida en un prompt local, desconectada del resto?
+
+### 5. ¿Tiene sentido crear una capa central?
+Valora si merece la pena crear algo tipo:
+- `sales-brain.ts`
+- `sales-kernel.ts`
+- `shared-sales-intelligence.md`
+- o cualquier otra forma de fuente de verdad central
+
+No me importa tanto el nombre.
+Me importa si estructuralmente merece existir.
+
+### 6. Si hace falta esa capa central, qué debería contener
+Solo si concluyes que sí hace falta, quiero que propongas qué debería centralizar, por ejemplo:
+- taxonomía de objeciones
+- taxonomía de señales
+- journey comercial
+- reglas de timing
+- criterios de cierre
+- detección de turista vs comprador
+- marcos de respuesta
+- lectura por perfil de cliente
+- outcomes
+- principios comerciales acumulativos que puedan ir creciendo con el tiempo
+- mecanismo o formato para incorporar futuros “parches de aprendizaje” sin fragmentar el sistema
+
+### 7. Qué NO merece centralizarse
+También quiero que me digas qué partes deben seguir siendo locales a cada modo y no conviene meter en una capa común.
+
+Ejemplo:
+- UI de coach
+- render del chat
+- bubbles
+- journey visual
+- debrief visual
+- etc.
+
+### 8. Riesgo / coste / impacto
+Si recomiendas una capa central:
+- qué coste tendría
+- qué impacto tendría
+- qué riesgo tendría
+- si se puede hacer de forma incremental o no
+
+## RESTRICCIONES
+- No quiero que implementes nada todavía
+- No quiero refactorizar por reflejo
+- No quiero un cambio grande solo por “arquitectura bonita”
+- Quiero una evaluación honesta:
+  - si no hace falta tocar nada, dilo claro
+  - si sí hace falta, dilo claro
+- No rehagas todo mentalmente
+- No propongas reescribir la app desde cero
+- No propongas una mega arquitectura si basta con una capa de verdad mínima y compartida
+
+## FORMATO DE RESPUESTA QUE QUIERO
+Respóndeme con esta estructura exacta:
+
+### 1. Veredicto
+- ¿hace falta cambio estructural o no?
+- respuesta directa, sin ambigüedad
+
+### 2. Dónde está hoy el problema
+- lista corta y concreta de los puntos de fragmentación reales
+- o, si no los hay, dilo
+
+### 3. Qué recomendarías
+- opción A: no tocar nada
+- opción B: pequeña capa compartida
+- opción C: refactor estructural mayor
+- elige una sola y justifícala
+
+### 4. Si recomiendas cambio
+- qué centralizarías exactamente
+- qué dejarías local
+- cómo harías que futuros parches de mejora comercial alimenten esa capa común
+- orden recomendado para hacerlo
+
+### 5. Riesgos de no hacerlo
+- qué pasará si seguimos mejorando Arena y Copilot por separado
+
+### 6. Riesgos de hacerlo mal
+- qué errores habría que evitar al intentar crear ese cerebro central
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] La respuesta parte del estado real del proyecto, no de teoría genérica
+- [ ] Queda claro si hoy ya estamos bien o no
+- [ ] Si hace falta cambio, queda claro de qué tamaño
+- [ ] Queda claro qué sería compartido y qué seguiría siendo local
+- [ ] Queda claro si el sistema soporta o no “mini-formaciones” acumulativas
+- [ ] La recomendación es ejecutable y no ornamental
