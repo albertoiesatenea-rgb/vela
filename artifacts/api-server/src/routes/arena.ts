@@ -563,6 +563,60 @@ One word only:`;
   }
 }
 
+// ── POST /api/arena/preset-context ───────────────────────────────────────────
+// Generates a fresh, AI-invented scenario for a given preset + role + lang.
+router.post("/arena/preset-context", async (req, res) => {
+  const { preset, role, lang = "es" } = req.body as {
+    preset?: string;
+    role?: ArenaRole;
+    lang?: Lang;
+  };
+
+  if (!preset || !PRESET_SYSTEM_DESC[preset]) {
+    res.status(400).json({ error: "Invalid preset" });
+    return;
+  }
+  if (!role || !["seller", "client"].includes(role)) {
+    res.status(400).json({ error: "Invalid role" });
+    return;
+  }
+
+  const presetLine = PRESET_SYSTEM_DESC[preset][lang === "en" ? "en" : "es"].split("\n")[0];
+
+  const prompt = lang === "en"
+    ? `Generate ONE specific sales simulation scenario (1–2 sentences). Type: ${presetLine}. The user will play as the ${role === "seller" ? "seller" : "client/prospect"}.
+
+Invent concrete, realistic details every time — vary them freely:
+- Buyer: profession, approximate age, invented name or company if relevant
+- Their main objection or situation at this moment
+- Stage of the conversation (first call, follow-up, near closing, etc.)
+
+Be creative. Never repeat the same profile or situation twice.
+Return ONLY the scenario text. No labels, no quotes, no extra text.`
+    : `Genera UN escenario concreto de simulación de venta (máximo 2 frases). Tipo: ${presetLine}. El usuario jugará como ${role === "seller" ? "el vendedor" : "el cliente/prospecto"}.
+
+Inventa detalles realistas y distintos cada vez — varía libremente:
+- Comprador: profesión, edad aproximada, nombre o empresa inventada si aporta
+- Su objeción principal o situación en este momento concreto
+- Fase de la conversación (primera llamada, seguimiento, cerca del cierre, etc.)
+
+Sé creativo. Nunca repitas el mismo perfil ni situación.
+Devuelve SOLO el texto del escenario. Sin etiquetas, sin comillas, sin texto extra.`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_tokens: 120,
+      temperature: 0.95,
+      messages: [{ role: "user", content: prompt }],
+    });
+    const context = completion.choices[0]?.message?.content?.trim() ?? "";
+    res.json({ context });
+  } catch {
+    res.status(500).json({ error: "Generation failed" });
+  }
+});
+
 // ── POST /api/arena/start ─────────────────────────────────────────────────────
 router.post("/arena/start", async (req, res) => {
   const { role, lang = "es", context = "", clientProfile, sellerProfile, difficulty, forceTerminal, randomPreset } = req.body as {

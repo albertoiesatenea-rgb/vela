@@ -262,153 +262,15 @@ const PRESETS = [
   { id: "challenge",  label: "Challenge" },
 ] as const;
 
-const PRESET_CONTEXTS: Record<string, { seller: { es: string[]; en: string[] }; client: { es: string[]; en: string[] } }> = {
-  immvest: {
-    seller: {
-      es: [
-        "Tengo una videollamada de primera toma de contacto con un profesional hispanohablante de 40 años que tiene 45k€ disponibles. Me contactó a través de Immvest para hablar de inversión inmobiliaria en Alemania. Es su primera vez invirtiendo fuera de España.",
-        "El cliente lleva 20 minutos en videollamada Immvest. Le he presentado un piso en Leipzig ya alquilado (165k€, 760€/mes). El cashflow es -130€/mes después de gastos e hipoteca y me dice que no entiende por qué pagaría cada mes por un piso que es suyo.",
-        "El cliente me compara con comprar un piso en Valencia por el mismo precio. Dice que conoce España y que le parece más seguro que invertir en Alemania con Immvest.",
-        "El cliente tiene interés real en Immvest pero dice que los tipos de interés están altos y prefiere esperar a que bajen. Tenemos el inmueble: Frankfurt, 175k€, alquiler 820€/mes ya firmado.",
-        "El cliente está muy cerca del cierre con Immvest. Vio el inmueble, le gustan los números y entiende la lógica patrimonial. Pero dice que necesita hablarlo con su pareja antes de dar la reserva de 1.500€. Es la tercera videollamada.",
-        "El cliente pregunta qué pasa si en algún momento quiere vender el inmueble. Estamos en la videollamada Immvest hablando de liquidez y de la ventaja fiscal alemana si se cumplen los plazos legales de 10 años.",
-      ],
-      en: [
-        "I'm on a first Immvest video call with a 38-year-old Spanish professional who has €45k saved. He wants to invest but has never bought outside Spain.",
-        "The client on my Immvest call says the property's negative cashflow of -€130/month makes no sense. We've been talking 20 minutes and everything else was going well.",
-        "The client is comparing our Immvest apartment in Germany to buying in his hometown in Spain. He says he 'understands Spain better' and feels safer there.",
-      ],
-    },
-    client: {
-      es: [
-        "Soy médico especialista, 42 años. Tengo 60k€ disponibles. Un consultor de Immvest me está presentando una inversión en un piso de Hannover ya alquilado. Nunca he invertido fuera de España y soy bastante escéptico.",
-        "Soy consultor autónomo con buenos ingresos. Immvest me propone un piso en Alemania de 180k€ con alquiler de 880€/mes. El cashflow es negativo y no entiendo por qué debería interesarme pagar más cada mes de lo que ingresa el piso.",
-        "Soy empresario latinoamericano con base en España. Immvest me quiere presentar una inversión en Alemania. Tengo 80k€ para invertir pero ya estoy mirando pisos en Miami y me parecen más rentables.",
-      ],
-      en: [
-        "I'm a 40-year-old finance professional. An Immvest advisor is pitching me a pre-rented apartment in Germany for €165k. I've never invested outside my home country and I'm skeptical.",
-        "I'm on an Immvest video call. The property in Munich is €190k, rented at €900/month. The cashflow is slightly negative and I can't understand why I'd pay monthly for something I own.",
-      ],
-    },
-  },
-  saas: {
-    seller: {
-      es: [
-        "Vendo un CRM SaaS a una empresa de servicios financieros de 80 personas. Tienen Salesforce básico pero el director comercial dice que nadie lo usa correctamente. Precio: 1.800€/mes.",
-        "Hago una demo de mi software de gestión de proyectos a una empresa de consultoría de 40 personas. Ya tienen Asana pero el director de operaciones dice que 'el problema es la gente, no la herramienta'.",
-        "Vendo una herramienta de automatización de marketing por 900€/mes a una empresa de e-commerce de 5M€ de facturación. Ya tienen MailChimp pero solo lo usan para newsletters básicas.",
-      ],
-      en: [
-        "I'm selling a project management SaaS to a 120-person consulting firm. They have Asana but only 20% of the team uses it. Price: $2,000/month.",
-        "I'm demoing my CRM platform to a sales director at a fintech. They use Pipedrive but have outgrown it.",
-      ],
-    },
-    client: {
-      es: [
-        "Soy el director de operaciones de una empresa de 60 personas. Me están vendiendo un software de RR.HH. por 600€/mes. Ya tenemos uno que funciona, aunque el equipo se queja a veces.",
-        "Soy el CTO de una startup de 40 personas. Me presentan una plataforma de BI y analytics por 1.200€/mes. Necesito justificarlo ante el CEO.",
-      ],
-      en: [
-        "I'm the COO of a 50-person company. Someone is selling me an HR management platform for $800/month. Our current system isn't perfect but switching feels risky.",
-      ],
-    },
-  },
-  b2b: {
-    seller: {
-      es: [
-        "Vendo servicios de logística externalizada a un director de compras de una empresa industrial de 200 personas. Su proveedor actual tiene retrasos, pero llevan 6 años con él y le cuesta cambiar.",
-        "Presento una propuesta de consultoría estratégica de 6 meses a un CEO de empresa familiar de 150 personas. El precio es 48.000€ y necesita aprobación del consejo de administración.",
-        "Vendo servicios de outsourcing de atención al cliente a una empresa de e-commerce de 8M€. Tienen un equipo propio de 12 personas y dicen que prefieren controlarlo internamente.",
-      ],
-      en: [
-        "I'm selling outsourced IT support to the IT director of a 200-person manufacturing firm. They currently manage everything in-house.",
-        "I'm presenting a €60,000 strategic consulting proposal to a CEO of a family business. She needs board approval and isn't sure the timing is right.",
-      ],
-    },
-    client: {
-      es: [
-        "Soy director de compras de una empresa industrial. Me llama un proveedor nuevo que dice ser un 15% más barato. Llevamos 5 años con nuestro proveedor actual y nunca ha fallado.",
-        "Soy el CFO de una empresa de 300 personas. Me proponen un proyecto de transformación digital de 75.000€. Hay otros dos proyectos ya aprobados y el presupuesto está ajustado.",
-      ],
-      en: [
-        "I'm the CFO of a 150-person company. A vendor is pitching us on switching our accounting software. We've used our current solution for 4 years and it works fine.",
-      ],
-    },
-  },
-  high_ticket: {
-    seller: {
-      es: [
-        "Vendo un programa de mentoría ejecutiva de un año por 18.000€ a un emprendedor con facturación de 600k€. El cliente dice que 'es mucho dinero' y que no sabe si le funcionará.",
-        "Presento un retiro de transformación ejecutiva de 5 días en Portugal por 9.500€. El cliente dice que ya ha hecho retiros y que 'todos dicen lo mismo'.",
-        "Vendo acceso a un club privado de inversión de alto nivel por 6.000€/año. El cliente tiene interés pero dice que puede conseguir la información en otros sitios sin pagar.",
-      ],
-      en: [
-        "I'm selling a year-long executive mentorship at $15,000 to a founder with $700k revenue. She says it's expensive and she can 'figure things out herself'.",
-        "I'm selling access to a high-level private investment club for $5,000/year. The prospect is interested but says he can get similar info for free.",
-      ],
-    },
-    client: {
-      es: [
-        "Me están vendiendo un programa de coaching de alto rendimiento por 12.000€. Soy un directivo con buenos ingresos pero siempre que puedo consigo la información gratis online.",
-        "Me ofrecen un reloj de lujo Patek Philippe de 14.000€. Nunca he gastado más de 200€ en un reloj y no entiendo cuál es el punto.",
-      ],
-      en: [
-        "Someone is selling me a high-end personal transformation coaching program at $12,000. I'm a successful professional but I'm skeptical about paying that much.",
-      ],
-    },
-  },
-  coaching: {
-    seller: {
-      es: [
-        "Vendo un programa de formación en ventas de 3 meses para una empresa de telecomunicaciones con 20 comerciales. Precio: 12.000€. El director comercial dice que 'el equipo ya tiene formación y no ve diferencia'.",
-        "Ofrezco un programa de coaching individual de liderazgo de 6 meses por 3.600€ a un manager de primera línea que lo pagaría de su propio bolsillo.",
-        "Vendo un programa online de productividad y hábitos por 1.200€ a un emprendedor de 30 años que dice que prefiere comprar libros.",
-      ],
-      en: [
-        "I'm selling a 3-month sales training program to a telecom company with 25 sales reps at $14,000. The commercial director says training 'never sticks'.",
-        "I'm selling a personal productivity coaching program at $1,500 to a freelancer who says she can find the same content for free online.",
-      ],
-    },
-    client: {
-      es: [
-        "Soy el director de RR.HH. de una empresa de 100 personas. Me proponen un programa de formación en liderazgo para mis 12 managers por 8.000€. No estoy seguro de que vayan a aplicar lo que aprendan.",
-        "Me están vendiendo un bootcamp de programación de 6 meses por 6.000€. No tengo experiencia técnica y el precio me parece alto para algo que 'podría aprender gratis en YouTube'.",
-      ],
-      en: [
-        "I'm the HR manager of an 80-person company. Someone is pitching a leadership training program for our 10 managers at $7,500. I'm skeptical they'll apply what they learn.",
-      ],
-    },
-  },
-  challenge: {
-    seller: {
-      es: [
-        "Intenta venderme un paraguas de última generación. Llevo 25 años viviendo en el desierto de Atacama, Chile. El año pasado llovió 0,3 mm en total.",
-        "Convénceme de comprar clases avanzadas de español. Soy escritora hispanohablante nativa, correctora de estilo en una editorial desde hace 20 años.",
-        "Intenta venderme un bono de gimnasio premium de 100€/mes. Soy maratonista de élite, entreno 6 días a la semana en pista y montaña. El gimnasio me parece una pérdida de tiempo.",
-        "Convénceme de comprar un coche de lujo por 80.000€. Soy monje benedictino y llevo 15 años sin conducir ni salir del monasterio.",
-      ],
-      en: [
-        "Try to sell me an umbrella. I've lived in the Sahara desert for 20 years. It has never rained here.",
-        "Try to sell me advanced English lessons. I'm a native English speaker, published author, and former English professor at Oxford.",
-        "Convince me to buy a gym membership at $120/month. I'm a professional triathlete who trains 6 days a week outdoors and hasn't set foot in a gym in 5 years.",
-      ],
-    },
-    client: {
-      es: [
-        "Soy pescador en el puerto de Vigo. Alguien me quiere vender hielo. Mi cámara frigorífica del barco tiene más hielo del que puedo usar.",
-        "Soy chef con estrella Michelin. Me intentan vender un curso básico de cocina por 500€.",
-      ],
-      en: [
-        "I'm a professional chef with 2 Michelin stars. Someone is trying to sell me a 'beginner cooking course' at $300.",
-      ],
-    },
-  },
-};
-
-function pickPresetContext(preset: string, role: ArenaRole, lang: Lang): string {
-  const pool = PRESET_CONTEXTS[preset]?.[role]?.[lang];
-  if (!pool || pool.length === 0) return pickRandomContext(role, lang);
-  return pool[Math.floor(Math.random() * pool.length)];
+async function fetchPresetContext(preset: string, role: ArenaRole, lang: Lang): Promise<string> {
+  const res = await fetch("/api/arena/preset-context", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ preset, role, lang }),
+  });
+  if (!res.ok) throw new Error("preset-context failed");
+  const data = await res.json() as { context: string };
+  return data.context || pickRandomContext(role, lang);
 }
 
 // ── Arena Advanced Form ───────────────────────────────────────────────────────
@@ -761,6 +623,7 @@ export function ContextSetup({
   const [quickText, setQuickText] = useState("");
   const [isRandomCtx, setIsRandomCtx] = useState(false);
   const [randomPreset, setRandomPreset] = useState<string | undefined>(undefined);
+  const [isGeneratingCtx, setIsGeneratingCtx] = useState(false);
 
   // Arena profile/difficulty state
   const [clientProfile, setClientProfile] = useState<string | undefined>(undefined);
@@ -844,18 +707,34 @@ export function ContextSetup({
   };
 
   const handleRandomContext = (preset?: string) => {
-    const ctx = preset ? pickPresetContext(preset, arenaRole, lang) : pickRandomContext(arenaRole, lang);
-    setQuickText(ctx);
-    setIsRandomCtx(true);
-    setRandomPreset(preset);
     setShowPresetOpts(false);
-    setTimeout(() => quickRef.current?.focus(), 50);
+    if (preset) {
+      setRandomPreset(preset);
+      setIsGeneratingCtx(true);
+      fetchPresetContext(preset, arenaRole, lang)
+        .then(ctx => { setQuickText(ctx); setIsRandomCtx(true); })
+        .catch(() => { setQuickText(pickRandomContext(arenaRole, lang)); setIsRandomCtx(true); })
+        .finally(() => { setIsGeneratingCtx(false); setTimeout(() => quickRef.current?.focus(), 50); });
+    } else {
+      setRandomPreset(undefined);
+      setQuickText(pickRandomContext(arenaRole, lang));
+      setIsRandomCtx(true);
+      setTimeout(() => quickRef.current?.focus(), 50);
+    }
   };
 
   const handleRoleSwitch = (newRole: ArenaRole) => {
     setArenaRole(newRole);
     if (isRandomCtx) {
-      setQuickText(randomPreset ? pickPresetContext(randomPreset, newRole, lang) : pickRandomContext(newRole, lang));
+      if (randomPreset) {
+        setIsGeneratingCtx(true);
+        fetchPresetContext(randomPreset, newRole, lang)
+          .then(ctx => { setQuickText(ctx); setIsRandomCtx(true); })
+          .catch(() => { setQuickText(pickRandomContext(newRole, lang)); setIsRandomCtx(true); })
+          .finally(() => setIsGeneratingCtx(false));
+      } else {
+        setQuickText(pickRandomContext(newRole, lang));
+      }
     }
   };
 
@@ -1013,7 +892,11 @@ export function ContextSetup({
                     : t.PLACEHOLDER
                 }
                 rows={3}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 pr-12 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors font-mono resize-none leading-relaxed"
+                disabled={isGeneratingCtx}
+                className={cn(
+                  "w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 pr-12 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors font-mono resize-none leading-relaxed",
+                  isGeneratingCtx && "opacity-40 animate-pulse"
+                )}
               />
               {/* Shuffle + Sliders (Arena) | Sliders-hover (Copilot) | Clear */}
               <div className="absolute top-2 right-2 flex flex-col gap-0.5">
@@ -1137,7 +1020,7 @@ export function ContextSetup({
             {/* CTA */}
             <button
               onClick={() => handleSubmit(quickText)}
-              disabled={appMode === "arena" && !quickText.trim()}
+              disabled={(appMode === "arena" && !quickText.trim()) || isGeneratingCtx}
               className="w-full bg-white text-black text-sm font-mono font-bold py-3.5 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all disabled:opacity-40 disabled:pointer-events-none"
             >
               {ctaLabel}
