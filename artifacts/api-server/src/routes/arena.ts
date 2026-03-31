@@ -1,6 +1,14 @@
 import { Router } from "express";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { logAICall, closeSession } from "../lib/ai-tracker";
+import {
+  CLIENT_PROFILE_DESC,
+  SELLER_PROFILE_DESC,
+  DIFFICULTY_DESC,
+  PRESET_SYSTEM_DESC,
+  DEBRIEF_CLIENT_PROFILE,
+  SALES_ANTIPATTERNS_BLOCK,
+} from "@workspace/sales-brain";
 
 const router = Router();
 
@@ -47,105 +55,9 @@ const DEBRIEF_MAX_TURNS    = 15;
 // Max turns for suggest transcript
 const SUGGEST_MAX_TURNS    = 10;
 
-// ── Personality & difficulty descriptors (compact) ────────────────────────────
-const CLIENT_PROFILE_DESC: Record<string, string> = {
-  analytical:  "Analítico: necesitas datos, precisión, proceso y evidencia antes de decidir. Haces preguntas técnicas. Rechazas vaguedades y argumentos emocionales.",
-  emotional:   "Emocional: decides por confianza, conexión y sensación personal. Te influyen historias reales y la empatía del vendedor.",
-  skeptical:   "Escéptico: desconfías por defecto. Cuestionas promesas, testimonios genéricos y claims inflados. Solo te convencen pruebas concretas y consistencia entre lo que se dice y lo que se demuestra.",
-  cautious:    "Cauto: temes equivocarte. Buscas seguridad, validación externa y pasos reversibles. Pospones si percibes riesgo alto. La presión te aleja.",
-  dominant:    "Dominante: quieres control, velocidad y autoridad. Interrumpes, marcas el ritmo y castigas la debilidad o la indecisión.",
-  indecisive:  "Indeciso: te cuesta comprometerte. Das vueltas, cambias de opinión y necesitas guía clara para decidir.",
-  negotiator:  "Negociador: presionas en precio, comparas alternativas, pides concesiones y usas la negociación como palanca principal.",
-};
-
-const SELLER_PROFILE_DESC: Record<string, string> = {
-  communicative: "Comunicativo: construyes relación con anécdotas y ejemplos. A veces te extiendes demasiado.",
-  authoritative: "Autoritario: directo, asertivo, controlas la conversación, rebates objeciones con firmeza.",
-  technical:     "Técnico: hablas de características y datos con detalle. Preciso pero a veces poco emocional.",
-  passive:       "Pasivo: escuchas mucho, no presionas, esperas que el cliente llegue a sus conclusiones.",
-  aggressive:    "Agresivo: presionas para cerrar, creas urgencia, no aceptas 'no' fácilmente.",
-  consultive:    "Consultivo: haces muchas preguntas, entiendes necesidades primero y adaptas tu solución.",
-};
-
-const DIFFICULTY_DESC: Record<string, string> = {
-  easy:   "Pocas objeciones, abierto a escuchar.",
-  normal: "Algunas objeciones válidas, necesitas buenos argumentos.",
-  hard:   "Muchas objeciones, comparas con competencia, difícil de convencer.",
-  brutal: "Escéptico, cuestionas todo, objeciones fuertes, solo cedes ante argumentos muy sólidos.",
-};
-
-// ── Random preset context descriptors ─────────────────────────────────────────
-// Injected into system prompts when the session was started with a randomPreset.
-const PRESET_SYSTEM_DESC: Record<string, { es: string; en: string }> = {
-  immvest: {
-    es: `MARCO DE VENTA — IMMVEST (inversión inmobiliaria en Alemania):
-Immvest no vende pisos sueltos: vende oportunidades de inversión ya filtradas, revisadas y estructuradas para el inversor hispanohablante.
-El cliente objetivo quiere construir patrimonio, mejorar su situación fiscal y comprar con financiación, sin gestionar por su cuenta la búsqueda, el análisis y la gestión del inmueble.
-Activo típico: inmueble en Alemania ya alquilado, con análisis de ubicación, edificio, alquiler y potencial patrimonial.
-Lógica financiera: conservar el capital propio al máximo. En perfiles adecuados se puede hablar de financiación del 100% del valor del inmueble (los gastos de compra van aparte y no están financiados automáticamente).
-Cashflow negativo: NO es un invalidador automático. Puede equivaler a una aportación mensual controlada para construir patrimonio, versus inmovilizar más capital de golpe y quedarse descapitalizado.
-Fiscalidad (AfA, intereses, gastos deducibles): forma parte del argumento comercial, pero no se vende como garantía cerrada ni promesa automática — se presenta como lógica real a validar según el perfil concreto del cliente.
-Proceso de cierre: el siguiente paso concreto es una RESERVA con depósito de 1.500€ (se devuelve íntegro al firmar en notaría). El equipo financiero compara después condiciones entre más de 600 bancos alemanes. Si se aprueba financiación, se firma la compra. Una empresa de gestión se encarga del alquiler y la relación con el inquilino.
-Objeciones comunes: cashflow negativo, tipos de interés altos, prefiero invertir en España, la ventaja fiscal no es segura, quiero pensarlo, tengo que hablarlo con mi pareja, no conozco la zona, la rentabilidad me parece baja.
-Detectar turista vs comprador real: si el cliente solo quiere información sin intención de decidir, el vendedor debe saber cortar con elegancia en lugar de eternizar la videollamada.
-La llamada es de tipo consultivo, estructurada, muy orientada al cierre — no una charla abierta. El objetivo es detectar encaje, filtrar intención real y, si encaja, mover hacia la reserva.`,
-    en: `SALES FRAME — IMMVEST (real estate investment in Germany):
-Immvest doesn't sell individual apartments: it sells pre-vetted, structured investment opportunities for Spanish-speaking investors.
-Target client: professional who wants to build wealth, improve their tax situation and buy with financing, without managing the search, analysis and property management themselves.
-Typical asset: already-rented apartment in Germany, analyzed for location, building quality, rent level and wealth-building potential.
-Financial logic: minimize own capital at entry. For suitable profiles, financing up to 100% of the property value can be discussed (purchase costs are separate and not automatically financed).
-Negative cashflow: NOT an automatic deal-killer. It can mean a controlled monthly contribution to build wealth, versus tying up more capital upfront and becoming illiquid.
-Tax logic (AfA, interest, deductible costs): part of the commercial argument, but not sold as a guaranteed outcome — presented as real logic to validate per client profile.
-Closing process: the concrete next step is a RESERVATION with a €1,500 deposit (fully refunded at notary signing). The financial team then compares offers from 600+ German banks. If financing is approved, the purchase is signed. A management company handles tenant relations.
-Common objections: negative cashflow, high interest rates, I prefer Spain, the tax benefit isn't guaranteed, I want to think about it, I need to discuss with my partner, I don't know the area, the yield seems low.
-Distinguish tourist vs real buyer: if client only wants information with no intention to decide, the seller should gracefully end the call rather than drag it out.
-The call is consultative, structured, very close-oriented — not an open exploration. Goal: detect fit, filter real intent, and if it fits, move toward the reservation.`,
-  },
-  saas: {
-    es: `MARCO DE VENTA — SAAS:
-Software como servicio: demo, piloto, ROI, adopción interna, integración con herramientas existentes, proceso de aprobación técnico y directivo.
-Objeciones típicas: ya tenemos otra herramienta y funciona suficientemente bien, el precio es alto para el equipo, el tiempo de implementación es un problema, necesito aprobación técnica o del equipo directivo, el cambio genera fricción interna.`,
-    en: `SALES FRAME — SAAS:
-Software as a service: demo, pilot, ROI, internal adoption, integration with existing tools, technical and executive approval process.
-Common objections: we already have a tool that works well enough, the price is high, implementation time is a problem, I need technical or executive approval, switching creates internal friction.`,
-  },
-  b2b: {
-    es: `MARCO DE VENTA — B2B:
-Venta a empresa: propuesta formal, proceso interno de compra, múltiples decisores, presupuesto anual, timing y prioridades internas del comprador.
-Objeciones típicas: no es el momento, tenemos que evaluarlo internamente con el comité, el precio está fuera del presupuesto actual, ya tenemos proveedor y no veo urgencia de cambiar, necesita aprobación de dirección.`,
-    en: `SALES FRAME — B2B:
-Business-to-business sale: formal proposal, internal buying process, multiple decision makers, annual budget, timing and internal priorities.
-Common objections: it's not the right time, we need to evaluate it internally with the committee, the price is outside current budget, we already have a supplier and see no urgency to change, needs executive approval.`,
-  },
-  high_ticket: {
-    es: `MARCO DE VENTA — HIGH TICKET:
-Venta de alto valor personal o empresarial (>5.000€): precio, confianza personal, miedo a equivocarse en una decisión grande, urgencia real vs artificial, cierre más directo.
-Objeciones típicas: es mucho dinero para algo que no sé si me va a funcionar, no sé si es para mí, quiero pensarlo más, prefiero esperar, hay opciones más baratas.
-El vendedor ancla valor antes de hablar de precio. No hace descuentos. Maneja el miedo a la decisión y la falta de confianza, no solo la objeción de precio. La confianza en el vendedor o en el producto es muchas veces el freno real.`,
-    en: `SALES FRAME — HIGH TICKET:
-High-value personal or business sale (>€5,000): price, personal trust, fear of making a big wrong decision, real vs artificial urgency, more direct closing.
-Common objections: that's a lot of money for something I'm not sure will work for me, I don't know if it's right for me, I want to think about it more, I'd rather wait, there are cheaper alternatives.
-The seller anchors value before price. No discounts. Handles fear of commitment and lack of trust — not just the price objection. Trust in the seller or product is often the real blocker.`,
-  },
-  coaching: {
-    es: `MARCO DE VENTA — COACHING / FORMACIÓN:
-Venta de formación, mentoría individual o corporativa, coaching: resultados prometidos y demostrables, aplicabilidad real al caso concreto del cliente, desconfianza en el método, el coach o la transferencia real al trabajo.
-Objeciones típicas: no tengo tiempo, ya lo intenté antes y no funcionó, ¿cómo sé que funciona para mi caso concreto?, es caro para lo que es, prefiero libros o YouTube, el equipo no va a aplicar lo que aprenda.`,
-    en: `SALES FRAME — COACHING / TRAINING:
-Sale of individual or corporate training, mentoring, or coaching: demonstrable promised results, real applicability to the client's specific situation, distrust of the method, coach, or real knowledge transfer.
-Common objections: I don't have time, I tried it before and it didn't work, how do I know it works for my specific case?, it's expensive for what it is, I prefer books or YouTube, the team won't apply what they learn.`,
-  },
-  challenge: {
-    es: `MARCO DE VENTA — CHALLENGE (venta creativa/imposible):
-Escenario de práctica extremo o absurdo: vender algo que el cliente claramente no necesita o que parece imposible de venderle.
-Ejemplos: paraguas en el desierto, clases de español a un hispanohablante nativo, bolígrafo a alguien que solo escribe en digital, hielo a un pescador con cámara frigorífica llena.
-El vendedor debe encontrar ángulos creativos, inesperados y reales para intentar convencer. El cliente puede ceder si el vendedor encuentra el ángulo correcto. Resistencia inicial alta pero no cierre total si el argumento es realmente bueno.`,
-    en: `SALES FRAME — CHALLENGE (creative/impossible sale):
-Extreme or absurd practice scenario: selling something the client clearly doesn't need or that seems impossible to sell.
-Examples: umbrella in the desert, English lessons to a native speaker, pen to someone who only writes digitally, ice to a fisherman with a full freezer.
-The seller must find creative, unexpected and real angles to try to convince. The client can give in if the seller finds the right angle. High initial resistance but not total shutdown if the argument is genuinely good.`,
-  },
-};
+// ── Personality, difficulty and preset descriptors ────────────────────────────
+// Imported from @workspace/sales-brain (source of truth).
+// CLIENT_PROFILE_DESC, SELLER_PROFILE_DESC, DIFFICULTY_DESC, PRESET_SYSTEM_DESC
 
 // ── Terminal state keywords (for conditional detection) ───────────────────────
 // Keywords that strongly suggest a terminal state — intentionally narrow.
@@ -275,14 +187,7 @@ Si ya has afirmado que la operación no encaja para este cliente, o si ya has da
 — Si el cliente no añade información nueva, puedes responder con una sola frase que sostenga la posición o proponga un siguiente paso concreto. No más.
 — Un buen cierre es corto. La autoridad no necesita justificarse dos veces.
 
-PROHIBIDO:
-— Usar como argumento principal algo que el cliente ya aceptó
-— Abrir con "entiendo tu preocupación", "es una pregunta muy válida", "totalmente comprensible" o equivalentes
-— Preguntas genéricas de relleno que no diagnostican nada concreto
-— Insistir con beneficios laterales cuando el cliente tiene un bloqueo central sin resolver
-— Usar "explorar", "optimizar", "maximizar" o "potencial" sin concretar inmediatamente qué cambiaría, en qué cantidad y si es realista
-— Proponer cambios que ya dijiste que son imposibles o que el contexto excluye
-— Repetir en el siguiente turno una conclusión que ya dijiste de forma clara en el anterior
+${SALES_ANTIPATTERNS_BLOCK.es}
 
 FORMATO:
 — Separa con una línea en blanco la idea principal, la aclaración y la pregunta. No las pegues en un bloque corrido.
@@ -365,28 +270,13 @@ async function generateDebrief(
     ? `Resultado: ${outcomeLabels[outcome]?.es ?? outcome}`
     : `Result: ${outcomeLabels[outcome]?.en ?? outcome}`;
 
-  const profileDescEs: Record<string, string> = {
-    analytical:  "Analítico — exige datos, evidencia, metodología y respuestas directas. Penaliza si el vendedor no responde con concreción cuando el cliente pide pruebas o cifras.",
-    emotional:   "Emocional — exige conexión personal, empatía y construcción de confianza. Penaliza argumentos fríos o transaccionales.",
-    skeptical:   "Escéptico — exige pruebas concretas y consistencia entre lo que se promete y lo que se demuestra. Penaliza claims genéricos, testimonios vagos o inconsistencias.",
-    cautious:    "Cauto — exige reducción de riesgo percibido, validación externa y pasos reversibles. Penaliza presión o urgencia artificial.",
-    dominant:    "Dominante — exige que el vendedor mantenga el control, sea claro y firme. Penaliza si el vendedor cede la dirección de la conversación.",
-    indecisive:  "Indeciso — exige guía clara, pasos simples y reducción de fricción. Penaliza si el vendedor deja opciones abiertas o ambigüedad.",
-    negotiator:  "Negociador — exige que el vendedor ancle valor antes de hablar de precio. Penaliza concesiones tempranas o descuentos sin contraprestación.",
-  };
-  const profileDescEn: Record<string, string> = {
-    analytical:  "Analytical — demands data, evidence, methodology, and direct answers. Penalize if the seller fails to respond concretely when the client requests proof or numbers.",
-    emotional:   "Emotional — demands personal connection, empathy, and trust-building. Penalize cold or transactional arguments.",
-    skeptical:   "Skeptical — demands concrete proof and consistency between claims and demonstrated facts. Penalize generic promises, vague testimonials, or inconsistencies.",
-    cautious:    "Cautious — demands risk reduction, external validation, and reversible steps. Penalize pressure tactics or artificial urgency.",
-    dominant:    "Dominant — demands the seller stays in control, clear and firm. Penalize if the seller cedes the direction of the conversation.",
-    indecisive:  "Indecisive — demands clear guidance, simple steps, and reduced friction. Penalize open options or ambiguity.",
-    negotiator:  "Negotiator — demands the seller anchors value before discussing price. Penalize early concessions or discounts without a trade-off.",
-  };
-
   const profileLine = lang === "es"
-    ? (clientProfile && profileDescEs[clientProfile] ? profileDescEs[clientProfile] : "No especificado.")
-    : (clientProfile && profileDescEn[clientProfile] ? profileDescEn[clientProfile] : "Not specified.");
+    ? (clientProfile && DEBRIEF_CLIENT_PROFILE[clientProfile]
+        ? DEBRIEF_CLIENT_PROFILE[clientProfile].es
+        : "No especificado.")
+    : (clientProfile && DEBRIEF_CLIENT_PROFILE[clientProfile]
+        ? DEBRIEF_CLIENT_PROFILE[clientProfile].en
+        : "Not specified.");
 
   const windowNote = turns.length > DEBRIEF_MAX_TURNS
     ? (lang === "es"

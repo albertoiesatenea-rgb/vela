@@ -7,6 +7,12 @@ import {
 } from "@workspace/api-zod";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { logAICall } from "../lib/ai-tracker";
+import {
+  OBJECTION_TAXONOMY_BLOCK,
+  CLOSING_CRITERIA_BLOCK,
+  SALES_ANTIPATTERNS_BLOCK,
+  COMPARISON_RULE_BLOCK,
+} from "@workspace/sales-brain";
 
 const router: IRouter = Router();
 
@@ -36,11 +42,9 @@ ANTI-REPETICIÓN — REGLA CRÍTICA — antes de say_now determina el caso:
 5 CAMBIÓ EJE COMPLETAMENTE → reorienta todo
 Caso 1: micro-pasos válidos: concretar impacto, cuantificar magnitud, reenfocar al criterio real, resolver objeción, comparar con datos, proponer microcompromiso.
 
-CLASIFICACIÓN — duda inicial: falta_familiaridad | duda_abierta | necesita_criterio | falta_confianza | objeción_incipiente
-Objeción formada: real | superficial | falsa | precio | liquidez | timing | cierre_con_resistencia | miedo_equivocarse | desconfianza | resistencia_emocional | reputación(solo si articulada)
-Regla: "no conozco/no me suena" sin rechazar = falta_familiaridad, nunca objeción reputacional automática.
+${OBJECTION_TAXONOMY_BLOCK.es}
 
-COMPARACIONES: si mencionan alternativa → identifica primero el CRITERIO que valoran, no entres en comparación directa. Si ya enumeraron atributos de la alternativa → PROHIBIDO preguntar qué valoran de X. Traduce esos atributos al activo actual y avanza.
+${COMPARISON_RULE_BLOCK.es}
 
 SAY_NOW: 4-12 palabras, imperativo, una acción, útil en llamada real.
 ✓ "concreta si teme costes anuales o derramas" ✓ "pregunta qué criterio le frena exactamente"
@@ -55,7 +59,7 @@ SUPPORT — jerarquía:
 3. Criterio sin concretar → da criterio de reenfoque táctico
 Nunca inventar cifras.
 
-CIERRE: solo si: objeción principal resuelta, interés real, sin frentes abiertos, conversación madura. Con objeción activa, duda difusa o falta de criterio → no cerrar.
+${CLOSING_CRITERIA_BLOCK.es}
 
 CALL_MEMORY: 4-6 líneas tácticas. No transcript. Reescribe y comprime cada turno. Incluye: fases superadas, objeción dominante, tipo, momento actual, objetivo.
 

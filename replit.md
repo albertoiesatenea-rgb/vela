@@ -101,6 +101,21 @@ Main frontend app. Single-page, pure black UI.
 - `src/components/tactical-display.tsx` — the main tactical HUD
 - `src/hooks/use-speech.ts` — Web Speech API integration
 
+### `lib/sales-brain` (`@workspace/sales-brain`)
+
+Fuente de verdad comercial compartida entre Copilot y Arena. Centraliza:
+- `CLIENT_PROFILE_DESC` / `SELLER_PROFILE_DESC` / `DIFFICULTY_DESC` — perfiles de personalidad para el juego de Arena
+- `DEBRIEF_CLIENT_PROFILE` — criterios de evaluación por perfil (para el coach/debrief de Arena)
+- `PRESET_SYSTEM_DESC` — descriptores de los 6 presets de Arena (immvest, saas, b2b, high_ticket, coaching, challenge)
+- `OBJECTION_TAXONOMY` / `OBJECTION_TAXONOMY_BLOCK` — taxonomía canónica de señales y objeciones
+- `JOURNEY_STAGES` — modelo de 6 fases del journey comercial (context → problem → blocker → fit → advance → close)
+- `CLOSING_CRITERIA_BLOCK` — condiciones para recomendar cierre
+- `COMPARISON_RULE_BLOCK` — regla de alternativas: la alternativa revela el criterio
+- `SALES_ANTIPATTERNS_BLOCK` — lista PROHIBIDO de anti-patrones tácticos
+- `SALES_HEURISTICS` / `buildHeuristicsBlock()` — reglas de decisión acumulativas (mini-formaciones)
+
+Para añadir una mini-formación de ventas: editar `SALES_HEURISTICS` en `lib/sales-brain/src/index.ts` y añadir entrada al changelog del archivo. El cambio se propaga automáticamente a todas las superficies que usan el bloque.
+
 ### `lib/db` (`@workspace/db`)
 
 Database layer using Drizzle ORM with PostgreSQL.

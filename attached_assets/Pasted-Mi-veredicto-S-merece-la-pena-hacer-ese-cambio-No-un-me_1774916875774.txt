@@ -1,0 +1,118 @@
+Mi veredicto:
+
+Sí: merece la pena hacer ese cambio
+
+No un mega-refactor.
+Sí una capa pequeña compartida.
+
+La respuesta de Replit ha detectado justo el problema real:
+
+taxonomías duplicadas
+perfiles duplicados
+journey en dos idiomas distintos
+criterios de cierre separados
+anti-patrones viviendo solo en Arena
+
+Eso sí te va a explotar en la cara si sigues metiendo “mini-formaciones” periódicas.
+
+Pero hay una corrección importante
+
+No pondría esa capa en:
+
+artifacts/api-server/src/lib/sales-brain.ts
+
+si de verdad quieres que alimente también cosas del frontend, como labels, journey visible o cualquier elemento compartido entre superficies.
+
+Por qué
+
+Porque eso vive dentro del API server.
+Y el frontend no debería depender de un archivo interno del backend.
+
+Mejor opción
+
+Haz una capa compartida de monorepo, algo así:
+
+packages/sales-brain/src/index.ts
+o
+packages/shared-sales/src/index.ts
+
+Y desde ahí importan:
+
+backend prompts
+lógica de Arena
+debrief
+y, si hace falta, frontend para labels y etapas
+Qué sí centralizaría ya
+
+Muy parecido a lo que te dijo Replit:
+
+taxonomía de objeciones/señales
+descripciones de perfiles
+etapas del journey
+criterios de cierre
+anti-patrones tácticos
+changelog comercial / mini-formaciones acumulativas
+Qué dejaría local
+
+También coincide bastante bien:
+
+prompts completos
+UI
+render del chat
+coach visual
+bubbles
+debrief visual
+flujo de turnos
+schemas específicos de cada superficie
+
+La frase buena aquí es:
+
+centralizar definiciones, no instrucciones.
+
+Eso está bien visto.
+
+La única mejora que le haría al plan
+
+Añadiría una cosa más en esa capa compartida:
+
+sales heuristics o decision rules
+
+No solo taxonomía estática, también pequeñas reglas reutilizables tipo:
+
+si la objeción se repite 2 veces, deja de argumentar por los lados
+si el cliente acepta la tesis general pero rechaza el esfuerzo mensual, el bloqueo es tolerancia de caja, no valor
+si aparece pareja/asesor, subir riesgo de no decisión
+si el cliente ya compró largo plazo, no volver a vender largo plazo
+si no hay encaje real, descartar con autoridad
+
+Eso es justo lo que luego convierte los “parches” en mini-formaciones reales.
+
+Mi recomendación final
+
+Sí haría esto.
+Pero lo aterrizaría así:
+
+opción correcta
+
+Opción B, igual que dijo Replit.
+
+con este ajuste
+
+No api-server/src/lib/sales-brain.ts, sino un paquete compartido del monorepo.
+
+El orden bueno
+perfiles
+objeciones/señales
+journey
+cierre
+anti-patrones
+changelog / mini-formaciones
+Conclusión dura
+
+Replit ha dado una respuesta buena.
+No tocaría el diagnóstico.
+
+Solo corregiría la ubicación del archivo:
+si quieres un cerebro realmente compartido, no lo encierres dentro del backend.
+
+Si quieres, te redacto ahora el prompt exacto para implementación, ya corregido con esa mejora del paquete compartido y el changelog de mini-formaciones

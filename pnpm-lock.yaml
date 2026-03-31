@@ -175,6 +175,9 @@ importers:
       '@workspace/integrations-openai-ai-server':
         specifier: workspace:*
         version: link:../../lib/integrations-openai-ai-server
+      '@workspace/sales-brain':
+        specifier: workspace:*
+        version: link:../../lib/sales-brain
       cookie-parser:
         specifier: ^1.4.7
         version: 1.4.7
@@ -650,6 +653,8 @@ importers:
       p-retry:
         specifier: ^7.1.1
         version: 7.1.1
+
+  lib/sales-brain: {}
 
   scripts:
     devDependencies:
