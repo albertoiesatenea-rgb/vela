@@ -1037,7 +1037,7 @@ export function ContextSetup({
                       </button>
                       {showPresetOpts && (
                         <div
-                          className="absolute top-0 right-9 z-20 w-[122px] rounded-xl border border-zinc-800 bg-zinc-950 shadow-2xl p-1.5"
+                          className="absolute top-0 left-full ml-1 z-20 w-[122px] rounded-xl border border-zinc-800 bg-zinc-950 shadow-2xl p-1.5"
                           onMouseEnter={presetOptsShow}
                           onMouseLeave={presetOptsHide}
                         >
