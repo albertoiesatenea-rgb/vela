@@ -475,14 +475,11 @@ router.post("/arena/preset-context", async (req, res) => {
 
   const challengeExtra = preset === "challenge"
     ? (lang === "en"
-        ? "\n\nCRITICAL CONSTRAINT: The scenario MUST be absurd — the client clearly does NOT need what's being sold. No normal sales scenarios. The key is precision: use specific numbers, locations, or facts that make the absurdity funny and credible (e.g. 'I sell a top-tier umbrella. Client lives in the Atacama desert — last year it rained 0.3mm total.' or 'I sell a swimming pool heater. Client is a penguin researcher in Antarctica.'). Vary the product AND the client profile wildly each time. BANNED tropes (too generic, don't use): coat in tropical city, sunscreen to vampire, GPS to monk. Those are overused — invent something fresh."
-        : "\n\nRESTRICCIÓN CRÍTICA: El escenario DEBE ser absurdo — el cliente claramente NO necesita lo que se le vende. No se admiten ventas normales. La clave es la precisión: usa datos concretos, cifras o hechos específicos que hagan el absurdo gracioso y creíble (ej: 'Vendo un superparaguas. El cliente vive en el desierto de Atacama, lluvia total el año pasado: 0,3 mm.' o 'Vendo calefactores de piscina. El cliente es investigador de pingüinos en la Antártida.'). Varía el producto Y el perfil del cliente radicalmente en cada generación. TROPOS PROHIBIDOS (demasiado genéricos, no usar): abrigo en ciudad tropical, protector solar a vampiro, GPS a monje, piscina en el desierto. Están sobreutilizados — inventa algo fresco y específico.")
+        ? "\n\nCRITICAL CONSTRAINT: The scenario MUST be absurd — the client clearly does NOT need what's being sold. No normal sales scenarios. The key is precision: use specific numbers, locations, or facts that make the absurdity funny and credible (e.g. 'A top-tier umbrella is being sold. The client lives in the Atacama desert — last year it rained 0.3mm total.' or 'A pool heater is for sale. The buyer is a penguin researcher stationed in Antarctica.'). Vary the product AND the client profile wildly each time. BANNED tropes (too generic, don't use): coat in tropical city, sunscreen to vampire, GPS to monk. Those are overused — invent something fresh."
+        : "\n\nRESTRICCIÓN CRÍTICA: El escenario DEBE ser absurdo — el cliente claramente NO necesita lo que se le vende. No se admiten ventas normales. La clave es la precisión: usa datos concretos, cifras o hechos específicos que hagan el absurdo gracioso y creíble (ej: 'Se está vendiendo un superparaguas. El cliente vive en el desierto de Atacama, lluvia total el año pasado: 0,3 mm.' o 'Se vende un calefactor de piscina. El comprador es investigador de pingüinos en la Antártida.'). Varía el producto Y el perfil del cliente radicalmente en cada generación. TROPOS PROHIBIDOS (demasiado genéricos, no usar): abrigo en ciudad tropical, protector solar a vampiro, GPS a monje, piscina en el desierto. Están sobreutilizados — inventa algo fresco y específico.")
     : "";
 
   const isImmvest = preset === "immvest";
-  const roleLabel = role === "seller"
-    ? (lang === "en" ? "seller" : "vendedor")
-    : (lang === "en" ? "client/prospect" : "cliente/prospecto");
 
   const prompt = lang === "en"
     ? isImmvest
@@ -491,15 +488,15 @@ router.post("/arena/preset-context", async (req, res) => {
 Rules:
 ${presetDesc}
 
-The user plays as the ${roleLabel}. Invent concrete details: buyer profile (profession, age, capital available), their main objection or concern, and the stage of the conversation (first call, follow-up, near closing, etc.). Vary every time.
+Write in THIRD PERSON — describe the scene from the outside, no first person ("I sell", "my product"). The scenario must read naturally regardless of who plays seller or buyer. Invent concrete details: buyer profile (profession, age, capital available), their main objection or concern, and the stage of the conversation (first call, follow-up, near closing, etc.). Vary every time.
 
 Return ONLY the scenario text. No labels, no quotes.`
-      : `Generate ONE punchy sales simulation scenario. ONE or TWO short sentences max — no fluff, no long setup.
+      : `Generate ONE punchy sales simulation scenario. ONE or TWO short sentences max — no fluff.
 
 Rules for this preset:
 ${presetDesc}${challengeExtra}
 
-The user plays as the ${roleLabel}. Be inventive and specific. Vary every time. No verbose descriptions.
+Write in THIRD PERSON — no "I", no "my". Describe the scene neutrally (e.g. "A salesperson is offering X to Y, who..."). Be inventive and specific. Vary every time.
 Return ONLY the scenario text. No labels, no quotes.`
     : isImmvest
       ? `Genera UN escenario de simulación de venta con Immvest (2-3 frases).
@@ -507,15 +504,15 @@ Return ONLY the scenario text. No labels, no quotes.`
 Reglas:
 ${presetDesc}
 
-El usuario jugará como ${roleLabel}. Inventa detalles concretos: perfil del comprador (profesión, edad, capital disponible), su objeción o preocupación principal, y la fase de la conversación (primera llamada, seguimiento, cerca del cierre, etc.). Varía cada vez.
+Escribe en TERCERA PERSONA — describe la escena desde fuera, sin primera persona ("vendo", "mi producto"). El escenario debe funcionar igual si el usuario juega como vendedor o como cliente. Inventa detalles concretos: perfil del comprador (profesión, edad, capital disponible), su objeción o preocupación principal, y la fase de la conversación (primera llamada, seguimiento, cerca del cierre, etc.). Varía cada vez.
 
 Devuelve SOLO el texto. Sin etiquetas, sin comillas.`
-      : `Genera UN escenario de simulación de venta. UNA o DOS frases cortas máximo — sin relleno, sin descripciones largas. Directo al grano, ingenioso con pocas palabras.
+      : `Genera UN escenario de simulación de venta. UNA o DOS frases cortas máximo — sin relleno.
 
 Reglas de este preset:
 ${presetDesc}${challengeExtra}
 
-El usuario jugará como ${roleLabel}. Sé inventivo y específico. Varía cada vez. Sin verbosidad.
+Escribe en TERCERA PERSONA — sin "yo", sin "mi". Describe la escena de forma neutra (ej: "Un vendedor ofrece X a Y, que..."). Sé inventivo y específico. Varía cada vez.
 Devuelve SOLO el texto. Sin etiquetas, sin comillas.`;
 
   try {
@@ -663,6 +660,7 @@ async function generateCoachLite(
         maxTokensConfigured: 280,
         promptTokens: usage.prompt_tokens,
         completionTokens: usage.completion_tokens,
+        totalTokens: usage.total_tokens,
         latencyMs,
         status: "ok",
       });
@@ -1118,7 +1116,9 @@ router.post("/arena/repitch", async (req, res) => {
         maxTokensConfigured: 300,
         promptTokens: usage.prompt_tokens,
         completionTokens: usage.completion_tokens,
+        totalTokens: usage.total_tokens,
         latencyMs,
+        status: "ok",
       });
     }
     aiResponse = completion.choices[0]?.message?.content?.trim() ?? "";

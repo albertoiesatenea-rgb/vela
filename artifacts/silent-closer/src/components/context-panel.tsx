@@ -706,6 +706,15 @@ export function ContextSetup({
     }
   };
 
+  const focusAndScrollTop = (delay = 50) => {
+    setTimeout(() => {
+      if (quickRef.current) {
+        quickRef.current.focus();
+        quickRef.current.scrollTop = 0;
+      }
+    }, delay);
+  };
+
   const handleRandomContext = (preset?: string) => {
     setShowPresetOpts(false);
     if (preset) {
@@ -714,12 +723,12 @@ export function ContextSetup({
       fetchPresetContext(preset, arenaRole, lang)
         .then(ctx => { setQuickText(ctx); setIsRandomCtx(true); })
         .catch(() => { setQuickText(pickRandomContext(arenaRole, lang)); setIsRandomCtx(true); })
-        .finally(() => { setIsGeneratingCtx(false); setTimeout(() => quickRef.current?.focus(), 50); });
+        .finally(() => { setIsGeneratingCtx(false); focusAndScrollTop(); });
     } else {
       setRandomPreset(undefined);
       setQuickText(pickRandomContext(arenaRole, lang));
       setIsRandomCtx(true);
-      setTimeout(() => quickRef.current?.focus(), 50);
+      focusAndScrollTop();
     }
   };
 
@@ -731,9 +740,10 @@ export function ContextSetup({
         fetchPresetContext(randomPreset, newRole, lang)
           .then(ctx => { setQuickText(ctx); setIsRandomCtx(true); })
           .catch(() => { setQuickText(pickRandomContext(newRole, lang)); setIsRandomCtx(true); })
-          .finally(() => setIsGeneratingCtx(false));
+          .finally(() => { setIsGeneratingCtx(false); focusAndScrollTop(); });
       } else {
         setQuickText(pickRandomContext(newRole, lang));
+        focusAndScrollTop();
       }
     }
   };
