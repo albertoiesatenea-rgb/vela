@@ -1,0 +1,58 @@
+## OBJETIVO
+Endurecer el prompt V2 de Copiloto para que deje de responder con preguntas genéricas cuando el fragmento pertenece al vendedor o ya contiene una explicación válida, y para que priorice encuadre, recomendación directa o refuerzo de criterio cuando eso aporte más valor.
+
+## CONTEXTO
+- Ruta afectada: POST /api/copilot/analyze
+- El prompt actual V2 devuelve JSON con: signal, say_now, avoid, detail(reading, mission, next_move, support), journey, call_memory, momentum.
+- En sesiones reales el sistema cae demasiado en:
+  - etiquetar "falta claridad" por defecto
+  - proponer "pregunta X" aunque el vendedor ya esté explicando o ya haya preguntado
+  - generar support genérico no anclado al caso
+  - no distinguir bien entre momentos de exploración, reencuadre, recomendación y cierre
+- El producto espera coaching táctico ultraminimalista y útil en vivo, no relleno semántico.
+
+## RESTRICCIONES
+- Mantener el mismo schema JSON exacto de salida.
+- No tocar summarize, context-label ni Arena.
+- No aumentar mucho el tamaño del prompt; preservar el enfoque compacto del V2.
+- No meter ejemplos largos.
+- No romper compatibilidad con speakerMode=auto.
+
+## CAMBIO EXACTO A INTRODUCIR EN EL PROMPT
+Añade reglas explícitas como estas dentro del system prompt V2, integradas y compactadas:
+
+1. Primero determina si el fragmento refleja:
+   - a) una duda/objeción/pregunta del cliente
+   - b) una explicación o cierre del vendedor
+   - c) ruido/transcripción ambigua
+2. Si el fragmento parece del vendedor y ya está haciendo un movimiento correcto, `say_now` NO debe proponer otra pregunta genérica. Debe elegir entre:
+   - reforzar el punto clave en 1 frase
+   - concretar el siguiente paso
+   - validar y encuadrar criterio
+   - callar implícitamente y no desviar
+3. Usa `falta claridad` solo si realmente falta información para avanzar. No usarlo como etiqueta por defecto.
+4. `support` debe anclarse al caso concreto. Prohibido usar medias de mercado, porcentajes o generalidades no dadas en contexto.
+5. Cuando el cliente exprese criterio de decisión ("me importan los números", "quiero revalorización", "prefiero algo simple"), `say_now` debe ayudar a fijar ese criterio y usarlo para recomendar, no solo seguir preguntando.
+6. Cuando ya exista permiso implícito para avanzar, `say_now` debe tender a concretar:
+   - fecha
+   - condición
+   - documento a enviar
+   - siguiente reunión
+7. `reading`, `mission` y `next_move` deben ser distintos:
+   - reading = qué está pasando
+   - mission = qué hay que conseguir en este turno
+   - next_move = acción concreta inmediata
+8. Si el input es ambiguo o mal transcrito, el sistema debe admitir ambigüedad y recomendar una microaclaración específica, no una pregunta amplia.
+
+## ENTREGABLES
+- [ ] Actualizar el texto del prompt V2 de analyze
+- [ ] Mantener el mismo output JSON
+- [ ] Reducir preguntas genéricas redundantes en sesiones de listen mode
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] En fragmentos del vendedor que ya contienen explicación útil, `say_now` no responde con otra pregunta genérica salvo necesidad real
+- [ ] `signal=falta claridad` baja claramente en casos donde sí hay dirección táctica
+- [ ] `support` no contiene datos genéricos no anclados al caso
+- [ ] `reading`, `mission` y `next_move` no repiten la misma idea con otras palabras
+- [ ] La ruta /api/copilot/analyze sigue respondiendo con el mismo schema JSON
+- [ ] No hay regresión en el resto del flujo de Copiloto
