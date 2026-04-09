@@ -8,6 +8,13 @@
  *           → AuditLog typed object → renderAuditLogMarkdown → .md file
  */
 
+// ── Brand name — single source of truth ─────────────────────────────────────
+// Change only here to propagate to all user-visible outputs (audit logs,
+// clipboard exports, session reports). Do NOT source the brand name from
+// .agents/agent_assets_metadata.toml or legacy file names (closer-wizard-*)
+// — those are file-system asset references, not branding sources.
+export const BRAND_NAME = "VELA" as const;
+
 export type AppMode = "copilot" | "arena";
 export type AuditLang = "es" | "en";
 export type ResponseStatus = "ok" | "error" | "partial";
@@ -659,7 +666,7 @@ export function renderAuditLogMarkdown(log: AuditLog): string {
   const sections: string[] = [];
 
   // ── Header
-  sections.push("# VELA AUDIT LOG");
+  sections.push(`# ${BRAND_NAME} AUDIT LOG`);
   sections.push("");
 
   // ── SESSION_META

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Loader2, Sun, Moon, Sparkles, Trophy, TrendingUp, StickyNote, GraduationCap, Download } from "lucide-react";
 import { VelaIcon } from "@/components/context-panel";
 import { cn } from "@/lib/utils";
-import { buildArenaAuditLog, triggerAuditLogDownload } from "@/lib/audit-log";
+import { buildArenaAuditLog, triggerAuditLogDownload, BRAND_NAME } from "@/lib/audit-log";
 import { useTheme } from "@/hooks/use-theme";
 import { DebugPanel } from "@/components/debug-panel";
 
@@ -1155,7 +1155,7 @@ export function Arena({
     }).join("\n\n");
     const critiqueLines = summary.debrief?.critique.map((c, i) => `${i + 1}. ${c}`).join("\n") ?? "";
     const sections: string[] = [
-      isEs ? "# Informe de sesión — VELA Arena" : "# Session Report — VELA Arena",
+      isEs ? `# Informe de sesión — ${BRAND_NAME} Arena` : `# Session Report — ${BRAND_NAME} Arena`,
       "",
       `**${isEs ? "Fecha" : "Date"}:** ${date}`,
       `**${isEs ? "Contexto" : "Context"}:** ${summary.context || "—"}`,

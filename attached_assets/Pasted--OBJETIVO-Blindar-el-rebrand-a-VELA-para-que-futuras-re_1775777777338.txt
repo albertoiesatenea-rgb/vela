@@ -1,0 +1,43 @@
+## OBJETIVO
+Blindar el rebrand a `VELA` para que futuras regeneraciones de docs, exports o branding visible no reintroduzcan accidentalmente referencias visibles a `Closer Wizard`.
+
+## CONTEXTO
+La migración visible a `VELA` ya está hecha correctamente.
+Solo quedan referencias internas no visibles en `.agents/agent_assets_metadata.toml` y nombres físicos de assets/documentos legacy, mantenidos por compatibilidad.
+No quiero tocarlos ahora.
+Sí quiero asegurarme de que no vuelvan a contaminar la UI, exports o documentos visibles en futuras regeneraciones.
+
+## TAREAS
+1. Revisar si existe alguna plantilla, script, constante, export o generador que todavía tome como fuente un nombre legacy y pudiera volver a emitir `Closer Wizard` en:
+- UI
+- audit logs
+- documentos exportables
+- títulos visibles
+- metadata visible al usuario
+
+2. Si existe, cambiar esa fuente para que el nombre visible oficial sea siempre `VELA`.
+
+3. Añadir una protección ligera o comentario claro donde haga falta para dejar documentado:
+- `VELA` es el nombre visible oficial
+- las referencias legacy internas de assets no deben usarse como fuente de branding visible
+
+4. Si encaja limpio, añadir una comprobación simple o búsqueda documentada para detectar reintroducciones visibles de `Closer Wizard`.
+
+## RESTRICCIONES
+- No tocar `.agents/agent_assets_metadata.toml`
+- No renombrar archivos físicos legacy
+- No mover carpetas
+- No romper el sistema de assets del agente
+- No rehacer nada grande
+
+## ENTREGABLES
+- [ ] Revisión de posibles fuentes de recontaminación visible
+- [ ] Ajuste de fuentes visibles a `VELA` si hiciera falta
+- [ ] Nota o comentario técnico donde convenga para evitar futuras reintroducciones
+- [ ] Resumen final de riesgos residuales reales
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] Las futuras regeneraciones visibles no deberían volver a sacar `Closer Wizard`
+- [ ] Las referencias legacy internas siguen intactas y funcionales
+- [ ] No se rompe la operativa del agente
+- [ ] La app compila sin errores

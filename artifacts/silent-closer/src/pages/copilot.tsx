@@ -8,7 +8,7 @@ import type { ArenaConfig, AppMode } from "@/components/context-panel";
 import { Arena } from "@/pages/arena";
 import type { ArenaRole } from "@/pages/arena";
 import { cn } from "@/lib/utils";
-import { buildCopilotAuditLog, triggerAuditLogDownload } from "@/lib/audit-log";
+import { buildCopilotAuditLog, triggerAuditLogDownload, BRAND_NAME } from "@/lib/audit-log";
 import { DebugPanel } from "@/components/debug-panel";
 
 // ── Overlay brand header used in end-of-call screens ────────────────────────
@@ -919,7 +919,7 @@ export default function CopilotPage() {
     if (!callSummary) return "";
     const isEs = lang === "es";
     const lines = [
-      "VELA",
+      BRAND_NAME,
       "",
       `${isEs ? "Resultado" : "Result"}: ${callSummary.resultLabel}`,
       `Score: ${callSummary.score.toFixed(1)} / 10`,
@@ -939,7 +939,7 @@ export default function CopilotPage() {
     if (!callSummary?.fullReport) return "";
     const isEs = lang === "es";
     const header = [
-      "VELA",
+      BRAND_NAME,
       "",
       `${isEs ? "Resultado" : "Result"}: ${callSummary.resultLabel}`,
       `Score: ${callSummary.score.toFixed(1)} / 10`,
