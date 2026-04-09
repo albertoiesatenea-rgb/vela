@@ -1,4 +1,4 @@
-# Closer Wizard — API Routes
+# VELA — API Routes
 
 Todas las rutas se sirven desde el API server en el puerto `8080` con prefijo `/api/`.
 

@@ -1,6 +1,6 @@
-# 11 — Referencias de Venta y Cierre (Base Interna Closer Wizard)
+# 11 — Referencias de Venta y Cierre (Base Interna VELA)
 
-Documento de referencia práctica para auditar conversaciones, mejorar prompts y diseñar mejores respuestas dentro de Closer Wizard. Sin motivación vacía ni teoría abstracta.
+Documento de referencia práctica para auditar conversaciones, mejorar prompts y diseñar mejores respuestas dentro de VELA. Sin motivación vacía ni teoría abstracta.
 
 ---
 
@@ -234,7 +234,7 @@ El comprador sigue dando vueltas sin decidir.
 - El tono cambia — de evaluación a planificación
 - Silencio largo después de una propuesta clara (señal de consideración real)
 
-### Diferencia entre outcomes (integración con Closer Wizard)
+### Diferencia entre outcomes (integración con VELA)
 
 | Outcome | Qué significa realmente |
 |---------|------------------------|
@@ -279,11 +279,11 @@ El que define el contexto de la conversación controla la evaluación. Si el com
 Basado en principios psicológicos documentados (reciprocidad, prueba social, autoridad, escasez, compromiso progresivo). Útil para diseñar la secuencia de una conversación. La escasez falsa destruye credibilidad con compradores inteligentes — usarla solo si es real.
 
 ### Urgencia construida vs urgencia inventada
-La urgencia real viene del coste de no actuar (el problema empeora, la ventana se cierra, el coste sube). La urgencia inventada ("solo hasta hoy") funciona con compradores impulsivos pero destruye la relación con analíticos y escépticos. Closer Wizard debe ayudar a detectar y articular urgencia real, no fabricarla.
+La urgencia real viene del coste de no actuar (el problema empeora, la ventana se cierra, el coste sube). La urgencia inventada ("solo hasta hoy") funciona con compradores impulsivos pero destruye la relación con analíticos y escépticos. VELA debe ayudar a detectar y articular urgencia real, no fabricarla.
 
 ---
 
-## F. Aplicación a Closer Wizard
+## F. Aplicación a VELA
 
 ### Para auditar logs de conversación
 

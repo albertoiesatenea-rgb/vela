@@ -1,6 +1,6 @@
-# CLOSER WIZARD BRAIN — ALL DOCS COMBINED
+# VELA BRAIN — ALL DOCS COMBINED
 
-> Archivo combinado generado automáticamente. Contiene los 12 documentos del Closer Wizard Brain.
+> Archivo combinado generado automáticamente. Contiene los 12 documentos del VELA Brain.
 > Para navegar usa el índice en 00-index.md o busca por sección con Ctrl+F.
 
 ---
@@ -9,7 +9,7 @@
 <!-- ARCHIVO: 00-index.md -->
 <!-- ============================================================ -->
 
-# Closer Wizard — Brain Docs Index
+# VELA — Brain Docs Index
 
 | Archivo | Contenido |
 |---------|-----------|
@@ -23,7 +23,7 @@
 | [08-debug-panel.md](./08-debug-panel.md) | Layout panel, alertas, pin, tabs, polling |
 | [09-feature-flags.md](./09-feature-flags.md) | LEGACY_PROMPTS y LEGACY_ARENA — comportamiento y coste |
 | [10-replit-prompt-style.md](./10-replit-prompt-style.md) | Cómo escribir prompts para Replit AI — estructura, plantilla, ejemplos |
-| [11-sales-references.md](./11-sales-references.md) | Principios de venta, perfiles de comprador, objeciones, cierre, aplicación a Closer Wizard |
+| [11-sales-references.md](./11-sales-references.md) | Principios de venta, perfiles de comprador, objeciones, cierre, aplicación a VELA |
 
 
 ---
@@ -32,7 +32,7 @@
 <!-- ARCHIVO: 01-current-state.md -->
 <!-- ============================================================ -->
 
-# Closer Wizard — Estado Actual del Proyecto
+# VELA — Estado Actual del Proyecto
 
 Fecha de referencia: marzo 2026
 
@@ -133,11 +133,11 @@ Fecha de referencia: marzo 2026
 <!-- ARCHIVO: 02-architecture.md -->
 <!-- ============================================================ -->
 
-# Closer Wizard — Architecture
+# VELA — Architecture
 
 ## Overview
 
-Closer Wizard es un asistente táctico ultraminimalista para llamadas de ventas. Tiene dos modos principales:
+VELA es un asistente táctico ultraminimalista para llamadas de ventas. Tiene dos modos principales:
 
 - **Copiloto** — coaching IA en tiempo real durante llamadas de ventas en vivo
 - **Arena** — simulación de conversación de ventas para práctica
@@ -298,7 +298,7 @@ Todo el texto de usuario y los prompts soportan **ES** (español, por defecto) y
 <!-- ARCHIVO: 03-api-routes.md -->
 <!-- ============================================================ -->
 
-# Closer Wizard — API Routes
+# VELA — API Routes
 
 Todas las rutas se sirven desde el API server en el puerto `8080` con prefijo `/api/`.
 
@@ -605,7 +605,7 @@ Devuelve el snapshot completo de uso de IA para el debug panel. Sin autenticaci�
 <!-- ARCHIVO: 04-prompts.md -->
 <!-- ============================================================ -->
 
-# Closer Wizard — AI Prompts
+# VELA — AI Prompts
 
 Todos los prompts usan **gpt-4o-mini**. Dos niveles de optimización existen detrás de feature flags.
 
@@ -835,7 +835,7 @@ perdida → máximo 6). critique: exactamente 3 frases cortas accionables, imper
 <!-- ARCHIVO: 05-arena-logic.md -->
 <!-- ============================================================ -->
 
-# Closer Wizard — Arena Logic
+# VELA — Arena Logic
 
 Arena es un simulador de conversación de ventas donde el usuario practica vendiendo (o siendo vendido) contra una IA.
 
@@ -1015,7 +1015,7 @@ El debrief se muestra en la pantalla post-sesión de Arena y se incluye en el au
 <!-- ARCHIVO: 06-ai-tracking.md -->
 <!-- ============================================================ -->
 
-# Closer Wizard — AI Usage Tracking
+# VELA — AI Usage Tracking
 
 `artifacts/api-server/src/lib/ai-tracker.ts`
 
@@ -1227,7 +1227,7 @@ Mensaje legible: `[AI] copilot/analyze:analyze | in=712 out=443 | $0.000372 | 83
 <!-- ARCHIVO: 07-audit-log.md -->
 <!-- ============================================================ -->
 
-# Closer Wizard — Audit Log System
+# VELA — Audit Log System
 
 `artifacts/silent-closer/src/lib/audit-log.ts`
 
@@ -1393,7 +1393,7 @@ Una entrada por turno de conversación.
 
 ### `AuditHints`
 
-Flags de diagnóstico para el Closer Wizard Auditor GPT.
+Flags de diagnóstico para el VELA Auditor GPT.
 
 ```typescript
 {
@@ -1443,7 +1443,7 @@ Reglas de detección automática:
 El archivo `.md` generado contiene estas secciones:
 
 ```markdown
-# CLOSER WIZARD AUDIT LOG
+# VELA AUDIT LOG
 
 ## SESSION_META
 ## SESSION_CONTEXT
@@ -1457,7 +1457,7 @@ El archivo `.md` generado contiene estas secciones:
 ## AUDIT_HINTS
 ```
 
-El archivo está diseñado para ser legible por el Closer Wizard Auditor GPT sin explicación adicional.
+El archivo está diseñado para ser legible por el VELA Auditor GPT sin explicación adicional.
 
 
 ---
@@ -1466,7 +1466,7 @@ El archivo está diseñado para ser legible por el Closer Wizard Auditor GPT sin
 <!-- ARCHIVO: 08-debug-panel.md -->
 <!-- ============================================================ -->
 
-# Closer Wizard — Debug Panel
+# VELA — Debug Panel
 
 `artifacts/silent-closer/src/components/debug-panel.tsx`
 
@@ -1582,7 +1582,7 @@ El debug panel no tiene un botón visible en uso normal. Se abre mediante un ata
 <!-- ARCHIVO: 09-feature-flags.md -->
 <!-- ============================================================ -->
 
-# Closer Wizard — Feature Flags
+# VELA — Feature Flags
 
 Los feature flags se establecen como variables de entorno en el proceso del API server. Tienen valores optimizados para producción cuando no están definidos.
 
@@ -1660,7 +1660,7 @@ Números aproximados con precios de gpt-4o-mini asumiendo longitudes de conversa
 <!-- ARCHIVO: 10-replit-prompt-style.md -->
 <!-- ============================================================ -->
 
-# 10 — Cómo escribir prompts para Replit AI (Closer Wizard Brain)
+# 10 — Cómo escribir prompts para Replit AI (VELA Brain)
 
 ---
 
@@ -1855,9 +1855,9 @@ Eliminar los console.log de debug que quedaron en debug-panel.tsx.
 <!-- ARCHIVO: 11-sales-references.md -->
 <!-- ============================================================ -->
 
-# 11 — Referencias de Venta y Cierre (Base Interna Closer Wizard)
+# 11 — Referencias de Venta y Cierre (Base Interna VELA)
 
-Documento de referencia práctica para auditar conversaciones, mejorar prompts y diseñar mejores respuestas dentro de Closer Wizard. Sin motivación vacía ni teoría abstracta.
+Documento de referencia práctica para auditar conversaciones, mejorar prompts y diseñar mejores respuestas dentro de VELA. Sin motivación vacía ni teoría abstracta.
 
 ---
 
@@ -2091,7 +2091,7 @@ El comprador sigue dando vueltas sin decidir.
 - El tono cambia — de evaluación a planificación
 - Silencio largo después de una propuesta clara (señal de consideración real)
 
-### Diferencia entre outcomes (integración con Closer Wizard)
+### Diferencia entre outcomes (integración con VELA)
 
 | Outcome | Qué significa realmente |
 |---------|------------------------|
@@ -2136,11 +2136,11 @@ El que define el contexto de la conversación controla la evaluación. Si el com
 Basado en principios psicológicos documentados (reciprocidad, prueba social, autoridad, escasez, compromiso progresivo). Útil para diseñar la secuencia de una conversación. La escasez falsa destruye credibilidad con compradores inteligentes — usarla solo si es real.
 
 ### Urgencia construida vs urgencia inventada
-La urgencia real viene del coste de no actuar (el problema empeora, la ventana se cierra, el coste sube). La urgencia inventada ("solo hasta hoy") funciona con compradores impulsivos pero destruye la relación con analíticos y escépticos. Closer Wizard debe ayudar a detectar y articular urgencia real, no fabricarla.
+La urgencia real viene del coste de no actuar (el problema empeora, la ventana se cierra, el coste sube). La urgencia inventada ("solo hasta hoy") funciona con compradores impulsivos pero destruye la relación con analíticos y escépticos. VELA debe ayudar a detectar y articular urgencia real, no fabricarla.
 
 ---
 
-## F. Aplicación a Closer Wizard
+## F. Aplicación a VELA
 
 ### Para auditar logs de conversación
 

@@ -1,8 +1,8 @@
-# Closer Wizard — Architecture
+# VELA — Architecture
 
 ## Overview
 
-Closer Wizard es un asistente táctico ultraminimalista para llamadas de ventas. Tiene dos modos principales:
+VELA es un asistente táctico ultraminimalista para llamadas de ventas. Tiene dos modos principales:
 
 - **Copiloto** — coaching IA en tiempo real durante llamadas de ventas en vivo
 - **Arena** — simulación de conversación de ventas para práctica

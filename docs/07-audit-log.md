@@ -9,7 +9,7 @@ Client-side only. Runs in the browser. No server involvement.
 
 ## Purpose
 
-Produces forensic, audit-ready `.md` files from a completed session. Compatible with the Closer Wizard Auditor GPT.
+Produces forensic, audit-ready `.md` files from a completed session. Compatible with the VELA Auditor GPT.
 
 ## Pipeline
 
@@ -193,7 +193,7 @@ This is a simple heuristic, not GPT-based.
 
 Sections in order:
 ```
-# CLOSER WIZARD AUDIT LOG
+# VELA AUDIT LOG
 ## SESSION_META
 ## SESSION_CONTEXT
 ## SESSION_CONFIG

@@ -1,4 +1,4 @@
-# Closer Wizard — Arena Logic
+# VELA — Arena Logic
 
 Arena is a sales conversation simulator where the user practices selling (or being sold to) against an AI counterpart.
 

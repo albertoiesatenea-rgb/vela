@@ -1,4 +1,4 @@
-# 10 — Cómo escribir prompts para Replit AI (Closer Wizard Brain)
+# 10 — Cómo escribir prompts para Replit AI (VELA Brain)
 
 ---
 

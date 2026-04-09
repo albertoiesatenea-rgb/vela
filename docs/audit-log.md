@@ -1,4 +1,4 @@
-# Closer Wizard — Audit Log System
+# VELA — Audit Log System
 
 `artifacts/silent-closer/src/lib/audit-log.ts`
 
@@ -164,7 +164,7 @@ One entry per conversation turn.
 
 ### `AuditHints`
 
-Diagnostic flags for the Closer Wizard Auditor GPT.
+Diagnostic flags for the VELA Auditor GPT.
 
 ```typescript
 {
@@ -214,7 +214,7 @@ Automatic detection rules:
 The rendered `.md` file contains these sections:
 
 ```markdown
-# CLOSER WIZARD AUDIT LOG
+# VELA AUDIT LOG
 
 ## SESSION_META
 ## SESSION_CONTEXT
@@ -228,4 +228,4 @@ The rendered `.md` file contains these sections:
 ## AUDIT_HINTS
 ```
 
-The file is designed to be machine-readable by the Closer Wizard Auditor GPT without additional explanation.
+The file is designed to be machine-readable by the VELA Auditor GPT without additional explanation.

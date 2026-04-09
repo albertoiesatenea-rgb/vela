@@ -1,4 +1,4 @@
-# Closer Wizard — Debug Panel
+# VELA — Debug Panel
 
 `artifacts/silent-closer/src/components/debug-panel.tsx`
 

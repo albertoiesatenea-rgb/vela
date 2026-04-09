@@ -1,5 +1,5 @@
 /**
- * Closer Wizard — AI Usage Tracker v2
+ * VELA — AI Usage Tracker v2
  * Centralized observability layer for every OpenAI call.
  * Records tokens, cost, latency. Aggregates by session and route.
  * No DB — in-memory only, with ring buffer for recent calls.

@@ -1,6 +1,6 @@
 # 09 — Feature Flags
 
-_Generado: 2026-04-09 · Closer Wizard internal docs_
+_Generado: 2026-04-09 · VELA internal docs_
 
 ---
 

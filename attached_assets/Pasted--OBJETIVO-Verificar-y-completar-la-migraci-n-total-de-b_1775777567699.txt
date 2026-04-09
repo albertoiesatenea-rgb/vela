@@ -1,0 +1,75 @@
+## OBJETIVO
+Verificar y completar la migración total de branding de `Closer Wizard` a `VELA` para que no queden restos visibles ni internos que puedan generar inconsistencias operativas, visuales o de mantenimiento.
+
+## CONTEXTO
+`VELA` ya es el nombre oficial del producto.
+Ya se ha hecho parte del rebrand en la UI, pero ahora quiero asegurarme de que no queden restos de `Closer Wizard` o variantes similares en ningún punto importante del proyecto.
+
+## TAREAS
+1. Haz una búsqueda global en todo el proyecto de estas cadenas y variantes:
+- `Closer Wizard`
+- `closer wizard`
+- `closer-wizard`
+- `closer_wizard`
+- `CloserWizard`
+- `CLOSER WIZARD`
+
+2. Revisa también términos relacionados que puedan haber quedado como branding antiguo si aplican:
+- textos visibles en UI
+- títulos
+- subtítulos
+- metadatos
+- favicon/app title
+- nombre de la app
+- constantes de branding
+- README o docs internas visibles
+- exports
+- audit logs si imprimen nombre de app
+- labels, placeholders o textos vacíos que formen parte del branding
+- variables de entorno o config solo si afectan al nombre mostrado
+
+3. Sustituye el branding antiguo por `VELA` donde corresponda.
+
+4. Si encuentras referencias que no deben cambiarse por compatibilidad técnica o histórica, no las rompas:
+- documéntalas
+- explica por qué siguen ahí
+- minimiza su impacto visible
+
+5. Revisa especialmente:
+- home / setup
+- Copiloto
+- Arena
+- audit log export
+- metadata del documento
+- nombre de app en frontend
+- title del navegador
+- favicon/app icon si hay textos asociados
+- cualquier texto residual en light/dark mode
+
+## RESTRICCIONES
+- No tocar lógica de negocio salvo que dependa del nombre antiguo mostrado al usuario.
+- No renombrar cosas internas críticas si eso puede romper imports, rutas o comportamiento, salvo que sea seguro y necesario.
+- Si una referencia interna antigua no afecta al usuario y cambiarla añade riesgo, déjala y reporta.
+- No rehacer branding visual: solo asegurar consistencia nominal.
+- No modificar `Copiloto`, `Arena` ni textos funcionales por error.
+
+## ENTREGABLES
+- [ ] Búsqueda global completada
+- [ ] Sustitución de branding visible a `VELA`
+- [ ] Limpieza de restos relevantes del nombre antiguo
+- [ ] Lista final de referencias encontradas:
+  - reemplazadas
+  - mantenidas por compatibilidad
+  - pendientes si hubiera alguna ambigua
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] No queda ningún `Closer Wizard` visible al usuario en la app
+- [ ] No queda branding antiguo en títulos, metadata, exports o logs visibles
+- [ ] El nombre oficial mostrado es `VELA` en todos los puntos importantes
+- [ ] No se rompe la operativa por renombres innecesarios
+- [ ] Si queda alguna referencia interna antigua, está justificada explícitamente
+- [ ] La app compila sin errores
+
+## REGLA FINAL
+Prioriza consistencia visible y seguridad operativa.
+No quiero una limpieza agresiva que rompa cosas por perseguir pureza interna innecesaria.

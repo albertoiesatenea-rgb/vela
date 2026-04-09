@@ -1,4 +1,4 @@
-# Closer Wizard — AI Prompts
+# VELA — AI Prompts
 
 All prompts target **gpt-4o-mini**. Two optimization levels exist behind feature flags.
 

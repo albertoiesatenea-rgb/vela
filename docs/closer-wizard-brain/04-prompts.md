@@ -1,4 +1,4 @@
-# Closer Wizard — AI Prompts
+# VELA — AI Prompts
 
 Todos los prompts usan **gpt-4o-mini**. Dos niveles de optimización existen detrás de feature flags.
 

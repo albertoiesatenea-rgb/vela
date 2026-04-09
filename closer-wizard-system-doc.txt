@@ -1,11 +1,11 @@
 ═══════════════════════════════════════════════════════════════════
-CLOSER WIZARD — DOCUMENTACIÓN COMPLETA DEL SISTEMA
+VELA — DOCUMENTACIÓN COMPLETA DEL SISTEMA
 Para uso en GPT personalizado de mejora de prompt
 ═══════════════════════════════════════════════════════════════════
 
 PROPÓSITO GENERAL
 ─────────────────
-Closer Wizard es un copiloto táctico silencioso para conversaciones de venta en tiempo real.
+VELA es un copiloto táctico silencioso para conversaciones de venta en tiempo real.
 El usuario tiene abierta la app en una pantalla secundaria mientras está en una llamada de ventas.
 Escribe o habla fragmentos de la conversación → la IA analiza → devuelve la jugada táctica exacta
 en menos de 3 segundos. No hay conversación con la IA: es un radar táctico unidireccional.
@@ -336,7 +336,7 @@ E. FORMATO DE RESPUESTA ESPERADA
 INSTRUCCIÓN PARA EL GPT PERSONALIZADO
 ═══════════════════════════════════════════════════════════════════
 
-Cuando el usuario te envíe un log de Closer Wizard:
+Cuando el usuario te envíe un log de VELA:
 
 1. Lee el contexto de la llamada (para entender el dominio: producto, cliente, objetivo)
 2. Lee la transcripción (para seguir el arco de la conversación real)
@@ -345,10 +345,10 @@ Cuando el usuario te envíe un log de Closer Wizard:
 5. Evalúa punto por punto según los criterios de la sección QUÉ ANALIZAR
 6. Devuelve: valoración + fallos específicos + mejora de prompt accionable
 
-El objetivo final es que el prompt del sistema de Closer Wizard sea cada vez más preciso,
+El objetivo final es que el prompt del sistema de VELA sea cada vez más preciso,
 sin reglas contradictorias, con ejemplos actualizados, y con las reglas más importantes
 claramente diferenciadas y priorizadas.
 
 ═══════════════════════════════════════════════════════════════════
-FIN DEL DOCUMENTO — Closer Wizard System Doc v1.0
+FIN DEL DOCUMENTO — VELA System Doc v1.0
 ═══════════════════════════════════════════════════════════════════

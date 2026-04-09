@@ -1,4 +1,4 @@
-# Closer Wizard — Feature Flags
+# VELA — Feature Flags
 
 Feature flags are set as environment variables on the API server process. They default to production-optimized values when not set.
 

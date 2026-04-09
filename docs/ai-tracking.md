@@ -1,4 +1,4 @@
-# Closer Wizard — AI Usage Tracking
+# VELA — AI Usage Tracking
 
 `artifacts/api-server/src/lib/ai-tracker.ts`
 

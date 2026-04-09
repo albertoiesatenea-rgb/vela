@@ -1,4 +1,4 @@
-# Closer Wizard — Estado Actual del Proyecto
+# VELA — Estado Actual del Proyecto
 
 Fecha de referencia: marzo 2026
 

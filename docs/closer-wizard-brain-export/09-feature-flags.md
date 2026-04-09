@@ -1,4 +1,4 @@
-# Closer Wizard — Feature Flags
+# VELA — Feature Flags
 
 Los feature flags se establecen como variables de entorno en el proceso del API server. Tienen valores optimizados para producción cuando no están definidos.
 

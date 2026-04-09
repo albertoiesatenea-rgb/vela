@@ -1,4 +1,4 @@
-# Closer Wizard — Documentation
+# VELA — Documentation
 
 | File | Contents |
 |------|---------|
