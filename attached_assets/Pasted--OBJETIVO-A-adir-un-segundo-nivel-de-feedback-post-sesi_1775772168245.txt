@@ -1,0 +1,56 @@
+## OBJETIVO
+Añadir un segundo nivel de feedback post-sesión tanto en Copilot como en Arena: además del summary corto actual, generar una “auditoría brutal” mucho más útil para mejora real de ventas.
+
+## CONTEXTO
+- Hoy el cierre de sesión de Copilot usa `POST /api/copilot/summarize`.
+- Hoy Arena ya devuelve feedback/debrief al terminar la sesión, pero es demasiado corto para entrenamiento serio.
+- El resumen actual en Copilot devuelve score, globalState, resultLabel, strengths, improvements y opcionalmente fullReport.
+- Arena también da un cierre útil pero insuficiente si lo que quiero es practicar fuerte antes de llamadas reales.
+- El audit log ya contiene suficiente información para una auditoría mucho más rica: contexto, turns, model outputs, transcript legible, summary y audit_hints.
+- No quiero reemplazar el score rápido actual. Quiero mantenerlo y añadir una segunda capa de análisis más dura y accionable en ambos modos.
+
+## RESTRICCIONES
+- No romper el flujo actual de fin de sesión ni en Copilot ni en Arena.
+- Mantener el summary/debrief corto actual visible como feedback inmediato.
+- No rehacer todo el sistema de audit log desde cero.
+- No instalar dependencias nuevas salvo necesidad real.
+- Reutilizar al máximo la infraestructura actual de summary, debrief y audit log.
+- Si Copilot y Arena necesitan prompts distintos para la auditoría, separarlos. No forzar un único prompt mediocre para ambos.
+
+## ENTREGABLES
+- [ ] Añadir un nuevo modo de análisis post-sesión para Copilot y Arena, por ejemplo `full_audit=true` o endpoints separados tipo:
+  - `/api/copilot/audit-report`
+  - `/api/arena/audit-report`
+- [ ] Mostrar en UI, después del score rápido actual, un bloque expandible llamado `Auditoría brutal` tanto en Copilot como en Arena.
+- [ ] La auditoría debe devolver esta estructura fija en ambos modos:
+  1. veredicto brutal
+  2. lo que sí funcionó
+  3. lo que falló
+  4. responsable de cada fallo
+  5. oportunidades de cierre perdidas
+  6. reglas violadas o flojas
+  7. cambios prioritarios
+  8. prompt patch (solo si hace falta)
+  9. prompt para Replit (solo si hace falta)
+  10. lo que yo habría hecho
+- [ ] Adaptar la auditoría al modo:
+  - En Copilot, analizar conversación real, calidad del coaching, lectura de objeciones, control de llamada y avance real.
+  - En Arena, analizar calidad de práctica, ejecución del usuario, manejo de objeciones, control de conversación, timing de cierre y coherencia frente al perfil simulado.
+- [ ] Ajustar el prompt para que penalice vaguedad, sobreafirmación, falta de control conversacional, objeciones no resueltas con evidencia y cierres blandos.
+- [ ] Si no hay suficiente evidencia para afirmar algo, el modelo debe decirlo sin rellenar huecos.
+- [ ] En Arena seller mode, la auditoría debe ser especialmente útil para entrenamiento antes de llamadas reales.
+- [ ] En Arena client mode, si aplica, la auditoría debe evaluar la calidad del vendedor simulado y la utilidad pedagógica de la sesión, sin forzar exactamente el mismo criterio que en seller mode.
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] El usuario sigue viendo el score rápido actual al cerrar la sesión en Copilot.
+- [ ] El usuario sigue viendo el debrief/feedback corto actual al cerrar la sesión en Arena.
+- [ ] Existe un bloque adicional expandible con auditoría detallada y accionable en ambos modos.
+- [ ] La auditoría separa explícitamente fallos de sistema, vendedor, timing, técnico, contexto/setup o sin fallo real.
+- [ ] La auditoría no se limita a strengths/improvements genéricos.
+- [ ] Si hubo objeciones técnicas sin evidencia suficiente, eso aparece como fallo relevante.
+- [ ] Si la conversación tuvo siguiente paso pero no cierre real, la auditoría no la presenta como una sesión “fuerte” por defecto.
+- [ ] En Arena, la auditoría detecta con claridad si la práctica fue útil pero blanda, si hubo ejecución floja, si faltó control o si el usuario se refugió en explicaciones sin cerrar.
+- [ ] En Arena, la auditoría tiene en cuenta el perfil configurado del interlocutor y la dificultad de la simulación al juzgar la ejecución.
+- [ ] La app compila sin errores.
+- [ ] No hay regresión en el export actual del audit log.
+- [ ] No se rompe el flujo actual de summarize/debrief si la auditoría brutal falla; debe poder degradar con gracia al feedback corto ya existente.

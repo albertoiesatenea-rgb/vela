@@ -1,0 +1,42 @@
+## OBJETIVO
+Añadir un segundo nivel de feedback post-llamada en Copilot: además del summary corto actual, generar un “audit report brutal” mucho más útil para mejora real de ventas.
+
+## CONTEXTO
+- Hoy el cierre de sesión de Copilot usa `POST /api/copilot/summarize`.
+- El resumen actual devuelve score, globalState, resultLabel, strengths, improvements y opcionalmente fullReport.
+- El audit log ya contiene suficiente información para una auditoría mucho más rica: contexto, turns, model outputs, transcript legible, summary y audit_hints.
+- No quiero reemplazar el score rápido actual. Quiero mantenerlo y añadir una segunda capa de análisis más dura y accionable.
+
+## RESTRICCIONES
+- No romper el flujo actual de fin de llamada.
+- Mantener el summary corto actual visible como feedback inmediato.
+- No rehacer todo el sistema de audit log desde cero.
+- No tocar Arena en esta iteración.
+- No instalar dependencias nuevas salvo necesidad real.
+
+## ENTREGABLES
+- [ ] Añadir un nuevo modo de análisis post-llamada para Copilot, por ejemplo `full_audit=true` o endpoint separado tipo `/api/copilot/audit-report`
+- [ ] Mostrar en UI, después del score rápido, un bloque expandible llamado “Auditoría brutal”
+- [ ] La auditoría debe devolver esta estructura fija:
+  1. veredicto brutal
+  2. lo que sí funcionó
+  3. lo que falló
+  4. responsable de cada fallo
+  5. oportunidades de cierre perdidas
+  6. reglas violadas o flojas
+  7. cambios prioritarios
+  8. prompt patch (solo si hace falta)
+  9. prompt para Replit (solo si hace falta)
+  10. lo que yo habría hecho
+- [ ] Ajustar el prompt para que penalice vaguedad, sobreafirmación, falta de control conversacional, objeciones no resueltas con evidencia y cierres blandos.
+- [ ] Si no hay suficiente evidencia para afirmar algo, el modelo debe decirlo sin rellenar huecos.
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] El usuario sigue viendo el score rápido actual al cerrar la llamada.
+- [ ] Existe un bloque adicional expandible con auditoría detallada y accionable.
+- [ ] La auditoría separa explícitamente fallos de sistema, vendedor, timing, técnico, contexto/setup o sin fallo real.
+- [ ] La auditoría no se limita a strengths/improvements genéricos.
+- [ ] Si hubo objeciones técnicas sin evidencia suficiente, eso aparece como fallo relevante.
+- [ ] Si la conversación tuvo siguiente paso pero no cierre real, la auditoría no la presenta como una sesión “fuerte” por defecto.
+- [ ] La app compila sin errores.
+- [ ] No hay regresión en el export actual del audit log.

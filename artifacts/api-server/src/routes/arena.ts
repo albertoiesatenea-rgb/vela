@@ -1295,4 +1295,153 @@ Only the ideal seller response. Natural, conversational, tactically sound. 2-3 s
   }
 });
 
+// ── POST /api/arena/audit-report ─────────────────────────────────────────────
+// Brutal post-session audit for Arena. Independent — no regression risk.
+// Input: { transcript, context, outcome, role, clientProfile?, sellerProfile?, difficulty?, lang }
+router.post("/arena/audit-report", async (req, res) => {
+  const {
+    transcript = [],
+    context = "",
+    outcome = "",
+    role = "seller",
+    clientProfile,
+    sellerProfile,
+    difficulty,
+    lang = "es",
+  } = req.body as {
+    transcript?: Array<{ speaker: "user" | "ai"; message: string }>;
+    context?: string;
+    outcome?: string;
+    role?: string;
+    clientProfile?: string;
+    sellerProfile?: string;
+    difficulty?: string;
+    lang?: string;
+  };
+
+  const isEn = lang === "en";
+  const isClient = role === "client";
+
+  const formattedTranscript = transcript
+    .map(t => {
+      const who = t.speaker === "user"
+        ? (isEn ? "USER" : "USUARIO")
+        : (role === "seller"
+          ? (isEn ? "AI CLIENT" : "CLIENTE IA")
+          : (isEn ? "AI SELLER" : "VENDEDOR IA"));
+      return `${who}: ${t.message}`;
+    })
+    .join("\n\n");
+
+  const clientProfileDesc = clientProfile && CLIENT_PROFILE_DESC[clientProfile as keyof typeof CLIENT_PROFILE_DESC]
+    ? CLIENT_PROFILE_DESC[clientProfile as keyof typeof CLIENT_PROFILE_DESC][isEn ? "en" : "es"]
+    : null;
+  const sellerProfileDesc = sellerProfile && SELLER_PROFILE_DESC[sellerProfile as keyof typeof SELLER_PROFILE_DESC]
+    ? SELLER_PROFILE_DESC[sellerProfile as keyof typeof SELLER_PROFILE_DESC][isEn ? "en" : "es"]
+    : null;
+  const difficultyDesc = difficulty && DIFFICULTY_DESC[difficulty as keyof typeof DIFFICULTY_DESC]
+    ? DIFFICULTY_DESC[difficulty as keyof typeof DIFFICULTY_DESC][isEn ? "en" : "es"]
+    : null;
+
+  const profileBlock = [
+    !isClient && clientProfileDesc ? `${isEn ? "AI CLIENT PROFILE" : "PERFIL CLIENTE IA"}: ${clientProfileDesc}` : null,
+    isClient && sellerProfileDesc ? `${isEn ? "AI SELLER PROFILE" : "PERFIL VENDEDOR IA"}: ${sellerProfileDesc}` : null,
+    difficultyDesc ? `${isEn ? "DIFFICULTY" : "DIFICULTAD"}: ${difficultyDesc}` : null,
+  ].filter(Boolean).join("\n");
+
+  const schema = `{"verdict":"string","what_worked":["string"],"what_failed":["string"],"failure_owner":["usuario|timing|setup|sistema|sin fallo real — descripción"],"missed_closes":["string"],"rules_violated":["string"],"priority_changes":["string","string","string"],"prompt_patch":null,"prompt_for_replit":null,"what_i_would_have_done":"string"}`;
+
+  let systemPrompt: string;
+  if (isEn) {
+    systemPrompt = isClient
+      ? `You are a sales simulation evaluator. The user played as the CLIENT. Your job is to evaluate the quality of the AI seller — not the user as a seller.
+
+Evaluate:
+— Realism and depth of the AI seller as an interlocutor.
+— Whether the AI seller provided enough challenge for the user.
+— Whether the simulation was useful for learning how a real client reacts.
+— Quality and variety of objection handling by the AI seller.
+— failure_owner: system | AI seller | setup | no real failure.
+— missed_closes: opportunities the AI seller did not exploit (moments where the user showed openness).
+— what_i_would_have_done: how the AI seller should have responded at the key moment.
+— prompt_patch: null unless you detect a clear AI system error.
+— prompt_for_replit: null unless there is a clear setup issue.
+
+Return EXACTLY this JSON, no markdown:
+${schema}`
+      : `You are a sales coach with very high standards evaluating a practice session. The user played as the SELLER. Return a brutal, actionable audit useful for training before real calls.
+
+CRITICAL RULES:
+— Evaluate actual execution (what they said and how) — not intent.
+— Evaluate in context of the AI client profile and configured difficulty.
+— Penalize: explanatory monologues without asking first, lack of conversational control, soft or late closes, objections answered without evidence, hiding behind explanations.
+— If the practice was useful but soft, say so. If execution was weak, name it specifically.
+— missed_closes: concrete moments in the transcript where the user could have closed or advanced and didn't.
+— failure_owner: user | timing | setup | system | no real failure.
+— what_i_would_have_done: a concrete message or tactic for the key moment of the session — not vague advice.
+— prompt_patch / prompt_for_replit: null unless there's a clear system or setup error.
+
+Return EXACTLY this JSON, no markdown:
+${schema}`;
+  } else {
+    systemPrompt = isClient
+      ? `Eres un evaluador de simulaciones de venta. El usuario jugó como CLIENTE. Tu trabajo es evaluar la calidad del vendedor IA — no al usuario como vendedor.
+
+Evalúa:
+— Realismo y profundidad del vendedor IA como interlocutor.
+— Si el vendedor IA planteó suficiente desafío para el usuario.
+— Si la simulación fue útil para aprender cómo reacciona un cliente real.
+— Calidad y variedad del manejo de objeciones por parte del vendedor IA.
+— failure_owner: sistema | vendedor IA | setup | sin fallo real.
+— missed_closes: oportunidades que el vendedor IA no explotó (momentos donde el usuario mostró apertura).
+— what_i_would_have_done: cómo debería haber respondido el vendedor IA en el momento clave.
+— prompt_patch: null salvo error claro del sistema IA.
+— prompt_for_replit: null salvo problema claro de setup.
+
+Devuelve EXACTAMENTE este JSON, sin markdown:
+${schema}`
+      : `Eres un coach de ventas con criterio muy alto evaluando una sesión de práctica. El usuario jugó como VENDEDOR. Devuelve una auditoría brutal y accionable, útil para entrenar antes de llamadas reales.
+
+REGLAS CRÍTICAS:
+— Evalúa la ejecución real (lo que dijo y cómo) — no la intención.
+— Evalúa en contexto del perfil del cliente IA y la dificultad configurada.
+— Penaliza: monólogos explicativos sin preguntar primero, falta de control conversacional, cierres blandos o tardíos, objeciones respondidas sin evidencia, refugiarse en explicaciones.
+— Si la práctica fue útil pero blanda, dilo. Si la ejecución fue floja, nómbrala específicamente.
+— missed_closes: momentos concretos del transcript donde el usuario podría haber cerrado o avanzado y no lo hizo.
+— failure_owner: usuario | timing | setup | sistema | sin fallo real.
+— what_i_would_have_done: mensaje o táctica concreta para el momento clave de la sesión — no consejo vago.
+— prompt_patch / prompt_for_replit: null salvo error claro de sistema o setup.
+
+Devuelve EXACTAMENTE este JSON, sin markdown:
+${schema}`;
+  }
+
+  const userMessage = [
+    context ? `${isEn ? "CONTEXT" : "CONTEXTO"}: ${context}` : null,
+    profileBlock || null,
+    `${isEn ? "OUTCOME" : "RESULTADO"}: ${outcome}`,
+    "",
+    `${isEn ? "TRANSCRIPT" : "TRANSCRIPT"}:`,
+    formattedTranscript || (isEn ? "(No turns recorded)" : "(Sin turnos registrados)"),
+  ].filter(s => s !== null).join("\n");
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_tokens: 900,
+      temperature: 0.3,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userMessage },
+      ],
+    });
+    const raw = completion.choices[0]?.message?.content ?? "{}";
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(raw);
+    res.json(parsed);
+  } catch {
+    res.status(500).json({ error: "Arena audit generation failed" });
+  }
+});
+
 export default router;

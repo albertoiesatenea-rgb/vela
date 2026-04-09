@@ -538,6 +538,80 @@ ${fullReportInstructions}`;
   }
 });
 
+// ── POST /api/copilot/audit-report ───────────────────────────────────────────
+// Brutal post-session audit. Independent from summarize — no regression risk.
+// Input: { call_memory, outcome, context?, lang }
+// Output: BrutalAudit JSON
+router.post("/copilot/audit-report", async (req, res) => {
+  const { call_memory, outcome, context, lang = "es" } = req.body as {
+    call_memory?: string[];
+    outcome?: string;
+    context?: string;
+    lang?: string;
+  };
+
+  const isEn = lang === "en";
+  const memoryText = (call_memory ?? []).map(l => `- ${l}`).join("\n") || (isEn ? "(No memory)" : "(Sin memoria)");
+  const outcomeText = outcome ?? (isEn ? "unknown" : "desconocido");
+  const contextText = context?.trim() ? `\n${isEn ? "SESSION CONTEXT" : "CONTEXTO"}: ${context.trim()}` : "";
+
+  const schema = `{"verdict":"string","what_worked":["string"],"what_failed":["string"],"failure_owner":["vendedor|timing|sistema|técnico|setup|sin fallo real — descripción"],"missed_closes":["string"],"rules_violated":["string"],"priority_changes":["string","string","string"],"prompt_patch":null,"prompt_for_replit":null,"what_i_would_have_done":"string"}`;
+
+  const systemPrompt = isEn
+    ? `You are a sales call auditor with very high standards. You receive the tactical memory of a real conversation and return a brutal, specific, actionable post-session audit. No filler, no empty praise.
+
+CRITICAL RULES:
+— If there is not enough evidence to assert something, say so explicitly. Do not fill gaps.
+— Penalize: vagueness, accumulated generic questions without advancing, unresolved objections without evidence, soft or missing closes, loss of conversational control.
+— If there was a next step but no real close, do not present it as a strong session.
+— failure_owner: classify each failure as one of: seller | timing | system | technical | setup | no real failure — then a brief description.
+— missed_closes: concrete moments where there was implicit permission to advance and the seller did not take it.
+— rules_violated: tactical anti-patterns that appear clearly in the transcript (e.g. "repeated the same question twice", "proposed a meeting before resolving main objection").
+— priority_changes: 2-4 concrete, actionable changes for next call — not generic advice.
+— what_i_would_have_done: a concrete alternative tactic or phrase for the key moment of the call. Not vague.
+— prompt_patch: only if you detect a clear coaching system error (bad advice from the AI model). Otherwise null.
+— prompt_for_replit: only if there's a clear tool setup issue to fix. Otherwise null.
+
+Return EXACTLY this JSON, no markdown, no extra text:
+${schema}`
+    : `Eres un auditor de llamadas de venta con criterio muy alto. Recibes la memoria táctica de una conversación real y devuelves una auditoría post-sesión brutal, específica y accionable. Sin relleno, sin elogios vacíos.
+
+REGLAS CRÍTICAS:
+— Si no hay evidencia suficiente para afirmar algo, dilo explícitamente. No rellenes huecos.
+— Penaliza: vaguedad, preguntas genéricas acumuladas sin avanzar, objeciones sin resolver con evidencia, cierres blandos o ausentes, pérdida de control conversacional.
+— Si hubo siguiente paso pero no cierre real, no lo presentes como sesión fuerte.
+— failure_owner: classifica cada fallo como: vendedor | timing | sistema | técnico | setup | sin fallo real — con descripción breve.
+— missed_closes: momentos concretos donde existía permiso implícito para avanzar y el vendedor no lo aprovechó.
+— rules_violated: antipatrones tácticos que aparecen claramente en la memoria (ej: "repitió la misma pregunta dos veces", "propuso reunión antes de resolver objeción principal").
+— priority_changes: 2-4 cambios concretos y accionables para la próxima llamada — no consejos genéricos.
+— what_i_would_have_done: alternativa táctica concreta para el momento clave de la llamada. No vaga.
+— prompt_patch: solo si detectas un error claro del sistema de coaching (consejo malo del modelo). Si no, null.
+— prompt_for_replit: solo si hay un problema claro de setup de la herramienta a corregir. Si no, null.
+
+Devuelve EXACTAMENTE este JSON, sin markdown, sin texto extra:
+${schema}`;
+
+  const userMessage = `${isEn ? "TACTICAL CALL MEMORY" : "MEMORIA TÁCTICA"}:\n${memoryText}${contextText}\n\n${isEn ? "REPORTED OUTCOME" : "RESULTADO DECLARADO"}: ${outcomeText}`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_tokens: 900,
+      temperature: 0.3,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userMessage },
+      ],
+    });
+    const raw = completion.choices[0]?.message?.content ?? "{}";
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(raw);
+    res.json(parsed);
+  } catch {
+    res.status(500).json({ error: "Audit generation failed" });
+  }
+});
+
 // ── POST /api/copilot/context-label ──────────────────────────────────────────
 router.post("/copilot/context-label", async (req, res) => {
   const { context, lang } = req.body as { context?: string; lang?: string };

@@ -24,6 +24,36 @@ interface ArenaDebrief {
   critique: string[];
 }
 
+interface BrutalAudit {
+  verdict: string;
+  what_worked: string[];
+  what_failed: string[];
+  failure_owner: string[];
+  missed_closes: string[];
+  rules_violated: string[];
+  priority_changes: string[];
+  prompt_patch: string | null;
+  prompt_for_replit: string | null;
+  what_i_would_have_done: string;
+}
+
+function AuditList({ label, items, bullet, color }: { label: string; items: string[]; bullet: string; color: string }) {
+  if (!items.length) return null;
+  return (
+    <div className="flex flex-col gap-1">
+      <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-600">{label}</p>
+      <div className="flex flex-col gap-1">
+        {items.map((item, i) => (
+          <div key={i} className="flex gap-2">
+            <span className={`${color} font-mono text-[10px] shrink-0 mt-px`}>{bullet}</span>
+            <p className="text-[11px] font-mono text-zinc-300 leading-relaxed">{item}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 type JourneyStatus = "done" | "current" | "upcoming";
 type StageId = "context" | "problem" | "blocker" | "fit" | "advance" | "close";
 
@@ -680,6 +710,10 @@ export function Arena({
   const [summary, setSummary] = useState<ArenaSummary | null>(null);
   const [allTurns, setAllTurns] = useState<ArenaMessage[]>([]);
   const [transcriptOpen, setTranscriptOpen] = useState(false);
+  const [brutalAudit, setBrutalAudit] = useState<BrutalAudit | null>(null);
+  const [brutalAuditLoading, setBrutalAuditLoading] = useState(false);
+  const [brutalAuditOpen, setBrutalAuditOpen] = useState(false);
+  const [brutalAuditError, setBrutalAuditError] = useState(false);
   const [exitStep, setExitStep] = useState<null | "reason">(null);
   const [isExitHovered, setIsExitHovered] = useState(false);
   const exitLeaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1067,6 +1101,38 @@ export function Arena({
     triggerAuditLogDownload(log, arenaSessionId);
   }, [messages, arenaSessionId, lang, role, context, sellerNotes, coachLiteMap]);
 
+  const handleLoadBrutalAudit = async () => {
+    if (brutalAudit || brutalAuditLoading || !summary) return;
+    setBrutalAuditLoading(true);
+    setBrutalAuditError(false);
+    try {
+      const filteredTurns = allTurns
+        .filter(t => t.speaker === "user" || t.speaker === "ai")
+        .map(t => ({ speaker: t.speaker as "user" | "ai", message: t.message }));
+      const res = await fetch("/api/arena/audit-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          transcript: filteredTurns,
+          context: summary.context,
+          outcome: summary.outcome,
+          role,
+          clientProfile: arenaConfig.clientProfile ?? undefined,
+          sellerProfile: arenaConfig.sellerProfile ?? undefined,
+          difficulty: arenaConfig.difficulty ?? undefined,
+          lang,
+        }),
+      });
+      if (!res.ok) throw new Error("audit failed");
+      const data = await res.json() as BrutalAudit;
+      setBrutalAudit(data);
+    } catch {
+      setBrutalAuditError(true);
+    } finally {
+      setBrutalAuditLoading(false);
+    }
+  };
+
   const handleDownloadReport = () => {
     if (!summary) return;
     const isEs = lang === "es";
@@ -1250,6 +1316,74 @@ export function Arena({
               )}
             </div>
           )}
+
+          {/* Brutal audit — expandable, lazy-loaded */}
+          <div className="border border-zinc-800 rounded-xl overflow-hidden">
+            <button
+              onClick={() => {
+                if (!brutalAuditOpen && !brutalAudit && !brutalAuditLoading) {
+                  void handleLoadBrutalAudit();
+                }
+                setBrutalAuditOpen(o => !o);
+              }}
+              onMouseDown={e => e.preventDefault()}
+              className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-white/3 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">
+                  {lang === "en" ? "Brutal audit" : "Auditoría brutal"}
+                </p>
+                {brutalAuditLoading && <Loader2 className="w-3 h-3 text-zinc-500 animate-spin" />}
+              </div>
+              <span className={cn("text-zinc-600 text-xs font-mono transition-transform duration-200", brutalAuditOpen ? "rotate-180" : "")}>▾</span>
+            </button>
+            {brutalAuditOpen && (
+              <div className="border-t border-zinc-800/60 px-4 pb-4 pt-3 flex flex-col gap-3">
+                {brutalAuditLoading && (
+                  <div className="flex items-center gap-2 py-1">
+                    <Loader2 className="w-3.5 h-3.5 text-zinc-500 animate-spin" />
+                    <p className="text-[10px] font-mono text-zinc-500">{lang === "en" ? "Analyzing session..." : "Analizando sesión..."}</p>
+                  </div>
+                )}
+                {brutalAuditError && !brutalAudit && (
+                  <div className="flex items-center gap-3">
+                    <p className="text-[10px] font-mono text-zinc-500">{lang === "en" ? "Error generating audit." : "Error al generar la auditoría."}</p>
+                    <button onClick={() => void handleLoadBrutalAudit()} className="text-[10px] font-mono text-zinc-400 hover:text-white underline">{lang === "en" ? "Retry" : "Reintentar"}</button>
+                  </div>
+                )}
+                {brutalAudit && (
+                  <>
+                    <div className="flex flex-col gap-1">
+                      <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-600">{lang === "en" ? "Verdict" : "Veredicto"}</p>
+                      <p className="text-xs font-mono text-zinc-200 leading-relaxed">{brutalAudit.verdict}</p>
+                    </div>
+                    <AuditList label={lang === "en" ? "What worked" : "Lo que funcionó"} items={brutalAudit.what_worked} bullet="+" color="text-teal-500" />
+                    <AuditList label={lang === "en" ? "What failed" : "Lo que falló"} items={brutalAudit.what_failed} bullet="✗" color="text-amber-500" />
+                    <AuditList label={lang === "en" ? "Failure owner" : "Responsable"} items={brutalAudit.failure_owner} bullet="→" color="text-zinc-500" />
+                    <AuditList label={lang === "en" ? "Missed closes" : "Cierres perdidos"} items={brutalAudit.missed_closes} bullet="◇" color="text-sky-500" />
+                    <AuditList label={lang === "en" ? "Rules violated" : "Reglas violadas"} items={brutalAudit.rules_violated} bullet="!" color="text-amber-400" />
+                    <AuditList label={lang === "en" ? "Priority changes" : "Cambios prioritarios"} items={brutalAudit.priority_changes} bullet="→" color="text-white" />
+                    <div className="flex flex-col gap-1 border-t border-zinc-800 pt-2">
+                      <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-600">{lang === "en" ? "What I would have done" : "Lo que yo habría hecho"}</p>
+                      <p className="text-[11px] font-mono text-zinc-300 leading-relaxed italic">{brutalAudit.what_i_would_have_done}</p>
+                    </div>
+                    {brutalAudit.prompt_patch && (
+                      <div className="flex flex-col gap-1 border-t border-zinc-800 pt-2">
+                        <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-600">{lang === "en" ? "Prompt patch" : "Patch de prompt"}</p>
+                        <p className="text-[10px] font-mono text-zinc-400 leading-relaxed">{brutalAudit.prompt_patch}</p>
+                      </div>
+                    )}
+                    {brutalAudit.prompt_for_replit && (
+                      <div className="flex flex-col gap-1 border-t border-zinc-800 pt-2">
+                        <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-600">{lang === "en" ? "Prompt for Replit" : "Prompt para Replit"}</p>
+                        <p className="text-[10px] font-mono text-zinc-400 leading-relaxed">{brutalAudit.prompt_for_replit}</p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Conversation transcript — collapsible */}
           {allTurns.length > 0 && (
