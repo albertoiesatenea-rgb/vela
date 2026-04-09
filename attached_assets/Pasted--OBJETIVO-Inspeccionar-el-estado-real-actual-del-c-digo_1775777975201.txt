@@ -1,0 +1,68 @@
+## OBJETIVO
+Inspeccionar el estado real actual del código, regenerar toda la documentación interna con el branding nuevo `VELA` y entregarla directamente en formato descargable a la primera para reemplazar los documentos actuales del GPT.
+
+## CONTEXTO
+El branding oficial ya no es `Closer Wizard`. Ahora el nombre oficial es `VELA`.
+Ya se ha hecho la migración visible en la app y quiero refrescar la base documental interna para que los archivos usados por mi GPT también queden alineados con el branding y con el estado real del código actual.
+
+## TAREAS
+Inspecciona el código actual y regenera estos archivos Markdown, uno por tema:
+
+1. `01-current-state.md`
+2. `02-architecture.md`
+3. `03-api-routes.md`
+4. `04-prompts.md`
+5. `05-arena-logic.md`
+6. `06-ai-tracking.md`
+7. `07-audit-log.md`
+8. `08-debug-panel.md`
+9. `09-feature-flags.md`
+10. `10-replit-prompt-style.md`
+11. `11-sales-references.md`
+
+Y además actualiza también el atajo documental del GPT:
+12. `12-doc-refresh-prompt.md`
+
+## RESTRICCIONES
+- Documenta solo lo que exista hoy en el código o en la convención operativa vigente.
+- No copies documentación vieja sin verificarla contra el código actual.
+- No inventes comportamiento.
+- Usa `VELA` como branding oficial en todos los documentos visibles.
+- Si alguna referencia legacy `closer-wizard` sigue existiendo solo por compatibilidad interna del sistema de assets, indícalo claramente como detalle técnico no visible, sin contaminar el branding principal de los documentos.
+- Cada archivo debe incluir fecha/hora de generación.
+- Mantén nombres de archivo exactos y estables.
+
+## FORMATO
+Cada `.md` debe ser limpio, directo, técnico y útil.
+Sin teoría ornamental.
+Prioriza:
+- comportamiento actual
+- arquitectura real
+- rutas y payloads reales
+- prompts vigentes
+- lógica real de Copiloto y Arena
+- tracking real
+- audit log real
+- debug real
+- feature flags reales
+- branding actual `VELA`
+- diferencias relevantes respecto a documentación anterior si se detectan
+
+## ENTREGA OBLIGATORIA
+No me dejes los archivos solo visibles en panel.
+Entrégalos directamente:
+- como archivos descargables/attachments
+- o empaquetados en un único archivo descargable llamado `vela-doc-refresh.zip`
+
+Prioriza el `.zip` si es más fiable.
+
+## RESUMEN FINAL
+Al terminar, incluye una lista breve con:
+- archivos regenerados
+- archivos marcados como legacy o parciales, si los hubiera
+- posibles zonas ambiguas
+- formato exacto de entrega usado
+
+## REGLA FINAL
+No me obligues a pedir en una segunda ronda que los conviertas en descargables.
+Haz la entrega descargable a la primera.

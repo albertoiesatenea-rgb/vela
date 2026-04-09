@@ -204,3 +204,9 @@ id = "QpDbnwqETl-_c-HXL97GA"
 uri = "file://closer-wizard-doc-refresh-extra.tar.gz"
 type = "unspecified"
 title = "closer-wizard-doc-refresh-extra.tar.gz — 4 archivos .md"
+
+[[outputs]]
+id = "ELiSM6Guip1oVQS8d7cr_"
+uri = "file://vela-doc-refresh.zip"
+type = "unspecified"
+title = "vela-doc-refresh.zip — 11 documentos internos"

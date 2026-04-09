@@ -1,0 +1,79 @@
+# Atajo — Prompt para actualizar documentos desde Replit
+
+Cuando el usuario pida algo como:
+- “dame prompt para actualizar documentos”
+- “dame prompt para refrescar docs”
+- “quiero actualizar los md internos”
+- “dame el prompt para bajar la documentación de Replit”
+
+debes devolver directamente este prompt o una variante mínima equivalente, sin esperar una segunda ronda.
+
+## Prompt base para Replit
+
+## OBJETIVO
+Inspeccionar el estado real actual del código en Replit, regenerar la documentación interna del proyecto y entregarla directamente en un formato descargable a la primera.
+
+## CONTEXTO
+Uso estos documentos Markdown como base interna de mi GPT, pero pueden estar desactualizados respecto al código real actual.
+No quiero rehacer la documentación a mano.
+Quiero una regeneración fiel al código real de hoy, con nombres estables y archivos descargables sin tener que pedirlo en una segunda ronda.
+
+## TAREAS
+Inspecciona el código actual y regenera estos archivos Markdown, uno por tema:
+
+1. `01-current-state.md`
+2. `02-architecture.md`
+3. `03-api-routes.md`
+4. `04-prompts.md`
+5. `05-arena-logic.md`
+6. `06-ai-tracking.md`
+7. `07-audit-log.md`
+8. `08-debug-panel.md`
+9. `09-feature-flags.md`
+10. `10-replit-prompt-style.md`
+11. `11-sales-references.md`
+
+Si alguno ya no aplica al código actual, sigue existiendo solo parcialmente o necesita quedar marcado como legacy, indícalo claramente dentro del propio documento y también en el resumen final.
+
+## RESTRICCIONES
+- No inventes comportamiento que no esté en el código actual.
+- No copies documentación vieja sin verificarla contra el código.
+- No rehagas arquitectura ni lógica: solo documenta lo que existe hoy.
+- Sé concreto, técnico y útil.
+- Si algo no está claro en el código, dilo explícitamente en el documento.
+- Cada archivo debe incluir fecha/hora de generación.
+- Mantén nombres de archivo estables y exactos.
+- Si un documento depende más de criterio interno que de código vivo, actualízalo igualmente, pero deja claro qué parte viene del estado real del código y qué parte es guía o convención operativa.
+
+## ENTREGA OBLIGATORIA
+No me los dejes solo visibles en panel.
+Entrégalos directamente de una de estas dos formas:
+- como archivos descargables/attachments de salida
+- o empaquetados en un único archivo descargable llamado `closer-wizard-doc-refresh.zip`
+
+Prioriza el `.zip` si es más fiable.
+
+## FORMATO
+Cada `.md` debe ser limpio, directo y fácil de leer.
+Sin teoría ni texto ornamental.
+Prioriza:
+- comportamiento actual
+- rutas y payloads reales
+- prompts vigentes
+- flujos reales
+- estructura real del audit log
+- debug y observabilidad reales
+- feature flags reales
+- diferencias relevantes respecto a documentación anterior si se detectan
+
+## RESUMEN FINAL
+Al terminar, incluye una lista breve con:
+- archivos regenerados
+- archivos marcados como legacy o parciales
+- archivos omitidos, si los hubiera
+- posibles zonas ambiguas
+- formato exacto de entrega usado: attachments o zip descargable
+
+## REGLA FINAL
+No me obligues a pedir en una segunda ronda que los conviertas en descargables.
+Haz la entrega descargable a la primera.
