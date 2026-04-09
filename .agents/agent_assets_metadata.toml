@@ -150,3 +150,45 @@ id = "5Pa2v-yajwfuzx5SLqYLv"
 uri = "file://docs/closer-wizard-brain/11-sales-references.md"
 type = "text"
 title = "11-sales-references.md"
+
+[[outputs]]
+id = "-_BK3FIOm4a70gykwp5Po"
+uri = "file://docs/01-current-state.md"
+type = "text"
+title = "01 — Current State"
+
+[[outputs]]
+id = "Z7_JeBkS5wLs2S546M4OU"
+uri = "file://docs/02-architecture.md"
+type = "text"
+title = "02 — Architecture"
+
+[[outputs]]
+id = "bulE0O7V6BC458bx3Dv1p"
+uri = "file://docs/03-api-routes.md"
+type = "text"
+title = "03 — API Routes"
+
+[[outputs]]
+id = "x6FKt0h-l-49xnTY3pPMm"
+uri = "file://docs/04-prompts.md"
+type = "text"
+title = "04 — Prompts"
+
+[[outputs]]
+id = "THwS8pdLCR37bHtvPfc4h"
+uri = "file://docs/05-arena-logic.md"
+type = "text"
+title = "05 — Arena Logic"
+
+[[outputs]]
+id = "5PoibZgxHtsogT1H5Rr6t"
+uri = "file://docs/06-ai-tracking.md"
+type = "text"
+title = "06 — AI Tracking"
+
+[[outputs]]
+id = "wFgJ4Vqfa2G1UvFsR7SjA"
+uri = "file://docs/07-audit-log.md"
+type = "text"
+title = "07 — Audit Log"
