@@ -135,6 +135,10 @@ export interface AuditHints {
   suspected_support_gap: "yes" | "no";
   suspected_close_timing_issue: "yes" | "no";
   suspected_repetition_issue: "yes" | "no";
+  suspected_claim_risk: "yes" | "no";
+  suspected_unresolved_technical_objection: "yes" | "no";
+  suspected_false_confidence: "yes" | "no";
+  suspected_soft_next_step: "yes" | "no";
   audit_notes: string[];
 }
 
@@ -378,6 +382,33 @@ export function buildCopilotAuditLog(data: CopilotSessionData): AuditLog {
 
   const isLost = data.callOutcome === "lost";
   const isUnclear = data.callOutcome === "unclear" || !data.callOutcome;
+  const isNextStep = data.callOutcome === "next_step";
+
+  // ── Risk signal heuristics (keyword-based, conservative — labeled "suspected")
+  const allMemoryText = finalMemory.join(" ").toLowerCase();
+  const allSignals = data.turnLog.map(t => t.system_output?.signal ?? "").join(" ").toLowerCase();
+  const allReadings = data.turnLog.map(t => t.system_output?.detail?.reading ?? "").join(" ").toLowerCase();
+
+  // CLAIM_RISK: seller used strong assurance language in memory or signals
+  const claimRiskTerms = ["garantía", "certif", "te aseguro", "sin duda", "100% seguro", "completamente seguro", "guarantee", "certified", "i assure", "no risk", "100% safe"];
+  const suspectedClaimRisk = claimRiskTerms.some(t => allMemoryText.includes(t));
+
+  // ANALYTICAL_BUYER signals: client asked for data/numbers/methodology
+  const analyticalTerms = ["analítico", "analytical", "técnic", "dato", "número", "cifra", "rentabilidad", "metodología", "retorno", "roi", "rendimiento", "tasa", "evidencia", "data", "numbers", "methodology", "return"];
+  const hasAnalyticalSignal = analyticalTerms.some(t => allSignals.includes(t) || allReadings.includes(t) || allMemoryText.includes(t));
+
+  // UNRESOLVED_TECHNICAL_OBJ: next_step outcome + analytical signals + no "resolved" indicator in memory
+  const suspectedUnresolvedTechnical = isNextStep && hasAnalyticalSignal &&
+    !allMemoryText.includes("resuel") && !allMemoryText.includes("resolved") &&
+    !allMemoryText.includes("confirmad") && !allMemoryText.includes("confirmed");
+
+  // FALSE_CONFIDENCE: official/regulatory/audit used as argument in memory
+  const falseConfidenceTerms = ["certif", "homolog", "regulad", "oficial", "certificate", "certified", "regulated", "official", "auditoría", "audit"];
+  const suspectedFalseConfidence = falseConfidenceTerms.some(t => allMemoryText.includes(t));
+
+  // SOFT_NEXT_STEP: next_step outcome + no agreed decision criterion visible in memory
+  const decisionCriterionTerms = ["criterio", "condición", "condition", "criterion", "acordad", "agreed", "compromi", "commit"];
+  const suspectedSoftNextStep = isNextStep && !decisionCriterionTerms.some(t => allMemoryText.includes(t));
 
   // Summary
   const summary: SessionSummary = {
@@ -412,6 +443,10 @@ export function buildCopilotAuditLog(data: CopilotSessionData): AuditLog {
   if (isUnclear) auditNotes.push("no outcome declared — session may have ended prematurely");
   if (lastMomentum === "red") auditNotes.push("final momentum was RED — conversation ended in a low-energy state");
   if (data.turnLog.length === 0) auditNotes.push("no turns recorded — session may have started but analysis never ran");
+  if (suspectedClaimRisk) auditNotes.push("CLAIM_RISK detected — seller may have used assurance language without concrete evidence");
+  if (suspectedUnresolvedTechnical) auditNotes.push("UNRESOLVED_TECHNICAL_OBJ detected — technical objection may have been deferred without in-call resolution");
+  if (suspectedFalseConfidence) auditNotes.push("FALSE_CONFIDENCE detected — certification or official body may have been used as definitive proof");
+  if (suspectedSoftNextStep) auditNotes.push("SOFT_NEXT_STEP detected — next step agreed without visible decision criterion for next call");
 
   const hints: AuditHints = {
     likely_primary_failure: isLost ? "seller" : errorTurns > 0 ? "technical" : parseErrors > 0 ? "system" : "none",
@@ -420,6 +455,10 @@ export function buildCopilotAuditLog(data: CopilotSessionData): AuditLog {
     suspected_support_gap: yesno(isLost),
     suspected_close_timing_issue: yesno(isLost || lastMomentum === "amber"),
     suspected_repetition_issue: yesno(repetitionCount > 1),
+    suspected_claim_risk: yesno(suspectedClaimRisk),
+    suspected_unresolved_technical_objection: yesno(suspectedUnresolvedTechnical),
+    suspected_false_confidence: yesno(suspectedFalseConfidence),
+    suspected_soft_next_step: yesno(suspectedSoftNextStep),
     audit_notes: auditNotes.length > 0 ? auditNotes : ["no anomalies detected in this session"],
   };
 
@@ -604,6 +643,10 @@ export function buildArenaAuditLog(data: ArenaSessionData): AuditLog {
     suspected_support_gap: yesno(isLost),
     suspected_close_timing_issue: yesno(isLost || msgs.length > 20),
     suspected_repetition_issue: "no",
+    suspected_claim_risk: "no",
+    suspected_unresolved_technical_objection: "no",
+    suspected_false_confidence: "no",
+    suspected_soft_next_step: "no",
     audit_notes: auditNotes.length > 0 ? auditNotes : ["no anomalies detected in this session"],
   };
 
@@ -832,6 +875,10 @@ export function renderAuditLogMarkdown(log: AuditLog): string {
   sections.push(`suspected_support_gap: ${h.suspected_support_gap}`);
   sections.push(`suspected_close_timing_issue: ${h.suspected_close_timing_issue}`);
   sections.push(`suspected_repetition_issue: ${h.suspected_repetition_issue}`);
+  sections.push(`suspected_claim_risk: ${h.suspected_claim_risk}`);
+  sections.push(`suspected_unresolved_technical_objection: ${h.suspected_unresolved_technical_objection}`);
+  sections.push(`suspected_false_confidence: ${h.suspected_false_confidence}`);
+  sections.push(`suspected_soft_next_step: ${h.suspected_soft_next_step}`);
   sections.push("");
   sections.push("audit_notes:");
   h.audit_notes.forEach(n => sections.push(`- ${n}`));

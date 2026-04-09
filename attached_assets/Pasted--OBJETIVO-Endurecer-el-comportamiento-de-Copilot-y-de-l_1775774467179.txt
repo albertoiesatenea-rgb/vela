@@ -1,0 +1,94 @@
+## OBJETIVO
+Endurecer el comportamiento de Copilot y de la auditoría post-sesión para que detecten y penalicen sobrepromesa, vaguedad técnica, falsa seguridad y objeciones no resueltas con evidencia, especialmente en conversaciones con compradores analíticos.
+
+## CONTEXTO
+En una sesión real reciente, el sistema acompañó una llamada que terminó en `next_step`, pero el coaching y el summary fueron demasiado benevolentes.
+Problemas detectados:
+- el vendedor hizo afirmaciones amplias sin suficiente base
+- el sistema no frenó con claridad el riesgo de sobrepromesa
+- el `say_now` fue útil pero demasiado genérico en momentos críticos
+- el summary final tendió a presentar la sesión como más fuerte de lo que fue
+- hubo objeciones técnicas abiertas que se derivaron a envío posterior de documentos, pero sin penalización clara en la evaluación
+- esto es especialmente grave con perfiles analíticos
+
+No quiero rehacer todo. Quiero una mejora focalizada del comportamiento y de la auditoría.
+
+## ALCANCE
+Aplicar cambios en:
+- coaching de Copilot en tiempo real
+- evaluación post-sesión de Copilot
+- si la arquitectura actual ya permite reutilizar lógica, extender también a Arena post-sesión sin romper su flujo actual
+
+## CAMBIOS A IMPLEMENTAR
+
+### 1. Nuevo detector de riesgo conversacional
+Añadir una heurística o capa ligera que detecte estos patrones en sesiones Copilot:
+- afirmaciones amplias sin respaldo claro
+- uso de garantía, certificado o marca como prueba excesiva de seguridad o valor futuro
+- respuestas vagas a objeciones técnicas
+- frases de relleno o reencuadre sin evidencia
+- cierre aparente sin criterio real de decisión
+
+Propuesta de flags nuevos en auditoría o análisis interno:
+- `suspected_claim_risk`
+- `suspected_unresolved_technical_objection`
+- `suspected_false_confidence`
+- `suspected_soft_next_step`
+
+### 2. Ajuste del prompt de `/api/copilot/analyze`
+Modificar el prompt para que, cuando detecte comprador analítico, objeción técnica o zona gris:
+- priorice precisión frente a persuasión
+- recomiende separar explícitamente:
+  - lo confirmado
+  - lo inferido
+  - lo pendiente de prueba
+- genere `say_now` más concretos y menos genéricos
+- evite empujar a “tranquilizar” si faltan datos
+- frene sobrepromesa del vendedor si aparece
+
+Regla de comportamiento nueva:
+Si el vendedor está derivando a una afirmación demasiado segura sin base suficiente, el sistema debe corregir esa trayectoria en vez de reforzarla.
+
+### 3. Ajuste del summary / audit post-sesión
+Cambiar la lógica o el prompt de evaluación final para que penalice:
+- sobreafirmación sin evidencia
+- objeciones técnicas no cerradas con prueba concreta
+- sensación de avance fuerte cuando solo hubo siguiente paso
+- falta de criterio de decisión acordado para la siguiente llamada
+- preparación operativa floja
+
+El summary no debe devolver por defecto un estado fuerte si:
+- la sesión acaba en `next_step`
+- quedan objeciones técnicas relevantes abiertas
+- el cierre depende de documentación no revisada todavía
+
+### 4. Auditoría brutal estructurada
+Si ya estás implementando el nuevo bloque de auditoría post-sesión, asegúrate de que use o derive de estas señales nuevas y no solo de strengths/improvements genéricos.
+
+### 5. Compatibilidad con Arena
+Si el sistema actual lo permite sin ensuciar demasiado, reutiliza estas señales también en la auditoría final de Arena seller mode para que el entrenamiento penalice exactamente los mismos fallos que luego ocurren en llamadas reales.
+
+## RESTRICCIONES
+- No rehacer Copilot entero
+- No cambiar el contrato base del análisis salvo que sea compatible hacia atrás
+- No romper el flujo actual de UI ni el export del audit log
+- No instalar dependencias nuevas salvo necesidad real
+- No meter teoría de ventas decorativa
+- Mantener cambios focalizados y verificables
+
+## ENTREGABLES
+- [ ] Ajuste del prompt y/o lógica de `copilot/analyze`
+- [ ] Ajuste del summary o evaluación post-sesión de Copilot
+- [ ] Nuevas señales internas o flags de auditoría para claim risk / unresolved objection / false confidence / soft next step
+- [ ] Reflejo de esas señales en el audit log si encaja con la arquitectura actual
+- [ ] Extensión a Arena post-sesión si se puede reutilizar limpio
+- [ ] Documentación actualizada de los cambios en los `.md` relevantes si el código cambia
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] Si el vendedor usa una garantía o un certificado como prueba excesiva de seguridad o valor futuro, el sistema lo detecta como riesgo y no lo refuerza
+- [ ] Si hay objeción técnica sin evidencia suficiente, el `say_now` recomendado empuja a precisión + prueba concreta, no a persuasión genérica
+- [ ] Si una sesión termina en `next_step` con dudas importantes abiertas, la evaluación final no la presenta automáticamente como fuerte
+- [ ] La auditoría final muestra explícitamente estos fallos como relevantes cuando ocurren
+- [ ] El comportamiento con compradores analíticos es más riguroso y menos complaciente
+- [ ] La app compila sin errores
+- [ ] No hay regresión visible en el flujo actual de Copilot

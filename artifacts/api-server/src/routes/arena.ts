@@ -1349,7 +1349,9 @@ router.post("/arena/audit-report", async (req, res) => {
     difficultyDesc ? `${isEn ? "DIFFICULTY" : "DIFICULTAD"}: ${difficultyDesc}` : null,
   ].filter(Boolean).join("\n");
 
-  const schema = `{"verdict":"string","what_worked":["string"],"what_failed":["string"],"failure_owner":["usuario|timing|setup|sistema|sin fallo real — descripción"],"missed_closes":["string"],"rules_violated":["string"],"priority_changes":["string","string","string"],"prompt_patch":null,"prompt_for_replit":null,"what_i_would_have_done":"string"}`;
+  const sellerSchema = `{"verdict":"string","what_worked":["string"],"what_failed":["string"],"failure_owner":["usuario|timing|setup|sistema|sin fallo real — descripción"],"missed_closes":["string"],"rules_violated":["string"],"priority_changes":["string","string","string"],"prompt_patch":null,"prompt_for_replit":null,"what_i_would_have_done":"string","suspected_claim_risk":"yes|no","suspected_unresolved_technical_objection":"yes|no","suspected_false_confidence":"yes|no","suspected_soft_next_step":"yes|no"}`;
+  const clientSchema = `{"verdict":"string","what_worked":["string"],"what_failed":["string"],"failure_owner":["usuario|timing|setup|sistema|sin fallo real — descripción"],"missed_closes":["string"],"rules_violated":["string"],"priority_changes":["string","string","string"],"prompt_patch":null,"prompt_for_replit":null,"what_i_would_have_done":"string"}`;
+  const schema = isClient ? clientSchema : sellerSchema;
 
   let systemPrompt: string;
   if (isEn) {
@@ -1380,6 +1382,12 @@ CRITICAL RULES:
 — failure_owner: user | timing | setup | system | no real failure.
 — what_i_would_have_done: a concrete message or tactic for the key moment of the session — not vague advice.
 — prompt_patch / prompt_for_replit: null unless there's a clear system or setup error.
+RISK FLAGS — evaluate and set each:
+— suspected_claim_risk: "yes" if the user (seller) used "guarantee", "certified", "I assure you", "100% safe" or similar as a main argument without concrete evidence. "no" otherwise.
+— suspected_unresolved_technical_objection: "yes" if the AI client raised a specific technical objection (numbers, ROI, methodology, data) and it was deferred or answered with generic reframing instead of concrete evidence. "no" otherwise.
+— suspected_false_confidence: "yes" if the user used a certification, official body, or audit as definitive proof of future value or security. "no" otherwise.
+— suspected_soft_next_step: "yes" if the session ended without a clear agreed next step or decision criterion for continuing. "no" otherwise.
+— If the AI client showed an analytical profile (asked for data, numbers, methodology): evaluate whether the user responded with precision (confirmed/inferred/pending-proof) or with generic persuasion. Generic persuasion to an analytical client is a serious failure — name it specifically.
 
 Return EXACTLY this JSON, no markdown:
 ${schema}`;
@@ -1411,6 +1419,12 @@ REGLAS CRÍTICAS:
 — failure_owner: usuario | timing | setup | sistema | sin fallo real.
 — what_i_would_have_done: mensaje o táctica concreta para el momento clave de la sesión — no consejo vago.
 — prompt_patch / prompt_for_replit: null salvo error claro de sistema o setup.
+FLAGS DE RIESGO — evalúa y devuelve cada uno:
+— suspected_claim_risk: "yes" si el usuario (vendedor) usó "garantía", "certific", "te aseguro", "100% seguro", "sin riesgo" como argumento principal sin evidencia concreta. "no" en caso contrario.
+— suspected_unresolved_technical_objection: "yes" si el cliente IA planteó una objeción técnica específica (números, ROI, metodología, datos) que fue derivada a documentación o respondida con reencuadre genérico sin evidencia. "no" en caso contrario.
+— suspected_false_confidence: "yes" si el usuario usó certificación, organismo regulador o auditoría como prueba definitiva de valor o seguridad futura. "no" en caso contrario.
+— suspected_soft_next_step: "yes" si la sesión terminó sin siguiente paso claro o sin criterio de decisión acordado. "no" en caso contrario.
+— Si el cliente IA mostró perfil analítico (pidió datos, cifras, metodología, evidencia): evalúa si el usuario respondió con precisión (confirmado/inferido/pendiente de prueba) o con persuasión genérica. La persuasión genérica ante un analítico es un fallo grave — nómbralo específicamente.
 
 Devuelve EXACTAMENTE este JSON, sin markdown:
 ${schema}`;

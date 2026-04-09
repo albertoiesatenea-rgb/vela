@@ -59,6 +59,13 @@ ${OBJECTION_TAXONOMY_BLOCK.es}
 
 ${COMPARISON_RULE_BLOCK.es}
 
+DETECCIÓN DE RIESGO — evalúa antes de generar say_now:
+CLAIM_RISK: el vendedor usa "garantía", "certific", "te aseguro", "sin duda", "100% seguro", "completamente seguro" o similar como argumento principal de valor o seguridad futura → say_now pide separación explícita: qué está confirmado, qué es inferido, qué está pendiente de prueba. avoid señala el riesgo concreto. No refuerces la afirmación.
+FALSE_CONFIDENCE: el vendedor usa certificación, auditoría, organismo regulador u oficial como prueba definitiva de seguridad o rentabilidad futura → say_now redirige a datos concretos verificables. avoid nombra el riesgo.
+UNRESOLVED_TECHNICAL_OBJ: el cliente pregunta por cifras, rentabilidad, retorno, tasa, datos o metodología específica, y el vendedor responde con reencuadre genérico sin datos → say_now pivota a precisión: recomienda aportar el dato concreto o reconocer explícitamente lo que no se puede confirmar todavía. No validar la respuesta genérica.
+ANALYTICAL_BUYER: el cliente pide datos, criterios precisos, evidencia o metodología → say_now responde con precisión, nunca con persuasión genérica. Prioriza separar: confirmado / inferido / pendiente de prueba.
+Si no hay riesgo detectado: procede con el flujo táctico normal.
+
 SAY_NOW: 4-12 palabras, imperativo, una acción, útil en llamada real.
 ✓ "concreta si teme costes anuales o derramas" ✓ "pregunta qué criterio le frena exactamente"
 ✗ "explora sus preocupaciones" ✗ "valida sus emociones" ✗ "profundiza más"
@@ -449,14 +456,18 @@ TONO: honesto, táctico. Sin coach barato. Sin frases genéricas.`)
 Return EXACTLY this JSON, no markdown, no extra text:
 {"score":7.4,"global_state":"strong","result_label":"Next step agreed","strengths":["s1","s2"],"improvements":["i1","i2"],"full_report":${wantsFullReport ? '"report text"' : "null"}}
 
-SCORING (0-10, result-weighted):
-8.5-9.5: Real close or solid next step, good execution, no major errors
-7.5-8.4: Clear advance, good tactical direction, room for improvement
+SCORING (0-10, conditional on execution quality):
+8.5-9.5: Real close, good execution, no unresolved technical objections, no overclaiming
+7.5-8.4: Clear next step, good execution, no unresolved technical objections, no overclaiming
 6.0-7.4: Workable, partial progress, visible tactical weaknesses
 4.0-5.9: Weak result, relevant errors, inconsistent control
 0-3.9: Failed call or no real advance
-KEY RULE: outcome=closed|next_step with no major errors → base score ≥8.0.
-Short efficient calls are NOT penalized for brevity.
+CONDITIONAL CAPS — apply before scoring:
+— next_step + major technical objection deferred to documents without in-call resolution → cap 6.5
+— next_step + overclaiming, false guarantee, or "100% safe" used as main argument → cap 6.5
+— next_step + no agreed decision criterion for next call → penalize, note as weakness
+— next_step with any of the above: global_state CANNOT be "strong". Use "solid", "workable", or weaker.
+Short efficient calls are NOT penalized for brevity. But softness IS penalized.
 
 GLOBAL STATE: 1-2 words (strong/solid/advancing/workable/weak/blocked/lost/open)
 STRENGTHS: 2-3 specific tactical observations. No generic praise.
@@ -468,14 +479,18 @@ ${fullReportInstructions}`
 Devuelve EXACTAMENTE este JSON, sin markdown, sin texto extra:
 {"score":7.4,"global_state":"fuerte","result_label":"Siguiente paso acordado","strengths":["f1","f2"],"improvements":["m1","m2"],"full_report":${wantsFullReport ? '"texto del reporte"' : "null"}}
 
-PUNTUACIÓN (0-10, orientada a resultado):
-8.5-9.5: Cierre real o siguiente paso sólido, buena ejecución, sin errores graves
-7.5-8.4: Avance claro, buena dirección táctica, con mejoras posibles
+PUNTUACIÓN (0-10, condicional por calidad de ejecución):
+8.5-9.5: Cierre real, buena ejecución, sin objeciones técnicas abiertas, sin sobrepromesa
+7.5-8.4: Siguiente paso claro, buena ejecución, sin objeciones técnicas abiertas, sin sobrepromesa
 6.0-7.4: Llamada trabajable, progreso parcial, debilidades tácticas evidentes
 4.0-5.9: Resultado débil, errores relevantes, control irregular
 0-3.9: Llamada fallida o sin avance real
-REGLA CLAVE: resultado=closed|next_step sin errores graves → score base ≥8.0.
-Llamadas cortas y eficaces NO se penalizan por brevedad.
+LÍMITES CONDICIONALES — aplica antes de puntuar:
+— siguiente paso + objeción técnica relevante derivada a documentación sin resolver en llamada → máximo 6.5
+— siguiente paso + sobrepromesa, garantía falsa o "100% seguro" usado como argumento principal → máximo 6.5
+— siguiente paso + sin criterio de decisión acordado para la próxima llamada → penalizar, señalar como debilidad
+— siguiente paso con cualquiera de los anteriores: global_state NO puede ser "fuerte". Usar "sólida", "trabajable" o menor.
+Llamadas cortas y eficaces NO se penalizan por brevedad. Pero la blandura SÍ se penaliza.
 
 ESTADO GLOBAL: 1-2 palabras (fuerte/sólida/avanzando/trabajable/floja/bloqueada/perdida/abierta)
 PUNTOS FUERTES: 2-3 observaciones tácticas específicas. Sin elogios genéricos.
@@ -555,7 +570,7 @@ router.post("/copilot/audit-report", async (req, res) => {
   const outcomeText = outcome ?? (isEn ? "unknown" : "desconocido");
   const contextText = context?.trim() ? `\n${isEn ? "SESSION CONTEXT" : "CONTEXTO"}: ${context.trim()}` : "";
 
-  const schema = `{"verdict":"string","what_worked":["string"],"what_failed":["string"],"failure_owner":["vendedor|timing|sistema|técnico|setup|sin fallo real — descripción"],"missed_closes":["string"],"rules_violated":["string"],"priority_changes":["string","string","string"],"prompt_patch":null,"prompt_for_replit":null,"what_i_would_have_done":"string"}`;
+  const schema = `{"verdict":"string","what_worked":["string"],"what_failed":["string"],"failure_owner":["vendedor|timing|sistema|técnico|setup|sin fallo real — descripción"],"missed_closes":["string"],"rules_violated":["string"],"priority_changes":["string","string","string"],"prompt_patch":null,"prompt_for_replit":null,"what_i_would_have_done":"string","suspected_claim_risk":"yes|no","suspected_unresolved_technical_objection":"yes|no","suspected_false_confidence":"yes|no","suspected_soft_next_step":"yes|no"}`;
 
   const systemPrompt = isEn
     ? `You are a sales call auditor with very high standards. You receive the tactical memory of a real conversation and return a brutal, specific, actionable post-session audit. No filler, no empty praise.
@@ -571,6 +586,12 @@ CRITICAL RULES:
 — what_i_would_have_done: a concrete alternative tactic or phrase for the key moment of the call. Not vague.
 — prompt_patch: only if you detect a clear coaching system error (bad advice from the AI model). Otherwise null.
 — prompt_for_replit: only if there's a clear tool setup issue to fix. Otherwise null.
+RISK FLAGS — evaluate carefully and set each:
+— suspected_claim_risk: "yes" if the seller used "guarantee", "certified", "I assure you", "100% safe", "no risk" or similar as a main argument without concrete evidence. "no" otherwise.
+— suspected_unresolved_technical_objection: "yes" if the client raised a specific technical objection (numbers, ROI, methodology, data) and it was deferred to documents or answered with generic reframing instead of concrete evidence. "no" otherwise.
+— suspected_false_confidence: "yes" if the seller used an official certification, regulatory body, or audit as definitive proof of future value or security. "no" otherwise.
+— suspected_soft_next_step: "yes" if the session ended in a next step with no agreed decision criterion for the next call. "no" otherwise.
+— If the buyer showed an analytical profile (asked for data, numbers, methodology): evaluate whether the seller responded with precision (confirmed/inferred/pending-proof) or with generic persuasion. Generic persuasion to an analytical buyer is a serious failure — name it.
 
 Return EXACTLY this JSON, no markdown, no extra text:
 ${schema}`
@@ -587,6 +608,12 @@ REGLAS CRÍTICAS:
 — what_i_would_have_done: alternativa táctica concreta para el momento clave de la llamada. No vaga.
 — prompt_patch: solo si detectas un error claro del sistema de coaching (consejo malo del modelo). Si no, null.
 — prompt_for_replit: solo si hay un problema claro de setup de la herramienta a corregir. Si no, null.
+FLAGS DE RIESGO — evalúa con criterio y devuelve cada uno:
+— suspected_claim_risk: "yes" si el vendedor usó "garantía", "certific", "te aseguro", "100% seguro", "sin riesgo" o similar como argumento principal sin evidencia concreta. "no" en caso contrario.
+— suspected_unresolved_technical_objection: "yes" si el cliente planteó una objeción técnica específica (números, ROI, metodología, datos) y fue derivada a documentación o respondida con reencuadre genérico en lugar de evidencia concreta. "no" en caso contrario.
+— suspected_false_confidence: "yes" si el vendedor usó una certificación oficial, organismo regulador o auditoría como prueba definitiva de valor o seguridad futura. "no" en caso contrario.
+— suspected_soft_next_step: "yes" si la sesión terminó en siguiente paso sin criterio de decisión acordado para la próxima llamada. "no" en caso contrario.
+— Si el comprador mostró perfil analítico (pidió datos, cifras, metodología, evidencia): evalúa si el vendedor respondió con precisión (confirmado/inferido/pendiente de prueba) o con persuasión genérica. La persuasión genérica ante un analítico es un fallo grave — nómbralo específicamente.
 
 Devuelve EXACTAMENTE este JSON, sin markdown, sin texto extra:
 ${schema}`;
