@@ -192,3 +192,9 @@ id = "wFgJ4Vqfa2G1UvFsR7SjA"
 uri = "file://docs/07-audit-log.md"
 type = "text"
 title = "07 — Audit Log"
+
+[[outputs]]
+id = "ogdu_ii1xFsGfsWo-SRYD"
+uri = "file://closer-wizard-docs.tar.gz"
+type = "unspecified"
+title = "closer-wizard-docs.tar.gz — 7 archivos .md"
