@@ -1,5 +1,5 @@
 /**
- * Closer Wizard — AI Monitor Panel
+ * VELA — AI Monitor Panel
  * Tactical cost/token monitor. Pinnable. KPIs-first. Alerts on anomalies.
  * Toggle: "AI $" button (bottom-right) or Ctrl+Shift+D.
  */

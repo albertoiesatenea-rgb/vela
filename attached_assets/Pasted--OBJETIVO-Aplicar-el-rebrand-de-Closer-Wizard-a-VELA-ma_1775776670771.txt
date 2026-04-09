@@ -1,0 +1,47 @@
+## OBJETIVO
+Aplicar el rebrand de `Closer Wizard` a `VELA` manteniendo el símbolo triangular actual como base, pero eliminando la base horizontal del sombrero y conservando las franjas internas que forman la identidad visual.
+
+## CONTEXTO
+- El símbolo actual tiene una lectura potente:
+  - triángulo / vela / dirección / copiloto
+  - franjas internas que recuerdan a combate / arena / espadas cruzadas
+- No quiero convertirlo en un triángulo sólido opaco.
+- No quiero mantener la base horizontal inferior del sombrero.
+- Quiero conservar la geometría triangular con sus cortes/franjas internas como parte esencial de la marca.
+- El nuevo nombre visible debe ser `VELA`.
+- Se mantienen los modos `Copiloto` y `Arena`.
+- Se mantiene por ahora el subtítulo `Inteligencia táctica conversacional`.
+
+## CAMBIOS A IMPLEMENTAR
+1. Sustituir el nombre visible `Closer Wizard` por `VELA`.
+2. Actualizar el logomark:
+   - eliminar la base horizontal inferior
+   - conservar la silueta triangular
+   - conservar las franjas/cortes internos del símbolo
+   - no convertir el símbolo en un triángulo opaco sin detalle
+3. Mantener el símbolo en monocromo y coherente con la estética actual.
+4. Mantener `Copiloto`, `Arena` tal como están. 
+5. Ajustar el header solo lo necesario para que el nuevo logo y wordmark respiren bien.
+
+## RESTRICCIONES
+- No rehacer la interfaz.
+- No tocar la lógica del producto.
+- No introducir estética fantasy.
+- No añadir color extra innecesario.
+- No simplificar el símbolo hasta perder las franjas internas.
+- No volver al sombrero con base.
+
+## ENTREGABLES
+- [ ] Wordmark `VELA` en la UI principal
+- [ ] Logomark triangular sin base inferior
+- [ ] Franjas internas conservadas
+- [ ] Header visualmente equilibrado
+- [ ] Favicon/icono ajustado si aplica
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] El símbolo sigue leyendo como vela/dirección
+- [ ] Las franjas internas siguen visibles y reconocibles
+- [ ] El logo ya no parece un sombrero literal
+- [ ] El branding encaja con `Copiloto` y `Arena`
+- [ ] No se rompe el layout actual
+- [ ] La app compila sin errores

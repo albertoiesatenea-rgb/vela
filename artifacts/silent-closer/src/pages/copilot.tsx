@@ -3,7 +3,7 @@ import { Mic, Keyboard, Loader2, AlertCircle, ExternalLink, ChevronDown, Info } 
 import { useAnalyzeConversation } from "@workspace/api-client-react";
 import { useSpeech } from "@/hooks/use-speech";
 import { TacticalDisplay } from "@/components/tactical-display";
-import { ContextSetup, SessionBar, WizardIcon } from "@/components/context-panel";
+import { ContextSetup, SessionBar, VelaIcon } from "@/components/context-panel";
 import type { ArenaConfig, AppMode } from "@/components/context-panel";
 import { Arena } from "@/pages/arena";
 import type { ArenaRole } from "@/pages/arena";
@@ -15,9 +15,9 @@ import { DebugPanel } from "@/components/debug-panel";
 function WizardOverlayHeader() {
   return (
     <div className="flex items-center gap-2 mb-1">
-      <WizardIcon className="w-5 h-5 text-zinc-400 shrink-0" />
+      <VelaIcon className="w-5 h-5 text-zinc-400 shrink-0" />
       <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-zinc-400">
-        Closer Wizard
+        VELA
       </span>
     </div>
   );
@@ -919,7 +919,7 @@ export default function CopilotPage() {
     if (!callSummary) return "";
     const isEs = lang === "es";
     const lines = [
-      "CLOSER WIZARD",
+      "VELA",
       "",
       `${isEs ? "Resultado" : "Result"}: ${callSummary.resultLabel}`,
       `Score: ${callSummary.score.toFixed(1)} / 10`,
@@ -939,7 +939,7 @@ export default function CopilotPage() {
     if (!callSummary?.fullReport) return "";
     const isEs = lang === "es";
     const header = [
-      "CLOSER WIZARD",
+      "VELA",
       "",
       `${isEs ? "Resultado" : "Result"}: ${callSummary.resultLabel}`,
       `Score: ${callSummary.score.toFixed(1)} / 10`,

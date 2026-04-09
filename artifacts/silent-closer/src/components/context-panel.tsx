@@ -14,30 +14,29 @@ export interface ArenaConfig {
 
 export type AppMode = "copilot" | "arena";
 
-// ── Closer Wizard mark: cone + crossing lines + flat brim ────────────────────
-// SVG mask approach: white cone polygon masked by two black diagonal lines that
-// cross in the lower third — divides the cone into exactly 3 white polygons:
-//   1. Upper triangle (main hat body)
-//   2. Lower-left corner triangle
-//   3. Lower-right corner triangle
-// Flat rounded-rect brim below with a visible gap.
-function WizardIcon({ className }: { className?: string }) {
+// ── VELA mark: triangular sail + two internal diagonal cuts ───────────────────
+// SVG mask approach: triangle polygon masked by two black diagonal lines that
+// cross in the lower half — creates 3 visible segments reading as a sail/vela:
+//   1. Upper apex (direction / point)
+//   2. Lower-left wing
+//   3. Lower-right wing
+// No base — pure geometric sail silhouette.
+function VelaIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 20 20" className={className} aria-hidden>
       <defs>
-        <mask id="wiz-hat-mask">
-          <polygon points="10,1.5 5.5,13 14.5,13" fill="white" />
-          <line x1="7" y1="9" x2="14.5" y2="13" stroke="black" strokeWidth="1.2" />
-          <line x1="13" y1="9" x2="5.5" y2="13" stroke="black" strokeWidth="1.2" />
+        <mask id="vela-mark-mask">
+          <polygon points="10,1.5 4,18 16,18" fill="white" />
+          <line x1="7" y1="9" x2="16" y2="18" stroke="black" strokeWidth="1.3" />
+          <line x1="13" y1="9" x2="4" y2="18" stroke="black" strokeWidth="1.3" />
         </mask>
       </defs>
-      <polygon points="10,1.5 5.5,13 14.5,13" fill="currentColor" mask="url(#wiz-hat-mask)" />
-      <rect x="1.5" y="14" width="17" height="2.5" rx="1.25" fill="currentColor" />
+      <polygon points="10,1.5 4,18 16,18" fill="currentColor" mask="url(#vela-mark-mask)" />
     </svg>
   );
 }
 
-export { WizardIcon };
+export { VelaIcon };
 
 type Lang = "es" | "en";
 type ContextMode = "quick" | "advanced";
@@ -770,10 +769,10 @@ export function ContextSetup({
         {/* ── Brand row ─────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <WizardIcon className="w-9 h-9 text-white shrink-0" />
+            <VelaIcon className="w-9 h-9 text-white shrink-0" />
             <div className="flex flex-col gap-1">
               <h1 className="text-2xl font-mono font-bold text-white tracking-[0.12em] uppercase leading-none">
-                Closer Wizard
+                VELA
               </h1>
               <p className="text-[10px] font-mono text-zinc-500 tracking-[0.2em] uppercase">
                 {t.SUBTITLE}
@@ -1119,9 +1118,9 @@ export function SessionBar({
       >
         <div className="flex items-center gap-2 flex-1 min-w-0 pr-3">
           {/* Brand mark — icon + wordmark as persistent identity anchor */}
-          <WizardIcon className="w-2.5 h-2.5 text-zinc-400 shrink-0" />
+          <VelaIcon className="w-2.5 h-2.5 text-zinc-400 shrink-0" />
           <span className="text-[8px] font-mono tracking-[0.25em] uppercase text-zinc-400 shrink-0">
-            Closer Wizard
+            VELA
           </span>
           <div className="w-px h-2.5 bg-zinc-800 shrink-0" />
           {/* Session indicator */}

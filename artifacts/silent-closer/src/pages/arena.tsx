@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Loader2, Sun, Moon, Sparkles, Trophy, TrendingUp, StickyNote, GraduationCap, Download } from "lucide-react";
-import { WizardIcon } from "@/components/context-panel";
+import { VelaIcon } from "@/components/context-panel";
 import { cn } from "@/lib/utils";
 import { buildArenaAuditLog, triggerAuditLogDownload } from "@/lib/audit-log";
 import { useTheme } from "@/hooks/use-theme";
@@ -1155,7 +1155,7 @@ export function Arena({
     }).join("\n\n");
     const critiqueLines = summary.debrief?.critique.map((c, i) => `${i + 1}. ${c}`).join("\n") ?? "";
     const sections: string[] = [
-      isEs ? "# Informe de sesión — Closer Wizard Arena" : "# Session Report — Closer Wizard Arena",
+      isEs ? "# Informe de sesión — VELA Arena" : "# Session Report — VELA Arena",
       "",
       `**${isEs ? "Fecha" : "Date"}:** ${date}`,
       `**${isEs ? "Contexto" : "Context"}:** ${summary.context || "—"}`,
@@ -1212,8 +1212,8 @@ export function Arena({
 
           {/* Brand */}
           <div className="flex items-center gap-2">
-            <WizardIcon className="w-4 h-4 text-zinc-400" />
-            <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-zinc-400">Closer Wizard</span>
+            <VelaIcon className="w-4 h-4 text-zinc-400" />
+            <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-zinc-400">VELA</span>
             <span className="text-zinc-700 text-[10px]">·</span>
             <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-zinc-500">{t.ARENA}</span>
           </div>
@@ -1550,8 +1550,8 @@ export function Arena({
             className="flex items-center gap-1.5 shrink-0 group"
             title={t.EXIT}
           >
-            <WizardIcon className="w-2.5 h-2.5 text-zinc-400 group-hover:text-white transition-colors" />
-            <span className="text-[8px] tracking-[0.25em] uppercase text-zinc-400 group-hover:text-white transition-colors">Closer Wizard</span>
+            <VelaIcon className="w-2.5 h-2.5 text-zinc-400 group-hover:text-white transition-colors" />
+            <span className="text-[8px] tracking-[0.25em] uppercase text-zinc-400 group-hover:text-white transition-colors">VELA</span>
           </button>
           <div className="w-px h-2.5 bg-zinc-800 shrink-0" />
           <button

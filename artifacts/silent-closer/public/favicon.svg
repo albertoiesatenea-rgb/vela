@@ -1,3 +1,11 @@
 <svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect width="180" height="180" rx="36" fill="#FF3C00"/>
+  <rect width="180" height="180" rx="36" fill="#000000"/>
+  <defs>
+    <mask id="vela-favicon-mask">
+      <polygon points="90,14 36,162 144,162" fill="white"/>
+      <line x1="63" y1="81" x2="144" y2="162" stroke="black" stroke-width="11.7"/>
+      <line x1="117" y1="81" x2="36" y2="162" stroke="black" stroke-width="11.7"/>
+    </mask>
+  </defs>
+  <polygon points="90,14 36,162 144,162" fill="white" mask="url(#vela-favicon-mask)"/>
 </svg>

@@ -1,8 +1,8 @@
 /**
- * Closer Wizard — Unified Audit Log System
+ * VELA — Unified Audit Log System
  *
  * Produces forensic, audit-ready markdown logs for both Copiloto and Arena modes.
- * Compatible with the Closer Wizard Auditor GPT without additional explanation.
+ * Compatible with the VELA Auditor GPT without additional explanation.
  *
  * Pipeline: raw session data → buildCopilotAuditLog / buildArenaAuditLog
  *           → AuditLog typed object → renderAuditLogMarkdown → .md file
@@ -659,7 +659,7 @@ export function renderAuditLogMarkdown(log: AuditLog): string {
   const sections: string[] = [];
 
   // ── Header
-  sections.push("# CLOSER WIZARD AUDIT LOG");
+  sections.push("# VELA AUDIT LOG");
   sections.push("");
 
   // ── SESSION_META
