@@ -198,3 +198,9 @@ id = "ogdu_ii1xFsGfsWo-SRYD"
 uri = "file://closer-wizard-docs.tar.gz"
 type = "unspecified"
 title = "closer-wizard-docs.tar.gz — 7 archivos .md"
+
+[[outputs]]
+id = "QpDbnwqETl-_c-HXL97GA"
+uri = "file://closer-wizard-doc-refresh-extra.tar.gz"
+type = "unspecified"
+title = "closer-wizard-doc-refresh-extra.tar.gz — 4 archivos .md"
