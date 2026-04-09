@@ -1,0 +1,54 @@
+## OBJETIVO
+Refinar el nuevo branding de `VELA` en la home/setup para mejorar jerarquía visual, presencia del header y legibilidad del subtítulo, sin cambiar el concepto ya implementado.
+
+## CONTEXTO
+- El rebrand de `Closer Wizard` a `VELA` ya está hecho y la dirección es correcta.
+- El símbolo triangular con franjas internas funciona bien y debe mantenerse tal cual en concepto.
+- No quiero rehacer el branding.
+- Quiero una pasada fina de ajuste visual para que el header tenga más presencia y se vea más sólido.
+
+## TAREAS
+1. Revisar la jerarquía visual del header de marca:
+   - `VELA`
+   - símbolo
+   - subtítulo `Inteligencia táctica conversacional`
+
+2. Ajustar con criterio:
+   - tamaño del wordmark `VELA`
+   - tamaño del símbolo
+   - separación entre símbolo y wordmark
+   - tamaño/contraste/tracking del subtítulo
+   - equilibrio general del bloque de marca
+
+3. Mantener intacto el concepto del logo:
+   - silueta triangular
+   - franjas internas
+   - sin base inferior
+   - monocromo
+
+4. Revisar si el bloque principal puede ganar algo de presencia vertical o colocación sin rehacer el layout completo.
+
+5. En dark mode, aprovechar esta pasada para mejorar ligeramente la legibilidad del subtítulo y textos secundarios del header si siguen demasiado apagados.
+
+## RESTRICCIONES
+- No cambiar nombre.
+- No cambiar concepto del símbolo.
+- No volver al logo antiguo.
+- No tocar la lógica del producto.
+- No rehacer la pantalla.
+- No meter color nuevo.
+- No alterar textos funcionales como `Rápido`, `Avanzado` o `Iniciar copiloto`.
+
+## ENTREGABLES
+- [ ] Header de `VELA` con mejor presencia visual
+- [ ] Subtítulo más legible y mejor equilibrado
+- [ ] Espaciado refinado entre icono, wordmark y subtítulo
+- [ ] Ajuste fino consistente en light y dark mode
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] `VELA` gana presencia sin romper la sobriedad actual
+- [ ] El símbolo sigue funcionando igual de bien
+- [ ] El subtítulo se lee mejor
+- [ ] El bloque de marca se siente más sólido y menos tímido
+- [ ] No hay regresión de layout
+- [ ] La app compila sin errores

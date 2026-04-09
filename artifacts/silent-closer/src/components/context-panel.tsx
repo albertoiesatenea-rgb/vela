@@ -768,13 +768,13 @@ export function ContextSetup({
 
         {/* ── Brand row ─────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <VelaIcon className="w-9 h-9 text-white shrink-0" />
-            <div className="flex flex-col gap-1">
-              <h1 className="text-2xl font-mono font-bold text-white tracking-[0.12em] uppercase leading-none">
+          <div className="flex items-center gap-4">
+            <VelaIcon className="w-11 h-11 text-white shrink-0" />
+            <div className="flex flex-col gap-1.5">
+              <h1 className="text-3xl font-mono font-bold text-white tracking-[0.18em] uppercase leading-none">
                 VELA
               </h1>
-              <p className="text-[10px] font-mono text-zinc-500 tracking-[0.2em] uppercase">
+              <p className="text-[11px] font-mono text-zinc-400 tracking-[0.16em] uppercase">
                 {t.SUBTITLE}
               </p>
             </div>
