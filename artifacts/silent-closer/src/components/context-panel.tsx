@@ -396,7 +396,7 @@ function ArenaAdvancedForm({
           onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); goNext(); } }}
           placeholder={placeholders[step]}
           autoFocus
-          className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors font-mono"
+          className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-600 transition-colors font-mono"
         />
       </div>
 
@@ -482,7 +482,7 @@ function AdvancedForm({ onSubmit, lang, ctaLabel, children }: { onSubmit: (conte
           onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); goNext(); } }}
           placeholder={t.ADV_PH[step]}
           autoFocus
-          className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors font-mono"
+          className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-600 transition-colors font-mono"
         />
       </div>
 
@@ -917,7 +917,7 @@ export function ContextSetup({
                 rows={3}
                 disabled={isGeneratingCtx}
                 className={cn(
-                  "w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 pr-12 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors font-mono resize-none leading-relaxed",
+                  "w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 pr-12 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-600 transition-colors font-mono resize-none leading-relaxed",
                   isGeneratingCtx && "opacity-40 animate-pulse"
                 )}
               />

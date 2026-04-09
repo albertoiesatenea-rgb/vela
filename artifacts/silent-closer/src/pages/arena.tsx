@@ -1717,7 +1717,7 @@ export function Arena({
                 placeholder={t.CLIENT_EXIT_REASON_PH}
                 autoFocus
                 rows={2}
-                className="w-full bg-transparent border border-zinc-800 rounded-lg px-3 py-2 text-xs font-mono text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors resize-none"
+                className="w-full bg-transparent border border-zinc-800 rounded-lg px-3 py-2 text-xs font-mono text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-600 transition-colors resize-none"
               />
               <div className="flex gap-2">
                 <button
@@ -1750,7 +1750,7 @@ export function Arena({
                   rows={3}
                   disabled={isStarting || isSending}
                   autoFocus
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 pr-9 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors resize-none leading-relaxed disabled:opacity-40"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 pr-9 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-600 transition-colors resize-none leading-relaxed disabled:opacity-40"
                 />
                 <button
                   onClick={() => void fetchSuggestion()}
@@ -1819,7 +1819,7 @@ export function Arena({
                     }}
                     placeholder={lang === "es" ? "Instrucción al vendedor — Enter para enviar" : "Seller instruction — Enter to send"}
                     disabled={isSending}
-                    className="flex-1 min-w-0 bg-transparent border-b border-zinc-800 focus:border-zinc-600 text-[11px] font-mono text-white placeholder:text-zinc-700 focus:outline-none py-1 transition-colors disabled:opacity-40"
+                    className="flex-1 min-w-0 bg-transparent border-b border-zinc-800 focus:border-zinc-600 text-[11px] font-mono text-white placeholder:text-zinc-500 focus:outline-none py-1 transition-colors disabled:opacity-40"
                   />
                   {noteCount > 0 && (
                     <span className="text-[8px] font-mono text-sky-400 tabular-nums shrink-0">{noteCount}</span>
@@ -1836,7 +1836,7 @@ export function Arena({
                   rows={2}
                   disabled={isStarting || isSending}
                   autoFocus
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors resize-none leading-relaxed disabled:opacity-40"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-600 transition-colors resize-none leading-relaxed disabled:opacity-40"
                 />
                 {messages.length >= 1 && (
                   <div

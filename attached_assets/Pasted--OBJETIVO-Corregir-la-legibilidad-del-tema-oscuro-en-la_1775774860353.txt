@@ -1,0 +1,78 @@
+## OBJETIVO
+Corregir la legibilidad del tema oscuro en la UI para que todos los textos relevantes tengan contraste suficiente y se lean cómodamente sin romper la estética actual del modo oscuro.
+
+## CONTEXTO
+- El modo claro funciona bien.
+- En dark mode, algunos textos secundarios, placeholders, labels, helper text o texto dentro de inputs/controles usan grises demasiado apagados sobre fondos muy oscuros.
+- En la captura actual se ve especialmente en:
+  - placeholder/contexto del textarea principal
+  - textos secundarios de la interfaz
+  - algunos labels o estados menos prominentes
+- No quiero rediseñar el tema. Quiero mantener la estética actual y solo ajustar la escala tonal para mejorar legibilidad real.
+
+## PROBLEMA A RESOLVER
+En dark mode, el sistema está usando tonos de texto con contraste insuficiente frente al fondo.
+Resultado:
+- fatiga visual
+- peor lectura rápida
+- sensación de interfaz más “apagada” de lo que debería
+- pérdida de claridad en elementos importantes pero no primarios
+
+## TAREAS
+1. Revisa el sistema de colores del tema oscuro y localiza todos los tokens, clases o estilos usados para:
+   - texto principal
+   - texto secundario
+   - texto terciario
+   - placeholder
+   - labels
+   - texto dentro de inputs / textarea / toggles / tabs / cards
+   - texto muted o subtle
+
+2. Ajusta solo dark mode para que:
+   - el texto principal siga siendo claro y contundente
+   - el texto secundario gane contraste
+   - el texto muted siga siendo jerárquicamente más suave, pero siga siendo legible
+   - los placeholders no queden tan lavados que cueste leerlos
+
+3. Si hoy hay colores hardcodeados en componentes, unifícalos con tokens o clases reutilizables para evitar inconsistencias entre pantallas.
+
+4. Revisa como mínimo estas zonas:
+   - pantalla de inicio / setup
+   - textarea de contexto
+   - toggles de modo y idioma
+   - tabs Copiloto / Arena
+   - botones secundarios
+   - cards, labels y textos auxiliares
+   - cualquier texto gris sobre fondo casi negro
+
+5. Mantén el look actual:
+   - no aclares el fondo global
+   - no conviertas dark mode en gris claro
+   - no cambies la identidad visual
+   - solo mejora la legibilidad real
+
+## RESTRICCIONES
+- No tocar el tema claro salvo que haya una dependencia técnica mínima.
+- No rehacer el sistema visual entero.
+- No cambiar spacing, layout ni tipografía salvo necesidad puntual.
+- No meter librerías nuevas.
+- No usar parches aislados si se puede resolver con una escala coherente de color en dark mode.
+
+## ENTREGABLES
+- [ ] Ajuste del sistema de colores/text tokens del tema oscuro
+- [ ] Corrección visual en textos secundarios y placeholders
+- [ ] Revisión de componentes clave para evitar grises demasiado apagados
+- [ ] Aplicación consistente en setup, inputs, toggles, tabs y textos auxiliares
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] En dark mode, cualquier texto relevante se lee con comodidad sin esfuerzo extra
+- [ ] Los placeholders siguen siendo placeholders, pero no quedan casi invisibles
+- [ ] El texto secundario mantiene jerarquía respecto al principal, pero ya no se pierde contra el fondo
+- [ ] No se rompe la estética actual del modo oscuro
+- [ ] El modo claro sigue viéndose igual de bien
+- [ ] No hay componentes con colores hardcodeados inconsistentes entre pantallas
+- [ ] La app compila sin errores
+
+## NOTA DE IMPLEMENTACIÓN
+Si tienes que elegir entre “verse elegante” y “leerse bien”, prioriza legibilidad.
+Quiero un dark mode sobrio, no un dark mode apagado.

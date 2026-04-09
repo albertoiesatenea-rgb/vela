@@ -54,12 +54,15 @@
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 98%;
 
-  /* ── Dark mode legibility: bump zinc grays so text is readable on black ── */
-  /* Standard zinc-500 (#71717a) is only 3.2:1 on black — WCAG fail for small text */
-  /* Standard zinc-600 (#52525b) is only 2.3:1 on black — too dark               */
-  --color-zinc-500: #a1a1aa;  /* ↑ from #71717a → 5.9:1 on black ✓ */
-  --color-zinc-600: #71717a;  /* ↑ from #52525b → 3.2:1 on black (decorative uses only) */
-  --color-zinc-700: #52525b;  /* ↑ from #3f3f46 → 2.3:1 on black (borders / separators only) */
+  /* ── Dark mode legibility: zinc scale tuned for black bg ────────────── */
+  /* Standard zinc colors are designed for light mode; on pure black they  */
+  /* need to be bumped significantly to reach WCAG AA (4.5:1 small text). */
+  --color-zinc-500: #b4b4bc;  /* ↑ from #71717a → ~8:1 on black — labels, subtitles, status */
+  --color-zinc-600: #909099;  /* ↑ from #52525b → ~5:1 on black — muted text, helper hints  */
+  --color-zinc-700: #52525b;  /* ↑ from #3f3f46 → 2.3:1 — borders / separators only        */
+
+  /* Muted foreground also needs a bump (0 0% 50% = #808080 = 3.5:1 fail) */
+  --muted-foreground: 0 0% 58%; /* → #949494 ≈ 4.9:1 on black ✓ */
 }
 
 /* ── Light theme ──────────────────────────────────────────────────── */

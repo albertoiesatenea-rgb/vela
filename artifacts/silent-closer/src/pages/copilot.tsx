@@ -1410,7 +1410,7 @@ export default function CopilotPage() {
               }}
               placeholder={T[lang].PASTE_PLACEHOLDER}
               rows={2}
-              className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors font-mono resize-none"
+              className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-600 transition-colors font-mono resize-none"
               autoFocus
             />
             <button
