@@ -770,17 +770,16 @@ export function ContextSetup({
     <div className="fixed inset-0 bg-black flex flex-col items-center justify-center px-6 overflow-y-auto py-6">
       <div className="w-full max-w-lg flex flex-col gap-4">
 
-        {/* ── Brand stamp — compact, product-first ───────────────────────── */}
-        {/* Variant B: brand as ambient mark, not corporate header.            */}
-        {/* Reference: session-bar lockup (w-2.5 icon / text-[8px]) scaled up  */}
-        {/* just enough for home-screen legibility. No subtitle — the product   */}
-        {/* UI (mode tabs, textarea, CTA) carries the visual weight instead.    */}
+        {/* ── Brand lockup — calibrated middle ground ────────────────────── */}
+        {/* w-8 icon / text-xl wordmark: 67% of the old "too large" block,     */}
+        {/* twice the current "too small" stamp. White anchors the screen       */}
+        {/* without feeling corporate. No subtitle keeps it product-first.     */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <VelaIcon className="w-5 h-5 text-zinc-400 shrink-0" />
-            <span className="text-xs font-mono font-bold tracking-[0.28em] uppercase text-zinc-400 leading-none">
+          <div className="flex items-center gap-2">
+            <VelaIcon className="w-8 h-8 text-white shrink-0" />
+            <h1 className="text-xl font-mono font-bold text-white tracking-[0.2em] uppercase leading-none">
               VELA
-            </span>
+            </h1>
           </div>
           <div className="flex items-center gap-2">
             {/* Theme toggle */}

@@ -1,0 +1,45 @@
+## OBJETIVO
+Corregir la jerarquía del branding en la home/setup porque la versión actual ha quedado demasiado pequeña y tímida, perdiendo demasiada presencia visual.
+
+## CONTEXTO
+- Antes el branding de la home era demasiado grande e institucional.
+- Se intentó compactarlo tomando como referencia el lockup pequeño que funciona bien en la barra de sesión.
+- Pero el resultado actual en la home ha quedado demasiado reducido:
+  - `VELA` se ve demasiado pequeño
+  - el símbolo pierde fuerza
+  - la marca ya no ancla visualmente la pantalla
+  - la línea horizontal pesa más que el propio branding
+- No quiero volver al bloque anterior demasiado grande.
+- Tampoco quiero dejar esta versión mini.
+- Quiero un punto medio: compacto, elegante y claramente visible.
+
+## TAREAS
+1. Mantener la lógica de branding más compacta de la nueva versión.
+2. Aumentar la presencia del lockup de marca en la home:
+   - subir tamaño del símbolo
+   - subir tamaño de `VELA`
+   - revisar espaciado general
+3. Ajustar la jerarquía para que el branding vuelva a abrir la pantalla sin sentirse corporativo ni exagerado.
+4. Revisar si conviene reintroducir el subtítulo de forma más ligera o mantenerlo solo si ayuda visualmente.
+5. Mantener intacto el comportamiento del resto de la pantalla.
+
+## RESTRICCIONES
+- No volver al bloque antiguo demasiado grande.
+- No dejar la versión actual tan mini.
+- No tocar lógica del producto.
+- No rehacer layout completo.
+- No introducir color nuevo.
+- No tocar textos funcionales.
+
+## ENTREGABLES
+- [ ] Lockup principal de home con tamaño intermedio bien equilibrado
+- [ ] Mejor jerarquía visual del branding
+- [ ] Ajuste coherente en light y dark mode
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] La marca vuelve a tener presencia clara en la home
+- [ ] No se siente ni demasiado institucional ni demasiado tímida
+- [ ] El símbolo y `VELA` se leen con autoridad
+- [ ] La pantalla principal parece producto premium, no plantilla vacía
+- [ ] No hay regresión visual ni funcional
+- [ ] La app compila sin errores
