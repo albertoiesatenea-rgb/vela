@@ -770,16 +770,24 @@ export default function CopilotPage() {
     setEndStep("outcome");
   };
 
+  const computeSpeakerUncertainty = () => {
+    if (speakerMode !== "auto" || turnLog.length === 0) return undefined;
+    const unknownTurns = turnLog.filter(t => t.inferred_speaker === "UNKNOWN").length;
+    const rate = unknownTurns / turnLog.length;
+    return { high: rate > 0.4, rate, unknown_turns: unknownTurns, total_turns: turnLog.length };
+  };
+
   const handleSelectOutcome = async (outcome: CallOutcome) => {
     setCallOutcome(outcome);
     setEndStep("summary");
     setIsSummarizing(true);
     const memory = tacticalState.callMemory;
+    const speakerUncertainty = computeSpeakerUncertainty();
     try {
       const res = await fetch("/api/copilot/summarize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ call_memory: memory, outcome, lang: langRef.current }),
+        body: JSON.stringify({ call_memory: memory, outcome, lang: langRef.current, ...(speakerUncertainty ? { speaker_uncertainty: speakerUncertainty } : {}) }),
       });
       const data = await res.json() as {
         score: number; global_state: string; result_label: string;
@@ -807,6 +815,7 @@ export default function CopilotPage() {
 
   const handleGenerateReport = async () => {
     setIsGeneratingReport(true);
+    const speakerUncertainty = computeSpeakerUncertainty();
     try {
       const res = await fetch("/api/copilot/summarize", {
         method: "POST",
@@ -816,6 +825,7 @@ export default function CopilotPage() {
           outcome: callOutcome,
           lang: langRef.current,
           full_report: true,
+          ...(speakerUncertainty ? { speaker_uncertainty: speakerUncertainty } : {}),
         }),
       });
       const data = await res.json() as { full_report?: string };
@@ -837,6 +847,7 @@ export default function CopilotPage() {
     if (brutalAudit || brutalAuditLoading) return;
     setBrutalAuditLoading(true);
     setBrutalAuditError(false);
+    const speakerUncertainty = computeSpeakerUncertainty();
     try {
       const res = await fetch("/api/copilot/audit-report", {
         method: "POST",
@@ -846,6 +857,7 @@ export default function CopilotPage() {
           outcome: callOutcome ?? "unclear",
           context: sessionContext ?? undefined,
           lang,
+          ...(speakerUncertainty ? { speaker_uncertainty: speakerUncertainty } : {}),
         }),
       });
       if (!res.ok) throw new Error("audit failed");

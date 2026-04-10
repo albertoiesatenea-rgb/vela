@@ -478,7 +478,7 @@ router.post("/copilot/summarize", async (req, res) => {
   const parseResult = CallSummarizeBody.safeParse(req.body);
   if (!parseResult.success) { res.status(400).json({ error: "Invalid request body" }); return; }
 
-  const { call_memory, outcome, lang, full_report } = parseResult.data;
+  const { call_memory, outcome, lang, full_report, speaker_uncertainty } = parseResult.data;
   const sessionId = (req.headers["x-session-id"] as string | undefined) ?? undefined;
   const isEn = lang === "en";
 
@@ -488,6 +488,12 @@ router.post("/copilot/summarize", async (req, res) => {
 
   const outcomeText = outcome ?? (isEn ? "unclear" : "no claro");
   const wantsFullReport = !!full_report;
+
+  const speakerUncertaintyBlock = speaker_uncertainty?.high
+    ? (isEn
+        ? `\nSPEAKER UNCERTAINTY HIGH: ${speaker_uncertainty.unknown_turns ?? "?"} of ${speaker_uncertainty.total_turns ?? "?"} turns (${Math.round((speaker_uncertainty.rate ?? 0) * 100)}%) were UNKNOWN in auto mode. Tactical reads may be contaminated. DO NOT make strong causal conclusions about conversational control or seller behavior unless supported by explicit memory evidence. Flag any control-related weakness with lower confidence.`
+        : `\nALTA INCERTIDUMBRE DE HABLANTE: ${speaker_uncertainty.unknown_turns ?? "?"} de ${speaker_uncertainty.total_turns ?? "?"} turnos (${Math.round((speaker_uncertainty.rate ?? 0) * 100)}%) fueron UNKNOWN en modo automático. Las lecturas tácticas pueden estar contaminadas. NO saques conclusiones causales fuertes sobre control conversacional o comportamiento del vendedor salvo que haya evidencia explícita en la memoria. Señala cualquier debilidad de control con confianza reducida.`)
+    : "";
 
   // ── Compact bilingual summarize prompt (shared structure, lang-switched values)
   const fullReportInstructions = wantsFullReport
@@ -536,9 +542,10 @@ STAGE ADVANCE vs FAILED CLOSE — distinguish before scoring:
 — Explaining a commercial process step (sending a proposal, scheduling a review) is NOT a close attempt. Only count as a close attempt if there was an explicit request for immediate commitment.
 — Historical objections from context do not dominate if the actual transcript axis was different. Score based on what actually happened.
 NEXT STEP QUALITY — reflect in scoring:
-— strong: date + deliverable + decision criterion → treat as solid outcome (7.5-8.4 range if well executed)
-— useful: date + concrete deliverable → treat as good partial (6.5-7.5)
-— weak: date without deliverable → note as gap, penalize accordingly
+— strong: date/time + deliverable + explicit decision criterion → treat as solid outcome (7.5-8.4 range if well executed). Global_state can be "strong" or "solid".
+— useful: date/time or concrete channel (video call, email, meeting link) or concrete deliverable (proposal, contract, summary, info to send) → treat as real advance (6.5-7.5). Do NOT describe as "open conversation" or "no clear commitment". The next step existed and was operative.
+— weak: no date, no channel, no deliverable → note as gap and penalize. Global_state should not be "strong".
+IMPORTANT: "useful" is a real advance. Penalize for missing decision criterion as a note, but do NOT degrade it to "no commitment" or "open result".
 
 GLOBAL STATE: 1-2 words (strong/solid/advancing/workable/weak/blocked/lost/open)
 STRENGTHS: 2-3 specific tactical observations. No generic praise.
@@ -568,9 +575,10 @@ AVANCE DE ETAPA vs FALLO DE CIERRE — distinguir antes de puntuar:
 — Explicar un paso del proceso comercial (enviar propuesta, agendar revisión) NO es intento de cierre. Solo cuenta si hubo petición explícita de compromiso inmediato.
 — Las objeciones históricas del contexto no dominan si el eje real de la llamada fue otro. Puntúa según lo que ocurrió realmente.
 CALIDAD DEL SIGUIENTE PASO — refleja en la puntuación:
-— fuerte: fecha + entregable + criterio de decisión → tratar como resultado sólido (rango 7.5-8.4 si bien ejecutado)
-— útil: fecha + entregable concreto → buen parcial (6.5-7.5)
-— débil: fecha sin entregable → nota como debilidad, penaliza según corresponda
+— fuerte: fecha/hora + entregable + criterio de decisión explícito → resultado sólido (7.5-8.4 si bien ejecutado). Global_state puede ser "fuerte" o "sólida".
+— útil: fecha/hora o canal concreto (videollamada, correo, enlace de reunión) o entregable concreto (propuesta, contrato, resumen, info a enviar) → avance real (6.5-7.5). NO describir como "conversación abierta" ni "sin compromiso claro". El siguiente paso existió y era operativo.
+— débil: sin fecha, sin canal, sin entregable → señala como debilidad, penaliza. Global_state no puede ser "fuerte".
+IMPORTANTE: "útil" es un avance real. Penaliza por falta de criterio de decisión como nota, pero NO lo degrades a "sin compromiso" ni "resultado abierto".
 
 ESTADO GLOBAL: 1-2 palabras (fuerte/sólida/avanzando/trabajable/floja/bloqueada/perdida/abierta)
 PUNTOS FUERTES: 2-3 observaciones tácticas específicas. Sin elogios genéricos.
@@ -578,7 +586,7 @@ PUNTOS A MEJORAR: 2-3 observaciones tácticas específicas y honestas.
 
 ${fullReportInstructions}`;
 
-  const userMessage = `${isEn ? "TACTICAL CALL MEMORY" : "MEMORIA TÁCTICA"}:\n${memoryText}\n\n${isEn ? "REPORTED OUTCOME" : "RESULTADO DECLARADO"}: ${outcomeText}\n\n${isEn ? "Analyze and return JSON:" : "Analiza y devuelve el JSON:"}`;
+  const userMessage = `${isEn ? "TACTICAL CALL MEMORY" : "MEMORIA TÁCTICA"}:\n${memoryText}\n\n${isEn ? "REPORTED OUTCOME" : "RESULTADO DECLARADO"}: ${outcomeText}${speakerUncertaintyBlock}\n\n${isEn ? "Analyze and return JSON:" : "Analiza y devuelve el JSON:"}`;
 
   const t0 = Date.now();
   try {
@@ -638,17 +646,24 @@ ${fullReportInstructions}`;
 // Input: { call_memory, outcome, context?, lang }
 // Output: BrutalAudit JSON
 router.post("/copilot/audit-report", async (req, res) => {
-  const { call_memory, outcome, context, lang = "es" } = req.body as {
+  const { call_memory, outcome, context, lang = "es", speaker_uncertainty } = req.body as {
     call_memory?: string[];
     outcome?: string;
     context?: string;
     lang?: string;
+    speaker_uncertainty?: { high: boolean; rate?: number; unknown_turns?: number; total_turns?: number };
   };
 
   const isEn = lang === "en";
   const memoryText = (call_memory ?? []).map(l => `- ${l}`).join("\n") || (isEn ? "(No memory)" : "(Sin memoria)");
   const outcomeText = outcome ?? (isEn ? "unknown" : "desconocido");
   const contextText = context?.trim() ? `\n${isEn ? "SESSION CONTEXT" : "CONTEXTO"}: ${context.trim()}` : "";
+
+  const auditSpeakerUncertaintyBlock = speaker_uncertainty?.high
+    ? (isEn
+        ? `\nSPEAKER UNCERTAINTY HIGH: ${speaker_uncertainty.unknown_turns ?? "?"} of ${speaker_uncertainty.total_turns ?? "?"} turns (${Math.round((speaker_uncertainty.rate ?? 0) * 100)}%) were UNKNOWN in auto mode. DO NOT make causal conclusions about who controlled the conversation or about seller-specific tactical patterns unless supported by explicit evidence. The failure_owner field must NOT attribute a failure to "seller" solely based on inferred conversational control if speaker attribution is uncertain. Flag affected findings with lower confidence.`
+        : `\nALTA INCERTIDUMBRE DE HABLANTE: ${speaker_uncertainty.unknown_turns ?? "?"} de ${speaker_uncertainty.total_turns ?? "?"} turnos (${Math.round((speaker_uncertainty.rate ?? 0) * 100)}%) fueron UNKNOWN en modo automático. NO hagas conclusiones causales sobre quién controló la conversación ni sobre patrones tácticos específicos del vendedor salvo que haya evidencia explícita. El campo failure_owner NO debe atribuir un fallo al "vendedor" solo por control conversacional inferido si la atribución de hablante es incierta. Señala los hallazgos afectados con confianza reducida.`)
+    : "";
 
   const schema = `{"verdict":"string","what_worked":["string"],"what_failed":["string"],"failure_owner":["vendedor|timing|sistema|técnico|setup|sin fallo real — descripción"],"missed_closes":["string"],"rules_violated":["string"],"priority_changes":["string","string","string"],"prompt_patch":null,"prompt_for_replit":null,"what_i_would_have_done":"string","suspected_claim_risk":"yes|no","suspected_unresolved_technical_objection":"yes|no","suspected_false_confidence":"yes|no","suspected_soft_next_step":"yes|no"}`;
 
@@ -674,7 +689,8 @@ RISK FLAGS — evaluate carefully and set each:
 — suspected_claim_risk: "yes" if the seller used "guarantee", "certified", "I assure you", "100% safe", "no risk" or similar as a main argument without concrete evidence. "no" otherwise.
 — suspected_unresolved_technical_objection: "yes" if the client raised a specific technical objection (numbers, ROI, methodology, data) and it was deferred to documents or answered with generic reframing instead of concrete evidence. "no" otherwise.
 — suspected_false_confidence: "yes" if the seller used an official certification, regulatory body, or audit as definitive proof of future value or security. "no" otherwise.
-— suspected_soft_next_step: "yes" if the session ended in a next step with no agreed decision criterion for the next call. "no" otherwise.
+— suspected_soft_next_step: "yes" ONLY if the session ended in a next step with NO operative commitment — no specific date or timeframe, no concrete channel (video call, email, meeting link), no concrete deliverable (proposal, contract, summary, documentation). A next step that has any of these is "useful" or "strong", not soft. "no" otherwise.
+— NEXT STEP QUALITY CONTEXT: strong = date/time + deliverable + decision criterion; useful = any operative commitment (date OR channel OR deliverable); weak = none of those. Only "weak" qualifies as suspected_soft_next_step.
 — If the buyer showed an analytical profile (asked for data, numbers, methodology): evaluate whether the seller responded with precision (confirmed/inferred/pending-proof) or with generic persuasion. Generic persuasion to an analytical buyer is a serious failure — name it.
 
 Return EXACTLY this JSON, no markdown, no extra text:
@@ -700,13 +716,14 @@ FLAGS DE RIESGO — evalúa con criterio y devuelve cada uno:
 — suspected_claim_risk: "yes" si el vendedor usó "garantía", "certific", "te aseguro", "100% seguro", "sin riesgo" o similar como argumento principal sin evidencia concreta. "no" en caso contrario.
 — suspected_unresolved_technical_objection: "yes" si el cliente planteó una objeción técnica específica (números, ROI, metodología, datos) y fue derivada a documentación o respondida con reencuadre genérico en lugar de evidencia concreta. "no" en caso contrario.
 — suspected_false_confidence: "yes" si el vendedor usó una certificación oficial, organismo regulador o auditoría como prueba definitiva de valor o seguridad futura. "no" en caso contrario.
-— suspected_soft_next_step: "yes" si la sesión terminó en siguiente paso sin criterio de decisión acordado para la próxima llamada. "no" en caso contrario.
+— suspected_soft_next_step: "yes" SOLO si la sesión terminó en siguiente paso SIN compromiso operativo — sin fecha ni franja horaria concreta, sin canal concreto (videollamada, email, enlace de reunión), sin entregable concreto (propuesta, contrato, resumen, documentación). Un siguiente paso con cualquiera de estos es "útil" o "fuerte", no blando. "no" en caso contrario.
+— CONTEXTO DE CALIDAD DEL SIGUIENTE PASO: fuerte = fecha/hora + entregable + criterio de decisión; útil = cualquier compromiso operativo (fecha O canal O entregable); débil = ninguno. Solo "débil" califica como suspected_soft_next_step.
 — Si el comprador mostró perfil analítico (pidió datos, cifras, metodología, evidencia): evalúa si el vendedor respondió con precisión (confirmado/inferido/pendiente de prueba) o con persuasión genérica. La persuasión genérica ante un analítico es un fallo grave — nómbralo específicamente.
 
 Devuelve EXACTAMENTE este JSON, sin markdown, sin texto extra:
 ${schema}`;
 
-  const userMessage = `${isEn ? "TACTICAL CALL MEMORY" : "MEMORIA TÁCTICA"}:\n${memoryText}${contextText}\n\n${isEn ? "REPORTED OUTCOME" : "RESULTADO DECLARADO"}: ${outcomeText}`;
+  const userMessage = `${isEn ? "TACTICAL CALL MEMORY" : "MEMORIA TÁCTICA"}:\n${memoryText}${contextText}\n\n${isEn ? "REPORTED OUTCOME" : "RESULTADO DECLARADO"}: ${outcomeText}${auditSpeakerUncertaintyBlock}`;
 
   try {
     const completion = await openai.chat.completions.create({

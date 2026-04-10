@@ -1,0 +1,195 @@
+OBJETIVO
+
+Corregir en Copiloto un fallo de evaluación detectado en logs reales:
+VELA está confundiendo “next step útil y operativo” con “conversación abierta / cierre blando”, especialmente cuando sí existe:
+- fecha y hora acordadas
+- videollamada o reunión concreta
+- correo confirmado
+- convocatoria o documentación a enviar
+
+Además, cuando hay alta speaker uncertainty en modo listen + auto, el sistema sigue sacando conclusiones demasiado duras sobre control de la conversación.
+
+QUIERO UN PARCHE FOCALIZADO.
+No rehacer la app.
+No tocar Arena en esta iteración salvo helpers puros si de verdad compensa.
+
+CONTEXTO REAL DEL FALLO
+
+Caso real auditado:
+- outcome final = next_step
+- sí hubo acuerdo operativo concreto
+- sí hubo fecha/hora
+- sí hubo videollamada
+- sí hubo email para convocatoria
+- el audit log además marca SPEAKER_UNCERTAINTY muy alta: 78 de 81 turnos UNKNOWN (96%)
+- aun así la auditoría brutal concluyó algo equivalente a “no hubo compromiso claro”
+
+Eso está mal leído.
+
+Según el audit log actual, `SOFT_NEXT_STEP` se detecta con una heurística demasiado simple:
+`isNextStep AND NOT criterio/condition/criterion/acordad/agreed/compromi/commit in memory`
+
+Eso penaliza casos donde sí hubo compromiso operativo real pero no criterio explícito de decisión.
+Hay que arreglarlo.
+
+ARCHIVOS PROBABLES A TOCAR
+
+- artifacts/api-server/src/routes/copilot.ts
+- artifacts/silent-closer/src/lib/audit-log.ts
+- si existe helper compartido para summarize/audit scoring, tocarlo ahí
+- opcional: tactical-display o UI solo si quieres exponer `next_step_quality`, pero no es obligatorio
+
+Si la estructura real cambió, localiza el equivalente antes de editar.
+
+CAMBIOS REQUERIDOS
+
+A) INTRODUCIR `next_step_quality`
+Crear una clasificación interna con 3 niveles:
+
+1. weak
+- sin fecha ni hora
+- sin deliverable
+- sin canal concreto
+- sin compromiso operativo
+
+2. useful
+- hay fecha u hora acordada
+- o canal concreto (correo, videollamada, llamada, enlace, convocatoria)
+- o entrega concreta prometida (resumen, propuestas, contrato, info)
+- o dato operativo confirmado (email, enlace, disponibilidad)
+- aunque NO exista criterio explícito de decisión
+
+3. strong
+- fecha/hora + deliverable concreto + criterio o condición de decisión explícita
+
+IMPORTANTE
+No todos los next_step sin criterio son “malos”.
+“Useful” debe existir como categoría real.
+
+B) REEMPLAZAR / AJUSTAR LA HEURÍSTICA DE `SOFT_NEXT_STEP`
+Hoy la heurística es demasiado agresiva.
+Quiero cambiarla para que:
+
+- `SOFT_NEXT_STEP = yes` solo si `next_step_quality === weak`
+- si `next_step_quality === useful`, NO marcarlo como soft next step
+- si `next_step_quality === strong`, obviamente tampoco
+
+Ejemplos de compromiso operativo que deben contar como useful:
+- fecha cerrada
+- hora cerrada
+- videollamada acordada
+- correo confirmado
+- convocatoria a enviar
+- documentación / contrato / resumen a enviar
+
+C) SUMMARIZE
+Actualizar summarize para que:
+- no describa una llamada como floja solo porque no hubo cierre final
+- reconozca explícitamente “avance real con next step útil”
+- mantenga la penalización cuando falte criterio de decisión, PERO sin degradar eso automáticamente a llamada mala
+
+Quiero que summarize pueda distinguir:
+- weak next step
+- useful next step
+- strong next step
+
+Y que esto afecte:
+- score
+- global_state
+- strengths / improvements
+
+D) AUDIT-REPORT BRUTAL
+Actualizar el prompt/reglas de audit-report para que:
+
+1. no diga “sin compromiso claro” si hubo:
+- fecha/hora
+- reunión/videollamada
+- correo confirmado
+- entrega concreta prometida
+
+2. pueda escribir algo como:
+- “no hubo cierre final, pero sí siguiente paso útil y operativo”
+- “faltó criterio de decisión, pero no fue una llamada abierta sin acuerdo”
+
+3. en presencia de `speaker_uncertainty` alta:
+- reduzca la contundencia causal
+- evite culpar al vendedor por “falta de control” salvo evidencia clara
+- explicite la contaminación del log si hace falta
+
+E) AUDIT LOG / RISK FLAGS
+En `buildCopilotAuditLog` o equivalente:
+- implementar `next_step_quality`
+- guardar ese dato en summary, hints o nota de auditoría
+- mantener compatibilidad hacia atrás si no quieres tocar schema público
+- si no quieres exponer un campo nuevo, al menos úsalo internamente y deja una nota tipo:
+  - `NEXT_STEP_QUALITY useful detected — operative commitment agreed without explicit decision criterion`
+
+F) SPEAKER UNCERTAINTY
+Si ya existe la detección de speaker uncertainty, usarla también como input para summarize y audit-report.
+No solo para mostrar badge en UI.
+
+Regla:
+- con incertidumbre alta de speaker, no sacar conclusiones duras sobre control conversacional salvo evidencia fuerte
+
+G) NO TOCAR
+- no meter terminología de Immvest
+- no cambiar Arena salvo helper puro reutilizable
+- no añadir llamadas extra al modelo si una heurística basta
+- no activar LEGACY_PROMPTS como “solución”
+- no rehacer el schema público salvo cambio mínimo controlado
+
+ENTREGABLES
+
+1. código implementado
+2. lista exacta de archivos tocados
+3. explicación breve de:
+   - next_step_quality
+   - nueva heurística de soft next step
+   - efecto en summarize
+   - efecto en audit-report
+   - uso de speaker uncertainty
+4. test manuales
+
+TESTS MANUALES QUE QUIERO
+
+TEST 1 — WEAK NEXT STEP
+Caso:
+- “hablamos la semana que viene” sin fecha, sin hora, sin entregable
+Esperado:
+- next_step_quality = weak
+- soft_next_step = yes
+
+TEST 2 — USEFUL NEXT STEP
+Caso:
+- se acuerda videollamada
+- se fija fecha/hora
+- se confirma email
+- se enviará convocatoria o info por correo
+Esperado:
+- next_step_quality = useful
+- soft_next_step = no
+- brutal NO puede decir “sin compromiso claro”
+
+TEST 3 — STRONG NEXT STEP
+Caso:
+- fecha/hora + propuestas/contrato/documentación + criterio explícito de decisión
+Esperado:
+- next_step_quality = strong
+- summarize lo valora mejor que useful
+
+TEST 4 — HIGH SPEAKER UNCERTAINTY
+Caso:
+- listen + auto + muchos UNKNOWN
+Esperado:
+- summarize y brutal bajan la contundencia de conclusiones causales
+- no culpan al vendedor con exceso de seguridad
+
+CRITERIOS DE ACEPTACIÓN
+
+- un next_step con fecha/hora + canal + entrega concreta ya no se trata como conversación abierta
+- soft_next_step deja de dispararse en casos useful
+- summarize distingue mejor entre no cierre y mala llamada
+- audit-report brutal deja de escribir conclusiones falsas tipo “sin compromiso claro” cuando sí lo hubo
+- speaker uncertainty influye de verdad en la dureza del análisis
+- no se rompe compatibilidad
+- no se toca Arena innecesariamente

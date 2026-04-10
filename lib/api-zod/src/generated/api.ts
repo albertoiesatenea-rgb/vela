@@ -102,6 +102,12 @@ export const CallSummarizeBody = zod.object({
   outcome: zod.string().optional().describe("Outcome reported by salesperson"),
   lang: zod.enum(["es", "en"]).optional().describe("Response language"),
   full_report: zod.boolean().optional().describe("If true, include full detailed report text"),
+  speaker_uncertainty: zod.object({
+    high: zod.boolean(),
+    rate: zod.number().optional(),
+    unknown_turns: zod.number().optional(),
+    total_turns: zod.number().optional(),
+  }).optional().describe("Speaker uncertainty signal from auto-mode sessions"),
 });
 
 export const CallSummarizeResponse = zod.object({

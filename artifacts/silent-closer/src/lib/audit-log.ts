@@ -438,9 +438,28 @@ export function buildCopilotAuditLog(data: CopilotSessionData): AuditLog {
   const falseConfidenceTerms = ["certif", "homolog", "regulad", "oficial", "certificate", "certified", "regulated", "official", "auditoría", "audit"];
   const suspectedFalseConfidence = falseConfidenceTerms.some(t => allMemoryText.includes(t));
 
-  // SOFT_NEXT_STEP: next_step outcome + no agreed decision criterion visible in memory
+  // NEXT_STEP_QUALITY — 3-level classifier for next_step outcomes
+  // Operative commitment: date/time, concrete channel, or concrete deliverable
+  const dateTimeTerms = ["fecha", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo", "mañana", "pasado", "próxima semana", "próximo", "esta semana", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "tomorrow", "next week", ":00", " am ", " pm ", "a las ", "at "];
+  const channelTerms = ["videollamada", "videoconferencia", "video call", "video-call", "zoom", "teams", "google meet", "meet ", "correo", "e-mail", "email", "convocatoria", "enlace", "link", "reunión", "reunion", "meeting", "llamada"];
+  const deliverableTerms = ["resumen", "propuesta", "contrato", "documentación", "documentacion", "información", "summary", "proposal", "contract", "documentation", "agenda", "informe", "report", "presupuesto", "oferta", "dossier"];
   const decisionCriterionTerms = ["criterio", "condición", "condition", "criterion", "acordad", "agreed", "compromi", "commit"];
-  const suspectedSoftNextStep = isNextStep && !decisionCriterionTerms.some(t => allMemoryText.includes(t));
+
+  const hasDateTime = dateTimeTerms.some(t => allMemoryText.includes(t));
+  const hasChannel  = channelTerms.some(t => allMemoryText.includes(t));
+  const hasDeliverable = deliverableTerms.some(t => allMemoryText.includes(t));
+  const hasOperativeCommitment = hasDateTime || hasChannel || hasDeliverable;
+  const hasDecisionCriterion = decisionCriterionTerms.some(t => allMemoryText.includes(t));
+
+  type NextStepQuality = "strong" | "useful" | "weak";
+  const nextStepQuality: NextStepQuality | null = isNextStep
+    ? (hasOperativeCommitment && hasDecisionCriterion ? "strong"
+      : hasOperativeCommitment ? "useful"
+      : "weak")
+    : null;
+
+  // SOFT_NEXT_STEP: only when next_step quality is WEAK (no operative commitment at all)
+  const suspectedSoftNextStep = isNextStep && nextStepQuality === "weak";
 
   // Summary
   const summary: SessionSummary = {
@@ -478,8 +497,10 @@ export function buildCopilotAuditLog(data: CopilotSessionData): AuditLog {
   if (suspectedClaimRisk) auditNotes.push("CLAIM_RISK detected — seller may have used assurance language without concrete evidence");
   if (suspectedUnresolvedTechnical) auditNotes.push("UNRESOLVED_TECHNICAL_OBJ detected — technical objection may have been deferred without in-call resolution");
   if (suspectedFalseConfidence) auditNotes.push("FALSE_CONFIDENCE detected — certification or official body may have been used as definitive proof");
-  if (suspectedSoftNextStep) auditNotes.push("SOFT_NEXT_STEP detected — next step agreed without visible decision criterion for next call");
-  if (hasSpeakerUncertainty) auditNotes.push(`SPEAKER_UNCERTAINTY detected — ${unknownTurns} of ${data.turnLog.length} turns were UNKNOWN in auto mode (${Math.round(unknownRate * 100)}%). Tactical reads may be contaminated. Consider using CLIENTE/YO attribution in future sessions.`);
+  if (nextStepQuality === "strong") auditNotes.push("NEXT_STEP_QUALITY strong — operative commitment (date/channel/deliverable) + explicit decision criterion detected");
+  if (nextStepQuality === "useful") auditNotes.push("NEXT_STEP_QUALITY useful — operative commitment agreed (date, channel, or concrete deliverable) without explicit decision criterion for next call");
+  if (suspectedSoftNextStep) auditNotes.push("SOFT_NEXT_STEP detected — next step has no detected operative commitment (no date, no channel, no deliverable)");
+  if (hasSpeakerUncertainty) auditNotes.push(`SPEAKER_UNCERTAINTY detected — ${unknownTurns} of ${data.turnLog.length} turns were UNKNOWN in auto mode (${Math.round(unknownRate * 100)}%). Tactical reads may be contaminated. Causal conclusions about conversational control should be treated with lower confidence. Consider using CLIENTE/YO attribution in future sessions.`);
 
   const hints: AuditHints = {
     likely_primary_failure: isLost ? "seller" : errorTurns > 0 ? "technical" : parseErrors > 0 ? "system" : "none",
