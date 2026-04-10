@@ -1,0 +1,324 @@
+OBJETIVO
+
+Arreglar de verdad el Audit Brutal de Copiloto para que deje de generar auditorías genéricas o incorrectas cuando el audit log ya contiene señales suficientes para una lectura mucho mejor.
+
+No quiero un parche cosmético.
+Quiero corregir la arquitectura mínima de input + guardrails para que la brutal se apoye en evidencia real y no en memoria demasiado pobre.
+
+NO tocar Arena en esta iteración.
+
+PROBLEMA REAL DETECTADO
+
+Ahora mismo la ruta documentada de `/api/copilot/audit-report` trabaja con:
+- `call_memory`
+- `outcome`
+- `context`
+- `lang`
+
+Eso es insuficiente para una brutal buena en llamadas complejas.
+
+Caso real:
+- `final_call_memory` solo dice algo tipo:
+  - José investiga la compra
+  - buscamos claridad en financiación y depósito
+  - interesado en optimizar la compra
+  - solicitó coordinar próxima llamada
+
+Pero el audit log final sí contiene mucha más señal útil:
+- `final_outcome: next_step`
+- `final_global_state: sólida`
+- `likely_primary_failure: none`
+- `suspected_soft_next_step: no`
+- `NEXT_STEP_QUALITY useful`
+- `SPEAKER_UNCERTAINTY detected — 138 of 149 turns were UNKNOWN (93%)`
+- cierre real con:
+  - hablar con la esposa lunes o martes
+  - llamada cerrada el miércoles a las 17:00
+  - siguientes pasos ya mencionados
+
+Y aun así la brutal devuelve:
+- “fallo de cierre”
+- “sin siguiente paso concreto”
+- “falta de control del vendedor”
+
+Eso significa que la brutal está mal anclada y/o no está recibiendo el evidence pack correcto.
+
+HIPÓTESIS OPERATIVA
+
+La brutal está intentando inferir demasiado desde una memoria final demasiado resumida.
+La señal buena ya existe en el audit log, pero no está entrando bien en `/api/copilot/audit-report` o no se está usando como restricción fuerte.
+
+CAMBIO REQUERIDO
+
+Quiero rehacer la entrada lógica de la brutal con una capa de evidence pack compacta y robusta, sin disparar demasiado tokens.
+
+========================================
+A) CREAR `audit_evidence_pack` PARA COPILOTO
+========================================
+
+Antes de llamar a `/api/copilot/audit-report`, construir un objeto compacto con evidencia relevante.
+No mandar el log completo crudo al modelo si no hace falta.
+Quiero un paquete pequeño pero mucho más útil que `call_memory`.
+
+El evidence pack debe incluir, como mínimo:
+
+1. `final_call_memory`
+2. `session_summary` relevante:
+- final_outcome
+- final_global_state
+- final_result_label
+- strengths
+- improvements
+
+3. `audit_hints` completos:
+- likely_primary_failure
+- suspected_soft_next_step
+- suspected_unresolved_technical_objection
+- suspected_close_timing_issue
+- audit_notes completas
+
+4. `closing_excerpt`
+- últimos 6-12 turnos útiles o un bloque compacto del cierre real
+- aquí deben entrar frases tipo:
+  - habla con la esposa
+  - lunes o martes
+  - miércoles a las 17:00
+  - siguientes pasos
+  - reserva / documentación / bloqueo si aplica
+
+5. `structured_context_summary` si existe
+- objetivo hoy
+- frenos
+- what_not_to_do
+- resultado válido
+- notas relevantes
+
+6. `speaker_quality`
+- ratio de UNKNOWN
+- flag de speaker_uncertainty alta
+
+7. `optional_human_notes`
+- nuevo campo opcional de notas post-llamada
+- solo si el usuario quiere añadir interpretación humana
+- no obligatorio para que la brutal funcione bien
+- pero debe poder mejorar la precisión cuando exista
+
+IMPORTANTE
+No quiero que esto rompa compatibilidad.
+Si no hay structured_context o human_notes, que funcione igualmente.
+
+========================================
+B) CAMBIAR INPUT DE `/api/copilot/audit-report`
+========================================
+
+La brutal ya no debe depender solo de:
+- call_memory
+- outcome
+- context
+
+Quiero que la ruta acepte también este `audit_evidence_pack` o equivalente.
+
+Si prefieres no tocar el schema público mucho:
+- puedes mantener el request actual
+- pero enriquecer internamente el payload antes de construir el prompt
+
+Lo importante no es el nombre.
+Lo importante es que la brutal vea:
+- hints
+- cierre real
+- calidad del siguiente paso
+- incertidumbre de speaker
+- notas humanas opcionales
+
+========================================
+C) GUARDRAILS DUROS CONTRA CONTRADICCIONES
+========================================
+
+Añadir validaciones previas o post-proceso antes de devolver la brutal.
+
+Reglas obligatorias:
+
+1. Si `suspected_soft_next_step === no` y `NEXT_STEP_QUALITY useful|strong`,
+está PROHIBIDO escribir:
+- “sin siguiente paso concreto”
+- “conversación abierta sin compromiso claro”
+
+2. Si `likely_primary_failure === none`,
+está PROHIBIDO culpar al vendedor como fallo principal salvo evidencia clarísima en el closing_excerpt o human_notes.
+
+3. Si `speaker_uncertainty > 70%`,
+está PROHIBIDO escribir:
+- “falta de control del vendedor”
+- “el vendedor perdió el control”
+- “no controló la conversación”
+salvo evidencia durísima y repetida.
+
+4. Si el caso está en fase de “decisión entre alternativas” y no en “comprar o no”,
+está PROHIBIDO llamarlo directamente “fallo de cierre” solo por no haber reserva inmediata.
+
+5. Si hay:
+- validador secundario (esposa / socio / familia)
+- plazo explícito de validación
+- siguiente llamada acordada
+eso debe poder clasificarse como:
+- avance real
+- cierre parcial útil
+- siguiente paso útil
+pero NO como llamada abierta sin compromiso
+
+========================================
+D) AÑADIR `optional_human_notes` POST-LLAMADA
+========================================
+
+Quiero una caja opcional en Copiloto, después o al declarar el outcome, con algo tipo:
+
+“Notas post-llamada (opcional)”
+- qué pasó de verdad
+- si el cliente ya estaba decidido
+- si la decisión quedó entre alternativas
+- si hay esposa/socio validando
+- si el cierre real era reserva o solo confirmar opción
+- cualquier matiz que la transcripción no capte bien
+
+Esta caja NO debe ser obligatoria.
+La brutal debe funcionar mejor incluso sin ella.
+Pero cuando exista, debe entrar en el evidence pack.
+
+Objetivo:
+no depender de venir a ChatGPT a explicar el contexto real después.
+
+========================================
+E) REESCRIBIR EL PROMPT DE AUDIT-REPORT
+========================================
+
+Actualizar el system prompt de la brutal para que:
+
+1. priorice evidence pack y no invente más allá de él
+2. trate `audit_hints` como restricciones fuertes, no como adornos
+3. diferencie:
+- no hubo cierre final
+- hubo siguiente paso útil
+- hubo cierre parcial útil
+- hubo fallo real
+
+4. reconozca llamadas en fase:
+- compra sí/no
+- comparación entre alternativas
+- validación con decisor secundario
+- reserva/documentación
+
+5. diga explícitamente “faltan datos” cuando speaker_uncertainty sea alta o la evidencia no dé para culpar con certeza
+
+No quiero tono blando.
+Sí quiero precisión brutal.
+
+========================================
+F) SANITY CHECK FINAL DEL TEXTO
+========================================
+
+Antes de devolver la brutal, pasar una validación final simple:
+
+Ejemplos de contradicción prohibida:
+- `NEXT_STEP_QUALITY useful` + texto “sin siguiente paso concreto”
+- `suspected_soft_next_step: no` + texto “conversación abierta sin compromiso”
+- `likely_primary_failure: none` + texto “responsable: vendedor”
+- `speaker_uncertainty >70%` + culpabilización dura del vendedor por control conversacional
+- `final_global_state: sólida` + veredicto de llamada fallida sin matiz
+
+Si detectas contradicción:
+- corrige el texto
+o
+- rehace solo esa sección
+pero no devuelvas brutal incoherente
+
+No hace falta una segunda llamada al modelo si un rewrite pequeño basta.
+
+========================================
+G) NO HACER
+========================================
+
+- no tocar Arena
+- no meter terminología específica de Immvest en el núcleo
+- no mandar el log completo entero al modelo si se puede compactar mejor
+- no subir mucho coste si bastan heurísticas + evidence pack + prompt + sanity check
+- no dejar esto solo en prompt si requiere lógica previa
+
+========================================
+H) ARCHIVOS PROBABLES A TOCAR
+========================================
+
+- `artifacts/api-server/src/routes/copilot.ts`
+- cualquier helper de summarize/audit si existe
+- `artifacts/silent-closer/src/pages/copilot.tsx` o equivalente si hace falta añadir `optional_human_notes`
+- `artifacts/silent-closer/src/lib/audit-log.ts` solo si conviene reaprovechar builders o hints
+- schemas Zod si hace falta ampliar request body
+
+Si la estructura real cambió, localiza los equivalentes antes de editar.
+
+========================================
+I) TESTS MANUALES QUE QUIERO
+========================================
+
+TEST 1 — NEXT STEP ÚTIL
+Caso:
+- siguiente llamada acordada
+- fecha/hora cerradas
+- validación con esposa/socio
+Esperado:
+- brutal NO dice “sin siguiente paso concreto”
+
+TEST 2 — CONTRADICCIÓN CON HINTS
+Caso:
+- likely_primary_failure = none
+- soft_next_step = no
+- NEXT_STEP_QUALITY useful
+Esperado:
+- brutal no puede culpar al vendedor como fallo principal
+- brutal reconoce avance real
+
+TEST 3 — SPEAKER UNCERTAINTY ALTA
+Caso:
+- >70% UNKNOWN
+Esperado:
+- brutal baja contundencia causal
+- menciona contaminación del log si hace falta
+
+TEST 4 — HUMAN NOTES OPCIONALES
+Caso:
+- misma llamada con y sin notas post-llamada
+Esperado:
+- sin notas ya mejora claramente respecto a hoy
+- con notas mejora aún más en matices
+
+TEST 5 — DECISIÓN ENTRE ALTERNATIVAS
+Caso:
+- cliente ya quiere comprar
+- compara opción A vs B
+- reserva pendiente de confirmar con pareja
+Esperado:
+- brutal lo clasifica como fase comparativa / cierre parcial útil
+- no como llamada fallida
+
+========================================
+J) CRITERIOS DE ACEPTACIÓN
+========================================
+
+- el Audit Brutal deja de depender casi solo de `call_memory`
+- usa `audit_hints`, `closing_excerpt` y `speaker_uncertainty`
+- deja de contradecir su propio audit log
+- mejora mucho incluso sin notas humanas
+- con notas humanas opcionales gana aún más precisión
+- no se toca Arena
+- no se dispara el coste
+- la brutal pasa de genérica a forense y útil
+
+ENTREGABLES
+
+1. código implementado
+2. lista exacta de archivos tocados
+3. explicación breve de:
+- evidence pack
+- guardrails de contradicción
+- human_notes opcionales
+- uso real de speaker_uncertainty
+4. tests manuales ejecutados o documentados

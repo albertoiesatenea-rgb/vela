@@ -502,6 +502,7 @@ export default function CopilotPage() {
   const [brutalAuditLoading, setBrutalAuditLoading] = useState(false);
   const [brutalAuditOpen, setBrutalAuditOpen] = useState(false);
   const [brutalAuditError, setBrutalAuditError] = useState(false);
+  const [humanNotes, setHumanNotes] = useState("");
   const [copied, setCopied] = useState(false);
   const [conversationLog, setConversationLog] = useState<string[]>([]);
   const [turnLog, setTurnLog] = useState<TurnLogEntry[]>([]);
@@ -777,6 +778,48 @@ export default function CopilotPage() {
     return { high: rate > 0.4, rate, unknown_turns: unknownTurns, total_turns: turnLog.length };
   };
 
+  const buildClosingExcerpt = (maxTurns = 10) => {
+    if (turnLog.length === 0) return [];
+    const useful = turnLog.filter(t => t.normalized_fragment?.trim().length > 0);
+    return useful.slice(-maxTurns).map(t => ({
+      turn: t.turn_index,
+      speaker: t.inferred_speaker,
+      text: t.normalized_fragment,
+    }));
+  };
+
+  const buildAuditHintsPack = () => {
+    const isNextStepOutcome = callOutcome === "next_step";
+    const isLostOutcome = callOutcome === "lost";
+    const closingText = buildClosingExcerpt(12).map(t => t.text).join(" ").toLowerCase();
+    const memText = (tacticalState.callMemory ?? []).join(" ").toLowerCase();
+    const combinedText = memText + " " + closingText;
+
+    const dtTerms = ["fecha", "lunes", "martes", "miércoles", "jueves", "viernes", "mañana", "próxima semana", "monday", "tuesday", "wednesday", "thursday", "friday", "tomorrow", "next week", ":00", " am ", " pm ", "a las "];
+    const chTerms = ["videollamada", "zoom", "teams", "meet", "correo", "email", "reunión", "meeting", "llamada", "enlace"];
+    const dlTerms = ["propuesta", "contrato", "resumen", "documentación", "información", "proposal", "contract", "summary", "documentation", "presupuesto", "oferta"];
+    const decTerms = ["criterio", "condición", "criterion", "acordad", "agreed", "compromi"];
+
+    const hasDt = dtTerms.some(t => combinedText.includes(t));
+    const hasCh = chTerms.some(t => combinedText.includes(t));
+    const hasDl = dlTerms.some(t => combinedText.includes(t));
+    const hasDec = decTerms.some(t => combinedText.includes(t));
+    const hasOp = hasDt || hasCh || hasDl;
+
+    const nextStepQuality = isNextStepOutcome
+      ? (hasOp && hasDec ? "strong" : hasOp ? "useful" : "weak")
+      : null;
+
+    const suspectedSoftNextStep = isNextStepOutcome && nextStepQuality === "weak" ? "yes" : "no";
+    const likelyPrimaryFailure = isLostOutcome ? "seller" : "none";
+
+    return {
+      likely_primary_failure: likelyPrimaryFailure,
+      suspected_soft_next_step: suspectedSoftNextStep,
+      next_step_quality: nextStepQuality,
+    };
+  };
+
   const handleSelectOutcome = async (outcome: CallOutcome) => {
     setCallOutcome(outcome);
     setEndStep("summary");
@@ -848,6 +891,8 @@ export default function CopilotPage() {
     setBrutalAuditLoading(true);
     setBrutalAuditError(false);
     const speakerUncertainty = computeSpeakerUncertainty();
+    const closingExcerpt = buildClosingExcerpt(10);
+    const hintsPack = buildAuditHintsPack();
     try {
       const res = await fetch("/api/copilot/audit-report", {
         method: "POST",
@@ -857,6 +902,16 @@ export default function CopilotPage() {
           outcome: callOutcome ?? "unclear",
           context: sessionContext ?? undefined,
           lang,
+          closing_excerpt: closingExcerpt.length > 0 ? closingExcerpt : undefined,
+          session_summary: callSummary ? {
+            score: callSummary.score,
+            global_state: callSummary.globalState,
+            result_label: callSummary.resultLabel,
+            strengths: callSummary.strengths,
+            improvements: callSummary.improvements,
+          } : undefined,
+          audit_hints_pack: hintsPack,
+          human_notes: humanNotes.trim() || undefined,
           ...(speakerUncertainty ? { speaker_uncertainty: speakerUncertainty } : {}),
         }),
       });
@@ -1090,6 +1145,34 @@ export default function CopilotPage() {
                             ))}
                           </div>
                         )}
+
+                        {/* ── Human notes — optional, feeds the brutal audit ── */}
+                        <div className="border border-zinc-800/60 rounded-xl overflow-hidden">
+                          <button
+                            onClick={() => setBrutalAuditOpen(o => { if (!o && !brutalAudit) return o; return o; })}
+                            className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-white/3 transition-colors"
+                            type="button"
+                            aria-label={lang === "en" ? "Post-call notes" : "Notas post-llamada"}
+                          >
+                            <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-600">
+                              {lang === "en" ? "Post-call notes (optional)" : "Notas post-llamada (opcional)"}
+                            </p>
+                            <span className="text-[9px] font-mono text-zinc-700 italic">
+                              {lang === "en" ? "feeds audit" : "alimenta la auditoría"}
+                            </span>
+                          </button>
+                          <div className="px-4 pb-3">
+                            <textarea
+                              value={humanNotes}
+                              onChange={e => setHumanNotes(e.target.value)}
+                              placeholder={lang === "en"
+                                ? "What really happened — client already decided, comparing A vs B, spouse validates, real close target, anything the transcript missed..."
+                                : "Qué pasó de verdad — cliente ya decidido, comparaba A vs B, esposa valida, objetivo real del cierre, cualquier matiz que la transcripción no captó..."}
+                              rows={3}
+                              className="w-full bg-transparent text-[11px] font-mono text-zinc-300 placeholder:text-zinc-700 resize-none outline-none border-0 leading-relaxed"
+                            />
+                          </div>
+                        </div>
 
                         {/* ── Brutal audit — expandable, lazy-loaded ── */}
                         <div className="border border-zinc-800 rounded-xl overflow-hidden">

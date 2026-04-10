@@ -646,12 +646,19 @@ ${fullReportInstructions}`;
 // Input: { call_memory, outcome, context?, lang, speaker_uncertainty? }
 // Output: BrutalAudit JSON (with post-process sanity guardrail)
 router.post("/copilot/audit-report", async (req, res) => {
-  const { call_memory, outcome, context, lang = "es", speaker_uncertainty } = req.body as {
+  const {
+    call_memory, outcome, context, lang = "es", speaker_uncertainty,
+    closing_excerpt, session_summary, audit_hints_pack, human_notes,
+  } = req.body as {
     call_memory?: string[];
     outcome?: string;
     context?: string;
     lang?: string;
     speaker_uncertainty?: { high: boolean; rate?: number; unknown_turns?: number; total_turns?: number };
+    closing_excerpt?: Array<{ turn: number; speaker: string; text: string }>;
+    session_summary?: { score?: number; global_state?: string; result_label?: string; strengths?: string[]; improvements?: string[] };
+    audit_hints_pack?: { likely_primary_failure?: string; suspected_soft_next_step?: string; next_step_quality?: string; audit_notes?: string[] };
+    human_notes?: string;
   };
 
   const isEn = lang === "en";
@@ -659,8 +666,18 @@ router.post("/copilot/audit-report", async (req, res) => {
   const outcomeText = outcome ?? (isEn ? "unknown" : "desconocido");
   const contextText = context?.trim() ? `\n${isEn ? "SESSION CONTEXT" : "CONTEXTO"}: ${context.trim()}` : "";
 
-  // ── Heuristic classifiers (mirrors audit-log.ts — no extra LLM call) ────────
+  // ── Closing excerpt — most recent raw transcript turns (richer than call_memory) ─
+  const closingLines = (closing_excerpt ?? [])
+    .map(t => `[T${t.turn}] [${t.speaker}]: ${t.text}`)
+    .join("\n");
+  const hasClosingExcerpt = closingLines.length > 0;
+
+  // ── Heuristic classifiers — run on COMBINED text (memory + closing excerpt) ──
+  // Key fix: the closing excerpt has the actual dates/channels that compressed memory loses.
+  const closingFullText = (closing_excerpt ?? []).map(t => t.text).join(" ").toLowerCase();
   const memoryFull = (call_memory ?? []).join(" ").toLowerCase();
+  const combinedFull = memoryFull + " " + closingFullText;  // used for heuristics
+
   const isNextStep = (outcome ?? "") === "next_step";
   const isLost = (outcome ?? "") === "lost";
 
@@ -669,27 +686,33 @@ router.post("/copilot/audit-report", async (req, res) => {
   const deliverableTerms = ["propuesta", "contrato", "resumen", "documentación", "documentacion", "información", "summary", "proposal", "contract", "documentation", "agenda", "informe", "report", "presupuesto", "oferta", "dossier"];
   const decisionTerms = ["criterio", "condición", "criterion", "acordad", "agreed", "compromi", "commit"];
 
-  const hasDateTime = dateTimeTerms.some(t => memoryFull.includes(t));
-  const hasChannel = channelTerms.some(t => memoryFull.includes(t));
-  const hasDeliverable = deliverableTerms.some(t => memoryFull.includes(t));
+  // ── Run heuristics on COMBINED text (memory + closing excerpt) ────────────
+  const hasDateTime = dateTimeTerms.some(t => combinedFull.includes(t));
+  const hasChannel = channelTerms.some(t => combinedFull.includes(t));
+  const hasDeliverable = deliverableTerms.some(t => combinedFull.includes(t));
   const hasOperativeCommitment = hasDateTime || hasChannel || hasDeliverable;
-  const hasDecisionCriterion = decisionTerms.some(t => memoryFull.includes(t));
+  const hasDecisionCriterion = decisionTerms.some(t => combinedFull.includes(t));
 
+  // If frontend pre-computed hints_pack, use it as authoritative (it ran on closing excerpt too)
   type NsqType = "strong" | "useful" | "weak" | null;
-  const nextStepQuality: NsqType = isNextStep
+  const backendNsq: NsqType = isNextStep
     ? (hasOperativeCommitment && hasDecisionCriterion ? "strong"
       : hasOperativeCommitment ? "useful"
       : "weak")
     : null;
-  const likelyNoFailure = !isLost;
+  // Frontend hints take precedence when available (they ran on raw transcript text)
+  const frontendNsq = audit_hints_pack?.next_step_quality as NsqType | undefined;
+  const nextStepQuality: NsqType = frontendNsq ?? backendNsq;
+  const likelyNoFailure = (audit_hints_pack?.likely_primary_failure === "none") || !isLost;
 
-  // Alternatives decision pattern: client already committed, deciding between options
+  // Alternatives decision pattern — also check human_notes for explicit mention
+  const humanNotesLower = (human_notes ?? "").toLowerCase();
   const alternativesTerms = ["cuál de las dos", "cuál de los dos", "cuál elegir", "la a o", "la b o", "opción a o", "opción b", "alternativa a", "alternativa b", "option a or", "option b", "which of the two", "which one", "elegir entre", "comparar entre", "decidir entre", "entre las dos", "entre los dos", "entre ambas", "entre ambos", "dos opciones", "two options", "la otra opción", "the other option", "la primera o", "the first or"];
-  const isAlternativesDecision = alternativesTerms.some(t => memoryFull.includes(t));
+  const isAlternativesDecision = alternativesTerms.some(t => combinedFull.includes(t) || humanNotesLower.includes(t));
 
-  // Secondary decision-maker pattern: spouse/partner/family/associate must validate
+  // Secondary decision-maker — also check human_notes
   const secondaryDmTerms = ["esposa", "marido", "pareja", "socio", "socia", "familia", "wife", "husband", "partner", "spouse", "family", "validar con", "consultar con", "hablarlo con", "comentarlo con", "confirmar con", "hablar con ella", "hablar con él", "discuss with", "check with", "talk it over", "aprobación de", "autorización de", "decidimos juntos", "decidir juntos", "we decide together"];
-  const hasSecondaryDecisionMaker = secondaryDmTerms.some(t => memoryFull.includes(t));
+  const hasSecondaryDecisionMaker = secondaryDmTerms.some(t => combinedFull.includes(t) || humanNotesLower.includes(t));
 
   // Speaker uncertainty severity
   const speakerRate = speaker_uncertainty?.rate ?? 0;
@@ -877,6 +900,12 @@ Reduce la certeza causal en juicios de control conversacional. Califica observac
   const systemPrompt = isEn
     ? `You are a sales call auditor with very high standards. You receive the tactical memory of a real conversation and return a brutal, specific, actionable post-session audit. No filler, no empty praise.
 
+EVIDENCE PRIORITY — read in this order, each source overrides the previous for conflicting details:
+1. CLOSING TRANSCRIPT (last raw turns) — highest trust for specific dates, commitments, and agreements. If a date/time appears here, treat it as confirmed.
+2. SELLER POST-CALL NOTES — high trust; the seller has direct knowledge of what happened.
+3. CALL ANALYSIS SUMMARY — useful signal for score and global state.
+4. TACTICAL CALL MEMORY — compressed; use when no more specific source contradicts it.
+
 CORE RULES:
 — If there is not enough evidence to assert something, say so explicitly. Do not fill gaps.
 — Penalize: vagueness, accumulated generic questions without advancing, unresolved objections without evidence, soft or missing closes.
@@ -901,6 +930,12 @@ Return EXACTLY this JSON, no markdown, no extra text:
 ${schema}`
     : `Eres un auditor de llamadas de venta con criterio muy alto. Recibes la memoria táctica de una conversación real y devuelves una auditoría post-sesión brutal, específica y accionable. Sin relleno, sin elogios vacíos.
 
+PRIORIDAD DE EVIDENCIA — lee en este orden; cada fuente anula a la anterior si hay contradicción:
+1. TRANSCRIPCIÓN DE CIERRE (últimas interacciones en bruto) — máxima confianza para fechas, compromisos y acuerdos específicos. Si aparece una fecha/hora aquí, trátala como confirmada.
+2. NOTAS POST-LLAMADA DEL VENDEDOR — alta confianza; el vendedor tiene conocimiento directo de lo ocurrido.
+3. RESUMEN DE ANÁLISIS — señal útil para puntuación y estado global.
+4. MEMORIA TÁCTICA — comprimida; úsala cuando ninguna fuente más específica la contradiga.
+
 REGLAS NÚCLEO:
 — Si no hay evidencia suficiente para afirmar algo, dilo explícitamente. No rellenes huecos.
 — Penaliza: vaguedad, preguntas genéricas acumuladas sin avanzar, objeciones sin resolver con evidencia, cierres blandos o ausentes.
@@ -924,7 +959,44 @@ FLAGS DE RIESGO:
 Devuelve EXACTAMENTE este JSON, sin markdown, sin texto extra:
 ${schema}`;
 
-  const userMessage = `${isEn ? "TACTICAL CALL MEMORY" : "MEMORIA TÁCTICA"}:\n${memoryText}${contextText}\n\n${isEn ? "REPORTED OUTCOME" : "RESULTADO DECLARADO"}: ${outcomeText}`;
+  // ── Build evidence pack for the prompt ────────────────────────────────────
+  const evidenceParts: string[] = [];
+
+  evidenceParts.push(
+    `${isEn ? "TACTICAL CALL MEMORY (compressed)" : "MEMORIA TÁCTICA (comprimida)"}:\n${memoryText}`
+  );
+
+  if (hasClosingExcerpt) {
+    evidenceParts.push(
+      `${isEn ? "CLOSING TRANSCRIPT — last raw turns (authoritative for commitments/dates)" : "TRANSCRIPCIÓN DE CIERRE — últimas interacciones en bruto (fuente principal para compromisos/fechas)"}:\n${closingLines}`
+    );
+  }
+
+  if (session_summary) {
+    const ss = session_summary;
+    const summaryBlock = [
+      ss.score != null ? `${isEn ? "Score" : "Puntuación"}: ${ss.score.toFixed(1)}/10` : null,
+      ss.global_state ? `${isEn ? "State" : "Estado"}: ${ss.global_state}` : null,
+      ss.result_label ? `${isEn ? "Result label" : "Etiqueta de resultado"}: ${ss.result_label}` : null,
+      ss.strengths?.length ? `${isEn ? "Strengths" : "Fortalezas"}: ${ss.strengths.join("; ")}` : null,
+      ss.improvements?.length ? `${isEn ? "Areas to improve" : "Áreas de mejora"}: ${ss.improvements.join("; ")}` : null,
+    ].filter(Boolean).join("\n");
+    if (summaryBlock) {
+      evidenceParts.push(`${isEn ? "CALL ANALYSIS SUMMARY" : "RESUMEN DE ANÁLISIS DE LLAMADA"}:\n${summaryBlock}`);
+    }
+  }
+
+  if (human_notes?.trim()) {
+    evidenceParts.push(
+      `${isEn ? "SELLER POST-CALL NOTES (high trust — seller knows what happened)" : "NOTAS POST-LLAMADA DEL VENDEDOR (alta confianza — el vendedor sabe lo que pasó)"}:\n${human_notes.trim()}`
+    );
+  }
+
+  evidenceParts.push(
+    `${isEn ? "REPORTED OUTCOME" : "RESULTADO DECLARADO"}: ${outcomeText}${contextText}`
+  );
+
+  const userMessage = evidenceParts.join("\n\n");
 
   try {
     const completion = await openai.chat.completions.create({
