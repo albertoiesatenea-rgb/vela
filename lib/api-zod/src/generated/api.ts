@@ -34,6 +34,16 @@ export const AnalyzeConversationBody = zod.object({
     .enum(["es", "en"])
     .optional()
     .describe("Response language — es (default) or en"),
+  structured_context: zod
+    .object({
+      meeting_goal: zod.string().optional(),
+      previous_blocker: zod.string().optional(),
+      blocker_status: zod.enum(["open", "resolved", "partially_resolved"]).optional(),
+      what_not_to_do_today: zod.string().optional(),
+      desired_deliverable_today: zod.string().optional(),
+    })
+    .optional()
+    .describe("Optional structured pre-call context (goal, blocker, deliverable)"),
 });
 
 // Helper: accept string | null | undefined from AI and normalise to string | undefined

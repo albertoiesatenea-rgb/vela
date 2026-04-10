@@ -185,6 +185,14 @@ export interface CopilotTurnEntry {
   notes: string | null;
 }
 
+export interface CopilotStructuredContext {
+  meeting_goal?: string;
+  previous_blocker?: string;
+  blocker_status?: "open" | "resolved" | "partially_resolved";
+  what_not_to_do_today?: string;
+  desired_deliverable_today?: string;
+}
+
 export interface CopilotSessionData {
   sessionId: string | null;
   lang: AuditLang;
@@ -203,6 +211,7 @@ export interface CopilotSessionData {
   } | null;
   turnLog: CopilotTurnEntry[];
   finalMemory: string[];
+  structuredContext?: CopilotStructuredContext;
 }
 
 // ── Arena builder input types ─────────────────────────────────────────────────
@@ -310,13 +319,14 @@ export function buildCopilotAuditLog(data: CopilotSessionData): AuditLog {
     session_status: data.callOutcome ?? "ended_without_declared_outcome",
   };
 
-  // Context — raw + structural decomposition
+  // Context — raw + structural decomposition from structuredContext when available
   const rawCtx = data.sessionContext ?? "(no context provided)";
+  const sc = data.structuredContext;
   const context: SessionContext = {
     raw_context: rawCtx,
-    objective: null,
-    known_objections: null,
-    relevant_data: null,
+    objective: sc?.meeting_goal ?? null,
+    known_objections: sc?.previous_blocker ? [sc.previous_blocker] : null,
+    relevant_data: sc?.desired_deliverable_today ?? null,
   };
 
   // Config
@@ -374,6 +384,11 @@ export function buildCopilotAuditLog(data: CopilotSessionData): AuditLog {
   // Parse error count for audit hints
   const parseErrors = data.turnLog.filter(t => t.parse_error).length;
   const errorTurns = data.turnLog.filter(t => t.response_status === "error").length;
+
+  // Speaker uncertainty — high UNKNOWN rate in auto mode
+  const unknownTurns = data.turnLog.filter(t => t.inferred_speaker === "UNKNOWN").length;
+  const unknownRate = data.turnLog.length > 0 ? unknownTurns / data.turnLog.length : 0;
+  const hasSpeakerUncertainty = data.speakerMode === "auto" && unknownRate > 0.3 && unknownTurns >= 3;
   const momentumTrend = detectMomentumTrend(data.turnLog);
   const lastMomentum = data.turnLog.length > 0
     ? data.turnLog[data.turnLog.length - 1].system_output?.momentum ?? null
@@ -454,6 +469,7 @@ export function buildCopilotAuditLog(data: CopilotSessionData): AuditLog {
   if (suspectedUnresolvedTechnical) auditNotes.push("UNRESOLVED_TECHNICAL_OBJ detected — technical objection may have been deferred without in-call resolution");
   if (suspectedFalseConfidence) auditNotes.push("FALSE_CONFIDENCE detected — certification or official body may have been used as definitive proof");
   if (suspectedSoftNextStep) auditNotes.push("SOFT_NEXT_STEP detected — next step agreed without visible decision criterion for next call");
+  if (hasSpeakerUncertainty) auditNotes.push(`SPEAKER_UNCERTAINTY detected — ${unknownTurns} of ${data.turnLog.length} turns were UNKNOWN in auto mode (${Math.round(unknownRate * 100)}%). Tactical reads may be contaminated. Consider using CLIENTE/YO attribution in future sessions.`);
 
   const hints: AuditHints = {
     likely_primary_failure: isLost ? "seller" : errorTurns > 0 ? "technical" : parseErrors > 0 ? "system" : "none",

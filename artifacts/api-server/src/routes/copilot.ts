@@ -55,6 +55,24 @@ ANTI-REPETICIÓN — REGLA CRÍTICA — antes de say_now determina el caso:
 5 CAMBIÓ EJE COMPLETAMENTE → reorienta todo
 Caso 1: micro-pasos válidos: concretar impacto, cuantificar magnitud, reenfocar al criterio real, resolver objeción, comparar con datos, proponer microcompromiso.
 
+AVANCE DE ETAPA — el objetivo inicial del contexto no es sagrado:
+Si el eje real de la llamada es claridad de etapa, encaje de criterio, definición de criterio de decisión o siguiente paso con entregable concreto, clasifica como avance real. Solo hay fallo de cierre si las condiciones objetivas de cierre estaban dadas y no se aprovecharon.
+
+PROCESO vs CIERRE — mencionar un paso del proceso NO es intento de cierre:
+Solo cuenta como intento de cierre si hay petición explícita de compromiso inmediato o presión a decidir ahora mismo. Enviar propuesta, agendar revisión, preparar documentación = paso de proceso, no cierre.
+
+EJE ACTUAL vs OBJECIÓN HISTÓRICA:
+Si el contexto previo cita una objeción pero el fragmento actual gira en torno a otro tema más activo y repetido, prioriza el eje actual real. No impongas la objeción histórica si no domina el transcript.
+
+CALIDAD DEL SIGUIENTE PASO:
+fuerte = fecha + entregable + criterio de decisión
+útil = fecha + entregable concreto
+débil = fecha sin entregable
+Refléjalo en mission y next_move. No trates todos los next_step como equivalentes.
+
+GUARDRAIL DE AMBIGÜEDAD DE VOZ:
+Si el fragmento parece mezclar voces o el hablante es incierto: no propongas cierre agresivo, no leas momentum verde prematuramente. Prioriza microaclaración o consolidación de criterio.
+
 ${OBJECTION_TAXONOMY_BLOCK.es}
 
 ${COMPARISON_RULE_BLOCK.es}
@@ -309,16 +327,60 @@ Responde SIEMPRE con JSON puro sin markdown ni texto extra.`;
 
 const BASE_SYSTEM_PROMPT = USE_OPTIMIZED_PROMPTS ? BASE_SYSTEM_PROMPT_V2 : BASE_SYSTEM_PROMPT_V1;
 
-function buildSystemPrompt(context?: string, lang?: string): string {
+// ── Structured context type (mirrors AnalyzeConversationBody's structured_context) ──
+type StructuredCtx = {
+  meeting_goal?: string;
+  previous_blocker?: string;
+  blocker_status?: "open" | "resolved" | "partially_resolved";
+  what_not_to_do_today?: string;
+  desired_deliverable_today?: string;
+};
+
+function buildStructuredContextBlock(ctx: StructuredCtx | undefined, lang?: string): string {
+  if (!ctx) return "";
+  const isEn = lang === "en";
+  const lines: string[] = [];
+  if (ctx.meeting_goal?.trim()) {
+    lines.push(isEn ? `Today's goal: ${ctx.meeting_goal}` : `Objetivo hoy: ${ctx.meeting_goal}`);
+  }
+  if (ctx.previous_blocker?.trim()) {
+    const statusMap: Record<string, string> = {
+      open: isEn ? "still open" : "sigue abierto",
+      resolved: isEn ? "resolved" : "resuelto",
+      partially_resolved: isEn ? "partially resolved" : "parcialmente resuelto",
+    };
+    const status = ctx.blocker_status ? ` (${statusMap[ctx.blocker_status] ?? ctx.blocker_status})` : "";
+    lines.push(isEn ? `Previous blocker: ${ctx.previous_blocker}${status}` : `Bloqueo previo: ${ctx.previous_blocker}${status}`);
+  }
+  if (ctx.what_not_to_do_today?.trim()) {
+    lines.push(isEn ? `What NOT to do today: ${ctx.what_not_to_do_today}` : `Qué NO hacer hoy: ${ctx.what_not_to_do_today}`);
+  }
+  if (ctx.desired_deliverable_today?.trim()) {
+    lines.push(isEn
+      ? `Valid result today (even without close): ${ctx.desired_deliverable_today}`
+      : `Resultado válido hoy (aunque no haya cierre): ${ctx.desired_deliverable_today}`
+    );
+  }
+  if (lines.length === 0) return "";
+  const header = isEn ? "PRE-CALL STRUCTURED CONTEXT" : "CONTEXTO ESTRUCTURADO PRE-LLAMADA";
+  const footer = isEn
+    ? "This context is prior to the call. The real conversation may reveal a different axis — if so, prioritize what is actually happening."
+    : "Este contexto es previo a la llamada. La conversación real puede revelar un eje distinto — si lo hace, prioriza el eje actual.";
+  return `\n${header}:\n${lines.join("\n")}\n${footer}`;
+}
+
+function buildSystemPrompt(context?: string, lang?: string, structuredCtx?: StructuredCtx): string {
   const contextBlock = context?.trim()
     ? `\nCONTEXTO DE SESIÓN:\n${context.trim()}\nUsa datos concretos de este contexto en detail.support cuando sea tácticamente oportuno.`
     : "";
+
+  const structuredBlock = buildStructuredContextBlock(structuredCtx, lang);
 
   const langRule = lang === "en"
     ? `\nLANGUAGE: The call is in English. ALL JSON field values MUST be in English.`
     : `\nIDIOMA: La llamada es en español. TODOS los valores JSON en español.`;
 
-  return `${BASE_SYSTEM_PROMPT}${contextBlock}${langRule}`;
+  return `${BASE_SYSTEM_PROMPT}${contextBlock}${structuredBlock}${langRule}`;
 }
 
 // ── POST /api/copilot/analyze ─────────────────────────────────────────────────
@@ -329,7 +391,7 @@ router.post("/copilot/analyze", async (req, res) => {
     return;
   }
 
-  const { text, context, call_memory, lang } = parseResult.data;
+  const { text, context, call_memory, lang, structured_context } = parseResult.data;
   const sessionId = (req.headers["x-session-id"] as string | undefined) ?? undefined;
 
   const userMessage = [
@@ -346,7 +408,7 @@ router.post("/copilot/analyze", async (req, res) => {
       model: "gpt-4o-mini",
       max_tokens: 900,
       messages: [
-        { role: "system", content: buildSystemPrompt(context, lang) },
+        { role: "system", content: buildSystemPrompt(context, lang, structured_context) },
         { role: "user", content: userMessage },
       ],
     });
@@ -469,6 +531,15 @@ CONDITIONAL CAPS — apply before scoring:
 — next_step with any of the above: global_state CANNOT be "strong". Use "solid", "workable", or weaker.
 Short efficient calls are NOT penalized for brevity. But softness IS penalized.
 
+STAGE ADVANCE vs FAILED CLOSE — distinguish before scoring:
+— If the call achieved stage clarity, criterion alignment, or a concrete next step with a specific deliverable, score as a real advance. Do NOT treat it as a failed close unless conditions for closing were genuinely met and wasted.
+— Explaining a commercial process step (sending a proposal, scheduling a review) is NOT a close attempt. Only count as a close attempt if there was an explicit request for immediate commitment.
+— Historical objections from context do not dominate if the actual transcript axis was different. Score based on what actually happened.
+NEXT STEP QUALITY — reflect in scoring:
+— strong: date + deliverable + decision criterion → treat as solid outcome (7.5-8.4 range if well executed)
+— useful: date + concrete deliverable → treat as good partial (6.5-7.5)
+— weak: date without deliverable → note as gap, penalize accordingly
+
 GLOBAL STATE: 1-2 words (strong/solid/advancing/workable/weak/blocked/lost/open)
 STRENGTHS: 2-3 specific tactical observations. No generic praise.
 IMPROVEMENTS: 2-3 specific, honest tactical observations.
@@ -491,6 +562,15 @@ LÍMITES CONDICIONALES — aplica antes de puntuar:
 — siguiente paso + sin criterio de decisión acordado para la próxima llamada → penalizar, señalar como debilidad
 — siguiente paso con cualquiera de los anteriores: global_state NO puede ser "fuerte". Usar "sólida", "trabajable" o menor.
 Llamadas cortas y eficaces NO se penalizan por brevedad. Pero la blandura SÍ se penaliza.
+
+AVANCE DE ETAPA vs FALLO DE CIERRE — distinguir antes de puntuar:
+— Si la llamada consiguió claridad de etapa, encaje de criterio o siguiente paso con entregable concreto, puntúa como avance real. NO trates como fallo de cierre a menos que las condiciones de cierre estuvieran dadas y no se aprovecharan.
+— Explicar un paso del proceso comercial (enviar propuesta, agendar revisión) NO es intento de cierre. Solo cuenta si hubo petición explícita de compromiso inmediato.
+— Las objeciones históricas del contexto no dominan si el eje real de la llamada fue otro. Puntúa según lo que ocurrió realmente.
+CALIDAD DEL SIGUIENTE PASO — refleja en la puntuación:
+— fuerte: fecha + entregable + criterio de decisión → tratar como resultado sólido (rango 7.5-8.4 si bien ejecutado)
+— útil: fecha + entregable concreto → buen parcial (6.5-7.5)
+— débil: fecha sin entregable → nota como debilidad, penaliza según corresponda
 
 ESTADO GLOBAL: 1-2 palabras (fuerte/sólida/avanzando/trabajable/floja/bloqueada/perdida/abierta)
 PUNTOS FUERTES: 2-3 observaciones tácticas específicas. Sin elogios genéricos.
@@ -579,6 +659,10 @@ CRITICAL RULES:
 — If there is not enough evidence to assert something, say so explicitly. Do not fill gaps.
 — Penalize: vagueness, accumulated generic questions without advancing, unresolved objections without evidence, soft or missing closes, loss of conversational control.
 — If there was a next step but no real close, do not present it as a strong session.
+— STAGE ADVANCE vs FAILED CLOSE: if the call achieved stage clarity, criterion alignment, or a concrete next step with a deliverable, audit it as a real advance — NOT a failed close — unless conditions for closing were genuinely met and wasted.
+— Process steps (sending a proposal, scheduling a review, preparing documentation) are NOT close attempts. Only flag a missed close if there was real implicit permission to advance and the seller did not take it.
+— Historical objections from context do not override the actual call axis. Audit what actually happened in the transcript.
+— NEXT STEP QUALITY: strong = date + deliverable + decision criterion; useful = date + deliverable; weak = date only. Reflect this in verdict and missed_closes.
 — failure_owner: classify each failure as one of: seller | timing | system | technical | setup | no real failure — then a brief description.
 — missed_closes: concrete moments where there was implicit permission to advance and the seller did not take it.
 — rules_violated: tactical anti-patterns that appear clearly in the transcript (e.g. "repeated the same question twice", "proposed a meeting before resolving main objection").
@@ -601,6 +685,10 @@ REGLAS CRÍTICAS:
 — Si no hay evidencia suficiente para afirmar algo, dilo explícitamente. No rellenes huecos.
 — Penaliza: vaguedad, preguntas genéricas acumuladas sin avanzar, objeciones sin resolver con evidencia, cierres blandos o ausentes, pérdida de control conversacional.
 — Si hubo siguiente paso pero no cierre real, no lo presentes como sesión fuerte.
+— AVANCE DE ETAPA vs FALLO DE CIERRE: si la llamada consiguió claridad de etapa, encaje de criterio o siguiente paso con entregable concreto, auditarlo como avance real — NO como fallo de cierre — salvo que las condiciones de cierre estuvieran dadas y no se aprovecharan.
+— Los pasos de proceso comercial (enviar propuesta, agendar revisión, preparar documentación) NO son intentos de cierre. Solo señala cierre perdido si había permiso implícito real para avanzar y el vendedor no lo tomó.
+— Las objeciones históricas del contexto no anulan el eje real de la llamada. Audita lo que realmente ocurrió en el transcript.
+— CALIDAD DEL SIGUIENTE PASO: fuerte = fecha + entregable + criterio de decisión; útil = fecha + entregable; débil = solo fecha. Refléjalo en verdict y missed_closes.
 — failure_owner: classifica cada fallo como: vendedor | timing | sistema | técnico | setup | sin fallo real — con descripción breve.
 — missed_closes: momentos concretos donde existía permiso implícito para avanzar y el vendedor no lo aprovechó.
 — rules_violated: antipatrones tácticos que aparecen claramente en la memoria (ej: "repitió la misma pregunta dos veces", "propuso reunión antes de resolver objeción principal").

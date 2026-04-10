@@ -1,0 +1,258 @@
+OBJETIVO
+
+Mejorar VELA Copiloto para que audite y guíe mejor llamadas reales sin contaminar el núcleo con lógica específica de Immvest u otro negocio concreto.
+
+Quiero una mejora en 4 capas:
+1) prompt universal mejor
+2) contexto previo más estructurado
+3) mejor manejo/configuración de speaker attribution
+4) lógica mínima de backend para no dejar todo al LLM
+
+NO quiero un parche que meta “depósito”, “notario”, “inmobiliaria” o términos de Immvest dentro del cerebro base.
+SÍ quiero reglas universales que sirvan para cualquier venta y que luego aprovechen contexto estructurado del caso concreto.
+
+CONTEXTO REAL DEL PROBLEMA
+
+En Copiloto, hoy `/api/copilot/analyze` recibe `text`, `context`, `call_memory` y `lang`, y devuelve el JSON táctico estándar. `/api/copilot/summarize` y `/api/copilot/audit-report` trabajan después sobre la memoria acumulada. El flujo actual está documentado en `artifacts/api-server/src/routes/copilot.ts` y en la arquitectura del modo Copiloto. :contentReference[oaicite:0]{index=0} :contentReference[oaicite:1]{index=1}
+
+Además, en el audit log los campos `objective`, `known_objections` y `relevant_data` siguen saliendo siempre `null`, así que mucha información previa útil no queda estructurada ni reutilizable. :contentReference[oaicite:2]{index=2}
+
+El estilo real de los prompts de VELA ya es operativo, técnico y universal. Quiero mantener ese estilo. No meter humo. No meter casos de empresa en el núcleo. :contentReference[oaicite:3]{index=3} :contentReference[oaicite:4]{index=4}
+
+También sé que `LEGACY_PROMPTS` no arregla este problema conceptual: solo cambia V1/V2 del mismo sistema, no la lógica de fondo. No uses ese flag como “solución”. :contentReference[oaicite:5]{index=5}
+
+ARCHIVOS PROBABLES A TOCAR
+
+- `artifacts/api-server/src/routes/copilot.ts`
+- `artifacts/silent-closer/src/pages/copilot.tsx`
+- `artifacts/silent-closer/src/components/context-panel.tsx`
+- `artifacts/silent-closer/src/components/tactical-display.tsx`
+- `artifacts/silent-closer/src/lib/audit-log.ts`
+- schemas Zod de Copiloto si hace falta ampliar request body
+- cualquier helper pequeño de parsing/normalización que convenga crear
+
+Si alguna ruta o archivo cambió en Replit, localiza el equivalente real antes de editar.
+No rehagas la app. Haz un cambio focalizado y compatible.
+
+CAMBIOS REQUERIDOS
+
+A) PROMPT UNIVERSAL MEJORADO EN COPILOTO
+
+Actualizar el system prompt base de Copiloto (`analyze`) para añadir reglas universales, NO verticalizadas:
+
+1. MISSION SHIFT
+- El objetivo inicial del contexto NO es sagrado.
+- Si durante la llamada queda claro que el prospecto aún no está en fase de cierre/propuesta, pero sí se consigue claridad de etapa, validación de encaje, definición de criterio o siguiente paso con entregable concreto, NO auditar como fallo de cierre.
+- Debe poder clasificar “avance de etapa” correctamente.
+
+2. PROCESS STEP VS CLOSE ATTEMPT
+- Mencionar un paso operativo del proceso comercial NO implica intento de cierre.
+- Solo cuenta como intento de cierre si hay evidencia de petición de compromiso inmediato o presión a decidir ahora.
+- Esto debe ser universal: sirve para cualquier venta, no solo inmobiliaria.
+
+3. HISTORICAL VS CURRENT AXIS
+- Una objeción histórica del contexto no debe dominar la lectura si el eje actual de la conversación es otro más repetido, más reciente y más activo.
+- Priorizar el eje actual real del transcript.
+
+4. NEXT STEP QUALITY
+- fecha + entregable concreto = avance real
+- fecha sin entregable = débil
+- fecha + entregable + criterio de decisión = fuerte
+- no tratar todos los `next_step` como iguales
+
+5. SPEAKER UNCERTAINTY GUARDRAIL
+- Si el fragmento es ambiguo o parece mezclar voces, no proponer cierre agresivo ni leer green prematuramente.
+- En caso de duda, priorizar microaclaración o consolidación de criterio.
+
+Mantener el formato y estilo actual de VELA:
+- schema primero
+- diferencias claras entre reading / mission / next_move
+- reglas operativas compactas
+- prohibiciones explícitas
+- JSON puro al final
+:contentReference[oaicite:6]{index=6} :contentReference[oaicite:7]{index=7}
+
+B) CONTEXTO PREVIO ESTRUCTURADO EN COPILOTO
+
+Quiero añadir una capa de contexto estructurado opcional en Copiloto, sin romper compatibilidad con el `context` libre actual.
+
+Implementar en frontend + backend una versión mínima y robusta de `structured_context` o nombre equivalente, con campos opcionales como:
+
+- `meeting_goal`
+- `previous_blocker`
+- `blocker_status` (`open` | `resolved` | `partially_resolved`)
+- `what_not_to_do_today`
+- `desired_deliverable_today`
+- `success_signals_today`
+- `known_context_notes`
+
+Requisitos:
+- seguir permitiendo `context` libre como hasta ahora
+- si existe `structured_context`, inyectarlo al system prompt de forma clara y separada del `raw_context`
+- si no existe, comportamiento actual intacto
+- no romper contratos existentes innecesariamente
+
+Además:
+- reflejar esta información en el audit log en vez de dejar `objective`, `known_objections`, `relevant_data` siempre en `null`, o bien añadir campos equivalentes sin romper el log
+- si no hay datos estructurados, mantener fallback actual
+:contentReference[oaicite:8]{index=8} :contentReference[oaicite:9]{index=9}
+
+C) UI MÍNIMA PARA ESE CONTEXTO ESTRUCTURADO
+
+En `context-panel.tsx` o equivalente:
+- mantener el textarea libre actual
+- añadir un bloque colapsable “Contexto avanzado” para estos campos estructurados
+- diseño simple, no decorativo
+- persistir en el estado igual que el resto del setup de Copiloto
+- no volver la UI pesada
+
+Objetivo:
+que el usuario pueda decir explícitamente cosas como:
+- qué toca conseguir hoy
+- qué bloqueo venía de antes
+- qué bloqueo ya no es el eje
+- qué sería un buen resultado aunque no haya cierre hoy
+
+D) CONFIGURACIÓN / UX DE SPEAKER MODE
+
+En modo Copiloto, especialmente en ESCUCHAR:
+- añadir aviso visible si `speaker_mode = auto` y el input es listen, indicando que la atribución puede contaminar la lectura táctica
+- si detectáis alta ambigüedad de speaker en los fragmentos recientes, mostrar una recomendación discreta:
+  - usar CLIENTE / YO en vez de AUTO
+  - o pegar un tramo manual en escribir
+
+No quiero magia falsa.
+Quiero una mejora honesta de UX que reduzca errores por atribución.
+
+El caso real que motiva esto es una sesión `source_mode: listen` con `speaker_mode_default: auto` donde aparecen muchos `UNKNOWN` y eso contamina la auditoría. :contentReference[oaicite:10]{index=10} :contentReference[oaicite:11]{index=11}
+
+E) LÓGICA MÍNIMA DE BACKEND (NO SOLO PROMPT)
+
+Añadir una pequeña capa heurística o post-proceso en backend para no dejar todo al modelo:
+
+1. `next_step_quality`
+Crear una clasificación interna simple:
+- `weak`
+- `useful`
+- `strong`
+
+Reglas orientativas:
+- weak = fecha sin entregable
+- useful = fecha + entregable concreto
+- strong = fecha + entregable + criterio/condición de decisión
+
+2. `mission_shift_detected`
+Heurística sencilla basada en:
+- diferencia entre objetivo inicial y eje dominante actual
+- presencia de frases de clarificación, priorización, definición de criterio o preparación de propuesta
+
+3. `speaker_uncertainty`
+Heurística ligera basada en:
+- speaker_mode auto
+- fragmentos ambiguos
+- demasiados `UNKNOWN` recientes o señales de mezcla de voces
+
+Usar estas banderas para:
+- modular summarize
+- modular audit-report
+- enriquecer audit log
+- opcionalmente informar TacticalDisplay con una alerta pequeña
+
+IMPORTANTE:
+No crear otra llamada al modelo si una heurística simple basta.
+Quiero bajo coste y bajo riesgo.
+
+F) SUMMARIZE Y AUDIT-REPORT
+
+Revisar las reglas de Copiloto para que:
+- una llamada con claridad conseguida + siguiente paso con entregable concreto NO salga como llamada fallida solo porque no hubo cierre
+- una explicación de proceso NO cuente sola como intento de cierre
+- una objeción histórica no domine todo el análisis si el eje actual es otro
+- la calidad del `next_step` se valore con más precisión
+
+Mantener la filosofía comercial actual:
+- criterio del cliente > persuasión genérica
+- anti-sobrediagnóstico
+- no cerrar si hay objeción activa real
+:contentReference[oaicite:12]{index=12} :contentReference[oaicite:13]{index=13}
+
+G) NO TOCAR ARENA
+
+No quiero cambios de lógica en Arena salvo que compartáis helpers puros reutilizables.
+El foco es Copiloto.
+
+RESTRICCIONES
+
+- No meter términos específicos de Immvest en el prompt base
+- No hardcodear “depósito”, “notario”, “inmueble”, etc. como reglas del cerebro universal
+- Sí se pueden usar ejemplos universales internos tipo “paso operativo del proceso” o “microcompromiso”
+- No rehacer arquitectura completa
+- No meter base de datos
+- No romper contratos existentes salvo cambio mínimo controlado
+- Mantener coste bajo
+- Mantener estilo de prompt VELA: técnico, corto, operativo, sin relleno
+:contentReference[oaicite:14]{index=14}
+
+ENTREGABLES
+
+1. Código implementado
+2. Lista exacta de archivos tocados
+3. Explicación breve de:
+   - mission shift
+   - process step vs close attempt
+   - structured context
+   - next_step_quality
+   - speaker_uncertainty
+4. Si cambias schemas, indicar compatibilidad hacia atrás
+5. Tests manuales concretos
+
+TESTS MANUALES QUE QUIERO
+
+Caso 1:
+- llamada donde el contexto inicial apunta a “cerrar”
+- pero el prospecto llega sin criterio
+- el vendedor consigue claridad y agenda sesión para ver propuestas
+Resultado esperado:
+- NO “llamada fallida”
+- SÍ “avance de etapa” o equivalente
+- next step al menos `useful`
+
+Caso 2:
+- llamada donde el vendedor explica un paso del proceso comercial
+- pero no pide compromiso inmediato
+Resultado esperado:
+- NO marcar automáticamente intento de cierre
+
+Caso 3:
+- llamada con objeción histórica fuerte en el contexto
+- pero el eje actual del transcript es distinto
+Resultado esperado:
+- la auditoría prioriza el eje actual, no la objeción antigua
+
+Caso 4:
+- sesión en listen + auto con ambigüedad de voces
+Resultado esperado:
+- alerta de speaker uncertainty
+- el sistema no empuja cierre agresivo
+
+CRITERIOS DE ACEPTACIÓN
+
+- Copiloto mantiene su prompt universal y no queda “contaminado” con lenguaje de una empresa concreta
+- El usuario puede dar contexto estructurado útil antes de la llamada
+- Audit log ya no pierde toda esa información dejándola en `null`
+- Summarize y audit-report distinguen mejor entre fallo de cierre y avance real de etapa
+- Explicar un paso de proceso no se confunde automáticamente con cerrar
+- El sistema se comporta mejor cuando el objetivo real de la llamada cambia
+- Hay mejora visible de UX cuando `speaker_mode=auto` mete ruido
+- No se rompe Arena
+- No se dispara el coste
+
+NOTA FINAL
+
+Si al inspeccionar el código real ves que ampliar schemas complica demasiado esta iteración, haz una versión 1 compatible:
+- mantener `context` como string
+- pero generar e inyectar internamente un bloque estructurado derivado desde UI
+- siempre que el usuario rellene los nuevos campos avanzados
+
+Si puedes hacerlo bien con schema opcional, prefiero eso.
+Si no, prioriza shipping limpio, compatible y útil.

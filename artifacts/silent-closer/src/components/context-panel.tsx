@@ -14,6 +14,14 @@ export interface ArenaConfig {
 
 export type AppMode = "copilot" | "arena";
 
+export interface StructuredContext {
+  meeting_goal?: string;
+  previous_blocker?: string;
+  blocker_status?: "open" | "resolved" | "partially_resolved";
+  what_not_to_do_today?: string;
+  desired_deliverable_today?: string;
+}
+
 // ── VELA mark: triangular sail + two internal diagonal cuts ───────────────────
 // NO mask approach — explicit fill polygon + cut lines drawn on top.
 //
@@ -89,6 +97,19 @@ const CP = {
     ARENA_SELLER_SHORT: "Vendedor",
     ARENA_CLIENT_SHORT: "Cliente",
     ARENA_HINT: "La IA jugará el otro rol",
+    SC_TOGGLE: "Contexto avanzado",
+    SC_GOAL_LABEL: "Objetivo hoy",
+    SC_GOAL_PH: "qué toca conseguir en esta llamada",
+    SC_BLOCKER_LABEL: "Bloqueo previo",
+    SC_BLOCKER_PH: "objeción o freno que venía de antes",
+    SC_BLOCKER_STATUS_LABEL: "Estado",
+    SC_BLOCKER_OPEN: "Sin resolver",
+    SC_BLOCKER_PARTIAL: "Parcial",
+    SC_BLOCKER_RESOLVED: "Resuelto",
+    SC_NOTDO_LABEL: "Qué NO hacer hoy",
+    SC_NOTDO_PH: "qué evitar aunque parezca buena idea",
+    SC_DELIVERABLE_LABEL: "Resultado válido hoy",
+    SC_DELIVERABLE_PH: "qué sería un buen resultado aunque no haya cierre",
   },
   en: {
     DEFINE:    "Set the context",
@@ -132,6 +153,19 @@ const CP = {
     ARENA_SELLER_SHORT: "Seller",
     ARENA_CLIENT_SHORT: "Client",
     ARENA_HINT: "The AI will play the other role",
+    SC_TOGGLE: "Advanced context",
+    SC_GOAL_LABEL: "Today's goal",
+    SC_GOAL_PH: "what you need to achieve in this call",
+    SC_BLOCKER_LABEL: "Previous blocker",
+    SC_BLOCKER_PH: "objection or friction that came from before",
+    SC_BLOCKER_STATUS_LABEL: "Status",
+    SC_BLOCKER_OPEN: "Still open",
+    SC_BLOCKER_PARTIAL: "Partial",
+    SC_BLOCKER_RESOLVED: "Resolved",
+    SC_NOTDO_LABEL: "What NOT to do today",
+    SC_NOTDO_PH: "what to avoid even if it seems like a good idea",
+    SC_DELIVERABLE_LABEL: "Valid result today",
+    SC_DELIVERABLE_PH: "what would be a good result even without closing",
   },
 };
 
@@ -622,7 +656,7 @@ export function ContextSetup({
   initialMode,
   initialRole,
 }: {
-  onContextReady: (ctx: string) => void;
+  onContextReady: (ctx: string, structuredCtx?: StructuredContext) => void;
   onArenaReady: (ctx: string, role: ArenaRole, config: ArenaConfig) => void;
   lang: Lang;
   onLangChange: (l: Lang) => void;
@@ -638,6 +672,10 @@ export function ContextSetup({
   const [isRandomCtx, setIsRandomCtx] = useState(false);
   const [randomPreset, setRandomPreset] = useState<string | undefined>(undefined);
   const [isGeneratingCtx, setIsGeneratingCtx] = useState(false);
+
+  // Structured context state
+  const [showStructured, setShowStructured] = useState(false);
+  const [structuredCtx, setStructuredCtx] = useState<StructuredContext>({});
 
   // Arena profile/difficulty state
   const [clientProfile, setClientProfile] = useState<string | undefined>(undefined);
@@ -716,7 +754,8 @@ export function ContextSetup({
           ? `\n\n[Perfil estimado del cliente: ${profileLabel}. Usa esto como referencia inicial en tus sugerencias, con flexibilidad si la conversación revela señales distintas.]`
           : `\n\n[Estimated client profile: ${profileLabel}. Use this as an initial reference in your suggestions, staying flexible if the conversation reveals different signals.]`;
       }
-      onContextReady(finalCtx);
+      const hasStructuredData = Object.values(structuredCtx).some(v => v && v.trim && v.trim().length > 0);
+      onContextReady(finalCtx, hasStructuredData ? structuredCtx : undefined);
     }
   };
 
@@ -1039,6 +1078,90 @@ export function ContextSetup({
                 sellerProfile={sellerProfile} setSellerProfile={setSellerProfile}
                 difficulty={difficulty} setDifficulty={setDifficulty}
               />
+            )}
+
+            {/* ── Structured context (copilot only) ─────────────────────── */}
+            {appMode === "copilot" && (
+              <div className="rounded-xl border border-white/10 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setShowStructured(v => !v)}
+                  className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-mono tracking-widest uppercase text-zinc-400 hover:text-white transition-colors"
+                >
+                  <span>{t.SC_TOGGLE}</span>
+                  <span>{showStructured ? "▲" : "▼"}</span>
+                </button>
+
+                {showStructured && (
+                  <div className="px-3 pb-3 flex flex-col gap-3 border-t border-white/10 pt-3">
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-widest uppercase text-zinc-500 mb-1">{t.SC_GOAL_LABEL}</label>
+                      <input
+                        type="text"
+                        value={structuredCtx.meeting_goal ?? ""}
+                        onChange={e => setStructuredCtx(s => ({ ...s, meeting_goal: e.target.value }))}
+                        placeholder={t.SC_GOAL_PH}
+                        className="w-full text-xs font-mono bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-white placeholder:text-zinc-600 focus:outline-none focus:border-white/30"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-widest uppercase text-zinc-500 mb-1">{t.SC_BLOCKER_LABEL}</label>
+                      <input
+                        type="text"
+                        value={structuredCtx.previous_blocker ?? ""}
+                        onChange={e => setStructuredCtx(s => ({ ...s, previous_blocker: e.target.value }))}
+                        placeholder={t.SC_BLOCKER_PH}
+                        className="w-full text-xs font-mono bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-white placeholder:text-zinc-600 focus:outline-none focus:border-white/30"
+                      />
+                    </div>
+
+                    {structuredCtx.previous_blocker && (
+                      <div>
+                        <label className="block text-[10px] font-mono tracking-widest uppercase text-zinc-500 mb-1">{t.SC_BLOCKER_STATUS_LABEL}</label>
+                        <div className="flex gap-2">
+                          {(["open", "partially_resolved", "resolved"] as const).map(v => (
+                            <button
+                              key={v}
+                              type="button"
+                              onClick={() => setStructuredCtx(s => ({ ...s, blocker_status: v }))}
+                              className={`flex-1 text-[9px] font-mono tracking-widest uppercase py-1 rounded-lg border transition-colors
+                                ${structuredCtx.blocker_status === v
+                                  ? "bg-white text-black border-white"
+                                  : "bg-transparent text-zinc-500 border-white/10 hover:border-white/30"
+                                }`}
+                            >
+                              {v === "open" ? t.SC_BLOCKER_OPEN : v === "partially_resolved" ? t.SC_BLOCKER_PARTIAL : t.SC_BLOCKER_RESOLVED}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-widest uppercase text-zinc-500 mb-1">{t.SC_NOTDO_LABEL}</label>
+                      <input
+                        type="text"
+                        value={structuredCtx.what_not_to_do_today ?? ""}
+                        onChange={e => setStructuredCtx(s => ({ ...s, what_not_to_do_today: e.target.value }))}
+                        placeholder={t.SC_NOTDO_PH}
+                        className="w-full text-xs font-mono bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-white placeholder:text-zinc-600 focus:outline-none focus:border-white/30"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-mono tracking-widest uppercase text-zinc-500 mb-1">{t.SC_DELIVERABLE_LABEL}</label>
+                      <input
+                        type="text"
+                        value={structuredCtx.desired_deliverable_today ?? ""}
+                        onChange={e => setStructuredCtx(s => ({ ...s, desired_deliverable_today: e.target.value }))}
+                        placeholder={t.SC_DELIVERABLE_PH}
+                        className="w-full text-xs font-mono bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-white placeholder:text-zinc-600 focus:outline-none focus:border-white/30"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
 
             {/* CTA */}

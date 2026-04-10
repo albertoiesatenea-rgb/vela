@@ -4,7 +4,7 @@ import { useAnalyzeConversation } from "@workspace/api-client-react";
 import { useSpeech } from "@/hooks/use-speech";
 import { TacticalDisplay } from "@/components/tactical-display";
 import { ContextSetup, SessionBar, VelaIcon } from "@/components/context-panel";
-import type { ArenaConfig, AppMode } from "@/components/context-panel";
+import type { ArenaConfig, AppMode, StructuredContext } from "@/components/context-panel";
 import { Arena } from "@/pages/arena";
 import type { ArenaRole } from "@/pages/arena";
 import { cn } from "@/lib/utils";
@@ -480,6 +480,7 @@ export default function CopilotPage() {
   const [speakerMode, setSpeakerMode] = useState<SpeakerMode>("auto");
   const [simulateText, setSimulateText] = useState("");
   const [sessionContext, setSessionContext] = useState<string | null>(loadSession);
+  const [structuredContext, setStructuredContext] = useState<StructuredContext | undefined>(undefined);
   const [arenaRole, setArenaRole] = useState<ArenaRole | null>(null);
   const [arenaConfig, setArenaConfig] = useState<ArenaConfig>({});
   const [arenaKey, setArenaKey] = useState(0);
@@ -591,6 +592,7 @@ export default function CopilotPage() {
             text: fullText,
             ...(sessionContext ? { context: sessionContext } : {}),
             ...(memoryStr ? { call_memory: memoryStr } : {}),
+            ...(structuredContext ? { structured_context: structuredContext } : {}),
             lang: langRef.current,
           },
         },
@@ -679,8 +681,9 @@ export default function CopilotPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [sessionActive]);
 
-  const handleContextReady = (context: string) => {
+  const handleContextReady = (context: string, sc?: StructuredContext) => {
     setSessionContext(context);
+    setStructuredContext(sc);
     setTacticalState(EMPTY_STATE);
     setContextLabel("");
     saveLabel("");
@@ -966,6 +969,7 @@ export default function CopilotPage() {
       callSummary: callSummary ?? null,
       turnLog,
       finalMemory,
+      structuredContext,
     });
     triggerAuditLogDownload(log, sessionId || null);
   };
@@ -1528,6 +1532,15 @@ export default function CopilotPage() {
             ? T[lang].autoHint(inferredAutoLabel)
             : T[lang].KBD}
         </p>
+
+        {/* Speaker uncertainty warning — auto mode + ≥3 UNKNOWN turns */}
+        {speakerMode === "auto" && turnLog.filter(t => t.inferred_speaker === "UNKNOWN").length >= 3 && (
+          <p className="text-[9px] font-mono text-amber-400 tracking-widest">
+            {lang === "es"
+              ? `⚠ ${turnLog.filter(t => t.inferred_speaker === "UNKNOWN").length} turnos sin atribuir — lecturas pueden ser imprecisas`
+              : `⚠ ${turnLog.filter(t => t.inferred_speaker === "UNKNOWN").length} unattributed turns — reads may be imprecise`}
+          </p>
+        )}
       </div>
 
       <DebugPanel sessionId={sessionId || null} />
