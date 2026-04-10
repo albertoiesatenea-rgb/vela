@@ -1,0 +1,122 @@
+OBJETIVO
+
+Corregir Copiloto para que la auditoría brutal no contradiga sus propios audit_hints y para que evalúe correctamente llamadas avanzadas donde:
+- el cliente ya quiere comprar/invertir
+- la decisión real es elegir entre dos opciones
+- hay validador secundario (pareja, socio, etc.)
+- se acuerda una siguiente llamada útil y concreta
+
+PROBLEMA DETECTADO
+
+Caso real:
+- SESSION_SUMMARY: final_outcome=next_step, final_global_state=sólida
+- AUDIT_HINTS: NEXT_STEP_QUALITY useful, suspected_soft_next_step=no
+- AUDIT_HINTS: SPEAKER_UNCERTAINTY 138/149 UNKNOWN (93%)
+- brutal output aun así dijo:
+  - “no se estableció un cierre firme o un siguiente paso con entregable concreto”
+  - “falta de control del vendedor”
+
+Eso es incoherente y falso.
+
+ARCHIVOS PROBABLES A TOCAR
+
+- artifacts/api-server/src/routes/copilot.ts
+- cualquier helper donde se construyan audit-report inputs
+- opcional: artifacts/silent-closer/src/lib/audit-log.ts si hace falta enriquecer flags, pero idealmente ya existe suficiente info
+
+CAMBIOS REQUERIDOS
+
+A) AUDIT-REPORT DEBE RESPETAR AUDIT_HINTS
+- Si `suspected_soft_next_step === no` y existe nota `NEXT_STEP_QUALITY useful|strong`, la brutal NO puede afirmar ausencia de siguiente paso concreto.
+- Añadir guardrail explícito en prompt o post-proceso.
+
+B) NUEVA CATEGORÍA: DECISIÓN ENTRE ALTERNATIVAS
+- Detectar cuando la conversación ya no es “comprar o no”, sino “A vs B”.
+- Inputs típicos:
+  - cliente ya acepta invertir
+  - comparación entre 2 inmuebles/2 ciudades
+  - conversación gira sobre elegir
+- En ese caso:
+  - no penalizar como llamada fallida por falta de cierre final
+  - evaluar si se redujo la decisión y si quedó el siguiente paso útil
+
+C) VALIDADOR SECUNDARIO
+- Si aparece esposa/pareja/socio/familia como decisor secundario:
+  - no tratar automáticamente la falta de reserva inmediata como fallo de cierre
+  - evaluar si el vendedor dejó:
+    1) alternativa reducida
+    2) plazo explícito
+    3) siguiente llamada agendada
+
+D) SPEAKER UNCERTAINTY GATE
+- Si `SPEAKER_UNCERTAINTY > 30%`, bajar la contundencia causal
+- Si `> 70%`, prohibir frases tipo:
+  - “falta de control en la conversación”
+  - “el vendedor perdió el control”
+  salvo evidencia clarísima y repetida en memoria/hints
+- La brutal debe mencionar menor confianza cuando el log esté contaminado
+
+E) POST-PROCESS SANITY CHECK
+Implementar una verificación final antes de devolver brutal audit:
+- si output textual contradice audit_hints principales, corregir o regenerar
+Ejemplos:
+- `NEXT_STEP_QUALITY useful` vs texto “sin siguiente paso concreto”
+- `suspected_soft_next_step=no` vs texto “conversación abierta sin compromiso”
+- `likely_primary_failure=none` vs veredicto de “fallo claro del vendedor”
+No hace falta otra llamada al modelo; puede ser un ajuste textual o bloque de validación simple.
+
+RESTRICCIONES
+
+- No tocar Arena
+- No rehacer toda la arquitectura
+- No aumentar coste innecesariamente
+- Mantener estilo VELA: operativo, duro, preciso
+- No meter lenguaje específico de Immvest en el núcleo
+
+ENTREGABLES
+
+1. código implementado
+2. lista exacta de archivos tocados
+3. explicación breve de:
+   - guardrail de contradicción con audit_hints
+   - categoría “decisión entre alternativas”
+   - tratamiento de decisor secundario
+   - speaker uncertainty gate
+4. tests manuales
+
+TESTS MANUALES
+
+TEST 1
+Caso:
+- cliente ya quiere invertir
+- compara opción A vs opción B
+- pareja decide el fin de semana
+- llamada siguiente cerrada
+Esperado:
+- brutal NO llama a esto “fallo de cierre”
+
+TEST 2
+Caso:
+- audit_hints: NEXT_STEP_QUALITY useful + soft_next_step=no
+Esperado:
+- brutal NO puede decir “sin siguiente paso concreto”
+
+TEST 3
+Caso:
+- speaker uncertainty >70%
+Esperado:
+- brutal baja contundencia y no culpa al vendedor con exceso de seguridad
+
+TEST 4
+Caso:
+- comparativa madura donde el vendedor deja peor posicionada su opción inicial pero sí reduce la decisión a 2 alternativas
+Esperado:
+- crítica al vendedor por desplazamiento de preferencia si toca, pero no llamada fallida
+
+CRITERIOS DE ACEPTACIÓN
+
+- brutal deja de contradecir summary/audit_hints
+- distingue compra vs elección entre alternativas
+- trata mejor los casos con esposa/socio como validador
+- speaker uncertainty afecta de verdad la dureza del juicio
+- no se rompe compatibilidad

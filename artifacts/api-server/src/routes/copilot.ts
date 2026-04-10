@@ -643,8 +643,8 @@ ${fullReportInstructions}`;
 
 // ── POST /api/copilot/audit-report ───────────────────────────────────────────
 // Brutal post-session audit. Independent from summarize — no regression risk.
-// Input: { call_memory, outcome, context?, lang }
-// Output: BrutalAudit JSON
+// Input: { call_memory, outcome, context?, lang, speaker_uncertainty? }
+// Output: BrutalAudit JSON (with post-process sanity guardrail)
 router.post("/copilot/audit-report", async (req, res) => {
   const { call_memory, outcome, context, lang = "es", speaker_uncertainty } = req.body as {
     call_memory?: string[];
@@ -659,76 +659,277 @@ router.post("/copilot/audit-report", async (req, res) => {
   const outcomeText = outcome ?? (isEn ? "unknown" : "desconocido");
   const contextText = context?.trim() ? `\n${isEn ? "SESSION CONTEXT" : "CONTEXTO"}: ${context.trim()}` : "";
 
-  const auditSpeakerUncertaintyBlock = speaker_uncertainty?.high
+  // ── Heuristic classifiers (mirrors audit-log.ts — no extra LLM call) ────────
+  const memoryFull = (call_memory ?? []).join(" ").toLowerCase();
+  const isNextStep = (outcome ?? "") === "next_step";
+  const isLost = (outcome ?? "") === "lost";
+
+  const dateTimeTerms = ["fecha", "lunes", "martes", "miércoles", "jueves", "viernes", "mañana", "próxima semana", "próximo", "esta semana", "monday", "tuesday", "wednesday", "thursday", "friday", "tomorrow", "next week", ":00", " am ", " pm ", "a las ", "at "];
+  const channelTerms = ["videollamada", "videoconferencia", "video call", "zoom", "teams", "google meet", "meet ", "correo", "e-mail", "email", "reunión", "reunion", "meeting", "llamada", "enlace", "link"];
+  const deliverableTerms = ["propuesta", "contrato", "resumen", "documentación", "documentacion", "información", "summary", "proposal", "contract", "documentation", "agenda", "informe", "report", "presupuesto", "oferta", "dossier"];
+  const decisionTerms = ["criterio", "condición", "criterion", "acordad", "agreed", "compromi", "commit"];
+
+  const hasDateTime = dateTimeTerms.some(t => memoryFull.includes(t));
+  const hasChannel = channelTerms.some(t => memoryFull.includes(t));
+  const hasDeliverable = deliverableTerms.some(t => memoryFull.includes(t));
+  const hasOperativeCommitment = hasDateTime || hasChannel || hasDeliverable;
+  const hasDecisionCriterion = decisionTerms.some(t => memoryFull.includes(t));
+
+  type NsqType = "strong" | "useful" | "weak" | null;
+  const nextStepQuality: NsqType = isNextStep
+    ? (hasOperativeCommitment && hasDecisionCriterion ? "strong"
+      : hasOperativeCommitment ? "useful"
+      : "weak")
+    : null;
+  const likelyNoFailure = !isLost;
+
+  // Alternatives decision pattern: client already committed, deciding between options
+  const alternativesTerms = ["cuál de las dos", "cuál de los dos", "cuál elegir", "la a o", "la b o", "opción a o", "opción b", "alternativa a", "alternativa b", "option a or", "option b", "which of the two", "which one", "elegir entre", "comparar entre", "decidir entre", "entre las dos", "entre los dos", "entre ambas", "entre ambos", "dos opciones", "two options", "la otra opción", "the other option", "la primera o", "the first or"];
+  const isAlternativesDecision = alternativesTerms.some(t => memoryFull.includes(t));
+
+  // Secondary decision-maker pattern: spouse/partner/family/associate must validate
+  const secondaryDmTerms = ["esposa", "marido", "pareja", "socio", "socia", "familia", "wife", "husband", "partner", "spouse", "family", "validar con", "consultar con", "hablarlo con", "comentarlo con", "confirmar con", "hablar con ella", "hablar con él", "discuss with", "check with", "talk it over", "aprobación de", "autorización de", "decidimos juntos", "decidir juntos", "we decide together"];
+  const hasSecondaryDecisionMaker = secondaryDmTerms.some(t => memoryFull.includes(t));
+
+  // Speaker uncertainty severity
+  const speakerRate = speaker_uncertainty?.rate ?? 0;
+  const speakerUnknownTurns = speaker_uncertainty?.unknown_turns ?? 0;
+  const speakerTotalTurns = speaker_uncertainty?.total_turns ?? 0;
+  const speakerUncertaintySevere = speakerRate > 0.7;
+  const speakerUncertaintyModerate = speakerRate > 0.3;
+  const speakerPct = Math.round(speakerRate * 100);
+
+  // ── Guardrail blocks (injected into system prompt as HARD rules) ─────────────
+
+  const detectedEn = [
+    hasDateTime    ? "• Specific date/time marker: CONFIRMED" : null,
+    hasChannel     ? "• Concrete channel (call/meeting/email/link): CONFIRMED" : null,
+    hasDeliverable ? "• Concrete deliverable (proposal/summary/info/contract): CONFIRMED" : null,
+    hasDecisionCriterion ? "• Decision criterion: CONFIRMED" : null,
+  ].filter(Boolean).join("\n  ");
+
+  const detectedEs = [
+    hasDateTime    ? "• Fecha/hora específica: CONFIRMADA" : null,
+    hasChannel     ? "• Canal concreto (llamada/reunión/correo/enlace): CONFIRMADO" : null,
+    hasDeliverable ? "• Entregable concreto (propuesta/resumen/info/contrato): CONFIRMADO" : null,
+    hasDecisionCriterion ? "• Criterio de decisión: CONFIRMADO" : null,
+  ].filter(Boolean).join("\n  ");
+
+  const nextStepGuardrail = (nextStepQuality === "useful" || nextStepQuality === "strong")
     ? (isEn
-        ? `\nSPEAKER UNCERTAINTY HIGH: ${speaker_uncertainty.unknown_turns ?? "?"} of ${speaker_uncertainty.total_turns ?? "?"} turns (${Math.round((speaker_uncertainty.rate ?? 0) * 100)}%) were UNKNOWN in auto mode. DO NOT make causal conclusions about who controlled the conversation or about seller-specific tactical patterns unless supported by explicit evidence. The failure_owner field must NOT attribute a failure to "seller" solely based on inferred conversational control if speaker attribution is uncertain. Flag affected findings with lower confidence.`
-        : `\nALTA INCERTIDUMBRE DE HABLANTE: ${speaker_uncertainty.unknown_turns ?? "?"} de ${speaker_uncertainty.total_turns ?? "?"} turnos (${Math.round((speaker_uncertainty.rate ?? 0) * 100)}%) fueron UNKNOWN en modo automático. NO hagas conclusiones causales sobre quién controló la conversación ni sobre patrones tácticos específicos del vendedor salvo que haya evidencia explícita. El campo failure_owner NO debe atribuir un fallo al "vendedor" solo por control conversacional inferido si la atribución de hablante es incierta. Señala los hallazgos afectados con confianza reducida.`)
+        ? `\n\n━━ HARD GUARDRAILS — override any contrary inference ━━
+SYSTEM CONFIRMED operative next step. Quality: ${nextStepQuality}. Commitments detected:
+  ${detectedEn}
+These are system-level facts. Your output MUST NOT contradict them.
+PROHIBITED claims (any field):
+  • "no date was set" / "no specific date" / "no timeframe agreed" — date/time WAS confirmed.
+  • "no concrete next step" / "no next step was agreed" / "next step is missing"
+  • "open conversation without commitment" / "no clear commitment" / "the conversation remained open"
+  • Treating the absence of immediate reservation as a failed close when client is in comparative evaluation stage
+Your suspected_soft_next_step MUST be "no". Non-negotiable system constraint.
+You CAN note what is still missing for "strong" quality (e.g. explicit decision criterion not stated). But not at the cost of denying the confirmed operative commitments.`
+        : `\n\n━━ GUARDRAILS DUROS — anulan cualquier inferencia contraria ━━
+SISTEMA CONFIRMÓ siguiente paso operativo. Calidad: ${nextStepQuality}. Compromisos detectados:
+  ${detectedEs}
+Estos son hechos del sistema. Tu output NO puede contradecirlos.
+AFIRMACIONES PROHIBIDAS (cualquier campo):
+  • "no se fijó una fecha" / "sin fecha específica" / "sin franja horaria acordada" — fecha/hora SÍ confirmada.
+  • "sin siguiente paso concreto" / "no se acordó siguiente paso" / "falta siguiente paso"
+  • "conversación abierta sin compromiso" / "sin compromiso claro" / "la llamada quedó abierta"
+  • Tratar la ausencia de reserva inmediata como fallo de cierre cuando el cliente está en fase de evaluación comparativa
+Tu suspected_soft_next_step DEBE ser "no". Restricción del sistema, no negociable.
+SÍ puedes señalar qué falta para alcanzar calidad "fuerte" (ej. criterio de decisión no explicitado). Pero no a costa de negar los compromisos operativos confirmados.`)
     : "";
+
+  const noFailureGuardrail = likelyNoFailure && !isLost
+    ? (isEn
+        ? `\n— SYSTEM ANALYSIS: no clear primary failure detected. Do NOT assign "seller" in failure_owner unless there is explicit evidence in memory — not inferred conversational patterns. If there was a real gap, name it specifically; do not use loss of conversational control as a catch-all blame.`
+        : `\n— ANÁLISIS DEL SISTEMA: no se detectó fallo primario claro. NO asignes "vendedor" en failure_owner salvo evidencia explícita en memoria — no patrones de control inferidos. Si hubo un gap real, nómbralo específicamente; no uses pérdida de control conversacional como culpa genérica.`)
+    : "";
+
+  const alternativesBlock = isAlternativesDecision
+    ? (isEn
+        ? `\n\n━━ PATTERN DETECTED: DECISION BETWEEN ALTERNATIVES ━━
+The client appears to already want to buy — the live decision is between two options, not whether to buy at all. In this stage: (a) the correct tactical goal is narrowing to one option and setting the validation step, NOT forcing an immediate reservation; (b) do NOT audit as a failed close unless the seller had an explicit cue for reservation/signature and did not take it; (c) "choosing together with spouse/partner/family" is a process step, not a stall — evaluate whether the seller reduced the decision and locked a concrete next contact.`
+        : `\n\n━━ PATRÓN DETECTADO: DECISIÓN ENTRE ALTERNATIVAS ━━
+El cliente parece ya querer comprar — la decisión real es entre dos opciones, no si comprar. En esta etapa: (a) el objetivo táctico correcto es reducir a una opción y fijar el paso de validación, NO forzar reserva inmediata; (b) NO audites como fallo de cierre salvo que el vendedor tuviera señal explícita de avance a reserva/firma y no la tomara; (c) "decidir con pareja/socio/familia" es un paso de proceso, no un bloqueo — evalúa si el vendedor redujo la decisión y aseguró un contacto siguiente concreto.`)
+    : "";
+
+  const secondaryDmBlock = hasSecondaryDecisionMaker
+    ? (isEn
+        ? `\n\n━━ PATTERN DETECTED: SECONDARY DECISION-MAKER ━━
+A secondary validator (spouse/partner/family/associate) is involved. RULES: (a) absence of immediate reservation is NOT automatically a failure; (b) evaluate whether the seller achieved: (1) decision reduced to a clear option, (2) explicit validation deadline set, (3) next call confirmed; (c) if all three exist, this is a REAL ADVANCE — audit it as such. If the seller failed to secure any of these, that is the specific failure to name.`
+        : `\n\n━━ PATRÓN DETECTADO: VALIDADOR SECUNDARIO ━━
+Hay un validador secundario (pareja/socio/familia/asociado) implicado. REGLAS: (a) la ausencia de reserva inmediata NO es automáticamente un fallo; (b) evalúa si el vendedor logró: (1) decisión reducida a una opción clara, (2) plazo de validación explícito fijado, (3) siguiente llamada confirmada; (c) si las tres existen, esto es UN AVANCE REAL — audítalo como tal. Si el vendedor no aseguró alguna, ese es el fallo específico a nombrar.`)
+    : "";
+
+  const speakerGate = speakerUncertaintySevere
+    ? (isEn
+        ? `\n\n━━ SPEAKER UNCERTAINTY SEVERE (${speakerPct}% unknown, ${speakerUnknownTurns}/${speakerTotalTurns} turns) ━━
+PROHIBITED phrases anywhere in output: "the seller lost control", "lack of seller control", "the seller didn't manage the conversation", "poor conversational control", or any equivalent. These require speaker-attributed evidence that does not exist here. You MUST note in the verdict that speaker attribution is unreliable and conclusions about control patterns should be treated with low confidence. You CAN name specific failures that appear explicitly in the memory content.`
+        : `\n\n━━ INCERTIDUMBRE DE HABLANTE SEVERA (${speakerPct}% desconocido, ${speakerUnknownTurns}/${speakerTotalTurns} turnos) ━━
+FRASES PROHIBIDAS en cualquier campo del output: "el vendedor perdió el control", "falta de control del vendedor", "el vendedor no gestionó bien la conversación", "control conversacional deficiente", o equivalentes. Estas requieren evidencia con atribución de hablante que no existe aquí. DEBES señalar en el veredicto que la atribución de hablante no es fiable y que las conclusiones sobre patrones de control deben tomarse con confianza baja. SÍ puedes nombrar fallos específicos que aparezcan explícitamente en el contenido de la memoria.`)
+    : speakerUncertaintyModerate
+      ? (isEn
+          ? `\n\n━━ SPEAKER UNCERTAINTY MODERATE (${speakerPct}% unknown) ━━
+Reduce causal certainty in control-related judgments. Qualify control observations as "possible" or "likely" rather than certain. Do not assign failure_owner = seller based solely on inferred conversational control.`
+          : `\n\n━━ INCERTIDUMBRE DE HABLANTE MODERADA (${speakerPct}% desconocido) ━━
+Reduce la certeza causal en juicios de control conversacional. Califica observaciones de control como "posible" o "probable", no como certeras. No asignes failure_owner = vendedor solo por control conversacional inferido.`)
+      : "";
+
+  // ── Post-process sanity check (no LLM call — pure text guardrail) ────────────
+  function applySanityCheck(audit: Record<string, unknown>): void {
+    // 1. Force suspected_soft_next_step = "no" when quality is useful/strong
+    if ((nextStepQuality === "useful" || nextStepQuality === "strong") && audit.suspected_soft_next_step === "yes") {
+      audit.suspected_soft_next_step = "no";
+    }
+
+    // 2. Strip forbidden "no next step" language from verdict/what_failed when next step was operative
+    if (nextStepQuality === "useful" || nextStepQuality === "strong") {
+      const forbiddenEs = [
+        "sin siguiente paso concreto", "conversación abierta sin compromiso", "sin compromiso claro",
+        "la conversación quedó abierta", "quedó abierta", "sin siguiente paso",
+        "sin un siguiente paso", "no se estableció un siguiente paso", "no se acordó un siguiente paso",
+        "no se aseguró un siguiente paso concreto",
+        ...(hasDateTime ? ["no se fijó una fecha", "no hay una fecha", "sin fecha específica", "sin fecha concreta", "no se estableció una fecha", "no se acordó una fecha", "sin franja horaria"] : []),
+        ...(hasChannel ? ["sin canal acordado", "sin canal concreto"] : []),
+        ...(hasDeliverable ? ["sin entregable concreto", "sin deliverable"] : []),
+      ];
+      const forbiddenEn = [
+        "no concrete next step", "open conversation without commitment", "no clear commitment",
+        "the conversation remained open", "without a clear next step", "no next step was agreed",
+        "no next step established", "no next step was confirmed",
+        ...(hasDateTime ? ["no date was set", "no specific date", "no timeframe agreed", "no date agreed", "without a date", "no time was set"] : []),
+        ...(hasChannel ? ["no channel agreed", "no concrete channel"] : []),
+      ];
+      const forbidden = isEn ? forbiddenEn : forbiddenEs;
+      const replacement = isEn
+        ? "operative next step confirmed (system-verified)"
+        : "siguiente paso operativo confirmado (verificado por sistema)";
+      const cleanText = (s: string) => forbidden.reduce((acc, f) => acc.replace(new RegExp(f, "gi"), replacement), s);
+
+      if (typeof audit.verdict === "string") audit.verdict = cleanText(audit.verdict);
+      if (Array.isArray(audit.what_failed)) {
+        audit.what_failed = (audit.what_failed as string[]).map(s => typeof s === "string" ? cleanText(s) : s);
+      }
+    }
+
+    // 2b. Remove what_failed entries that are entirely about missing date/step when those were confirmed
+    if ((nextStepQuality === "useful" || nextStepQuality === "strong") && hasDateTime) {
+      const dateDenialPatternsEs = /no se fij[oó] (una )?fecha|sin fecha (concreta|específica|de seguimiento)|no (hay|hubo) (una )?fecha/i;
+      const dateDenialPatternsEn = /no date was (set|agreed|confirmed)|without a (specific |concrete )?date/i;
+      const pattern = isEn ? dateDenialPatternsEn : dateDenialPatternsEs;
+      if (Array.isArray(audit.what_failed)) {
+        audit.what_failed = (audit.what_failed as string[]).filter(s =>
+          typeof s !== "string" || !pattern.test(s)
+        );
+      }
+    }
+
+    // 2c. Strip "failure_owner = seller" entries that are solely about next-step absence when step was confirmed
+    if ((nextStepQuality === "useful" || nextStepQuality === "strong") && Array.isArray(audit.failure_owner)) {
+      const nextStepBlameEs = /vendedor\s*[|]\s*(no aseguró|no estableció|no fijó|no acordó).*siguiente paso/i;
+      const nextStepBlameEn = /seller\s*[|]\s*(did not|didn't|failed to) (secure|establish|confirm|set).*next step/i;
+      const pattern = isEn ? nextStepBlameEn : nextStepBlameEs;
+      audit.failure_owner = (audit.failure_owner as string[]).map(s => {
+        if (typeof s !== "string" || !pattern.test(s)) return s;
+        return isEn
+          ? `no real failure — next step was operative (${nextStepQuality} quality)`
+          : `sin fallo real — siguiente paso fue operativo (calidad ${nextStepQuality})`;
+      });
+    }
+
+    // 3. Strip forbidden control-blame language when speaker uncertainty is severe
+    if (speakerUncertaintySevere) {
+      const controlPhrasesEs = ["perdió el control", "falta de control del vendedor", "no gestionó bien", "control conversacional deficiente", "perdió el hilo"];
+      const controlPhrasesEn = ["seller lost control", "lack of seller control", "didn't manage the conversation", "poor conversational control", "lost the thread"];
+      const phrases = isEn ? controlPhrasesEn : controlPhrasesEs;
+      const replacementCtrl = isEn
+        ? "[speaker data insufficient to assess control]"
+        : "[datos de hablante insuficientes para evaluar control]";
+      const cleanControl = (s: string) => phrases.reduce((acc, f) => acc.replace(new RegExp(f, "gi"), replacementCtrl), s);
+
+      if (typeof audit.verdict === "string") audit.verdict = cleanControl(audit.verdict);
+      if (Array.isArray(audit.what_failed)) {
+        audit.what_failed = (audit.what_failed as string[]).map(s => typeof s === "string" ? cleanControl(s) : s);
+      }
+      if (Array.isArray(audit.failure_owner)) {
+        audit.failure_owner = (audit.failure_owner as string[]).filter(s => {
+          if (typeof s !== "string") return true;
+          return !phrases.some(p => s.toLowerCase().includes(p));
+        });
+        if ((audit.failure_owner as string[]).length === 0) {
+          audit.failure_owner = [isEn ? "insufficient speaker data — control assessment not possible" : "datos de hablante insuficientes — evaluación de control no posible"];
+        }
+      }
+      // Append uncertainty note to verdict if not already there
+      const uncertaintyNote = isEn
+        ? ` [NOTE: ${speakerPct}% of turns had unknown speaker attribution — control-related conclusions have low confidence.]`
+        : ` [NOTA: ${speakerPct}% de turnos sin atribución de hablante — las conclusiones sobre control tienen baja confianza.]`;
+      if (typeof audit.verdict === "string" && !audit.verdict.includes("speaker attribution")) {
+        audit.verdict += uncertaintyNote;
+      }
+    }
+  }
 
   const schema = `{"verdict":"string","what_worked":["string"],"what_failed":["string"],"failure_owner":["vendedor|timing|sistema|técnico|setup|sin fallo real — descripción"],"missed_closes":["string"],"rules_violated":["string"],"priority_changes":["string","string","string"],"prompt_patch":null,"prompt_for_replit":null,"what_i_would_have_done":"string","suspected_claim_risk":"yes|no","suspected_unresolved_technical_objection":"yes|no","suspected_false_confidence":"yes|no","suspected_soft_next_step":"yes|no"}`;
 
   const systemPrompt = isEn
     ? `You are a sales call auditor with very high standards. You receive the tactical memory of a real conversation and return a brutal, specific, actionable post-session audit. No filler, no empty praise.
 
-CRITICAL RULES:
+CORE RULES:
 — If there is not enough evidence to assert something, say so explicitly. Do not fill gaps.
-— Penalize: vagueness, accumulated generic questions without advancing, unresolved objections without evidence, soft or missing closes, loss of conversational control.
-— If there was a next step but no real close, do not present it as a strong session.
-— STAGE ADVANCE vs FAILED CLOSE: if the call achieved stage clarity, criterion alignment, or a concrete next step with a deliverable, audit it as a real advance — NOT a failed close — unless conditions for closing were genuinely met and wasted.
-— Process steps (sending a proposal, scheduling a review, preparing documentation) are NOT close attempts. Only flag a missed close if there was real implicit permission to advance and the seller did not take it.
-— Historical objections from context do not override the actual call axis. Audit what actually happened in the transcript.
-— NEXT STEP QUALITY: strong = date + deliverable + decision criterion; useful = date + deliverable; weak = date only. Reflect this in verdict and missed_closes.
-— failure_owner: classify each failure as one of: seller | timing | system | technical | setup | no real failure — then a brief description.
-— missed_closes: concrete moments where there was implicit permission to advance and the seller did not take it.
-— rules_violated: tactical anti-patterns that appear clearly in the transcript (e.g. "repeated the same question twice", "proposed a meeting before resolving main objection").
+— Penalize: vagueness, accumulated generic questions without advancing, unresolved objections without evidence, soft or missing closes.
+— STAGE ADVANCE vs FAILED CLOSE: if the call achieved stage clarity, criterion alignment, or a concrete next step with an operative commitment, audit it as a real advance — NOT a failed close — unless conditions for closing were genuinely met and wasted.
+— Process steps (sending a proposal, scheduling a review, preparing documentation) are NOT close attempts. Only flag a missed close if there was explicit implicit permission to advance and the seller did not take it.
+— Historical objections from context do not override the actual call axis. Audit what actually happened.
+— NEXT STEP QUALITY: strong = date/time + deliverable + decision criterion; useful = any operative commitment (date OR channel OR deliverable); weak = none. Only "weak" is suspected_soft_next_step.
+— failure_owner: classify each failure as: seller | timing | system | technical | setup | no real failure — then a brief description.
+— missed_closes: concrete moments where there was explicit implicit permission to advance and the seller did not take it.
+— rules_violated: tactical anti-patterns that appear clearly in the memory.
 — priority_changes: 2-4 concrete, actionable changes for next call — not generic advice.
-— what_i_would_have_done: a concrete alternative tactic or phrase for the key moment of the call. Not vague.
-— prompt_patch: only if you detect a clear coaching system error (bad advice from the AI model). Otherwise null.
-— prompt_for_replit: only if there's a clear tool setup issue to fix. Otherwise null.
-RISK FLAGS — evaluate carefully and set each:
-— suspected_claim_risk: "yes" if the seller used "guarantee", "certified", "I assure you", "100% safe", "no risk" or similar as a main argument without concrete evidence. "no" otherwise.
-— suspected_unresolved_technical_objection: "yes" if the client raised a specific technical objection (numbers, ROI, methodology, data) and it was deferred to documents or answered with generic reframing instead of concrete evidence. "no" otherwise.
-— suspected_false_confidence: "yes" if the seller used an official certification, regulatory body, or audit as definitive proof of future value or security. "no" otherwise.
-— suspected_soft_next_step: "yes" ONLY if the session ended in a next step with NO operative commitment — no specific date or timeframe, no concrete channel (video call, email, meeting link), no concrete deliverable (proposal, contract, summary, documentation). A next step that has any of these is "useful" or "strong", not soft. "no" otherwise.
-— NEXT STEP QUALITY CONTEXT: strong = date/time + deliverable + decision criterion; useful = any operative commitment (date OR channel OR deliverable); weak = none of those. Only "weak" qualifies as suspected_soft_next_step.
-— If the buyer showed an analytical profile (asked for data, numbers, methodology): evaluate whether the seller responded with precision (confirmed/inferred/pending-proof) or with generic persuasion. Generic persuasion to an analytical buyer is a serious failure — name it.
+— what_i_would_have_done: a concrete alternative tactic or phrase for the key moment. Not vague.
+— prompt_patch / prompt_for_replit: only if there is a clear system or setup issue. Otherwise null.
+RISK FLAGS:
+— suspected_claim_risk: "yes" if seller used assurance language without concrete evidence. "no" otherwise.
+— suspected_unresolved_technical_objection: "yes" if a specific technical objection was deferred without evidence. "no" otherwise.
+— suspected_false_confidence: "yes" if seller used official body as definitive proof of future value. "no" otherwise.
+— suspected_soft_next_step: "yes" ONLY if no operative commitment (no date, no channel, no deliverable). "no" otherwise.
+— If the buyer showed an analytical profile: evaluate if the seller responded with precision or generic persuasion.${nextStepGuardrail}${noFailureGuardrail}${alternativesBlock}${secondaryDmBlock}${speakerGate}
 
 Return EXACTLY this JSON, no markdown, no extra text:
 ${schema}`
     : `Eres un auditor de llamadas de venta con criterio muy alto. Recibes la memoria táctica de una conversación real y devuelves una auditoría post-sesión brutal, específica y accionable. Sin relleno, sin elogios vacíos.
 
-REGLAS CRÍTICAS:
+REGLAS NÚCLEO:
 — Si no hay evidencia suficiente para afirmar algo, dilo explícitamente. No rellenes huecos.
-— Penaliza: vaguedad, preguntas genéricas acumuladas sin avanzar, objeciones sin resolver con evidencia, cierres blandos o ausentes, pérdida de control conversacional.
-— Si hubo siguiente paso pero no cierre real, no lo presentes como sesión fuerte.
-— AVANCE DE ETAPA vs FALLO DE CIERRE: si la llamada consiguió claridad de etapa, encaje de criterio o siguiente paso con entregable concreto, auditarlo como avance real — NO como fallo de cierre — salvo que las condiciones de cierre estuvieran dadas y no se aprovecharan.
-— Los pasos de proceso comercial (enviar propuesta, agendar revisión, preparar documentación) NO son intentos de cierre. Solo señala cierre perdido si había permiso implícito real para avanzar y el vendedor no lo tomó.
-— Las objeciones históricas del contexto no anulan el eje real de la llamada. Audita lo que realmente ocurrió en el transcript.
-— CALIDAD DEL SIGUIENTE PASO: fuerte = fecha + entregable + criterio de decisión; útil = fecha + entregable; débil = solo fecha. Refléjalo en verdict y missed_closes.
+— Penaliza: vaguedad, preguntas genéricas acumuladas sin avanzar, objeciones sin resolver con evidencia, cierres blandos o ausentes.
+— AVANCE DE ETAPA vs FALLO DE CIERRE: si la llamada consiguió claridad de etapa, encaje de criterio o siguiente paso con compromiso operativo, auditarlo como avance real — NO como fallo de cierre — salvo que las condiciones de cierre estuvieran dadas y no se aprovecharan.
+— Los pasos de proceso comercial (enviar propuesta, agendar revisión, preparar documentación) NO son intentos de cierre. Solo señala cierre perdido si había permiso implícito real para avanzar.
+— Las objeciones históricas del contexto no anulan el eje real de la llamada. Audita lo que realmente ocurrió.
+— CALIDAD DEL SIGUIENTE PASO: fuerte = fecha/hora + entregable + criterio de decisión; útil = cualquier compromiso operativo (fecha O canal O entregable); débil = ninguno. Solo "débil" es suspected_soft_next_step.
 — failure_owner: classifica cada fallo como: vendedor | timing | sistema | técnico | setup | sin fallo real — con descripción breve.
-— missed_closes: momentos concretos donde existía permiso implícito para avanzar y el vendedor no lo aprovechó.
-— rules_violated: antipatrones tácticos que aparecen claramente en la memoria (ej: "repitió la misma pregunta dos veces", "propuso reunión antes de resolver objeción principal").
+— missed_closes: momentos concretos donde existía permiso implícito real para avanzar y el vendedor no lo aprovechó.
+— rules_violated: antipatrones tácticos que aparecen claramente en la memoria.
 — priority_changes: 2-4 cambios concretos y accionables para la próxima llamada — no consejos genéricos.
-— what_i_would_have_done: alternativa táctica concreta para el momento clave de la llamada. No vaga.
-— prompt_patch: solo si detectas un error claro del sistema de coaching (consejo malo del modelo). Si no, null.
-— prompt_for_replit: solo si hay un problema claro de setup de la herramienta a corregir. Si no, null.
-FLAGS DE RIESGO — evalúa con criterio y devuelve cada uno:
-— suspected_claim_risk: "yes" si el vendedor usó "garantía", "certific", "te aseguro", "100% seguro", "sin riesgo" o similar como argumento principal sin evidencia concreta. "no" en caso contrario.
-— suspected_unresolved_technical_objection: "yes" si el cliente planteó una objeción técnica específica (números, ROI, metodología, datos) y fue derivada a documentación o respondida con reencuadre genérico en lugar de evidencia concreta. "no" en caso contrario.
-— suspected_false_confidence: "yes" si el vendedor usó una certificación oficial, organismo regulador o auditoría como prueba definitiva de valor o seguridad futura. "no" en caso contrario.
-— suspected_soft_next_step: "yes" SOLO si la sesión terminó en siguiente paso SIN compromiso operativo — sin fecha ni franja horaria concreta, sin canal concreto (videollamada, email, enlace de reunión), sin entregable concreto (propuesta, contrato, resumen, documentación). Un siguiente paso con cualquiera de estos es "útil" o "fuerte", no blando. "no" en caso contrario.
-— CONTEXTO DE CALIDAD DEL SIGUIENTE PASO: fuerte = fecha/hora + entregable + criterio de decisión; útil = cualquier compromiso operativo (fecha O canal O entregable); débil = ninguno. Solo "débil" califica como suspected_soft_next_step.
-— Si el comprador mostró perfil analítico (pidió datos, cifras, metodología, evidencia): evalúa si el vendedor respondió con precisión (confirmado/inferido/pendiente de prueba) o con persuasión genérica. La persuasión genérica ante un analítico es un fallo grave — nómbralo específicamente.
+— what_i_would_have_done: alternativa táctica concreta para el momento clave. No vaga.
+— prompt_patch / prompt_for_replit: solo si hay un problema claro de sistema o setup. Si no, null.
+FLAGS DE RIESGO:
+— suspected_claim_risk: "yes" si el vendedor usó lenguaje de aseguramiento sin evidencia concreta. "no" en caso contrario.
+— suspected_unresolved_technical_objection: "yes" si una objeción técnica específica fue diferida sin evidencia. "no" en caso contrario.
+— suspected_false_confidence: "yes" si el vendedor usó organismo oficial como prueba definitiva de valor futuro. "no" en caso contrario.
+— suspected_soft_next_step: "yes" SOLO si no hay compromiso operativo (sin fecha, canal ni entregable). "no" en caso contrario.
+— Si el comprador mostró perfil analítico: evalúa si el vendedor respondió con precisión o persuasión genérica.${nextStepGuardrail}${noFailureGuardrail}${alternativesBlock}${secondaryDmBlock}${speakerGate}
 
 Devuelve EXACTAMENTE este JSON, sin markdown, sin texto extra:
 ${schema}`;
 
-  const userMessage = `${isEn ? "TACTICAL CALL MEMORY" : "MEMORIA TÁCTICA"}:\n${memoryText}${contextText}\n\n${isEn ? "REPORTED OUTCOME" : "RESULTADO DECLARADO"}: ${outcomeText}${auditSpeakerUncertaintyBlock}`;
+  const userMessage = `${isEn ? "TACTICAL CALL MEMORY" : "MEMORIA TÁCTICA"}:\n${memoryText}${contextText}\n\n${isEn ? "REPORTED OUTCOME" : "RESULTADO DECLARADO"}: ${outcomeText}`;
 
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      max_tokens: 900,
+      max_tokens: 1100,
       temperature: 0.3,
       messages: [
         { role: "system", content: systemPrompt },
@@ -738,6 +939,7 @@ ${schema}`;
     const raw = completion.choices[0]?.message?.content ?? "{}";
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(raw);
+    applySanityCheck(parsed);
     res.json(parsed);
   } catch {
     res.status(500).json({ error: "Audit generation failed" });

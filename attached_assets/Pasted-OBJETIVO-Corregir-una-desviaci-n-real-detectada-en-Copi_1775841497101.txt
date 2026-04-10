@@ -1,0 +1,236 @@
+OBJETIVO
+
+Corregir una desviación real detectada en Copiloto a partir de una llamada auditada:
+la auditoría brutal está marcando como “fallo de cierre” conversaciones que en realidad ya están en fase de decisión entre alternativas y que sí dejan un siguiente paso útil y concreto.
+
+Quiero un cambio focalizado en Copiloto.
+No tocar Arena en esta iteración.
+No rehacer arquitectura.
+No meter términos específicos de Immvest en el núcleo.
+
+PROBLEMA REAL DETECTADO
+
+Caso real:
+- cliente ya quiere invertir
+- la decisión real ya no es “comprar o no”
+- la decisión es “cuál de las dos opciones elige”
+- además hay validador secundario (esposa)
+- se acuerda que hablará con ella durante el fin de semana
+- se cierra siguiente llamada concreta el miércoles a las 17:00 para próximos pasos
+
+Aun así, la auditoría brutal concluye:
+- “fallo de cierre”
+- “no se estableció un cierre firme o un siguiente paso con entregable concreto”
+- “falta de control del vendedor”
+
+Eso contradice el propio audit log.
+
+CONTEXTO DEL LOG REAL
+
+El audit log de este caso deja:
+- `session_status: next_step`
+- `NEXT_STEP_QUALITY useful`
+- `suspected_soft_next_step: no`
+- `likely_primary_failure: none`
+- `final_global_state: sólida`
+- `SPEAKER_UNCERTAINTY detected — 138 of 149 turns were UNKNOWN`
+
+Y aun así la brutal lo trata como llamada fallida.
+Eso está mal.
+
+QUÉ HAY QUE CORREGIR
+
+1) LA BRUTAL NO PUEDE CONTRADECIR LOS AUDIT_HINTS
+Si el sistema ya detectó:
+- `NEXT_STEP_QUALITY useful` o `strong`
+- `suspected_soft_next_step: no`
+
+entonces está PROHIBIDO que la brutal escriba cosas como:
+- “no se estableció un siguiente paso con entregable concreto”
+- “la conversación quedó abierta sin compromiso claro”
+- “fallo de cierre” si el avance real es útil aunque no sea cierre final
+
+Necesito un guardrail real, no solo una preferencia blanda de prompt.
+
+2) NUEVA LECTURA: DECISIÓN ENTRE ALTERNATIVAS
+Añadir categoría o lógica explícita para este caso:
+
+- el cliente ya quiere comprar/invertir
+- la conversación gira sobre comparar opción A vs opción B
+- puede haber validador secundario (pareja, socio, familia)
+- la llamada correcta no siempre termina en reserva inmediata
+- un buen resultado puede ser:
+  - reducir la decisión a A vs B
+  - fijar plazo de validación
+  - cerrar llamada siguiente concreta
+
+Eso NO debe auditarse como “llamada fallida”.
+
+3) TRATAMIENTO DEL VALIDADOR SECUNDARIO
+Si aparece esposa/pareja/socio/familia como decisor secundario:
+- no tratar automáticamente la falta de reserva inmediata como fallo
+- evaluar si el vendedor dejó:
+  1. decisión reducida
+  2. plazo explícito
+  3. siguiente llamada ya acordada
+
+Si esas tres existen, eso cuenta como avance real.
+No excelente.
+Pero real.
+
+4) SPEAKER UNCERTAINTY DEBE PESAR DE VERDAD
+Ahora mismo el sistema detecta speaker uncertainty pero luego sigue sacando conclusiones demasiado duras.
+
+Quiero estas reglas:
+
+- si `speaker_uncertainty > 30%`, bajar la contundencia causal del juicio
+- si `speaker_uncertainty > 70%`, prohibir frases como:
+  - “falta de control del vendedor”
+  - “el vendedor perdió el control”
+  - “no gestionó bien la conversación”
+  salvo evidencia clarísima y repetida
+
+Si el log está muy contaminado, la brutal debe decirlo.
+No vender falsa precisión.
+
+5) AJUSTAR EL CONCEPTO DE CIERRE EN LLAMADAS AVANZADAS
+Cuando el cliente ya está comprado emocional o racionalmente y la decisión real es entre alternativas, el cierre correcto puede ser:
+
+- opción preferida provisional
+- validación con decisor secundario
+- llamada siguiente ya cerrada
+- camino preparado para bloqueo/reserva/documentación
+
+Eso no es “fallo de cierre”.
+Eso es “cierre parcial útil” o “avance de etapa comparativa”.
+
+6) SANITY CHECK FINAL DEL OUTPUT
+Antes de devolver la brutal, quiero una validación final simple que revise contradicciones entre:
+- `audit_hints`
+- `summary`
+- texto final de la brutal
+
+Ejemplos de contradicción prohibida:
+- `NEXT_STEP_QUALITY useful` pero texto dice “sin siguiente paso concreto”
+- `suspected_soft_next_step: no` pero texto dice “conversación abierta sin compromiso”
+- `likely_primary_failure: none` pero veredicto culpa claramente al vendedor
+- `speaker_uncertainty > 70%` y aun así el texto culpa con seguridad total al vendedor por control conversacional
+
+No hace falta otra llamada al modelo.
+Puede ser:
+- post-proceso
+- guardrail
+- rewrite final
+- validación simple con corrección textual
+
+ARCHIVOS PROBABLES A TOCAR
+
+- `artifacts/api-server/src/routes/copilot.ts`
+- cualquier helper o bloque donde se construya el prompt o el output de `/api/copilot/audit-report`
+- cualquier helper donde se usen `audit_hints` o se calculen caps/ajustes de summarize
+- opcional: `artifacts/silent-closer/src/lib/audit-log.ts` solo si hace falta enriquecer algún hint, pero idealmente ya hay suficiente señal
+
+Si la estructura real cambió, localiza el equivalente exacto antes de editar.
+No rehagas la app.
+
+CAMBIOS REQUERIDOS
+
+A) AUDIT-REPORT
+Actualizar prompt y/o post-proceso para que:
+
+- respete `NEXT_STEP_QUALITY`
+- respete `suspected_soft_next_step`
+- reconozca llamadas donde la decisión ya es entre alternativas
+- no llame “fallida” a una llamada con siguiente paso útil y concreto
+- trate correctamente casos con decisor secundario
+
+B) SUMMARIZE
+Revisar summarize para que la lógica también sea coherente con esto:
+- si la venta ya está en fase comparativa A vs B, no auditar como si estuviera en fase de persuasión básica
+- mantener penalización si faltó endurecer el cierre
+- pero no degradar automáticamente a llamada mala
+
+C) SPEAKER UNCERTAINTY GATE
+Hacer que esta señal afecte de verdad la dureza del juicio final, no solo la UI o el audit log.
+
+D) DECISION BETWEEN ALTERNATIVES HEURISTIC
+Crear una heurística ligera o detector simple para casos donde:
+- el cliente ya aceptó comprar/invertir
+- la conversación gira sobre comparar dos opciones
+- el bloqueo real es elegir cuál
+- aparece validador secundario
+
+No quiero otra llamada al modelo si una heurística basta.
+
+E) OUTPUT LANGUAGE
+Mantener estilo VELA:
+- duro
+- claro
+- sin humo
+- sin sobrecastigar
+- sin falsa precisión
+
+RESTRICCIONES
+
+- no tocar Arena
+- no meter términos específicos de inmobiliaria en el núcleo
+- no rehacer schemas sin necesidad
+- no disparar coste con llamadas adicionales si puede resolverse con heurística + prompt + post-proceso
+- mantener compatibilidad hacia atrás
+
+TESTS MANUALES QUE QUIERO
+
+TEST 1 — DECISIÓN ENTRE ALTERNATIVAS
+Caso:
+- cliente ya quiere invertir
+- compara Magdeburg vs Dresden
+- esposa decide el fin de semana
+- llamada siguiente cerrada el miércoles
+Esperado:
+- brutal NO lo llama “fallo de cierre”
+- reconoce avance real
+- reconoce que faltó endurecer, si toca
+
+TEST 2 — CONTRADICCIÓN CON HINTS
+Caso:
+- `NEXT_STEP_QUALITY useful`
+- `suspected_soft_next_step: no`
+Esperado:
+- brutal NO puede escribir “sin siguiente paso concreto”
+
+TEST 3 — SPEAKER UNCERTAINTY ALTA
+Caso:
+- `speaker_uncertainty > 70%`
+Esperado:
+- baja contundencia causal
+- no culpa al vendedor con seguridad total por falta de control
+
+TEST 4 — DECISOR SECUNDARIO
+Caso:
+- pareja/socio/familia valida la decisión
+- hay plazo explícito + siguiente llamada acordada
+Esperado:
+- se valora como cierre parcial útil
+- no como conversación abierta sin compromiso
+
+CRITERIOS DE ACEPTACIÓN
+
+- la brutal deja de contradecir `audit_hints`
+- distingue correctamente compra sí/no vs elección entre alternativas
+- trata mejor llamadas con pareja/socio como validador
+- speaker uncertainty pesa de verdad en la dureza del juicio
+- no se rompe compatibilidad
+- no se toca Arena
+- no se dispara coste
+- el output final gana precisión y deja de castigar avances reales como si fueran fallos de cierre
+
+ENTREGABLES
+
+1. código implementado
+2. lista exacta de archivos tocados
+3. explicación breve de:
+   - guardrail contra contradicción con audit_hints
+   - lógica de “decisión entre alternativas”
+   - tratamiento del decisor secundario
+   - uso real de speaker uncertainty
+4. tests manuales ejecutados o documentados
