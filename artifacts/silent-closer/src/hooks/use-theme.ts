@@ -5,9 +5,9 @@ type Theme = "dark" | "light";
 
 function getInitialTheme(): Theme {
   try {
-    return (localStorage.getItem(THEME_KEY) as Theme) || "dark";
+    return (localStorage.getItem(THEME_KEY) as Theme) || "light";
   } catch {
-    return "dark";
+    return "light";
   }
 }
 
