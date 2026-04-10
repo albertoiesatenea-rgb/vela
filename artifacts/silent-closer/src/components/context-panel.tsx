@@ -777,7 +777,7 @@ export function ContextSetup({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <VelaIcon className="w-8 h-8 text-white shrink-0" />
-            <h1 className="text-xl font-mono font-bold text-white tracking-[0.2em] uppercase leading-none">
+            <h1 className="text-2xl font-mono font-bold text-white tracking-[0.18em] uppercase leading-none">
               VELA
             </h1>
           </div>
