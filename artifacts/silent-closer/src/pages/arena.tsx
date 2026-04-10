@@ -692,7 +692,19 @@ export function Arena({
   contextLabel: string;
   role: ArenaRole;
   lang: Lang;
-  arenaConfig?: { clientProfile?: string; sellerProfile?: string; difficulty?: string };
+  arenaConfig?: {
+    clientProfile?: string;
+    sellerProfile?: string;
+    difficulty?: string;
+    arenaStructuredContext?: {
+      meeting_goal?: string;
+      main_blocker?: string;
+      blocker_status?: "open" | "partial" | "resolved";
+      what_not_to_do?: string;
+      valid_outcome_today?: string;
+      known_context_notes?: string;
+    };
+  };
   onExit: () => void;
   onGoArena?: () => void;
   onGoArenaRole?: () => void;
@@ -1121,6 +1133,7 @@ export function Arena({
           sellerProfile: arenaConfig.sellerProfile ?? undefined,
           difficulty: arenaConfig.difficulty ?? undefined,
           lang,
+          ...(arenaConfig.arenaStructuredContext ? { arenaStructuredContext: arenaConfig.arenaStructuredContext } : {}),
         }),
       });
       if (!res.ok) throw new Error("audit failed");

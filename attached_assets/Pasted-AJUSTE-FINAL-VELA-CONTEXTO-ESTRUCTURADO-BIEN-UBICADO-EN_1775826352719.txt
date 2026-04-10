@@ -1,0 +1,333 @@
+AJUSTE FINAL VELA — CONTEXTO ESTRUCTURADO BIEN UBICADO EN COPILOTO Y ARENA
+
+OBJETIVO
+
+Cerrar bien esta iteración de producto con una UX y una arquitectura coherentes.
+
+Quiero dos cosas a la vez:
+
+1) En COPILOTO:
+- quitar “Contexto avanzado” del modo Rápido
+- moverlo al modo Avanzado
+- mantener el backend / prompts / audit log ya implementados
+
+2) En ARENA:
+- integrar también contexto estructurado
+- pero adaptado al flujo real de Arena, no copiado desde Copiloto
+- solo en modo Avanzado
+- reutilizando la navegación/tab system existente por rol
+- sin meter lógica que solo aplica a llamadas reales de Copiloto
+
+IMPORTANTE
+No quiero un parche improvisado.
+Quiero una solución coherente entre ambos modos, respetando que Copiloto y Arena son productos hermanos pero distintos.
+
+CONTEXTO DE PRODUCTO
+
+Copiloto y Arena son modos separados con rutas, prompts y flujos distintos.
+- Copiloto = análisis táctico de llamada real
+- Arena = simulación completa con setup, opening, turn loop, coach/journey, finish, audit
+No mezclar problemas de un modo con el otro.
+
+En Arena ya existe setup configurable por:
+- role
+- context
+- clientProfile / sellerProfile
+- difficulty
+- randomPreset
+- sellerNotes
+Y sus prompts dependen mucho del contexto inicial.
+Por eso sí tiene sentido añadir estructura en Arena también.
+Pero NO tiene sentido portar a Arena cosas específicas de Copiloto como speaker ambiguity.
+
+ALCANCE FINAL REQUERIDO
+
+========================================
+A) COPILOTO — AJUSTE UX
+========================================
+
+1. Quitar “Contexto avanzado” del modo Rápido
+- No debe aparecer en quick mode.
+- Rápido debe quedarse mínimo y casi instantáneo.
+- Eliminar spacing sobrante, toggles vacíos o huecos raros.
+
+2. Mover el contexto estructurado al modo Avanzado
+- No como acordeón raro debajo del textarea principal.
+- Integrarlo como parte natural del setup avanzado.
+
+3. Integración recomendada
+Preferencia:
+- añadir una sección/tab dentro del setup avanzado de Copiloto, o integrarlo elegantemente en tabs ya existentes si eso queda mejor
+- si la barra de secciones queda larga, usar scroll horizontal suave
+- no apretar todo rompiendo legibilidad
+
+4. Mantener intactos:
+- structured_context payload ya implementado
+- wiring backend
+- prompts
+- audit log
+- summarize / audit-report
+- warning de speaker uncertainty en sesión si ya está hecho
+
+NO rehacer el backend de Copiloto.
+Solo recolocar la entrada de datos al sitio correcto.
+
+========================================
+B) ARENA — AÑADIR CONTEXTO ESTRUCTURADO
+========================================
+
+Quiero extender la misma idea a Arena, pero adaptada a su naturaleza de simulación.
+
+OBJETIVO DE ESTA CAPA EN ARENA
+Mejorar:
+- la calidad del opening
+- la coherencia del rol
+- la calidad de la simulación
+- la utilidad de CoachLite / Journey / Debrief / Audit report
+- la fidelidad del escenario configurado
+
+NO quiero copiar reglas de Copiloto que dependen de audio real o speaker attribution.
+
+1. Añadir structured_context opcional a Arena
+Backend + frontend.
+Debe convivir con el `context` libre actual sin romper compatibilidad.
+
+Campos base propuestos (opcionales, reutilizables):
+- `meeting_goal`
+- `main_blocker`
+- `blocker_status` = `open | partial | resolved`
+- `what_not_to_do`
+- `valid_outcome_today`
+- `known_context_notes`
+
+Si hace falta, permitir además un campo opcional:
+- `success_criteria`
+pero solo si de verdad aporta y no infla la UI.
+
+2. Integración UX en Arena: SOLO en modo Avanzado
+No meter un bloque nuevo suelto.
+No usar un acordeón raro.
+
+Quiero que se integre dentro de la navegación avanzada ya existente y de forma dependiente del rol.
+
+ROL SELLER (usuario vende a cliente IA)
+La estructura debe vivir dentro de tabs ya existentes o ampliados con sentido:
+- PRODUCTO
+- A QUIÉN
+- VALOR
+- OBJECIONES
+y, si hace falta, una pestaña adicional tipo:
+- OBJETIVO / SESIÓN
+solo si realmente hace falta y no duplica
+
+Mapeo recomendado:
+- `meeting_goal` → OBJETIVO / SESIÓN
+- `main_blocker` + `blocker_status` → OBJECIONES
+- `what_not_to_do` → OBJETIVO / SESIÓN o NOTAS si existe
+- `valid_outcome_today` → OBJETIVO / SESIÓN
+- `known_context_notes` → NOTAS / campo libre existente o equivalente
+
+ROL CLIENT (usuario se entrena como cliente frente a vendedor IA)
+La estructura debe adaptarse al rol actual y no sonar a vendedor.
+Reutilizar tabs actuales tipo:
+- QUÉ VENDEN
+- MI ROL
+- MI DUDA
+y ampliar solo si hace falta de forma limpia
+
+Mapeo recomendado:
+- `meeting_goal` = qué quiero comprobar o forzar en la simulación
+- `main_blocker` = freno principal que quiero poner o explorar
+- `blocker_status` = sigue activo / parcialmente tratado / ya aclarado
+- `what_not_to_do` = qué NO debe hacer el vendedor IA
+- `valid_outcome_today` = qué contaría como buena respuesta o buen avance
+- `known_context_notes` = detalles concretos del escenario
+
+NO quiero duplicidad absurda:
+si un dato ya encaja naturalmente en una tab existente, intégralo ahí.
+Solo crear nueva tab si de verdad mejora claridad.
+
+3. Arena backend
+Añadir `structured_context` opcional a `/api/arena/start` o al schema equivalente real.
+
+Requisitos:
+- mantener compatibilidad hacia atrás
+- si no existe structured_context, comportamiento actual intacto
+- guardarlo en ArenaSession
+- usarlo en prompts largos relevantes de Arena
+
+Dónde inyectarlo:
+- buildSystemPrompt() de Arena
+- buildOpeningPrompt() si aporta
+- debrief
+- audit-report
+- cualquier helper de contexto donde sí tenga sentido
+
+NO usarlo donde no aporte.
+NO disparar llamadas extra al modelo si basta con inyección de contexto.
+
+4. Qué reglas conceptuales sí quiero también en Arena
+Sin copiar el prompt de Copiloto, quiero coherencia comercial en Arena sobre estas ideas:
+
+- distinguir “avance de etapa” de “fallo de cierre”
+- distinguir “paso de proceso” de “intento de cierre”
+- distinguir “eje histórico” de “eje actual dominante”
+- valorar mejor la calidad del siguiente paso
+
+Esto debe reflejarse donde sí toca en Arena:
+- debrief
+- audit-report
+- quizá journey / suggest si resulta limpio
+pero sin inflar ni romper el comportamiento actual
+
+5. Qué NO quiero en Arena
+- speaker uncertainty
+- warnings de AUTO / CLIENTE / YO
+- lógica ligada a escucha real o mezcla de voces
+- copiar el bloque de Copiloto tal cual
+- meter terminología de Immvest en el núcleo
+
+========================================
+C) AUDIT LOG Y REPORTES
+========================================
+
+1. Copiloto
+Mantener lo ya implementado:
+- objective
+- known_objections
+- relevant_data
+o equivalentes nuevos, pero ya no dejar todo en null si hay structured_context
+
+2. Arena
+Extender el audit log para que también recoja structured_context si existe.
+No quiero perder esa información al descargar el .md.
+
+Si el builder actual necesita adaptación:
+- hacerlo de forma mínima
+- sin romper el formato markdown actual
+- con fallback limpio cuando no haya datos estructurados
+
+3. Audit report / Debrief
+Si el contexto estructurado existe, debe ayudar a evaluar:
+- si el objetivo del escenario se cumplió
+- si el bloqueo principal se trabajó
+- si el siguiente paso fue útil o flojo
+- si el vendedor/cliente respetó los límites del escenario
+
+========================================
+D) CONSISTENCIA ENTRE MODOS
+========================================
+
+Quiero consistencia conceptual, no clonación.
+
+COPILOTO:
+- contexto estructurado ayuda a analizar una llamada real
+
+ARENA:
+- contexto estructurado ayuda a configurar una simulación más precisa
+
+Misma filosofía:
+- más claridad
+- mejor misión
+- mejor evaluación
+
+Distinta implementación:
+- Copiloto conserva sus reglas específicas de llamada real
+- Arena conserva sus reglas específicas de simulación
+
+========================================
+E) RESTRICCIONES
+========================================
+
+- No tocar Arena de forma destructiva
+- No rehacer toda la UI
+- No duplicar campos sin necesidad
+- No meter bloques feos o fuera de lugar
+- No contaminar prompts base con términos de Immvest
+- No romper compatibilidad con sesiones antiguas
+- No añadir más llamadas AI si no es estrictamente necesario
+- Mantener estilo VELA: operativo, limpio, sin humo
+
+========================================
+F) ARCHIVOS PROBABLES A TOCAR
+========================================
+
+Frontend:
+- artifacts/silent-closer/src/components/context-panel.tsx
+- artifacts/silent-closer/src/pages/copilot.tsx
+- artifacts/silent-closer/src/pages/arena.tsx
+- artifacts/silent-closer/src/lib/audit-log.ts
+
+Backend:
+- artifacts/api-server/src/routes/copilot.ts
+- artifacts/api-server/src/routes/arena.ts
+
+Schemas o tipos compartidos:
+- donde viva el schema real de analyze / arena start si aplica
+
+Si la estructura real cambió, localiza el equivalente exacto antes de editar.
+
+========================================
+G) ENTREGABLES
+========================================
+
+1. Quitar “Contexto avanzado” de Copiloto Rápido
+2. Reubicarlo bien en Copiloto Avanzado
+3. Añadir structured_context opcional a Arena
+4. Integrarlo solo en Arena Avanzado
+5. Reutilizar tabs/sections existentes por rol en Arena antes de crear tabs nuevas
+6. Inyectar structured_context en prompts relevantes de Arena
+7. Guardarlo en audit log de Arena
+8. No tocar lógica de speaker uncertainty fuera de Copiloto
+9. Lista exacta de archivos tocados
+10. Explicación breve de la solución UX y backend
+
+========================================
+H) TESTS MANUALES QUE QUIERO
+========================================
+
+TEST 1 — COPILOTO RÁPIDO
+- abrir Copiloto en modo Rápido
+- verificar que no aparece ningún bloque de contexto avanzado
+Resultado esperado:
+- UX mínima y limpia
+
+TEST 2 — COPILOTO AVANZADO
+- abrir Copiloto Avanzado
+- rellenar campos estructurados
+- iniciar sesión
+Resultado esperado:
+- payload structured_context sigue llegando al backend
+- no hay duplicidad rara en la UI
+
+TEST 3 — ARENA SELLER AVANZADO
+- configurar escenario con producto, target, valor, objeción y objetivo de sesión
+Resultado esperado:
+- opening y comportamiento del cliente IA reflejan mejor ese contexto
+- debrief/audit usan ese contexto
+
+TEST 4 — ARENA CLIENT AVANZADO
+- configurar qué me venden, mi rol, mi duda y qué no debe hacer el vendedor
+Resultado esperado:
+- el vendedor IA respeta mejor el escenario
+- journey/audit reflejan el bloqueo y el objetivo del escenario
+
+TEST 5 — FALLBACK
+- usar Copiloto y Arena sin structured_context
+Resultado esperado:
+- comportamiento previo intacto
+- no se rompe nada
+
+========================================
+I) CRITERIOS DE ACEPTACIÓN
+========================================
+
+- Copiloto Rápido vuelve a ser rápido de verdad
+- Copiloto Avanzado absorbe el contexto estructurado
+- Arena también gana contexto estructurado útil
+- En Arena no se copia la lógica específica de Copiloto
+- El setup avanzado de Arena queda más fuerte sin volverse pesado
+- Los prompts y reportes aprovechan el contexto nuevo
+- Los audit logs ya no pierden esa información
+- No se rompe compatibilidad
+- No se toca Arena más de lo necesario

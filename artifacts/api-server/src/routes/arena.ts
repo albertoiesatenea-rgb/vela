@@ -24,6 +24,15 @@ interface ArenaTurn {
   message: string;
 }
 
+interface ArenaStructuredContext {
+  meeting_goal?: string;
+  main_blocker?: string;
+  blocker_status?: "open" | "partial" | "resolved";
+  what_not_to_do?: string;
+  valid_outcome_today?: string;
+  known_context_notes?: string;
+}
+
 interface ArenaSession {
   id: string;
   role: ArenaRole;
@@ -39,6 +48,7 @@ interface ArenaSession {
   forceTerminal?: boolean;
   randomPreset?: string;
   sellerNotes: string[];
+  arenaStructuredContext?: ArenaStructuredContext;
 }
 
 // ── In-memory session store ───────────────────────────────────────────────────
@@ -106,6 +116,25 @@ interface CoachLite {
 }
 
 // ── Prompt builders ───────────────────────────────────────────────────────────
+function buildArenaScBlock(sc: ArenaStructuredContext | undefined, lang: Lang): string {
+  if (!sc) return "";
+  const lines: string[] = [];
+  if (sc.meeting_goal) lines.push(lang === "es" ? `Objetivo de sesión: ${sc.meeting_goal}` : `Session goal: ${sc.meeting_goal}`);
+  if (sc.main_blocker) {
+    const statusLabel = sc.blocker_status === "resolved"
+      ? (lang === "es" ? " [resuelto]" : " [resolved]")
+      : sc.blocker_status === "partial"
+      ? (lang === "es" ? " [parcialmente resuelto]" : " [partially resolved]")
+      : (lang === "es" ? " [pendiente]" : " [open]");
+    lines.push(lang === "es" ? `Bloqueo principal: ${sc.main_blocker}${statusLabel}` : `Main blocker: ${sc.main_blocker}${statusLabel}`);
+  }
+  if (sc.what_not_to_do) lines.push(lang === "es" ? `Restricción conductual: ${sc.what_not_to_do}` : `Behavioral constraint: ${sc.what_not_to_do}`);
+  if (sc.valid_outcome_today) lines.push(lang === "es" ? `Resultado válido hoy: ${sc.valid_outcome_today}` : `Valid outcome today: ${sc.valid_outcome_today}`);
+  if (sc.known_context_notes) lines.push(lang === "es" ? `Notas de escenario: ${sc.known_context_notes}` : `Scenario notes: ${sc.known_context_notes}`);
+  if (lines.length === 0) return "";
+  return "\n\n[OBJETIVO DE SESIÓN]\n" + lines.map(l => `— ${l}`).join("\n");
+}
+
 function buildSystemPrompt(
   role: ArenaRole,
   context: string,
@@ -116,6 +145,7 @@ function buildSystemPrompt(
   difficulty?: string,
   sellerNotes?: string[],
   randomPreset?: string,
+  arenaStructuredContext?: ArenaStructuredContext,
 ): string {
   const langRule = lang === "en" ? "Respond only in English." : "Responde solo en español.";
 
@@ -129,6 +159,8 @@ function buildSystemPrompt(
     ? `\n\n${PRESET_SYSTEM_DESC[randomPreset][lang === "en" ? "en" : "es"]}`
     : "";
 
+  const scBlock = buildArenaScBlock(arenaStructuredContext, lang);
+
   if (role === "seller") {
     const profileNote = clientProfile && CLIENT_PROFILE_DESC[clientProfile]
       ? `\nPERSONALIDAD: ${CLIENT_PROFILE_DESC[clientProfile]}`
@@ -139,7 +171,7 @@ function buildSystemPrompt(
 
     return `Eres el cliente/prospecto en una simulación de conversación de venta.
 
-Contexto: ${context || "Conversación de venta genérica."}${profileNote}${diffNote}${presetBlock}${windowNote}
+Contexto: ${context || "Conversación de venta genérica."}${profileNote}${diffNote}${presetBlock}${scBlock}${windowNote}
 
 Tu papel es la otra parte. Mantén tu personalidad de forma consistente. Responde con 1-3 frases conversacionales naturales. Usa **negrita** para marcar objeciones clave, precios, plazos o compromisos importantes. Sin más etiquetas ni metacomentarios.
 ${langRule}`;
@@ -153,7 +185,7 @@ ${langRule}`;
 
     return `Eres el vendedor en una simulación de venta. Actúas como un comercial experimentado: preciso, honesto y sin relleno.
 
-Contexto: ${context || "Conversación de venta genérica."}${profileNote}${notesBlock}${presetBlock}${windowNote}
+Contexto: ${context || "Conversación de venta genérica."}${profileNote}${notesBlock}${presetBlock}${scBlock}${windowNote}
 
 MOVIMIENTOS DISPONIBLES — elige exactamente uno por turno:
 1. Diagnosticar con una pregunta concreta (no genérica)
@@ -607,7 +639,7 @@ router.post("/arena/adapt-context", async (req, res) => {
 
 // ── POST /api/arena/start ─────────────────────────────────────────────────────
 router.post("/arena/start", async (req, res) => {
-  const { role, lang = "es", context = "", clientProfile, sellerProfile, difficulty, forceTerminal, randomPreset } = req.body as {
+  const { role, lang = "es", context = "", clientProfile, sellerProfile, difficulty, forceTerminal, randomPreset, arenaStructuredContext } = req.body as {
     role?: ArenaRole;
     lang?: Lang;
     context?: string;
@@ -616,6 +648,7 @@ router.post("/arena/start", async (req, res) => {
     difficulty?: string;
     forceTerminal?: boolean;
     randomPreset?: string;
+    arenaStructuredContext?: ArenaStructuredContext;
   };
 
   if (!role || !["seller", "client"].includes(role)) {
@@ -640,6 +673,7 @@ router.post("/arena/start", async (req, res) => {
     forceTerminal: forceTerminal === true,
     randomPreset: randomPreset && PRESET_SYSTEM_DESC[randomPreset] ? randomPreset : undefined,
     sellerNotes: [],
+    ...(arenaStructuredContext ? { arenaStructuredContext } : {}),
   };
 
   let openingMessage = "";
@@ -998,7 +1032,7 @@ router.post("/arena/turn", async (req, res) => {
         session.role, session.context, session.lang,
         historyLen,
         session.clientProfile, session.sellerProfile, session.difficulty,
-        session.sellerNotes, session.randomPreset,
+        session.sellerNotes, session.randomPreset, session.arenaStructuredContext,
       ),
     },
   ];
@@ -1161,7 +1195,7 @@ router.post("/arena/repitch", async (req, res) => {
         session.role, session.context, session.lang,
         historyLen,
         session.clientProfile, session.sellerProfile, session.difficulty,
-        session.sellerNotes, session.randomPreset,
+        session.sellerNotes, session.randomPreset, session.arenaStructuredContext,
       ),
     },
     ...windowedTurns.map(t => ({
@@ -1308,6 +1342,7 @@ router.post("/arena/audit-report", async (req, res) => {
     sellerProfile,
     difficulty,
     lang = "es",
+    arenaStructuredContext,
   } = req.body as {
     transcript?: Array<{ speaker: "user" | "ai"; message: string }>;
     context?: string;
@@ -1317,6 +1352,7 @@ router.post("/arena/audit-report", async (req, res) => {
     sellerProfile?: string;
     difficulty?: string;
     lang?: string;
+    arenaStructuredContext?: ArenaStructuredContext;
   };
 
   const isEn = lang === "en";
@@ -1430,8 +1466,13 @@ Devuelve EXACTAMENTE este JSON, sin markdown:
 ${schema}`;
   }
 
+  const scAuditBlock = arenaStructuredContext
+    ? buildArenaScBlock(arenaStructuredContext, lang as Lang)
+    : "";
+
   const userMessage = [
     context ? `${isEn ? "CONTEXT" : "CONTEXTO"}: ${context}` : null,
+    scAuditBlock || null,
     profileBlock || null,
     `${isEn ? "OUTCOME" : "RESULTADO"}: ${outcome}`,
     "",

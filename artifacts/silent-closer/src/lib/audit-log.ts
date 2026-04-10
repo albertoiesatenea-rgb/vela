@@ -232,6 +232,15 @@ export interface ArenaCoachEntry {
   };
 }
 
+export interface ArenaStructuredContext {
+  meeting_goal?: string;
+  main_blocker?: string;
+  blocker_status?: "open" | "partial" | "resolved";
+  what_not_to_do?: string;
+  valid_outcome_today?: string;
+  known_context_notes?: string;
+}
+
 export interface ArenaSessionData {
   sessionId: string | null;
   lang: AuditLang;
@@ -249,6 +258,7 @@ export interface ArenaSessionData {
   runtimeInstructions?: string[];
   // Coach and journey data keyed by AI message index (optional — absent in old sessions)
   coachLiteMap?: Record<number, ArenaCoachEntry>;
+  arenaStructuredContext?: ArenaStructuredContext;
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
@@ -509,11 +519,18 @@ export function buildArenaAuditLog(data: ArenaSessionData): AuditLog {
     session_status: data.outcome,
   };
 
+  const sc = data.arenaStructuredContext;
   const context: SessionContext = {
     raw_context: data.context || "(no context provided)",
-    objective: null,
-    known_objections: null,
-    relevant_data: null,
+    objective: sc?.meeting_goal ?? null,
+    known_objections: sc?.main_blocker
+      ? `${sc.main_blocker}${sc.blocker_status ? ` [${sc.blocker_status}]` : ""}`
+      : null,
+    relevant_data: [
+      sc?.what_not_to_do ? `no_do: ${sc.what_not_to_do}` : null,
+      sc?.valid_outcome_today ? `valid_outcome: ${sc.valid_outcome_today}` : null,
+      sc?.known_context_notes ? `notes: ${sc.known_context_notes}` : null,
+    ].filter(Boolean).join(" | ") || null,
   };
 
   const config: SessionConfig = {

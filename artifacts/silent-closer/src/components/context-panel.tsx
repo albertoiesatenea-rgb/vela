@@ -4,12 +4,22 @@ import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/use-theme";
 import type { ArenaRole } from "@/pages/arena";
 
+export interface ArenaStructuredContext {
+  meeting_goal?: string;
+  main_blocker?: string;
+  blocker_status?: "open" | "partial" | "resolved";
+  what_not_to_do?: string;
+  valid_outcome_today?: string;
+  known_context_notes?: string;
+}
+
 export interface ArenaConfig {
   clientProfile?: string;
   sellerProfile?: string;
   difficulty?: string;
   forceTerminal?: boolean;
   randomPreset?: string;
+  arenaStructuredContext?: ArenaStructuredContext;
 }
 
 export type AppMode = "copilot" | "arena";
@@ -97,6 +107,10 @@ const CP = {
     ARENA_SELLER_SHORT: "Vendedor",
     ARENA_CLIENT_SHORT: "Cliente",
     ARENA_HINT: "La IA jugará el otro rol",
+    SC_ARENA_TOGGLE: "Objetivo de sesión",
+    SC_ARENA_BLOCKER_OPEN: "Sin resolver",
+    SC_ARENA_BLOCKER_PARTIAL: "Parcial",
+    SC_ARENA_BLOCKER_RESOLVED: "Resuelto",
     SC_TOGGLE: "Contexto avanzado",
     SC_GOAL_LABEL: "Objetivo hoy",
     SC_GOAL_PH: "qué toca conseguir en esta llamada",
@@ -153,6 +167,10 @@ const CP = {
     ARENA_SELLER_SHORT: "Seller",
     ARENA_CLIENT_SHORT: "Client",
     ARENA_HINT: "The AI will play the other role",
+    SC_ARENA_TOGGLE: "Session objective",
+    SC_ARENA_BLOCKER_OPEN: "Still open",
+    SC_ARENA_BLOCKER_PARTIAL: "Partial",
+    SC_ARENA_BLOCKER_RESOLVED: "Resolved",
     SC_TOGGLE: "Advanced context",
     SC_GOAL_LABEL: "Today's goal",
     SC_GOAL_PH: "what you need to achieve in this call",
@@ -333,9 +351,10 @@ function ArenaAdvancedForm({
 }: {
   role: ArenaRole;
   lang: Lang;
-  onSubmit: (ctx: string) => void;
+  onSubmit: (ctx: string, sc?: ArenaStructuredContext) => void;
   children?: ReactNode;
 }) {
+  const t = CP[lang];
   const isSeller = role === "seller";
 
   const questions = isSeller
@@ -366,11 +385,15 @@ function ArenaAdvancedForm({
 
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<string[]>(() => Array(questions.length).fill(""));
+  const [showSc, setShowSc] = useState(false);
+  const [sc, setSc] = useState<ArenaStructuredContext>({});
 
   // Reset when role changes (question count changes)
   useEffect(() => {
     setStep(0);
     setAnswers(Array(questions.length).fill(""));
+    setSc({});
+    setShowSc(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role]);
 
@@ -384,9 +407,14 @@ function ArenaAdvancedForm({
       .join("\n");
   };
 
+  const buildArenaScPayload = (): ArenaStructuredContext | undefined => {
+    const hasData = Object.values(sc).some(v => typeof v === "string" && v.trim().length > 0);
+    return hasData ? sc : undefined;
+  };
+
   const goNext = () => {
     if (step < questions.length - 1) setStep(s => s + 1);
-    else onSubmit(buildCtx(answers));
+    else onSubmit(buildCtx(answers), buildArenaScPayload());
   };
 
   const ctaLabel = lang === "es" ? "Entrar en Arena" : "Enter Arena";
@@ -439,8 +467,115 @@ function ArenaAdvancedForm({
 
       {children}
 
+      {/* Arena structured context — "Objetivo de sesión" */}
+      <div className="rounded-xl border border-white/10 overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setShowSc(v => !v)}
+          className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-mono tracking-widest uppercase text-zinc-400 hover:text-white transition-colors"
+        >
+          <span>{t.SC_ARENA_TOGGLE}</span>
+          <span>{showSc ? "▲" : "▼"}</span>
+        </button>
+        {showSc && (
+          <div className="px-3 pb-3 flex flex-col gap-3 border-t border-white/10 pt-3">
+            {/* meeting_goal */}
+            <div>
+              <label className="block text-[10px] font-mono tracking-widest uppercase text-zinc-500 mb-1">
+                {isSeller
+                  ? (lang === "es" ? "Objetivo hoy" : "Today's goal")
+                  : (lang === "es" ? "Qué quiero comprobar" : "What I want to test")}
+              </label>
+              <input type="text" value={sc.meeting_goal ?? ""}
+                onChange={e => setSc(s => ({ ...s, meeting_goal: e.target.value }))}
+                placeholder={isSeller
+                  ? (lang === "es" ? "qué toca conseguir en esta simulación" : "what to achieve in this simulation")
+                  : (lang === "es" ? "qué quiero forzar o explorar" : "what I want to force or explore")}
+                className="w-full text-xs font-mono bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-white placeholder:text-zinc-600 focus:outline-none focus:border-white/30"
+              />
+            </div>
+            {/* main_blocker */}
+            <div>
+              <label className="block text-[10px] font-mono tracking-widest uppercase text-zinc-500 mb-1">
+                {isSeller
+                  ? (lang === "es" ? "Bloqueo principal del cliente" : "Client's main blocker")
+                  : (lang === "es" ? "Freno principal que pondré" : "Main blocker I'll use")}
+              </label>
+              <input type="text" value={sc.main_blocker ?? ""}
+                onChange={e => setSc(s => ({ ...s, main_blocker: e.target.value }))}
+                placeholder={isSeller
+                  ? (lang === "es" ? "objeción que probablemente surgirá" : "objection likely to surface")
+                  : (lang === "es" ? "objeción que voy a plantear" : "objection I'll raise")}
+                className="w-full text-xs font-mono bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-white placeholder:text-zinc-600 focus:outline-none focus:border-white/30"
+              />
+            </div>
+            {/* blocker_status — only if blocker is set */}
+            {sc.main_blocker && (
+              <div>
+                <label className="block text-[10px] font-mono tracking-widest uppercase text-zinc-500 mb-1">
+                  {lang === "es" ? "Estado del bloqueo" : "Blocker status"}
+                </label>
+                <div className="flex gap-2">
+                  {(["open", "partial", "resolved"] as const).map(v => (
+                    <button key={v} type="button"
+                      onClick={() => setSc(s => ({ ...s, blocker_status: v }))}
+                      className={`flex-1 text-[9px] font-mono tracking-widest uppercase py-1 rounded-lg border transition-colors ${
+                        sc.blocker_status === v ? "bg-white text-black border-white" : "bg-transparent text-zinc-500 border-white/10 hover:border-white/30"
+                      }`}
+                    >
+                      {v === "open" ? t.SC_ARENA_BLOCKER_OPEN : v === "partial" ? t.SC_ARENA_BLOCKER_PARTIAL : t.SC_ARENA_BLOCKER_RESOLVED}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* what_not_to_do */}
+            <div>
+              <label className="block text-[10px] font-mono tracking-widest uppercase text-zinc-500 mb-1">
+                {isSeller
+                  ? (lang === "es" ? "Qué NO debe hacer el cliente IA" : "What the AI client must NOT do")
+                  : (lang === "es" ? "Qué NO debe hacer el vendedor IA" : "What the AI seller must NOT do")}
+              </label>
+              <input type="text" value={sc.what_not_to_do ?? ""}
+                onChange={e => setSc(s => ({ ...s, what_not_to_do: e.target.value }))}
+                placeholder={isSeller
+                  ? (lang === "es" ? "comportamiento o argumento a evitar" : "behavior or argument to avoid")
+                  : (lang === "es" ? "argumento o táctica que no debe usar" : "argument or tactic they must not use")}
+                className="w-full text-xs font-mono bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-white placeholder:text-zinc-600 focus:outline-none focus:border-white/30"
+              />
+            </div>
+            {/* valid_outcome_today */}
+            <div>
+              <label className="block text-[10px] font-mono tracking-widest uppercase text-zinc-500 mb-1">
+                {isSeller
+                  ? (lang === "es" ? "Resultado válido hoy" : "Valid result today")
+                  : (lang === "es" ? "Qué contaría como buena respuesta" : "What counts as a good response")}
+              </label>
+              <input type="text" value={sc.valid_outcome_today ?? ""}
+                onChange={e => setSc(s => ({ ...s, valid_outcome_today: e.target.value }))}
+                placeholder={isSeller
+                  ? (lang === "es" ? "qué sería un buen avance aunque no sea cierre" : "what counts as progress even without closing")
+                  : (lang === "es" ? "respuesta del vendedor que sería satisfactoria" : "seller response that would be satisfying")}
+                className="w-full text-xs font-mono bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-white placeholder:text-zinc-600 focus:outline-none focus:border-white/30"
+              />
+            </div>
+            {/* known_context_notes */}
+            <div>
+              <label className="block text-[10px] font-mono tracking-widest uppercase text-zinc-500 mb-1">
+                {lang === "es" ? "Notas del escenario" : "Scenario notes"}
+              </label>
+              <input type="text" value={sc.known_context_notes ?? ""}
+                onChange={e => setSc(s => ({ ...s, known_context_notes: e.target.value }))}
+                placeholder={lang === "es" ? "detalles del contexto que importan" : "context details that matter"}
+                className="w-full text-xs font-mono bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-white placeholder:text-zinc-600 focus:outline-none focus:border-white/30"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
       <button
-        onClick={() => onSubmit(buildCtx(answers))}
+        onClick={() => onSubmit(buildCtx(answers), buildArenaScPayload())}
         className="w-full bg-white text-black text-xs font-mono font-semibold py-3 rounded-xl hover:bg-zinc-100 transition-all active:scale-[0.98]"
       >
         {ctaLabel}
@@ -454,20 +589,34 @@ const ADV_TOTAL = 6;
 
 const ADV_STEP_ICONS = [Package, Users, Target, ShieldOff, User, FileText];
 
-function AdvancedForm({ onSubmit, lang, ctaLabel, children }: { onSubmit: (context: string) => void; lang: Lang; ctaLabel?: string; children?: ReactNode }) {
+function AdvancedForm({ onSubmit, lang, ctaLabel, children, enableStructuredContext }: {
+  onSubmit: (context: string, sc?: StructuredContext) => void;
+  lang: Lang;
+  ctaLabel?: string;
+  children?: ReactNode;
+  enableStructuredContext?: boolean;
+}) {
   const t = CP[lang];
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<string[]>(Array(ADV_TOTAL).fill(""));
+  const [showSc, setShowSc] = useState(false);
+  const [sc, setSc] = useState<StructuredContext>({});
 
   const setAnswer = (v: string) =>
     setAnswers(prev => { const n = [...prev]; n[step] = v; return n; });
 
-  const goNext = () => {
-    if (step < ADV_TOTAL - 1) setStep(s => s + 1);
-    else onSubmit(buildContextFromAdvanced(answers, lang));
+  const buildSc = (): StructuredContext | undefined => {
+    if (!enableStructuredContext) return undefined;
+    const hasData = Object.values(sc).some(v => typeof v === "string" && v.trim().length > 0);
+    return hasData ? sc : undefined;
   };
 
-  const goStart = () => onSubmit(buildContextFromAdvanced(answers, lang));
+  const goNext = () => {
+    if (step < ADV_TOTAL - 1) setStep(s => s + 1);
+    else onSubmit(buildContextFromAdvanced(answers, lang), buildSc());
+  };
+
+  const goStart = () => onSubmit(buildContextFromAdvanced(answers, lang), buildSc());
 
   const isLast = step === ADV_TOTAL - 1;
 
@@ -524,6 +673,58 @@ function AdvancedForm({ onSubmit, lang, ctaLabel, children }: { onSubmit: (conte
       </div>
 
       {children}
+
+      {/* Structured context — copilot advanced only */}
+      {enableStructuredContext && (
+        <div className="rounded-xl border border-white/10 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowSc(v => !v)}
+            className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-mono tracking-widest uppercase text-zinc-400 hover:text-white transition-colors"
+          >
+            <span>{t.SC_TOGGLE}</span>
+            <span>{showSc ? "▲" : "▼"}</span>
+          </button>
+          {showSc && (
+            <div className="px-3 pb-3 flex flex-col gap-3 border-t border-white/10 pt-3">
+              {[
+                { key: "meeting_goal" as const, label: t.SC_GOAL_LABEL, ph: t.SC_GOAL_PH },
+                { key: "previous_blocker" as const, label: t.SC_BLOCKER_LABEL, ph: t.SC_BLOCKER_PH },
+                { key: "what_not_to_do_today" as const, label: t.SC_NOTDO_LABEL, ph: t.SC_NOTDO_PH },
+                { key: "desired_deliverable_today" as const, label: t.SC_DELIVERABLE_LABEL, ph: t.SC_DELIVERABLE_PH },
+              ].map(f => (
+                <div key={f.key}>
+                  <label className="block text-[10px] font-mono tracking-widest uppercase text-zinc-500 mb-1">{f.label}</label>
+                  <input
+                    type="text"
+                    value={(sc as Record<string, string>)[f.key] ?? ""}
+                    onChange={e => setSc(s => ({ ...s, [f.key]: e.target.value }))}
+                    placeholder={f.ph}
+                    className="w-full text-xs font-mono bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-white placeholder:text-zinc-600 focus:outline-none focus:border-white/30"
+                  />
+                </div>
+              ))}
+              {sc.previous_blocker && (
+                <div>
+                  <label className="block text-[10px] font-mono tracking-widest uppercase text-zinc-500 mb-1">{t.SC_BLOCKER_STATUS_LABEL}</label>
+                  <div className="flex gap-2">
+                    {(["open", "partially_resolved", "resolved"] as const).map(v => (
+                      <button key={v} type="button"
+                        onClick={() => setSc(s => ({ ...s, blocker_status: v }))}
+                        className={`flex-1 text-[9px] font-mono tracking-widest uppercase py-1 rounded-lg border transition-colors ${
+                          sc.blocker_status === v ? "bg-white text-black border-white" : "bg-transparent text-zinc-500 border-white/10 hover:border-white/30"
+                        }`}
+                      >
+                        {v === "open" ? t.SC_BLOCKER_OPEN : v === "partially_resolved" ? t.SC_BLOCKER_PARTIAL : t.SC_BLOCKER_RESOLVED}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Nav — only the launch CTA; step navigation via icon clicks or Enter */}
       <button
@@ -673,10 +874,6 @@ export function ContextSetup({
   const [randomPreset, setRandomPreset] = useState<string | undefined>(undefined);
   const [isGeneratingCtx, setIsGeneratingCtx] = useState(false);
 
-  // Structured context state
-  const [showStructured, setShowStructured] = useState(false);
-  const [structuredCtx, setStructuredCtx] = useState<StructuredContext>({});
-
   // Arena profile/difficulty state
   const [clientProfile, setClientProfile] = useState<string | undefined>(undefined);
   const [sellerProfile, setSellerProfile] = useState<string | undefined>(undefined);
@@ -723,7 +920,7 @@ export function ContextSetup({
     setAppMode(m);
   };
 
-  const handleSubmit = (ctx: string) => {
+  const handleSubmit = (ctx: string, copilotSc?: StructuredContext, arenaSc?: ArenaStructuredContext) => {
     if (appMode === "arena" && !ctx.trim()) return;
     if (appMode === "arena") {
       if (arenaRole === "seller") {
@@ -737,12 +934,14 @@ export function ContextSetup({
           difficulty,
           forceTerminal: isRandom,
           randomPreset,
+          ...(arenaSc ? { arenaStructuredContext: arenaSc } : {}),
         });
       } else {
         // Client mode: user IS the client, AI plays the seller → only sellerProfile matters
         onArenaReady(ctx, arenaRole, {
           sellerProfile,
           randomPreset,
+          ...(arenaSc ? { arenaStructuredContext: arenaSc } : {}),
         });
       }
     } else {
@@ -754,8 +953,7 @@ export function ContextSetup({
           ? `\n\n[Perfil estimado del cliente: ${profileLabel}. Usa esto como referencia inicial en tus sugerencias, con flexibilidad si la conversación revela señales distintas.]`
           : `\n\n[Estimated client profile: ${profileLabel}. Use this as an initial reference in your suggestions, staying flexible if the conversation reveals different signals.]`;
       }
-      const hasStructuredData = Object.values(structuredCtx).some(v => v && v.trim && v.trim().length > 0);
-      onContextReady(finalCtx, hasStructuredData ? structuredCtx : undefined);
+      onContextReady(finalCtx, copilotSc);
     }
   };
 
@@ -1080,90 +1278,6 @@ export function ContextSetup({
               />
             )}
 
-            {/* ── Structured context (copilot only) ─────────────────────── */}
-            {appMode === "copilot" && (
-              <div className="rounded-xl border border-white/10 overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setShowStructured(v => !v)}
-                  className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-mono tracking-widest uppercase text-zinc-400 hover:text-white transition-colors"
-                >
-                  <span>{t.SC_TOGGLE}</span>
-                  <span>{showStructured ? "▲" : "▼"}</span>
-                </button>
-
-                {showStructured && (
-                  <div className="px-3 pb-3 flex flex-col gap-3 border-t border-white/10 pt-3">
-                    <div>
-                      <label className="block text-[10px] font-mono tracking-widest uppercase text-zinc-500 mb-1">{t.SC_GOAL_LABEL}</label>
-                      <input
-                        type="text"
-                        value={structuredCtx.meeting_goal ?? ""}
-                        onChange={e => setStructuredCtx(s => ({ ...s, meeting_goal: e.target.value }))}
-                        placeholder={t.SC_GOAL_PH}
-                        className="w-full text-xs font-mono bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-white placeholder:text-zinc-600 focus:outline-none focus:border-white/30"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-mono tracking-widest uppercase text-zinc-500 mb-1">{t.SC_BLOCKER_LABEL}</label>
-                      <input
-                        type="text"
-                        value={structuredCtx.previous_blocker ?? ""}
-                        onChange={e => setStructuredCtx(s => ({ ...s, previous_blocker: e.target.value }))}
-                        placeholder={t.SC_BLOCKER_PH}
-                        className="w-full text-xs font-mono bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-white placeholder:text-zinc-600 focus:outline-none focus:border-white/30"
-                      />
-                    </div>
-
-                    {structuredCtx.previous_blocker && (
-                      <div>
-                        <label className="block text-[10px] font-mono tracking-widest uppercase text-zinc-500 mb-1">{t.SC_BLOCKER_STATUS_LABEL}</label>
-                        <div className="flex gap-2">
-                          {(["open", "partially_resolved", "resolved"] as const).map(v => (
-                            <button
-                              key={v}
-                              type="button"
-                              onClick={() => setStructuredCtx(s => ({ ...s, blocker_status: v }))}
-                              className={`flex-1 text-[9px] font-mono tracking-widest uppercase py-1 rounded-lg border transition-colors
-                                ${structuredCtx.blocker_status === v
-                                  ? "bg-white text-black border-white"
-                                  : "bg-transparent text-zinc-500 border-white/10 hover:border-white/30"
-                                }`}
-                            >
-                              {v === "open" ? t.SC_BLOCKER_OPEN : v === "partially_resolved" ? t.SC_BLOCKER_PARTIAL : t.SC_BLOCKER_RESOLVED}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <div>
-                      <label className="block text-[10px] font-mono tracking-widest uppercase text-zinc-500 mb-1">{t.SC_NOTDO_LABEL}</label>
-                      <input
-                        type="text"
-                        value={structuredCtx.what_not_to_do_today ?? ""}
-                        onChange={e => setStructuredCtx(s => ({ ...s, what_not_to_do_today: e.target.value }))}
-                        placeholder={t.SC_NOTDO_PH}
-                        className="w-full text-xs font-mono bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-white placeholder:text-zinc-600 focus:outline-none focus:border-white/30"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-mono tracking-widest uppercase text-zinc-500 mb-1">{t.SC_DELIVERABLE_LABEL}</label>
-                      <input
-                        type="text"
-                        value={structuredCtx.desired_deliverable_today ?? ""}
-                        onChange={e => setStructuredCtx(s => ({ ...s, desired_deliverable_today: e.target.value }))}
-                        placeholder={t.SC_DELIVERABLE_PH}
-                        className="w-full text-xs font-mono bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-white placeholder:text-zinc-600 focus:outline-none focus:border-white/30"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
             {/* CTA */}
             <button
               onClick={() => handleSubmit(quickText)}
@@ -1177,7 +1291,12 @@ export function ContextSetup({
 
         {/* ── Advanced form — Copilot ──────────────────────────────────── */}
         {contextMode === "advanced" && appMode === "copilot" && (
-          <AdvancedForm onSubmit={handleSubmit} lang={lang} ctaLabel={ctaLabel}>
+          <AdvancedForm
+            onSubmit={(ctx, sc) => handleSubmit(ctx, sc)}
+            lang={lang}
+            ctaLabel={ctaLabel}
+            enableStructuredContext
+          >
             <CopilotClientPicker
               lang={lang}
               value={copilotClientProfile}
@@ -1188,7 +1307,11 @@ export function ContextSetup({
 
         {/* ── Advanced form — Arena ────────────────────────────────────── */}
         {contextMode === "advanced" && appMode === "arena" && (
-          <ArenaAdvancedForm role={arenaRole} lang={lang} onSubmit={handleSubmit}>
+          <ArenaAdvancedForm
+            role={arenaRole}
+            lang={lang}
+            onSubmit={(ctx, arenaSc) => handleSubmit(ctx, undefined, arenaSc)}
+          >
             <ArenaProfilePicker
               arenaRole={arenaRole} lang={lang}
               clientProfile={clientProfile} setClientProfile={setClientProfile}
