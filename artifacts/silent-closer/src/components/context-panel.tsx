@@ -15,25 +15,27 @@ export interface ArenaConfig {
 export type AppMode = "copilot" | "arena";
 
 // ── VELA mark: triangular sail + two internal diagonal cuts ───────────────────
-// SVG mask approach: triangle polygon masked by two black diagonal lines that
-// cross in the lower half — creates 3 visible segments reading as a sail/vela:
-//   1. Upper apex (direction / point)
-//   2. Lower-left wing
-//   3. Lower-right wing
-// No base — pure geometric sail silhouette.
-// Scaled to fill more of the viewBox for stronger presence (apex 0.5, base 19.5,
-// width 14/20 = 70%). Lines scaled proportionally from original.
+// NO mask approach — explicit fill polygon + cut lines drawn on top.
+//
+// WHY NOT MASK: the mask used `stroke="black"` (hardcoded SVG). In light mode
+// the CSS inverts --color-black → #fff and --color-white → #000, so bg-black
+// becomes white and text-white becomes black. The hardcoded "black" mask strokes
+// made transparent cut-throughs that showed opposite-tone backgrounds in each
+// theme — perceived stroke weight changed due to the Mach effect.
+//
+// FIX: draw the triangle fill in currentColor, then overlay cut lines using
+// `stroke-black` (Tailwind class). Because `--color-black` is overridden to
+// #ffffff in html.light, the cut lines always match the container background,
+// producing identical perceived weight in both dark and light mode.
+//
+// Triangle: apex (10,0.5), base (3,19.5) — (17,19.5). Width 70% of viewBox.
+// Cuts cross at (10,12.5); strokeWidth 1.4 keeps cuts crisp at small sizes.
 function VelaIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 20 20" className={className} aria-hidden>
-      <defs>
-        <mask id="vela-mark-mask">
-          <polygon points="10,0.5 3,19.5 17,19.5" fill="white" />
-          <line x1="6.5" y1="9" x2="17" y2="19.5" stroke="black" strokeWidth="1.4" />
-          <line x1="13.5" y1="9" x2="3" y2="19.5" stroke="black" strokeWidth="1.4" />
-        </mask>
-      </defs>
-      <polygon points="10,0.5 3,19.5 17,19.5" fill="currentColor" mask="url(#vela-mark-mask)" />
+      <polygon points="10,0.5 3,19.5 17,19.5" fill="currentColor" />
+      <line x1="6.5"  y1="9" x2="17" y2="19.5" className="stroke-black" strokeWidth="1.4" strokeLinecap="butt" />
+      <line x1="13.5" y1="9" x2="3"  y2="19.5" className="stroke-black" strokeWidth="1.4" strokeLinecap="butt" />
     </svg>
   );
 }
@@ -773,30 +775,8 @@ export function ContextSetup({
           <div className="flex items-center gap-2.5">
             <VelaIcon className="w-12 h-12 text-white shrink-0" />
             <div className="flex flex-col gap-1.5">
-              {/* Wordmark: "VEL" as text + geometric Λ (inverted V, no crossbar)
-                  for the final A — reinforces triangular symbol language.
-                  Sizing: 0.6em wide × 0.8em tall, nudged -0.12em for cap-height align. */}
               <h1 className="text-3xl font-mono font-bold text-white tracking-[0.18em] uppercase leading-none">
-                {"VEL"}
-                <svg
-                  viewBox="0 0 12 22"
-                  aria-label="A"
-                  style={{
-                    display: "inline-block",
-                    width: "0.6em",
-                    height: "0.8em",
-                    verticalAlign: "-0.12em",
-                  }}
-                >
-                  <path
-                    d="M 1,21.5 L 6,0.5 L 11,21.5"
-                    stroke="currentColor"
-                    strokeWidth="2.6"
-                    fill="none"
-                    strokeLinecap="square"
-                    strokeLinejoin="miter"
-                  />
-                </svg>
+                VELA
               </h1>
               <p className="text-[11px] font-mono text-zinc-400 tracking-[0.16em] uppercase">
                 {t.SUBTITLE}

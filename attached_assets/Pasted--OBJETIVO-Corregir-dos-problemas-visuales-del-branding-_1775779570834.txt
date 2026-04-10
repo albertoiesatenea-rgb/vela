@@ -1,0 +1,79 @@
+## OBJETIVO
+Corregir dos problemas visuales del branding actual de `VELA`:
+1. la `A` geométrica del wordmark está mal resuelta y debe rehacerse o revertirse,
+2. el logomark triangular no mantiene una percepción de grosor/peso consistente entre light mode y dark mode.
+
+## CONTEXTO
+El rebrand a `VELA` está bien encaminado, pero hay dos fallos claros:
+
+### Problema 1 — `A` final de `VELA`
+La versión actual sin barra horizontal ha quedado mal:
+- se ve desalineada respecto al resto de letras
+- parece metida con calzador
+- no sigue bien la lógica del wordmark
+- no se siente como una decisión tipográfica sólida
+
+Si se mantiene una `A` sin barra, debe construirse correctamente:
+- como una V invertida real
+- con la misma lógica geométrica que la `V` inicial
+- con altura, inclinación, peso y alineación coherentes con el resto del wordmark
+
+Si eso no queda perfecto, prefiero volver a la `A` normal actual.
+
+### Problema 2 — símbolo triangular
+Las franjas/cortes internos del logomark dan sensación de grosor o peso distinto entre light mode y dark mode.
+Quiero que el símbolo se sienta consistente en ambos temas:
+- mismo grosor visual
+- misma estructura
+- misma lectura
+- misma tensión visual
+
+## TAREAS
+1. Corregir el wordmark `VELA`:
+   - revisar la `A` actual
+   - rehacerla correctamente como forma geométrica tipo V invertida real, solo si queda impecable
+   - si no queda impecable, restaurar una `A` normal limpia y bien integrada
+
+2. Asegurarte de que, si se usa una `A` geométrica:
+   - comparte sistema visual con la `V` inicial
+   - no queda más baja que las otras letras
+   - no rompe el ritmo tipográfico
+   - no parece una ocurrencia forzada
+
+3. Revisar el logomark triangular en light y dark mode:
+   - comprobar grosor de masas y cortes internos
+   - unificar percepción visual del símbolo
+   - corregir cualquier diferencia de stroke, fill, tamaño óptico o contraste que haga que se vea distinto entre temas
+
+4. Mantener el concepto del símbolo:
+   - silueta triangular
+   - franjas internas
+   - sin base inferior
+
+## RESTRICCIONES
+- No tocar la lógica del producto.
+- No rehacer la interfaz.
+- No cambiar el concepto general del branding.
+- No añadir color nuevo.
+- No modificar textos funcionales.
+- No dejar una `A` creativa si no queda claramente mejor que la A normal.
+- No dejar diferencias visuales del símbolo entre light y dark mode.
+
+## ENTREGABLES
+- [ ] Wordmark `VELA` corregido
+- [ ] `A` final bien resuelta o revertida a una versión normal limpia
+- [ ] Logomark consistente en light y dark mode
+- [ ] Ajuste visual final sobrio y coherente con la marca
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] La palabra `VELA` se lee instantáneamente y sin rarezas
+- [ ] La `A` no se ve descolgada ni forzada
+- [ ] Si la `A` es geométrica, parece una V invertida bien construida, no un parche
+- [ ] El símbolo triangular se percibe con el mismo grosor/peso en light y dark mode
+- [ ] Las franjas internas mantienen coherencia visual entre ambos temas
+- [ ] No hay regresión en el header
+- [ ] La app compila sin errores
+
+## REGLA FINAL
+Si hay duda entre “creatividad” y “solidez visual”, prioriza solidez visual.
+Prefiero una A normal impecable antes que una A especial mal resuelta.
