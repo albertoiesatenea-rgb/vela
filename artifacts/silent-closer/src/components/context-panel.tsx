@@ -21,17 +21,19 @@ export type AppMode = "copilot" | "arena";
 //   2. Lower-left wing
 //   3. Lower-right wing
 // No base — pure geometric sail silhouette.
+// Scaled to fill more of the viewBox for stronger presence (apex 0.5, base 19.5,
+// width 14/20 = 70%). Lines scaled proportionally from original.
 function VelaIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 20 20" className={className} aria-hidden>
       <defs>
         <mask id="vela-mark-mask">
-          <polygon points="10,1.5 4,18 16,18" fill="white" />
-          <line x1="7" y1="9" x2="16" y2="18" stroke="black" strokeWidth="1.3" />
-          <line x1="13" y1="9" x2="4" y2="18" stroke="black" strokeWidth="1.3" />
+          <polygon points="10,0.5 3,19.5 17,19.5" fill="white" />
+          <line x1="6.5" y1="9" x2="17" y2="19.5" stroke="black" strokeWidth="1.4" />
+          <line x1="13.5" y1="9" x2="3" y2="19.5" stroke="black" strokeWidth="1.4" />
         </mask>
       </defs>
-      <polygon points="10,1.5 4,18 16,18" fill="currentColor" mask="url(#vela-mark-mask)" />
+      <polygon points="10,0.5 3,19.5 17,19.5" fill="currentColor" mask="url(#vela-mark-mask)" />
     </svg>
   );
 }
@@ -768,11 +770,33 @@ export function ContextSetup({
 
         {/* ── Brand row ─────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <VelaIcon className="w-11 h-11 text-white shrink-0" />
+          <div className="flex items-center gap-2.5">
+            <VelaIcon className="w-12 h-12 text-white shrink-0" />
             <div className="flex flex-col gap-1.5">
+              {/* Wordmark: "VEL" as text + geometric Λ (inverted V, no crossbar)
+                  for the final A — reinforces triangular symbol language.
+                  Sizing: 0.6em wide × 0.8em tall, nudged -0.12em for cap-height align. */}
               <h1 className="text-3xl font-mono font-bold text-white tracking-[0.18em] uppercase leading-none">
-                VELA
+                {"VEL"}
+                <svg
+                  viewBox="0 0 12 22"
+                  aria-label="A"
+                  style={{
+                    display: "inline-block",
+                    width: "0.6em",
+                    height: "0.8em",
+                    verticalAlign: "-0.12em",
+                  }}
+                >
+                  <path
+                    d="M 1,21.5 L 6,0.5 L 11,21.5"
+                    stroke="currentColor"
+                    strokeWidth="2.6"
+                    fill="none"
+                    strokeLinecap="square"
+                    strokeLinejoin="miter"
+                  />
+                </svg>
               </h1>
               <p className="text-[11px] font-mono text-zinc-400 tracking-[0.16em] uppercase">
                 {t.SUBTITLE}

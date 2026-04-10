@@ -1,0 +1,56 @@
+## OBJETIVO
+Refinar el bloque de marca de `VELA` para que el símbolo triangular tenga más presencia, quede mejor integrado con el wordmark y explorar una posible mejora del lettering usando una `A` final más geométrica, tipo V invertida / Λ sin barra horizontal, solo si realmente mejora el resultado.
+
+## CONTEXTO
+- El rebrand a `VELA` ya está bien encaminado.
+- El concepto del símbolo es correcto y no debe cambiar:
+  - silueta triangular
+  - franjas internas
+  - sin base inferior
+- El problema actual es de proporción y spacing:
+  - el triángulo se ve pequeño
+  - queda demasiado separado del wordmark `VELA`
+  - el nombre tiene más autoridad visual que el símbolo
+- Además, quiero explorar si el wordmark mejora visualmente haciendo que la `A` de `VELA` sea más geométrica, tipo V invertida / Λ sin barra horizontal, para reforzar la simetría con el símbolo.
+- No quiero rehacer el header. Quiero un ajuste fino de jerarquía visual y branding.
+
+## TAREAS
+1. Aumentar el tamaño del logomark triangular con criterio.
+2. Reducir ligeramente la separación horizontal entre icono y `VELA`.
+3. Revisar la alineación vertical entre símbolo, wordmark y subtítulo.
+4. Mantener intacto el diseño del símbolo:
+   - no cambiar forma
+   - no eliminar franjas internas
+   - no volver al logo anterior
+5. Explorar una variante del wordmark en la que la `A` final de `VELA` se represente como una forma geométrica tipo V invertida / Λ sin barra horizontal.
+6. Comparar visualmente ambas opciones:
+   - A normal actual
+   - A geométrica sin barra
+7. Dejar aplicada solo la opción que haga que la marca se vea más sólida, premium y coherente con el símbolo.
+8. Mantener el subtítulo actual y el resto de la interfaz sin cambios innecesarios.
+
+## RESTRICCIONES
+- No cambiar el concepto del branding.
+- No tocar lógica del producto.
+- No rehacer layout general.
+- No tocar textos funcionales.
+- No hacer el icono desproporcionadamente grande.
+- No modificar la estética monocroma.
+- No forzar la `A` geométrica si empeora legibilidad o da sensación de truco visual barato.
+
+## ENTREGABLES
+- [ ] Logomark con más presencia visual
+- [ ] Menor distancia entre símbolo y `VELA`
+- [ ] Mejor equilibrio del bloque de marca
+- [ ] Evaluación aplicada entre `A` normal y `A` geométrica
+- [ ] Ajuste coherente en light y dark mode
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] El símbolo deja de verse tímido
+- [ ] El conjunto símbolo + `VELA` se siente como una sola marca
+- [ ] El icono mantiene buena legibilidad en tamaños pequeños
+- [ ] Si se usa la `A` geométrica, se lee claramente como `VELA` y mejora la identidad visual
+- [ ] Si la `A` geométrica no mejora de verdad, se mantiene la A actual
+- [ ] No se rompe la sobriedad del header
+- [ ] No hay regresión visual en light ni dark mode
+- [ ] La app compila sin errores
