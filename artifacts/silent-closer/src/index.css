@@ -63,6 +63,17 @@
 
   /* Muted foreground also needs a bump (0 0% 50% = #808080 = 3.5:1 fail) */
   --muted-foreground: 0 0% 58%; /* → #949494 ≈ 4.9:1 on black ✓ */
+
+  /* ── Irradiation compensation (dark mode) ───────────────────────────── */
+  /* White text/shapes on black backgrounds appear to "bloom" (irradiation  */
+  /* effect): letter strokes look heavier, icon cuts look narrower than    */
+  /* their physical size. Two mitigations:                                  */
+  /* 1. antialiased font rendering — reduces white-on-dark stroke blooming  */
+  /* 2. --vela-cut-width 1.4 — SVG cut lines set to their geometric size;  */
+  /*    dark gaps on white icon look physically correct (dark shrinks).    */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  --vela-cut-width: 1.4;
 }
 
 /* ── Light theme ──────────────────────────────────────────────────── */
@@ -81,6 +92,15 @@ html.light {
   --card-foreground: 0 0% 4%;
   --primary: 0 0% 4%;
   --primary-foreground: 0 0% 98%;
+
+  /* ── Irradiation compensation (light mode) ──────────────────────────── */
+  /* White cuts on black shapes bloom more than dark cuts on white shapes. */
+  /* Thinner SVG cuts (1.0 vs 1.4) compensate for the perceived expansion  */
+  /* of the white stroke in the VelaIcon on a light background.            */
+  /* Auto antialiasing is standard for dark text on white; no override.   */
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+  --vela-cut-width: 1.0;
 
   /* Black ↔ White swap */
   --color-black: #ffffff;

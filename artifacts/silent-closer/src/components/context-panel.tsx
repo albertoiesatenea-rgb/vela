@@ -34,8 +34,8 @@ function VelaIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 20 20" className={className} aria-hidden>
       <polygon points="10,0.5 3,19.5 17,19.5" fill="currentColor" />
-      <line x1="6.5"  y1="9" x2="17" y2="19.5" className="stroke-black" strokeWidth="1.4" strokeLinecap="butt" />
-      <line x1="13.5" y1="9" x2="3"  y2="19.5" className="stroke-black" strokeWidth="1.4" strokeLinecap="butt" />
+      <line x1="6.5"  y1="9" x2="17" y2="19.5" className="stroke-black" style={{ strokeWidth: "var(--vela-cut-width, 1.4)" }} strokeLinecap="butt" />
+      <line x1="13.5" y1="9" x2="3"  y2="19.5" className="stroke-black" style={{ strokeWidth: "var(--vela-cut-width, 1.4)" }} strokeLinecap="butt" />
     </svg>
   );
 }
