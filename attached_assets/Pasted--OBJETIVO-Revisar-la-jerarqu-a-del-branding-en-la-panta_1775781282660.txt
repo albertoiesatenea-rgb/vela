@@ -1,0 +1,50 @@
+## OBJETIVO
+Revisar la jerarquía del branding en la pantalla principal de setup para que se sienta tan elegante y natural como el lockup pequeño que ya aparece en la barra de sesión / cabeceras internas.
+
+## CONTEXTO
+- El lockup pequeño de `VELA` en contexto de sesión/cabecera interna funciona muy bien: se ve premium, limpio y natural.
+- En cambio, en la pantalla principal de setup, el bloque de marca actual no termina de convencer visualmente.
+- El problema no parece ser el logo en sí, sino cómo está siendo usado en la home:
+  - demasiado institucional
+  - demasiado protagonista para una pantalla de producto tan minimal
+  - subtítulo largo con bastante peso visual
+- No quiero cambiar el logo.
+- Quiero revisar cómo se presenta la marca en la pantalla principal.
+
+## TAREAS
+Explora 2 variantes de la home/setup:
+
+### Variante A
+Mantener la estructura actual, pero aligerar el bloque de marca:
+- símbolo más contenido
+- lockup más compacto
+- subtítulo menos dominante
+- sensación más de producto que de cabecera corporativa
+
+### Variante B
+Usar una cabecera más compacta inspirada en el lockup pequeño de la barra de sesión:
+- branding más discreto
+- menos peso del bloque superior
+- que el protagonismo visual recaiga más en el flujo de uso (modos, textarea, CTA)
+
+## RESTRICCIONES
+- No cambiar el logo ni el concepto de marca.
+- No tocar lógica del producto.
+- No rehacer toda la pantalla.
+- No tocar textos funcionales.
+- No introducir color nuevo.
+- Mantener la estética sobria y monocroma.
+
+## ENTREGABLES
+- [ ] Variante A de home con branding aligerado
+- [ ] Variante B de home con branding más compacto tipo app
+- [ ] Elección de la mejor opción aplicada en la UI
+- [ ] Ajuste coherente en light y dark mode
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] El branding en la home se siente más natural
+- [ ] La pantalla principal parece más producto y menos landing corporativa
+- [ ] `VELA` mantiene identidad premium
+- [ ] El lockup pequeño sigue siendo referencia de elegancia visual
+- [ ] No hay regresión de layout
+- [ ] La app compila sin errores

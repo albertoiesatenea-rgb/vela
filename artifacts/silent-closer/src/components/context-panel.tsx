@@ -770,18 +770,17 @@ export function ContextSetup({
     <div className="fixed inset-0 bg-black flex flex-col items-center justify-center px-6 overflow-y-auto py-6">
       <div className="w-full max-w-lg flex flex-col gap-4">
 
-        {/* ── Brand row ─────────────────────────────────────────────────── */}
+        {/* ── Brand stamp — compact, product-first ───────────────────────── */}
+        {/* Variant B: brand as ambient mark, not corporate header.            */}
+        {/* Reference: session-bar lockup (w-2.5 icon / text-[8px]) scaled up  */}
+        {/* just enough for home-screen legibility. No subtitle — the product   */}
+        {/* UI (mode tabs, textarea, CTA) carries the visual weight instead.    */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <VelaIcon className="w-12 h-12 text-white shrink-0" />
-            <div className="flex flex-col gap-1.5">
-              <h1 className="text-3xl font-mono font-bold text-white tracking-[0.18em] uppercase leading-none">
-                VELA
-              </h1>
-              <p className="text-[11px] font-mono text-zinc-400 tracking-[0.16em] uppercase">
-                {t.SUBTITLE}
-              </p>
-            </div>
+          <div className="flex items-center gap-1.5">
+            <VelaIcon className="w-5 h-5 text-zinc-400 shrink-0" />
+            <span className="text-xs font-mono font-bold tracking-[0.28em] uppercase text-zinc-400 leading-none">
+              VELA
+            </span>
           </div>
           <div className="flex items-center gap-2">
             {/* Theme toggle */}
