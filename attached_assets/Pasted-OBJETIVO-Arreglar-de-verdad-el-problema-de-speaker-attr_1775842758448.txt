@@ -1,0 +1,483 @@
+OBJETIVO
+
+Arreglar de verdad el problema de speaker attribution en Copiloto modo AUTO.
+
+Ahora mismo AUTO es demasiado impreciso y contamina:
+- analyze
+- call_memory
+- summarize
+- audit-report
+- audit log
+
+Quiero una mejora estructural real, no un parche superficial de prompt.
+
+IMPORTANTE:
+La solución debe funcionar en llamadas reales hands-free.
+No podemos depender de corrección manual durante la llamada.
+En uso real estaré compartiendo pantalla y vendiendo, así que no voy a poder tocar la herramienta mientras hablo.
+
+La corrección manual, si existe, debe ser SOLO opcional:
+- para post-call review
+- debugging
+- casos puntuales
+
+Nunca una pieza central.
+Nunca una dependencia.
+Nunca una condición para que AUTO funcione bien.
+
+NO tocar Arena en esta iteración.
+NO rehacer toda la app.
+SÍ hacer una solución robusta y progresiva para que AUTO pase de “adivina mal” a “clasifica mejor, muestra confianza, se autocorrige cuando puede y falla con honestidad”.
+
+PROBLEMA REAL
+
+Según la arquitectura actual de Copiloto:
+- el flujo es `useSpeech / textarea input -> POST /api/copilot/analyze`
+- `/api/copilot/analyze` recibe solo:
+  - `text`
+  - `context`
+  - `call_memory`
+  - `lang`
+
+No entra audio crudo.
+No entra diarización.
+No entra timeline por speaker.
+No entra separación de canales.
+No entra una confianza real de speaker.
+
+Eso significa que el modo AUTO hoy intenta inferir quién habla casi solo a partir del texto ya transcrito.
+
+Con esa base:
+- aparecen muchos `UNKNOWN`
+- se contamina la memoria táctica
+- se degrada summarize
+- se degrada audit-report
+- se generan conclusiones falsas sobre control conversacional
+
+Quiero corregir esto desde producto, frontend y backend.
+
+PRINCIPIO DE DISEÑO
+
+AUTO no puede depender de una sola inferencia ciega por fragmento.
+
+Necesita una tubería por capas:
+
+1. mejor segmentación del input
+2. clasificación de speaker con scoring
+3. memoria de continuidad por conversación
+4. speaker confidence explícita
+5. reatribución retrospectiva automática cuando el contexto posterior ayude
+6. fallback honesto a UNKNOWN cuando no alcanza umbral
+7. corrección manual solo opcional y secundaria
+
+La estrategia correcta NO es:
+“AUTO falla -> usuario corrige”
+
+La estrategia correcta SÍ es:
+“AUTO clasifica -> reevalúa con contexto -> corrige solo si puede -> baja confianza si no puede -> evita contaminar el resto del sistema”
+
+CAMBIOS REQUERIDOS
+
+========================================
+A) INTRODUCIR UNA CAPA REAL DE SPEAKER ATTRIBUTION EN COPILOTO
+========================================
+
+Crear un módulo explícito de speaker attribution antes o alrededor de `analyze`.
+No dejarlo como inferencia implícita y difusa.
+
+Objetivo:
+cada fragmento debe salir con algo como:
+- `speaker_label: "me" | "client" | "unknown"`
+- `speaker_confidence: 0..1`
+- `speaker_evidence: string[]` o equivalente interno
+- `speaker_source: "rule" | "carryover" | "model" | "auto_repair" | "manual" | "unknown"`
+
+No hace falta exponer todo eso al usuario final, pero sí usarlo internamente.
+
+========================================
+B) NO DEPENDER SOLO DEL TEXTO FINAL — MEJORAR CAPTURA Y SEGMENTACIÓN
+========================================
+
+Revisar `use-speech.ts` y el flujo de batches en modo listen.
+
+Quiero mejorar cómo se forman los fragmentos antes de analizarlos.
+
+Problema probable:
+si el batch mezcla dos voces o corta mal el turno, luego ya no hay speaker attribution fiable.
+
+Cambios deseados:
+1. reducir mezcla de dos voces en el mismo batch
+2. detectar pausas / cambios fuertes de ritmo para cerrar fragmento antes
+3. evitar batches demasiado largos en listen
+4. introducir `turn boundary heuristics` simples:
+   - pausa larga
+   - cambio claro de persona detectado por patrón textual
+   - pregunta seguida de respuesta
+   - vocativos / nombres
+   - saludos / confirmaciones
+5. si un batch parece contener dos speakers, partirlo o marcarlo como ambiguo antes de analyze
+
+Objetivo:
+mejorar la unidad de análisis antes de cualquier prompt.
+
+========================================
+C) CLASIFICADOR HÍBRIDO DE SPEAKER
+========================================
+
+Implementar speaker attribution híbrido, no solo por prompt.
+
+Capas del clasificador:
+
+C1. REGLAS LIGERAS
+Usar heurísticas de texto:
+- vocativos: “José”, “Alberto”, “Linda”, etc.
+- preguntas del vendedor típicas
+- respuestas cortas del cliente
+- “te explico”, “nosotros”, “lo que hacemos”, “nuestro proceso”, “os enviamos”, etc.
+- patrones típicos del vendedor vs cliente
+- frases espejo
+- estructura pregunta/respuesta
+
+C2. CONTINUIDAD DE TURNO / CARRYOVER
+Si el speaker previo tuvo alta confianza y el nuevo fragmento parece continuación natural, usar `carryover`.
+No clasificar cada trozo como si naciera de cero.
+
+C3. MICRO-CLASIFICADOR SOLO SI HACE FALTA
+Si tras reglas + carryover la confianza queda en zona gris, usar una inferencia ligera específica de speaker attribution.
+No mezclar esta tarea con analyze si eso empeora claridad.
+
+Esta inferencia ligera debe resolver SOLO:
+- me / client / unknown
+- confidence
+- brief reason
+
+Muy importante:
+solo llamarla si hace falta.
+No dispararla siempre para no subir coste.
+
+C4. UMBRAL DE CONFIANZA
+Si no supera umbral, dejar `unknown`.
+Pero `unknown` debe ser menos frecuente y más honesto.
+
+========================================
+D) MEMORY DE SPEAKER A NIVEL DE SESIÓN
+========================================
+
+Añadir estado de speaker attribution en sesión Copiloto:
+- último speaker con alta confianza
+- rachas de turnos
+- tasa de unknown reciente
+- confusiones recientes
+- patrones frecuentes del usuario vs cliente
+- ventana reciente para reatribución automática
+
+Objetivo:
+no decidir cada turno como evento aislado.
+Quiero que el sistema aprenda durante la llamada quién suele decir qué.
+
+Ejemplos:
+- si hay racha clara de YO explicando una propuesta, no resetear a UNKNOWN por una frase corta
+- si aparece una pregunta corta tras monólogo del vendedor, considerar cambio probable
+- si la sesión ya mostró alta ambigüedad, bajar agresividad de clasificación
+
+========================================
+E) REATRIBUCIÓN RETROSPECTIVA AUTOMÁTICA
+========================================
+
+Añadir una capa de self-repair automática.
+
+Idea:
+cuando llega contexto nuevo, el sistema puede reinterpretar mejor los últimos N fragmentos recientes.
+
+Quiero una ventana rodante tipo:
+- últimos 3 a 8 turns
+o equivalente razonable
+
+Objetivo:
+si un fragmento salió como UNKNOWN o con baja confianza,
+pero los siguientes turnos aclaran claramente quién hablaba,
+el sistema debe poder:
+- reatribuir ese turno automáticamente
+- actualizar speaker_confidence
+- corregir speaker memory reciente
+- mejorar el contexto para analyze / summarize / audit-report
+
+Esto es clave.
+Quiero auto-corrección por contexto acumulado.
+No depender del usuario.
+
+========================================
+F) AÑADIR SPEAKER_CONFIDENCE Y USARLO DE VERDAD
+========================================
+
+No quiero solo una etiqueta final.
+Quiero confianza explícita.
+
+Usos obligatorios:
+1. Tactical analyze
+- si confidence baja, no empujar cierres agresivos
+- si confidence baja, no leer green demasiado pronto
+- si confidence baja, no sobreinterpretar momentum
+
+2. call_memory
+- no consolidar memoria dura sobre turnos ambiguos
+- no cristalizar conclusiones fuertes con baja confianza
+
+3. summarize
+- modular contundencia del juicio
+- menos sentencias duras si la base de speaker está rota
+
+4. audit-report
+- si la calidad de speaker fue mala, la brutal debe saberlo
+- no sacar conclusiones fuertes sobre control conversacional si la base está rota
+
+5. audit log
+- guardar speaker_confidence o al menos speaker_quality agregada por turno/sesión
+- si es viable, reflejar reatribución automática
+
+========================================
+G) LOW-CONFIDENCE MODE SIN CONTAMINAR LA INTELIGENCIA
+========================================
+
+Si speaker confidence es baja:
+- no consolidar memoria fuerte sobre ese turno
+- no empujar cierres agresivos
+- no extraer conclusiones duras
+- no usar ese turno ambiguo como base principal del audit-report
+
+Quiero un sistema que prefiera:
+“no lo sé con suficiente confianza”
+antes que:
+“lo etiqueto mal y contamino toda la sesión”
+
+AUTO debe ser más útil y menos destructivo.
+
+========================================
+H) UI / UX: AUTO MÁS HONESTO Y MÁS ÚTIL, SIN DEPENDENCIA OPERATIVA
+========================================
+
+Quiero mejorar el modo AUTO en UI, pero sin exigir interacción.
+
+1. Mostrar calidad de speaker attribution en sesión activa:
+- NORMAL
+- VIGILAR
+- BAJA FIABILIDAD
+
+2. Si la tasa de UNKNOWN sube mucho:
+- mostrar aviso claro y pasivo:
+  “AUTO está mezclando voces. Cambia a YO / CLIENTE o pega este tramo manualmente.”
+- no esconder el problema
+- no bloquear la llamada
+- no abrir modales intrusivos
+
+3. Si el usuario está en AUTO + listen y la fiabilidad cae:
+- sugerir cambiar temporalmente a manual speaker mode
+- pero sin exigir clics para continuar
+
+4. Corrección manual
+- puede existir
+- debe estar escondida como herramienta secundaria
+- útil para post-call review, debugging o casos excepcionales
+- no protagonista
+- no requerida para que la llamada funcione
+
+========================================
+I) NO VENDER HUMO CON AUDIO QUE NO EXISTE
+========================================
+
+Muy importante:
+si el stack actual solo tiene Web Speech API wrapper y texto transcrito, no fingir diarización acústica real.
+No quiero que el código pretenda usar acento, timbre o huella vocal si no tiene acceso real a esa señal.
+
+Haz la mejor solución posible con lo que sí existe hoy:
+- mejor segmentación
+- reglas
+- carryover
+- micro-clasificador
+- confidence
+- reatribución retrospectiva automática
+- degradación honesta
+- corrección manual solo opcional
+
+Si el navegador / implementación actual sí permite capturar metadatos útiles adicionales de timing o chunks, aprovéchalos.
+Si no, no inventarlos.
+
+========================================
+J) PRE-CALL Y SESSION MEMORY SIN INTERACCIÓN DURANTE LA LLAMADA
+========================================
+
+Quiero aprovechar todo lo posible sin tocar durante la llamada.
+
+Opciones válidas:
+1. usar el contexto inicial del setup para inferir mejor quién suele decir qué
+2. usar patrones del vendedor en esa sesión
+3. usar continuidad del mismo speaker en rachas largas
+4. usar turn-taking textual y estructura pregunta/respuesta
+5. usar una memoria ligera de sesión para reducir cambios erráticos
+
+Todo esto sí.
+Pero sin pedir interacción constante.
+
+========================================
+K) PREPARAR EL CAMINO PARA FASE 2
+========================================
+
+Quiero dejar la arquitectura preparada para una futura mejora real de diarización si más adelante cambiamos el input stack.
+
+Eso significa:
+- módulo de speaker attribution separado
+- interfaces limpias
+- no acoplar todo al prompt de analyze
+- poder sustituir mañana la fuente de speaker evidence sin reescribir Copiloto entero
+
+========================================
+L) CAMBIOS EN SCHEMA / TIPOS SI HACEN FALTA
+========================================
+
+Si necesitas ampliar tipos internos o responses, hazlo con compatibilidad hacia atrás.
+
+Opciones válidas:
+- añadir campos opcionales en response interna
+- guardar speaker metadata solo en estado frontend / audit log
+- no romper contratos existentes si no es imprescindible
+
+No me importa que parte de esto sea interno y no visible al usuario si mejora la precisión.
+
+========================================
+M) MÉTRICAS Y OBSERVABILIDAD
+========================================
+
+Quiero medir si esto mejora de verdad y sin depender de corrección manual.
+
+Añadir métricas por sesión:
+- unknown_rate
+- average_speaker_confidence
+- percent_high_confidence_turns
+- percent_low_confidence_turns
+- percent_carryover_turns
+- percent_model_resolved_turns
+- auto_reassigned_turns
+- retrospective_fix_count
+
+Si encaja, mostrar parte de esto en debug panel o dejarlo en audit log / uso interno.
+
+Objetivo:
+medir si AUTO mejora de verdad.
+No quiero una falsa mejora del tipo:
+“ahora el usuario puede corregir más cosas”.
+
+========================================
+N) NO DEJAR ESTO SOLO EN PROMPT
+========================================
+
+Esto NO es un problema solo de prompt.
+Puedes retocar prompts, sí, pero la solución principal debe ser:
+- pipeline
+- heurísticas
+- confidence
+- session state
+- reatribución automática
+- UX pasiva
+- corrección manual solo secundaria
+
+El prompt solo es una capa más.
+
+========================================
+O) ARCHIVOS PROBABLES A TOCAR
+========================================
+
+Frontend:
+- `artifacts/silent-closer/src/hooks/use-speech.ts`
+- `artifacts/silent-closer/src/pages/copilot.tsx`
+- `artifacts/silent-closer/src/components/tactical-display.tsx`
+- `artifacts/silent-closer/src/components/context-panel.tsx` si hace falta alguna señal visual
+- `artifacts/silent-closer/src/lib/audit-log.ts`
+
+Backend:
+- `artifacts/api-server/src/routes/copilot.ts`
+
+Opcionalmente crear helper nuevo:
+- `artifacts/api-server/src/lib/speaker-attribution.ts`
+o equivalente
+
+Si la estructura real cambió, localiza el equivalente exacto antes de editar.
+
+========================================
+P) TESTS MANUALES QUE QUIERO
+========================================
+
+TEST 1 — MONÓLOGO DEL VENDEDOR
+Caso:
+- vendedor habla 20-30 segundos seguidos explicando propuesta
+Esperado:
+- muy pocos UNKNOWN
+- continuidad alta de speaker = YO
+
+TEST 2 — PREGUNTA / RESPUESTA
+Caso:
+- vendedor pregunta
+- cliente responde corto
+- vendedor retoma
+Esperado:
+- detectar mejor el cambio de speaker sin mezclar el batch
+
+TEST 3 — CONVERSACIÓN RÁPIDA CON INTERRUPCIONES
+Caso:
+- ambos hablan con frases cortas
+Esperado:
+- más UNKNOWN si hace falta, pero menos falsas atribuciones duras
+- confidence baja visible
+- aviso pasivo de baja fiabilidad, sin exigir acción
+
+TEST 4 — AUTO EN LLAMADA LARGA HANDS-FREE
+Caso:
+- sesión listen + auto de 100+ turnos
+- usuario no toca nada durante toda la llamada
+Esperado:
+- reducción clara de unknown_rate frente al estado actual
+- audit final más fiable
+- no dependencia de corrección manual
+
+TEST 5 — SELF-REPAIR
+Caso:
+- batch ambiguo seguido de turnos que aclaran quién hablaba
+Esperado:
+- reatribución retrospectiva automática de la ventana reciente
+- mejora de confidence
+- mejor memoria táctica
+
+TEST 6 — POST-CALL OPTIONAL CORRECTION
+Caso:
+- usuario quiere revisar luego algún tramo
+Esperado:
+- posible, pero secundaria
+- no necesaria para que la llamada haya funcionado
+
+========================================
+Q) CRITERIOS DE ACEPTACIÓN
+========================================
+
+- AUTO reduce de forma material los UNKNOWN
+- la atribución mejora sin vender falsa precisión
+- existe speaker_confidence real
+- summarize y brutal usan esa confianza
+- la solución principal funciona sin interacción del usuario durante la llamada
+- la corrección manual, si existe, es opcional y secundaria
+- el sistema se autocorrige mejor con contexto acumulado
+- la UI sigue siendo usable mientras comparto pantalla y vendo
+- no se toca Arena
+- no se rompe compatibilidad
+- queda base preparada para una futura diarización más seria
+
+ENTREGABLES
+
+1. código implementado
+2. lista exacta de archivos tocados
+3. explicación breve de la arquitectura final de speaker attribution
+4. explicación breve de:
+   - reatribución retrospectiva automática
+   - low-confidence mode
+   - uso hands-free
+   - rol secundario de corrección manual
+5. métricas antes/después si puedes estimarlas
+6. tests manuales ejecutados o documentados

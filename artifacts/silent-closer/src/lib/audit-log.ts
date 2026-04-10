@@ -114,6 +114,16 @@ export interface AuditTurn {
   arena?: ArenaTurnData;
 }
 
+export interface SpeakerSessionMetricsForLog {
+  total: number;
+  unknown_rate: number;
+  avg_confidence: number;
+  high_conf_rate: number;
+  low_conf_rate: number;
+  carryover_rate: number;
+  auto_reassigned_count: number;
+}
+
 export interface SessionSummary {
   final_outcome: string | null;
   final_outcome_source: string;
@@ -133,6 +143,7 @@ export interface SessionSummary {
   strengths: string[];
   improvements: string[];
   full_report: string | null;
+  speaker_session_metrics?: SpeakerSessionMetricsForLog;
 }
 
 export interface AuditHints {
@@ -169,6 +180,9 @@ export interface CopilotTurnEntry {
   raw_fragment: string;
   normalized_fragment: string;
   inferred_speaker: string;
+  speaker_confidence?: number;
+  speaker_source?: "rule" | "carryover" | "manual" | "unknown";
+  auto_repaired?: boolean;
   memory_before: string[];
   system_output: {
     signal: string;
@@ -212,6 +226,7 @@ export interface CopilotSessionData {
   turnLog: CopilotTurnEntry[];
   finalMemory: string[];
   structuredContext?: CopilotStructuredContext;
+  speakerSessionMetrics?: SpeakerSessionMetricsForLog;
 }
 
 // ── Arena builder input types ─────────────────────────────────────────────────
@@ -483,6 +498,7 @@ export function buildCopilotAuditLog(data: CopilotSessionData): AuditLog {
     strengths: data.callSummary?.strengths ?? [],
     improvements: data.callSummary?.improvements ?? [],
     full_report: data.callSummary?.fullReport ?? null,
+    speaker_session_metrics: data.speakerSessionMetrics,
   };
 
   // Audit hints
@@ -919,6 +935,17 @@ export function renderAuditLogMarkdown(log: AuditLog): string {
   sections.push("");
   sections.push("improvements:");
   sections.push(listLines(s.improvements));
+  if (s.speaker_session_metrics) {
+    const m = s.speaker_session_metrics;
+    sections.push("");
+    sections.push("speaker_attribution_quality:");
+    sections.push(`  unknown_rate: ${(m.unknown_rate * 100).toFixed(0)}%`);
+    sections.push(`  avg_confidence: ${m.avg_confidence.toFixed(2)}`);
+    sections.push(`  high_conf_rate: ${(m.high_conf_rate * 100).toFixed(0)}%`);
+    sections.push(`  low_conf_rate: ${(m.low_conf_rate * 100).toFixed(0)}%`);
+    sections.push(`  carryover_rate: ${(m.carryover_rate * 100).toFixed(0)}%`);
+    sections.push(`  auto_reassigned_count: ${m.auto_reassigned_count}`);
+  }
   if (s.full_report) {
     sections.push("");
     sections.push("full_report: |");

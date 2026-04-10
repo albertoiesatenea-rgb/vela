@@ -369,7 +369,7 @@ function buildStructuredContextBlock(ctx: StructuredCtx | undefined, lang?: stri
   return `\n${header}:\n${lines.join("\n")}\n${footer}`;
 }
 
-function buildSystemPrompt(context?: string, lang?: string, structuredCtx?: StructuredCtx): string {
+function buildSystemPrompt(context?: string, lang?: string, structuredCtx?: StructuredCtx, speakerConfidence?: number): string {
   const contextBlock = context?.trim()
     ? `\nCONTEXTO DE SESIÓN:\n${context.trim()}\nUsa datos concretos de este contexto en detail.support cuando sea tácticamente oportuno.`
     : "";
@@ -380,7 +380,13 @@ function buildSystemPrompt(context?: string, lang?: string, structuredCtx?: Stru
     ? `\nLANGUAGE: The call is in English. ALL JSON field values MUST be in English.`
     : `\nIDIOMA: La llamada es en español. TODOS los valores JSON en español.`;
 
-  return `${BASE_SYSTEM_PROMPT}${contextBlock}${structuredBlock}${langRule}`;
+  const speakerGuardrail = (speakerConfidence !== undefined && speakerConfidence < 0.55)
+    ? (lang === "en"
+      ? `\nSPEAKER WARNING: Speaker attribution confidence is LOW (${(speakerConfidence * 100).toFixed(0)}%). The speaker label on this fragment may be incorrect. Do NOT make strong assumptions about who said what. Keep tactical advice general and avoid speaker-specific memory updates.`
+      : `\nADVERTENCIA SPEAKER: La confianza de atribución de speaker es BAJA (${(speakerConfidence * 100).toFixed(0)}%). La etiqueta de speaker puede ser incorrecta. NO hagas suposiciones fuertes sobre quién habló. Mantén el consejo táctico general y evita actualizar memoria basada en este turno.`)
+    : "";
+
+  return `${BASE_SYSTEM_PROMPT}${contextBlock}${structuredBlock}${langRule}${speakerGuardrail}`;
 }
 
 // ── POST /api/copilot/analyze ─────────────────────────────────────────────────
@@ -391,7 +397,7 @@ router.post("/copilot/analyze", async (req, res) => {
     return;
   }
 
-  const { text, context, call_memory, lang, structured_context } = parseResult.data;
+  const { text, context, call_memory, lang, structured_context, speaker_confidence } = parseResult.data;
   const sessionId = (req.headers["x-session-id"] as string | undefined) ?? undefined;
 
   const userMessage = [
@@ -408,7 +414,7 @@ router.post("/copilot/analyze", async (req, res) => {
       model: "gpt-4o-mini",
       max_tokens: 900,
       messages: [
-        { role: "system", content: buildSystemPrompt(context, lang, structured_context) },
+        { role: "system", content: buildSystemPrompt(context, lang, structured_context, speaker_confidence) },
         { role: "user", content: userMessage },
       ],
     });

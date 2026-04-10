@@ -44,6 +44,12 @@ export const AnalyzeConversationBody = zod.object({
     })
     .optional()
     .describe("Optional structured pre-call context (goal, blocker, deliverable)"),
+  speaker_confidence: zod
+    .number()
+    .min(0)
+    .max(1)
+    .optional()
+    .describe("Speaker attribution confidence 0-1 from AUTO mode session (omit for manual modes)"),
 });
 
 // Helper: accept string | null | undefined from AI and normalise to string | undefined

@@ -9,6 +9,7 @@ import { Arena } from "@/pages/arena";
 import type { ArenaRole } from "@/pages/arena";
 import { cn } from "@/lib/utils";
 import { buildCopilotAuditLog, triggerAuditLogDownload, BRAND_NAME } from "@/lib/audit-log";
+import { SpeakerAttributionSession, type SpeakerResult, type SpeakerQualityLevel } from "@/lib/speaker-session";
 import { DebugPanel } from "@/components/debug-panel";
 
 // ── Overlay brand header used in end-of-call screens ────────────────────────
@@ -387,94 +388,6 @@ function ConversationTimeline({ journey, memoryLines }: { journey: Journey; memo
   );
 }
 
-// ── Auto speaker inference ─────────────────────────────────────────────────
-// Returns the most likely speaker using language heuristics + turn alternation.
-// Prefers prudence: only makes a call when there is a clear signal (score diff ≥ 3).
-function inferSpeaker(
-  text: string,
-  lastSpeaker: "client" | "me" | null,
-  lang: Lang,
-): { speaker: "client" | "me" | "uncertain"; label: string } {
-  const t = text.toLowerCase();
-  let cs = 0; // client score
-  let vs = 0; // vendor score
-
-  if (lang === "en") {
-    // ── English signals ───────────────────────────────────────
-    const clientHigh = [
-      "i don't see it", "i'm not convinced", "i'm worried", "i don't know",
-      "that seems expensive", "i don't want to make a mistake", "i trust", "explain it to me",
-      "why should i", "i'm not sure", "i have doubts", "i'm afraid",
-      "i don't trust", "seems risky", "i'd rather", "what guarantees",
-      "what if it goes wrong", "i don't understand", "that's too much",
-    ];
-    const clientMid = [
-      "but", "although", "however", "what if", "yes but",
-      "still", "i mean", "i don't know",
-    ];
-    const vendorHigh = [
-      "i understand your", "i understand that", "if you'd like", "the idea here",
-      "what we're looking for", "let me explain", "what matters is",
-      "actually", "precisely", "what you have here", "this means",
-      "let's break it down", "let me ask you", "imagine if",
-      "what i'm proposing", "the key here", "think of it this way",
-    ];
-    const vendorMid = [
-      "exactly", "of course", "that is", "in that case", "makes sense",
-    ];
-    for (const s of clientHigh) if (t.includes(s)) cs += 3;
-    for (const s of clientMid)  if (t.includes(s)) cs += 1;
-    for (const s of vendorHigh) if (t.includes(s)) vs += 3;
-    for (const s of vendorMid)  if (t.includes(s)) vs += 1;
-  } else {
-    // ── Spanish signals ───────────────────────────────────────
-    const clientHigh = [
-      "no lo veo", "no me convence", "me preocupa", "no conozco", "me parece caro",
-      "no quiero equivocarme", "me da más", "explícame", "por qué debería",
-      "no sé si", "tengo dudas", "no estoy seguro", "me da miedo",
-      "no me fío", "no confío", "parece arriesgado", "prefiero",
-      "me gusta más", "qué garantías", "y si sale mal", "no lo entiendo",
-      "eso es demasiado", "es que no", "no lo veo claro",
-    ];
-    const clientMid = [
-      "pero", "aunque", "sin embargo", "¿y si", "claro pero",
-      "sí pero", "es que", "a ver", "no sé",
-    ];
-    const vendorHigh = [
-      "entiendo tu", "entiendo que", "si te parece", "la idea aquí",
-      "lo que buscamos", "te explico", "lo importante es",
-      "de hecho", "precisamente", "lo que tienes", "esto significa",
-      "bajemos", "concretemos", "dime una cosa", "pregunto",
-      "imagina que", "te propongo", "lo que te ofrezco",
-      "la clave aquí", "piénsalo así",
-    ];
-    const vendorMid = [
-      "exacto", "claro", "por supuesto", "es decir",
-      "en ese caso", "tiene sentido",
-    ];
-    for (const s of clientHigh) if (t.includes(s)) cs += 3;
-    for (const s of clientMid)  if (t.includes(s)) cs += 1;
-    for (const s of vendorHigh) if (t.includes(s)) vs += 3;
-    for (const s of vendorMid)  if (t.includes(s)) vs += 1;
-  }
-
-  // Turn alternation as a mild (not decisive) tiebreaker
-  if (lastSpeaker === "me")     cs += 1;
-  if (lastSpeaker === "client") vs += 1;
-
-  const diff = Math.abs(cs - vs);
-  if (diff < 3) return { speaker: "uncertain", label: "" };
-
-  if (cs > vs) return {
-    speaker: "client",
-    label: lang === "en" ? "client" : "cliente",
-  };
-  return {
-    speaker: "me",
-    label: lang === "en" ? "me" : "yo",
-  };
-}
-
 export default function CopilotPage() {
   const [inputMode, setInputMode] = useState<InputMode>("listen");
   const [speakerMode, setSpeakerMode] = useState<SpeakerMode>("auto");
@@ -515,7 +428,8 @@ export default function CopilotPage() {
 
   // AUTO inference state
   const [inferredAutoLabel, setInferredAutoLabel] = useState<string>("");
-  const lastAutoSpeakerRef = useRef<"client" | "me" | null>(null);
+  const [speakerQualityLevel, setSpeakerQualityLevel] = useState<SpeakerQualityLevel>("normal");
+  const speakerSessionRef = useRef<SpeakerAttributionSession>(new SpeakerAttributionSession("es"));
 
   // Language
   const [lang, setLang] = useState<Lang>(loadLang);
@@ -549,6 +463,8 @@ export default function CopilotPage() {
 
       let speakerPrefix = "";
       let inferredSpeaker: "CLIENTE" | "YO" | "UNKNOWN" = "UNKNOWN";
+      let speakerConfidence = 1.0;
+      let speakerSource: SpeakerResult["source"] = "manual";
 
       if (speaker === "client") {
         speakerPrefix = "[CLIENTE]: ";
@@ -557,20 +473,22 @@ export default function CopilotPage() {
         speakerPrefix = "[YO]: ";
         inferredSpeaker = "YO";
       } else {
-        // AUTO mode — infer from text + turn memory
-        const { speaker: inferred, label } = inferSpeaker(text, lastAutoSpeakerRef.current, langRef.current);
-        if (inferred === "client") {
+        // AUTO mode — SpeakerAttributionSession pipeline
+        speakerSessionRef.current.setLang(langRef.current);
+        const attrResult = speakerSessionRef.current.classify(text);
+        speakerConfidence = attrResult.confidence;
+        speakerSource = attrResult.source;
+        speakerSessionRef.current.recordTurn(attrResult, turnIndex, text.length);
+        setSpeakerQualityLevel(speakerSessionRef.current.getQualityLevel());
+        if (attrResult.speaker === "client") {
           speakerPrefix = "[CLIENTE]: ";
-          lastAutoSpeakerRef.current = "client";
-          setInferredAutoLabel(label);
+          setInferredAutoLabel(attrResult.label);
           inferredSpeaker = "CLIENTE";
-        } else if (inferred === "me") {
+        } else if (attrResult.speaker === "me") {
           speakerPrefix = "[YO]: ";
-          lastAutoSpeakerRef.current = "me";
-          setInferredAutoLabel(label);
+          setInferredAutoLabel(attrResult.label);
           inferredSpeaker = "YO";
         } else {
-          // Uncertain — send without prefix, reset label
           setInferredAutoLabel("");
         }
       }
@@ -595,6 +513,9 @@ export default function CopilotPage() {
             ...(memoryStr ? { call_memory: memoryStr } : {}),
             ...(structuredContext ? { structured_context: structuredContext } : {}),
             lang: langRef.current,
+            ...(capturedSpeakerMode === "auto" && speakerConfidence < 1.0
+              ? { speaker_confidence: speakerConfidence }
+              : {}),
           },
         },
         {
@@ -608,38 +529,70 @@ export default function CopilotPage() {
               callMemory: memoryAfter,
               momentum: res.momentum as Momentum,
             });
-            setTurnLog(prev => [...prev, {
-              turn_index: turnIndex,
-              timestamp,
-              source_mode: capturedInputMode,
-              speaker_mode: capturedSpeakerMode,
-              raw_fragment: text,
-              normalized_fragment: fullText,
-              inferred_speaker: inferredSpeaker,
-              memory_before: memoryBefore,
-              system_output: {
-                signal: res.signal ?? "",
-                say_now: res.say_now,
-                avoid: res.avoid ?? null,
-                detail: {
-                  reading: res.detail?.reading ?? "",
-                  mission: res.detail?.mission ?? "",
-                  next_move: res.detail?.next_move ?? "",
-                  support: res.detail?.support ?? "",
+            setTurnLog(prev => {
+              const newEntry = {
+                turn_index: turnIndex,
+                timestamp,
+                source_mode: capturedInputMode,
+                speaker_mode: capturedSpeakerMode,
+                raw_fragment: text,
+                normalized_fragment: fullText,
+                inferred_speaker: inferredSpeaker,
+                memory_before: memoryBefore,
+                system_output: {
+                  signal: res.signal ?? "",
+                  say_now: res.say_now,
+                  avoid: res.avoid ?? null,
+                  detail: {
+                    reading: res.detail?.reading ?? "",
+                    mission: res.detail?.mission ?? "",
+                    next_move: res.detail?.next_move ?? "",
+                    support: res.detail?.support ?? "",
+                  },
+                  journey: {
+                    past: res.journey?.past ?? "",
+                    now: res.journey?.now ?? "",
+                    next: res.journey?.next ?? "",
+                  },
+                  call_memory: memoryAfter,
+                  momentum: res.momentum ?? "amber",
                 },
-                journey: {
-                  past: res.journey?.past ?? "",
-                  now: res.journey?.now ?? "",
-                  next: res.journey?.next ?? "",
-                },
-                call_memory: memoryAfter,
-                momentum: res.momentum ?? "amber",
-              },
-              memory_after: memoryAfter,
-              response_status: "ok",
-              parse_error: null,
-              notes: null,
-            }]);
+                memory_after: memoryAfter,
+                response_status: "ok" as const,
+                parse_error: null,
+                notes: null,
+                speaker_confidence: capturedSpeakerMode === "auto" ? speakerConfidence : undefined,
+                speaker_source: capturedSpeakerMode === "auto" ? (speakerSource as "rule" | "carryover" | "manual" | "unknown") : undefined,
+                auto_repaired: false,
+              };
+              const updated = [...prev, newEntry];
+              // Retrospective speaker repair in AUTO mode
+              if (capturedSpeakerMode === "auto") {
+                const currentResult: SpeakerResult = {
+                  speaker: inferredSpeaker === "CLIENTE" ? "client" : inferredSpeaker === "YO" ? "me" : "unknown",
+                  confidence: speakerConfidence,
+                  source: speakerSource,
+                  label: "",
+                };
+                const repairs = speakerSessionRef.current.retrospectiveRepair(currentResult);
+                if (repairs.size > 0) {
+                  return updated.map(entry => {
+                    const repair = repairs.get(entry.turn_index);
+                    if (!repair) return entry;
+                    const newSpeakerLabel = repair.speaker === "client" ? "CLIENTE" : "YO";
+                    const newPrefix = repair.speaker === "client" ? "[CLIENTE]: " : "[YO]: ";
+                    return {
+                      ...entry,
+                      inferred_speaker: newSpeakerLabel as "CLIENTE" | "YO" | "UNKNOWN",
+                      normalized_fragment: newPrefix + entry.raw_fragment,
+                      speaker_confidence: repair.confidence,
+                      auto_repaired: true,
+                    };
+                  });
+                }
+              }
+              return updated;
+            });
           },
           onError: () => {
             setTurnLog(prev => [...prev, {
@@ -656,6 +609,9 @@ export default function CopilotPage() {
               response_status: "error",
               parse_error: "API call failed",
               notes: null,
+              speaker_confidence: capturedSpeakerMode === "auto" ? speakerConfidence : undefined,
+              speaker_source: capturedSpeakerMode === "auto" ? (speakerSource as "rule" | "carryover" | "manual" | "unknown") : undefined,
+              auto_repaired: false,
             }]);
           },
         }
@@ -747,6 +703,8 @@ export default function CopilotPage() {
     setBrutalAudit(null);
     setBrutalAuditOpen(false);
     setBrutalAuditError(false);
+    speakerSessionRef.current.reset();
+    setSpeakerQualityLevel("normal");
   };
 
   const handleGoArena = () => {
@@ -1037,6 +995,9 @@ export default function CopilotPage() {
       turnLog,
       finalMemory,
       structuredContext,
+      speakerSessionMetrics: speakerMode === "auto"
+        ? speakerSessionRef.current.getMetrics()
+        : undefined,
     });
     triggerAuditLogDownload(log, sessionId || null);
   };
@@ -1601,7 +1562,8 @@ export default function CopilotPage() {
                   setSpeakerMode(s);
                   if (s !== "auto") {
                     setInferredAutoLabel("");
-                    lastAutoSpeakerRef.current = null;
+                    speakerSessionRef.current.reset();
+                    setSpeakerQualityLevel("normal");
                   }
                 }}
                 className={cn(
@@ -1609,10 +1571,16 @@ export default function CopilotPage() {
                   speakerMode === s ? "bg-white/15 text-white" : "text-zinc-200 hover:text-zinc-100"
                 )}
               >
-                {s === "auto" && speakerMode === "auto" && inferredAutoLabel ? (
+                {s === "auto" && speakerMode === "auto" ? (
                   <span className="flex flex-col items-center leading-none gap-[2px]">
-                    <span className="tracking-widest">AUTO</span>
-                    <span className="text-[7px] tracking-normal normal-case text-zinc-400 font-normal">{inferredAutoLabel}</span>
+                    <span className="flex items-center gap-0.5 tracking-widest">
+                      AUTO
+                      {speakerQualityLevel === "watch" && <span className="text-amber-400 text-[8px] leading-none">△</span>}
+                      {speakerQualityLevel === "low" && <span className="text-red-400 text-[8px] leading-none">▲</span>}
+                    </span>
+                    {inferredAutoLabel && (
+                      <span className="text-[7px] tracking-normal normal-case text-zinc-400 font-normal">{inferredAutoLabel}</span>
+                    )}
                   </span>
                 ) : SPEAKER_LABELS_MAP[lang][s]}
               </button>
@@ -1628,12 +1596,19 @@ export default function CopilotPage() {
             : T[lang].KBD}
         </p>
 
-        {/* Speaker uncertainty warning — auto mode + ≥3 UNKNOWN turns */}
-        {speakerMode === "auto" && turnLog.filter(t => t.inferred_speaker === "UNKNOWN").length >= 3 && (
+        {/* Speaker quality level warning — auto mode */}
+        {speakerMode === "auto" && speakerQualityLevel === "low" && (
+          <p className="text-[9px] font-mono text-red-400 tracking-widest">
+            {lang === "es"
+              ? "▲ AUTO: baja fiabilidad — considera YO/CLIENTE"
+              : "▲ AUTO: low reliability — switch to ME/CLIENT"}
+          </p>
+        )}
+        {speakerMode === "auto" && speakerQualityLevel === "watch" && (
           <p className="text-[9px] font-mono text-amber-400 tracking-widest">
             {lang === "es"
-              ? `⚠ ${turnLog.filter(t => t.inferred_speaker === "UNKNOWN").length} turnos sin atribuir — lecturas pueden ser imprecisas`
-              : `⚠ ${turnLog.filter(t => t.inferred_speaker === "UNKNOWN").length} unattributed turns — reads may be imprecise`}
+              ? "△ AUTO: fiabilidad moderada — lecturas pueden variar"
+              : "△ AUTO: moderate reliability — reads may vary"}
           </p>
         )}
       </div>
