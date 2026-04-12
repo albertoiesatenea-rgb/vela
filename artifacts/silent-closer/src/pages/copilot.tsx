@@ -1017,11 +1017,11 @@ export default function CopilotPage() {
       {/* ── End-of-call overlay ─────────────────────────── */}
       {endStep !== "none" && (
         <div className="fixed inset-0 bg-black z-50 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center px-6 py-8">
+          <div className="flex-1 overflow-y-auto flex flex-col items-center px-6 py-8">
 
             {/* ── Outcome picker ── */}
             {endStep === "outcome" && (
-              <div className="w-full max-w-sm flex flex-col gap-6">
+              <div className="w-full max-w-sm flex flex-col gap-6 my-auto">
                 <div className="flex flex-col gap-1">
                   <WizardOverlayHeader />
                   <p className="text-base font-mono font-semibold text-white tracking-tight mt-4">
@@ -1050,7 +1050,7 @@ export default function CopilotPage() {
 
             {/* ── Summary screen ── */}
             {(endStep === "summary" || endStep === "report") && (
-              <div className="w-full max-w-sm flex flex-col gap-5">
+              <div className="w-full max-w-sm flex flex-col gap-5 my-auto">
                 {isSummarizing ? (
                   <div className="flex flex-col items-center gap-3 py-12">
                     <Loader2 className="w-5 h-5 text-zinc-400 animate-spin" />
