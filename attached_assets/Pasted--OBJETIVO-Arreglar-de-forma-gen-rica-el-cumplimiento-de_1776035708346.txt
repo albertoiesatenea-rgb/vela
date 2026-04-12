@@ -1,0 +1,146 @@
+## OBJETIVO
+Arreglar de forma genérica el cumplimiento de `sellerNotes` / instrucciones runtime del trainer en Arena `client` mode, para que el vendedor IA obedezca de verdad las restricciones activas del caso y no se salga del producto, del país, del marco o del tipo de venta definidos por el usuario.
+
+## CONTEXTO
+- En Arena `client` mode ya existe la funcionalidad de instrucciones runtime al vendedor.
+- La documentación actual dice que:
+  - el trainer puede inyectar restricciones al AI seller en tiempo real;
+  - se almacenan en `ArenaSession.sellerNotes[]`;
+  - se inyectan en el system prompt como:
+    `RESTRICCIONES DEL VENDEDOR (aplica SIEMPRE — no negociable, sin excepciones)`;
+  - y deben aparecer en el audit log bajo `## HIDDEN_RUNTIME_INSTRUCTIONS`.
+- También está documentado que el prompt de Arena client ya incluye `RESTRICCIONES DEL VENDEDOR (si hay sellerNotes)` dentro del system prompt.
+- Por tanto, el problema no es que la funcionalidad no exista.
+- El problema es que el vendedor IA no la está obedeciendo con suficiente fuerza y consistencia.
+
+## PROBLEMA REAL
+Ahora mismo parece que las `sellerNotes` existen, pero el vendedor:
+- se sale del marco del producto,
+- abre alternativas fuera del caso,
+- cambia de país o de tipo de operación,
+- ignora límites que el trainer le ha puesto,
+- o trata esas instrucciones como sugerencias blandas en vez de restricciones activas.
+
+Ejemplo real de fallo:
+- el caso es vender un inmueble concreto en Alemania;
+- el trainer indica que no cambie de producto / no se vaya a otros mercados;
+- el vendedor se pone a hablar de España u otras alternativas.
+Eso rompe totalmente la utilidad del modo de entrenamiento.
+
+## RESTRICCIONES
+- No tocar Copiloto
+- No rehacer Arena
+- No hardcodear reglas específicas como “no hables de España”
+- No meter lógica ad hoc para un solo país, producto o caso
+- No convertir esto en un sistema complejo de agentes
+- No romper `start / turn / finish`
+- No instalar dependencias nuevas salvo necesidad real
+- Mantener la solución genérica y reutilizable
+
+## CAMBIO EXACTO
+
+### 1. Tratar `sellerNotes` como restricciones duras de sesión
+Quiero que las `sellerNotes` pasen a comportarse como restricciones activas y prioritarias del vendedor durante toda la sesión.
+
+No deben comportarse como “sugerencias”.
+Deben comportarse como:
+- límites del marco,
+- límites del producto,
+- límites del tipo de comparación,
+- límites del tono,
+- límites de lo que se puede o no se puede ofrecer.
+
+### 2. Jerarquía correcta de prioridades
+Quiero esta jerarquía:
+
+1. `sellerNotes` / restricciones runtime activas del trainer
+2. contexto concreto del caso
+3. preset / tipo de venta
+4. lógica general del vendedor
+5. estilo general del prompt
+
+Si una heurística general del vendedor empuja a abrir alternativas, pero una `sellerNote` lo prohíbe, debe ganar la `sellerNote`.
+
+### 3. Cumplimiento genérico, no hardcode
+No quiero reglas específicas tipo:
+- “si dice España no hables de España”
+
+Quiero una lógica general del tipo:
+- si una restricción impide salir del producto actual, no abrir alternativas laterales;
+- si una restricción impide comparar con otros mercados, no cambiar de geografía;
+- si una restricción impide salir del caso, no ofrecer otros productos;
+- si una restricción limita el marco argumental, no violarlo aunque al modelo le “apetezca” usarlo.
+
+Esto debe servir para muchos casos, por ejemplo:
+- no cambiar de país
+- no abrir productos alternativos
+- no salir del inmueble actual
+- no hablar de fiscalidad
+- no usar ciertos marcos
+- no hablar de largo plazo
+- responder más directo
+- no usar tecnicismos
+- etc.
+
+### 4. Persistencia real durante toda la sesión
+Las `sellerNotes` deben seguir afectando todos los turnos posteriores.
+No quiero que:
+- funcionen en el turno siguiente
+- y luego el vendedor vuelva a su inercia habitual
+
+### 5. Reforzar el prompt del vendedor
+El system prompt del vendedor en Arena client debe reforzarse para dejar clarísimo algo como:
+
+- Las restricciones activas del trainer son obligatorias y tienen prioridad sobre tu inercia comercial.
+- No salgas del marco definido por esas restricciones salvo que el trainer las cambie.
+- Si una restricción limita el producto, la geografía, el tipo de comparación o el marco argumental, debes mantenerte dentro de ese límite.
+- Está prohibido abrir alternativas fuera del caso si una restricción lo impide.
+- Está prohibido ignorar una restricción solo porque creas que otra vía “vendería mejor”.
+
+No quiero copiar este texto literal si ya hay una mejor redacción en el archivo.
+Quiero el efecto real.
+
+### 6. Manejo correcto de conflictos
+Si una `sellerNote` entra en tensión con una heurística general del vendedor:
+- debe priorizarse la restricción
+- y el vendedor debe responder dentro de ese marco, no saltárselo
+
+Si la restricción hace la venta más difícil, perfecto.
+Eso forma parte del entrenamiento.
+
+### 7. Audit log
+Asegurar que las `sellerNotes` activas queden bien reflejadas en el audit log exportable de Arena.
+No como idea vaga.
+Quiero que se vean claras y legibles bajo un bloque tipo:
+- `HIDDEN_RUNTIME_INSTRUCTIONS`
+o equivalente.
+
+### 8. Verificación concreta
+Quiero que pruebes casos donde el trainer pone restricciones como:
+- no salgas de Alemania
+- vende solo este inmueble
+- no abras alternativas
+- no compares con otros mercados
+- no hables de largo plazo
+- no hables de fiscalidad
+
+Y verificar que el vendedor las respeta de verdad.
+
+## ENTREGABLES
+- [ ] `sellerNotes` tratadas como restricciones duras y prioritarias
+- [ ] Persistencia real durante toda la sesión
+- [ ] Refuerzo del prompt del vendedor para obedecer el marco definido por el trainer
+- [ ] Solución genérica, no hardcodeada para “España” u otro caso concreto
+- [ ] Audit log mostrando claramente las instrucciones runtime activas
+- [ ] Verificación manual con varios tipos de restricciones
+- [ ] App compilando sin errores
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] Si el trainer restringe el marco del producto, el vendedor no lo rompe
+- [ ] Si el trainer restringe la geografía, el vendedor no se va a otros países o mercados
+- [ ] Si el trainer prohíbe abrir alternativas, el vendedor no ofrece otras opciones fuera del caso
+- [ ] Las restricciones siguen vivas durante los turnos posteriores
+- [ ] La solución no depende de reglas hardcodeadas tipo “no hablar de España”
+- [ ] El audit log muestra las instrucciones runtime activas de forma clara
+- [ ] No hay regresión en Arena
+- [ ] La app compila sin errores
