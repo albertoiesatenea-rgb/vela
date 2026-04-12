@@ -9,6 +9,7 @@ import {
   DEBRIEF_CLIENT_PROFILE,
   SALES_ANTIPATTERNS_BLOCK,
   COMPARISON_RULE_BLOCK,
+  buildArenaSellerTacticalRules,
 } from "@workspace/sales-brain";
 
 const router = Router();
@@ -239,61 +240,23 @@ Mantente dentro del marco que definen. No salgas de él aunque el cliente lo inv
 
 Contexto: ${context || "Conversación de venta genérica."}${profileNote}${presetBlock}${scBlock}${windowNote}
 
-MOVIMIENTOS DISPONIBLES — elige exactamente uno por turno:
-1. Diagnosticar con una pregunta concreta (no genérica)
-2. Responder directo y breve
-3. Identificar el umbral: si el bloqueo es un coste o condición, pregunta exactamente qué tendría que cambiar para que la operación tenga sentido
-4. Admitir con honestidad que la operación puede no encajar si el gap con el umbral no se puede cerrar de forma realista
-
-CUANDO EL CLIENTE DEFINE UN UMBRAL (precio, coste, condición tolerable):
-— Ese umbral es ahora el eje de la conversación. No lo ignores ni lo diluyas con abstracción.
-— Si el cliente pregunta "¿cómo lo mejoramos?" o equivalente, responde con esta estructura mental en una o dos frases:
-  (a) qué tendría que cambiar concretamente para acercarse a ese umbral,
-  (b) si ese cambio es realista dado el contexto,
-  (c) qué conclusión práctica sale de eso.
-— Si no hay forma realista de cerrar la distancia, dilo con claridad. No sigas vendiendo una operación que no encaja.
+${buildArenaSellerTacticalRules(lang)}
 
 COHERENCIA CON EL CONTEXTO:
 — No propongas cambiar variables que el contexto ya define como fijas (precio, alquiler, condiciones pactadas, etc.).
 — Si ya has afirmado que algo es fijo, no lo vuelvas a proponer como palanca.
 — Si el contexto no permite cerrar el gap con el umbral del cliente, reconócelo.
 
-COHERENCIA NUMÉRICA:
-— Cualquier cifra que menciones (precio, rentabilidad, coste, plazo, porcentaje) queda fijada para toda la conversación.
-— Si el contexto te da una cifra, úsala exactamente. Si la repites, usa el mismo número. No redondees ni recalcules sin información nueva.
-— Un número que cambia sin justificación destruye la credibilidad inmediatamente.
-
-SEÑALES DE PERFIL:
-— Si el cliente usa terminología técnica, pide datos concretos o métricas → es analítico: responde con cifras, proceso y evidencia. Cero metáforas emocionales.
-— Si el cliente compara con alternativas → identifica primero el criterio que valoran de la alternativa; no entres en comparación directa hasta haberlo identificado.
-— Si el cliente evita comprometerse, cambia de tema o pide más tiempo sin razón concreta → el freno es el compromiso, no la información. Propón un microcompromiso reversible.
-
 TERCERO DECISOR:
 — Si aparece pareja, socio, comité, asesor u otro decisor: no lo ignores ni lo eludes.
 — Propón una de estas dos acciones: (a) incluir al tercero en la próxima conversación, o (b) cerrar un microcompromiso antes de que todo se enfríe.
 — "Lo hablo y te digo" sin fecha ni siguiente paso concreto = callejón sin salida. No lo aceptes como cierre de turno.
 
-DETECCIÓN DE OBJECIÓN REPETIDA:
-Si el cliente repite la misma objeción más de una vez, no respondas con argumentos laterales que ya aceptó. Ve al umbral o reconoce el bloqueo.
-
-MARCOS DESCARTADOS POR EL CLIENTE:
-Si el cliente rechaza explícitamente un tipo de argumento (largo plazo, revalorización, ventaja fiscal, retorno futuro, u otro marco concreto), ese marco está quemado para el resto de la conversación. No lo retomes, no lo reembales con otras palabras, no lo traigas de vuelta por otro ángulo.
-
-${COMPARISON_RULE_BLOCK.es}
-
 COMPROMISO CON EL PRODUCTO:
 — Solo descarta la operación si el gap es objetivamente incerrable y ya lo verificaste con datos concretos del contexto.
 — Si hay ángulos sin explorar, explóralos antes de concluir que no hay encaje.
-— Una renuncia prematura sin diagnóstico completo no es autoridad: es una venta que no se hizo.
 
-CUANDO LA CONCLUSIÓN YA ESTÁ DICHA:
-Si ya has afirmado que la operación no encaja para este cliente, o si ya has dado una respuesta completa y suficiente:
-— No mandes otro mensaje ampliando, reformulando o repitiendo lo mismo.
-— Una conclusión honesta y breve es mejor que tres variaciones de la misma idea.
-— Si el cliente no añade información nueva, puedes responder con una sola frase que sostenga la posición o proponga un siguiente paso concreto. No más.
-— Un buen cierre es corto. La autoridad no necesita justificarse dos veces.
-
-${SALES_ANTIPATTERNS_BLOCK.es}
+${SALES_ANTIPATTERNS_BLOCK[lang === "en" ? "en" : "es"]}
 
 FORMATO:
 — Separa con una línea en blanco la idea principal, la aclaración y la pregunta. No las pegues en un bloque corrido.
@@ -1350,9 +1313,12 @@ router.post("/arena/repitch", async (req, res) => {
     aiResponse = session.lang === "en" ? "Let me reconsider that." : "Déjame replantear eso.";
   }
 
-  const newIndex = session.turns.length;
-  session.turns.push({ index: newIndex, timestamp: new Date().toISOString(), speaker: "ai", message: aiResponse });
-  res.json({ message: aiResponse, index: newIndex });
+  // NOTE: repitch response is NOT added to session.turns.
+  // Reason: repitch generates a visual repositioning hint only — adding it to session.turns
+  // creates consecutive "assistant" messages in the GPT context which confuses the model,
+  // and pollutes the audit log with a non-conversational turn.
+  // The new sellerNotes are already in the system prompt for all subsequent real turns.
+  res.json({ message: aiResponse });
 });
 
 // ── POST /api/arena/suggest ───────────────────────────────────────────────────
@@ -1393,31 +1359,38 @@ router.post("/arena/suggest", async (req, res) => {
         : `[Showing last ${SUGGEST_MAX_TURNS} of ${session.turns.length} turns]\n`)
     : "";
 
-  const prompt = effectiveLang === "es"
-    ? `Eres experto en ventas. Escribe la respuesta PERFECTA que debería dar el vendedor ahora para avanzar la venta.
+  const constraintBlock = session.sellerNotes && session.sellerNotes.length > 0
+    ? (effectiveLang === "es"
+        ? `\nRESTRICCIONES ACTIVAS (aplica SIEMPRE):\n${session.sellerNotes.map((n, i) => `${i + 1}. ${n}`).join("\n")}\n`
+        : `\nACTIVE CONSTRAINTS (apply ALWAYS):\n${session.sellerNotes.map((n, i) => `${i + 1}. ${n}`).join("\n")}\n`)
+    : "";
 
-Contexto: ${session.context || "venta genérica"}
-${truncNote}
-Conversación:
-${transcript}
+  const systemPrompt = effectiveLang === "es"
+    ? `Eres el vendedor ideal en una simulación de venta. Genera la MEJOR respuesta posible para el siguiente momento de la conversación.
 
-Solo el texto de la respuesta ideal del vendedor. Natural, conversacional, tácticamente correcto. 2-3 frases máximo.`
-    : `You are an expert sales professional. Write the PERFECT response the seller should give now to advance the sale.
+${buildArenaSellerTacticalRules("es")}
 
-Context: ${session.context || "generic sale"}
-${truncNote}
-Conversation:
-${transcript}
+Contexto de la sesión: ${session.context || "venta genérica"}${constraintBlock}`
+    : `You are the ideal seller in a sales simulation. Generate the BEST possible response for the next moment in the conversation.
 
-Only the ideal seller response. Natural, conversational, tactically sound. 2-3 sentences max.`;
+${buildArenaSellerTacticalRules("en")}
+
+Session context: ${session.context || "generic sale"}${constraintBlock}`;
+
+  const userPrompt = effectiveLang === "es"
+    ? `${truncNote}Conversación hasta ahora:\n${transcript}\n\nEscribe SOLO el texto de la respuesta ideal del vendedor. Natural, conversacional, tácticamente correcto. 1-3 frases máximo.`
+    : `${truncNote}Conversation so far:\n${transcript}\n\nWrite ONLY the text of the ideal seller response. Natural, conversational, tactically sound. 1-3 sentences max.`;
 
   const t0 = Date.now();
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      max_tokens: 200,
-      temperature: 0.5,
-      messages: [{ role: "user", content: prompt }],
+      max_tokens: 300,
+      temperature: 0.3,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
     });
     const latencyMs = Date.now() - t0;
     const usage = completion.usage;
@@ -1428,7 +1401,7 @@ Only the ideal seller response. Natural, conversational, tactically sound. 2-3 s
         sessionId: arenaSessionId,
         mode: "arena",
         model: "gpt-4o-mini",
-        maxTokensConfigured: 200,
+        maxTokensConfigured: 300,
         promptTokens: usage.prompt_tokens,
         completionTokens: usage.completion_tokens,
         totalTokens: usage.total_tokens,

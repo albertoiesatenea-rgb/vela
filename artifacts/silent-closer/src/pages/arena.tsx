@@ -1036,12 +1036,12 @@ export function Arena({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ arenaSessionId }),
       });
-      const data = await res.json() as { message?: string; index?: number };
+      const data = await res.json() as { message?: string };
       const aiMsg = data.message ?? "";
       if (aiMsg) {
         setMessages(prev => [
           ...prev,
-          { index: data.index ?? prev.length, speaker: "ai", message: aiMsg },
+          { index: prev.length, speaker: "ai", message: aiMsg },
         ]);
       }
     } catch { /* silent */ }

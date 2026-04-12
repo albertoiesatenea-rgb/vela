@@ -1,0 +1,285 @@
+OBJETIVO
+
+Arreglar de raíz la calidad del vendedor IA en Arena cuando el usuario juega como CLIENTE, usando el mismo cerebro táctico comercial que Copiloto.
+
+No quiero dos cerebros comerciales distintos.
+Quiero un único núcleo táctico compartido para:
+- /api/copilot/analyze
+- /api/arena/turn cuando role=client (IA=vendedor)
+- /api/arena/suggest
+y que ese mismo criterio sea reutilizable por audit/debrief cuando convenga.
+
+CONTEXTO DEL PROBLEMA
+
+Caso real confirmado en log:
+- cliente pide números dos veces
+- el vendedor primero da un escenario con 3% y cashflow positivo
+- luego cambia a 5% y cashflow negativo sin explicar el cambio
+- cuando el cliente define umbral “yo solo busco cashflow positivo”, el vendedor deja de trabajar el umbral y repite marcos quemados
+- cuando el cliente trae una alternativa (“otras empresas me dan cashflow positivo con inmuebles nuevos y alquiler por habitaciones”), el vendedor no traduce la alternativa a criterio, solo repite “lo nuestro no da cashflow positivo”
+- el log muestra además varios mensajes consecutivos del vendedor sin nueva intervención del usuario, lo que puede indicar bug de loop/UI/logging además del problema táctico
+
+Estado documentado:
+- `lib/sales-brain/src/index.ts` centraliza definiciones y bloques, no un motor táctico compartido
+- Copiloto sí tiene clasificación previa, anti-repetición, detection de analytical buyer, comparison rule y closing criteria
+- Arena client sigue respondiendo desde un prompt local más pobre basado en “exactamente un movimiento por turno”
+- Arena/suggest existe pero no debe seguir divergente de Arena vendedor
+- Arena audit log builder deja risk flags en `"no"` y no refleja bien estos fallos por defecto
+
+CAMBIOS REQUERIDOS
+
+1) CREAR NÚCLEO TÁCTICO COMPARTIDO
+
+Crear una capa compartida reusable, por ejemplo:
+- `evaluateSalesTurn()`
+- `buildTacticalDecision()`
+- o equivalente
+
+Ubicación preferida:
+- `lib/sales-brain/src/` si encaja bien como shared real
+- si no, helper compartido nuevo consumido por `copilot.ts` y `arena.ts`
+
+Debe recibir al menos:
+- mode: `copilot | arena_turn | arena_suggest`
+- lang
+- session context
+- recent history / transcript window
+- latest customer message or conversation fragment
+- call_memory si aplica
+- sellerNotes si aplica
+- preset / profiles si aplica
+
+Debe devolver una estructura interna común, mínima pero suficiente, por ejemplo:
+{
+  classification,
+  signal,
+  reading,
+  mission,
+  next_move,
+  support,
+  repetition_case,
+  threshold_if_any,
+  must_address_first,
+  forbidden_frames: string[],
+  risk_flags: {
+    analytical_buyer: boolean,
+    unresolved_technical_objection: boolean,
+    comparison_reveals_criterion: boolean,
+    burned_frame: boolean,
+    repeated_central_objection: boolean,
+    hypothetical_numbers_risk: boolean,
+    no_fit: boolean,
+    premature_close_risk: boolean
+  }
+}
+
+2) SEPARAR DECISIÓN TÁCTICA DE REALIZACIÓN VERBAL
+
+Arena vendedor NO debe generar texto directamente desde el prompt principal.
+Primero debe ejecutar la decisión táctica compartida.
+Después debe generar la respuesta natural usando esa salida como input obligatorio.
+
+En Arena client, el generador verbal debe obedecer:
+- `reading`
+- `mission`
+- `next_move`
+- `support`
+- `threshold_if_any`
+- `must_address_first`
+- `forbidden_frames`
+- `risk_flags`
+
+3) MANTENER CONTRATO DE COPILOTO
+
+No romper el contrato actual del frontend de `/api/copilot/analyze`.
+Copiloto puede seguir devolviendo su JSON actual.
+Pero ese JSON debe salir del nuevo núcleo táctico compartido, no de lógica táctica aislada solo en prompt local.
+
+4) ALINEAR ARENA VENDEDOR Y ARENA SUGGEST
+
+`/api/arena/suggest` y `/api/arena/turn` cuando role=client deben compartir:
+- la misma lectura táctica
+- los mismos movimientos posibles
+- las mismas restricciones
+- la misma lógica de anti-repetición
+- la misma lógica de umbral
+- la misma lógica de comparación
+- la misma política de no-fit
+
+La realización verbal puede variar.
+El criterio no.
+
+5) ENDURECER REGLAS DEL VENDEDOR IA
+
+Implementar guardrails duros:
+
+A. NÚMEROS
+- Prohibido inventar cifras como hechos
+- Si no hay dato real en contexto, etiquetar cualquier cifra como `supuesto`, `escenario ejemplo` o `hipótesis`
+- Prohibido cambiar tipo, yield, interés o cashflow sin explicar explícitamente que cambió el supuesto
+- Si el cliente pide números/evidencia, responder con precisión o admitir falta de dato
+- Si falta dato crítico, priorizar: “te doy escenario ejemplo con supuestos explícitos” antes que vaguedad
+
+B. UMBRAL CENTRAL
+- Si el cliente define un criterio central 2 veces, ese criterio gobierna la conversación
+- Si el criterio es “solo cashflow positivo”, prohibido volver a vender patrimonio largo plazo o aportación mensual controlada salvo que el cliente reabra esa vía
+- Si no existe encaje con ese umbral, decirlo una vez de forma limpia y mover a bifurcación útil:
+  - más entrada
+  - más gestión
+  - cambio de producto
+  - no-fit real
+
+C. MARCO QUEMADO
+- Si el cliente rechazó explícitamente un marco, añadirlo a `forbidden_frames`
+- Prohibido reutilizarlo en el resto de la conversación
+
+D. COMPARACIONES
+- Si el cliente menciona otra empresa, producto o alternativa, traducir primero la alternativa a criterio
+- No responder solo comparando outputs
+- Ejemplo: “cashflow positivo con alquiler por habitaciones” debe traducirse a criterios como:
+  - mayor yield
+  - más gestión operativa
+  - distinto riesgo
+  - distinta estabilidad
+  - distinta escalabilidad
+- Después conectar esos criterios con la propuesta actual o admitir no-fit
+
+E. BUYER ANALÍTICO / DOMINANTE
+- Respuestas más cortas
+- Menos pedagogía ornamental
+- Más precisión
+- Más control
+- Prioridad alta a números, supuestos, condiciones y límites
+- Prohibido “entiendo tu preocupación” como muleta central
+
+F. NO-FIT
+- Si no encaja, admitirlo una sola vez
+- Prohibido mandar 3 o 4 mensajes seguidos ampliando la misma renuncia
+
+6) INVESTIGAR BUG DE MULTI-MENSAJES
+
+Revisar el loop real de Arena client para detectar si hay un bug por el que:
+- el vendedor emite varios mensajes seguidos sin input del usuario
+- o la UI / audit log duplica turnos
+- o `suggest/repitch/journey` contamina el transcript visible
+- o se guarda más de una salida como si fuera un mismo turno
+
+Añadir logging interno suficiente para poder distinguir:
+- AI primary turn response
+- suggest response
+- repitch response
+- journey update
+- any post-processing appended to transcript
+
+No quiero volver a ver en el informe 3-4 mensajes consecutivos del vendedor sin trazabilidad clara.
+
+7) MEJORAR AUDIT / DEBUG PARA ESTE CASO
+
+Añadir señales visibles cuando Arena vendedor cae en:
+- `repeated_central_objection`
+- `burned_frame_reuse`
+- `hypothetical_numbers_presented_as_facts`
+- `assumption_changed_without_notice`
+- `unresolved_analytical_objection`
+- `multi_message_same_side_same_turn`
+
+No dependas solo del `arena/audit-report`.
+Haz que el sistema deje rastro útil en debug/audit para estos casos.
+
+ARCHIVOS PROBABLES A TOCAR
+
+Localiza equivalentes si la estructura real cambió, pero en principio revisar:
+- `artifacts/api-server/src/routes/copilot.ts`
+- `artifacts/api-server/src/routes/arena.ts`
+- `lib/sales-brain/src/index.ts`
+- helper nuevo compartido para la decisión táctica
+- `artifacts/api-server/src/lib/ai-tracker.ts` si hace falta logging más fino
+- builder/render del audit log si conviene exponer flags más útiles
+
+RESTRICCIONES
+
+- No rehacer toda la app
+- No romper contratos actuales del frontend salvo necesidad real y justificada
+- No romper `LEGACY_ARENA` ni `LEGACY_PROMPTS` salvo razón fuerte
+- Mantener estilo VELA: operativo, preciso, sin humo
+- No meter teoría comercial larga en prompts
+- Si docs y código real no coinciden, documentar divergencia en entregable
+
+ENTREGABLES
+
+1. Implementación real en archivos reales
+2. Lista exacta de archivos tocados
+3. Resumen corto de arquitectura:
+   - qué se unificó
+   - qué siguió separado
+4. Explicación breve de cómo Arena vendedor decide la jugada antes de formular el mensaje
+5. Nota explícita sobre el bug o no-bug de multi-mensajes consecutivos
+6. Tests/fixtures/manual cases añadidos
+
+TESTS OBLIGATORIOS
+
+Caso 1:
+Cliente: “ve al grano, enséñame los números”
+Esperado:
+- respuesta directa
+- supuestos explícitos si no hay dato real
+- sin relleno emocional
+
+Caso 2:
+Cliente insiste dos veces con números
+Esperado:
+- no vaguedad
+- no deriva a patrimonio
+- no second answer contradicting first one
+
+Caso 3:
+El vendedor no puede mutar 3% a 5% sin explicarlo
+Esperado:
+- si cambia supuesto, debe anunciarlo claramente
+- si no lo anuncia, test falla
+
+Caso 4:
+Cliente: “yo solo busco cashflow positivo”
+Esperado:
+- el umbral gobierna
+- no reutiliza patrimonio a largo plazo
+- bifurca a más entrada / más gestión / cambio de producto / no-fit
+
+Caso 5:
+Cliente: “otras empresas me dan cashflow positivo, inmuebles nuevos, alquiler por habitaciones”
+Esperado:
+- traducir alternativa a criterio
+- no repetir “lo nuestro no”
+- comparar en términos de yield, gestión, riesgo y estabilidad
+
+Caso 6:
+No-fit real
+Esperado:
+- una sola admisión firme
+- no cadena de 3 mensajes repitiendo la misma renuncia
+
+Caso 7:
+Multi-message guard
+Esperado:
+- cada turno del usuario genera una sola respuesta principal del vendedor en transcript
+- cualquier sub-llamada queda trazada aparte y no contamina la conversación
+
+CRITERIOS DE ACEPTACIÓN
+
+- Copiloto y Arena vendedor comparten evaluación táctica real del momento
+- Arena vendedor deja de contradecirse con cifras
+- Arena vendedor etiqueta hipótesis como hipótesis
+- Arena vendedor responde mejor a comprador analítico y dominante
+- Arena vendedor no repite una objeción central más de una vez sin cambiar de jugada
+- Arena vendedor no reutiliza marcos quemados
+- Arena/suggest y Arena vendedor quedan alineados
+- El transcript no vuelve a mostrar multi-mensajes consecutivos sin trazabilidad
+- El producto deja de sentirse como dos cerebros distintos
+
+AL FINAL DEVUÉLVEME
+
+- archivos tocados
+- por qué
+- qué quedó pendiente
+- ejemplos antes/después de 2 escenarios
+- nota clara si encontraste divergencia entre docs y código real
