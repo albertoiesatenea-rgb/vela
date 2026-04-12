@@ -68,8 +68,19 @@ export interface CopilotTurnData {
   why_this_turn_exists: string | null;
 }
 
+export interface CoachLiteFields {
+  signal: string;
+  reading: string;
+  mission: string;
+  next_move: string;
+  strategy: string;
+  why_this_response: string;
+  alternative: string;
+}
+
 export interface ArenaTurnCoach {
   explanation: string;
+  fields?: CoachLiteFields;
 }
 
 export interface ArenaTurnJourney {
@@ -239,6 +250,7 @@ export interface ArenaMessageEntry {
 
 export interface ArenaCoachEntry {
   explanation: string;
+  fields?: CoachLiteFields;
   journey?: {
     stages: Record<string, string>;
     now_help?: string;
@@ -635,7 +647,7 @@ export function buildArenaAuditLog(data: ArenaSessionData): AuditLog {
       terminal_state_source: isTerminal ? data.outcomeSource : null,
       tension_or_momentum: stateAfter,
       hidden_reasoning_summary: hiddenReasoning,
-      coach: coachEntry ? { explanation: coachEntry.explanation } : undefined,
+      coach: coachEntry ? { explanation: coachEntry.explanation, fields: coachEntry.fields } : undefined,
       journey: coachEntry?.journey ? {
         stages: coachEntry.journey.stages as Record<string, string>,
         now_help: coachEntry.journey.now_help,
@@ -871,8 +883,19 @@ export function renderAuditLogMarkdown(log: AuditLog): string {
         sections.push("");
         sections.push("#### COACH_ANALYSIS");
         sections.push("");
-        sections.push(`explanation: |`);
-        sections.push(`  ${a.coach.explanation.replace(/\n/g, "\n  ")}`);
+        if (a.coach.fields) {
+          const f = a.coach.fields;
+          sections.push(`signal: ${f.signal}`);
+          sections.push(`reading: ${f.reading}`);
+          sections.push(`mission: ${f.mission}`);
+          sections.push(`next_move: ${f.next_move}`);
+          sections.push(`strategy: ${f.strategy}`);
+          sections.push(`why_this_response: ${f.why_this_response}`);
+          sections.push(`alternative: ${f.alternative}`);
+        } else {
+          sections.push(`explanation: |`);
+          sections.push(`  ${a.coach.explanation.replace(/\n/g, "\n  ")}`);
+        }
       }
 
       if (a.journey) {
@@ -880,9 +903,18 @@ export function renderAuditLogMarkdown(log: AuditLog): string {
         sections.push("#### JOURNEY_STATE");
         sections.push("");
         if (a.journey.stages && Object.keys(a.journey.stages).length > 0) {
+          const STAGE_LABELS: Record<string, string> = {
+            context: "context (situación del cliente)",
+            problem: "problem (dolor o necesidad real)",
+            blocker: "blocker (objeción principal)",
+            fit: "fit (encaje solución–criterio)",
+            advance: "advance (microcompromiso)",
+            close: "close (cierre)",
+          };
           sections.push("stages:");
           for (const [stageId, status] of Object.entries(a.journey.stages)) {
-            sections.push(`  ${stageId}: ${status}`);
+            const label = STAGE_LABELS[stageId] ?? stageId;
+            sections.push(`  ${label}: ${status}`);
           }
         }
         sections.push(`now_help: ${nul(a.journey.now_help)}`);

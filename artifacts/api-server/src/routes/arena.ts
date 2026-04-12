@@ -8,6 +8,7 @@ import {
   PRESET_SYSTEM_DESC,
   DEBRIEF_CLIENT_PROFILE,
   SALES_ANTIPATTERNS_BLOCK,
+  COMPARISON_RULE_BLOCK,
 } from "@workspace/sales-brain";
 
 const router = Router();
@@ -110,9 +111,20 @@ interface JourneyData {
   premature_close_risk: "low" | "medium" | "high";
 }
 
+interface CoachLiteFields {
+  signal: string;
+  reading: string;
+  mission: string;
+  next_move: string;
+  strategy: string;
+  why_this_response: string;
+  alternative: string;
+}
+
 interface CoachLite {
   explanation: string;
   journey?: JourneyData;
+  fields?: CoachLiteFields;
 }
 
 // ── Prompt builders ───────────────────────────────────────────────────────────
@@ -206,11 +218,33 @@ COHERENCIA CON EL CONTEXTO:
 — Si ya has afirmado que algo es fijo, no lo vuelvas a proponer como palanca.
 — Si el contexto no permite cerrar el gap con el umbral del cliente, reconócelo.
 
+COHERENCIA NUMÉRICA:
+— Cualquier cifra que menciones (precio, rentabilidad, coste, plazo, porcentaje) queda fijada para toda la conversación.
+— Si el contexto te da una cifra, úsala exactamente. Si la repites, usa el mismo número. No redondees ni recalcules sin información nueva.
+— Un número que cambia sin justificación destruye la credibilidad inmediatamente.
+
+SEÑALES DE PERFIL:
+— Si el cliente usa terminología técnica, pide datos concretos o métricas → es analítico: responde con cifras, proceso y evidencia. Cero metáforas emocionales.
+— Si el cliente compara con alternativas → identifica primero el criterio que valoran de la alternativa; no entres en comparación directa hasta haberlo identificado.
+— Si el cliente evita comprometerse, cambia de tema o pide más tiempo sin razón concreta → el freno es el compromiso, no la información. Propón un microcompromiso reversible.
+
+TERCERO DECISOR:
+— Si aparece pareja, socio, comité, asesor u otro decisor: no lo ignores ni lo eludes.
+— Propón una de estas dos acciones: (a) incluir al tercero en la próxima conversación, o (b) cerrar un microcompromiso antes de que todo se enfríe.
+— "Lo hablo y te digo" sin fecha ni siguiente paso concreto = callejón sin salida. No lo aceptes como cierre de turno.
+
 DETECCIÓN DE OBJECIÓN REPETIDA:
 Si el cliente repite la misma objeción más de una vez, no respondas con argumentos laterales que ya aceptó. Ve al umbral o reconoce el bloqueo.
 
 MARCOS DESCARTADOS POR EL CLIENTE:
 Si el cliente rechaza explícitamente un tipo de argumento (largo plazo, revalorización, ventaja fiscal, retorno futuro, u otro marco concreto), ese marco está quemado para el resto de la conversación. No lo retomes, no lo reembales con otras palabras, no lo traigas de vuelta por otro ángulo.
+
+${COMPARISON_RULE_BLOCK.es}
+
+COMPROMISO CON EL PRODUCTO:
+— Solo descarta la operación si el gap es objetivamente incerrable y ya lo verificaste con datos concretos del contexto.
+— Si hay ángulos sin explorar, explóralos antes de concluir que no hay encaje.
+— Una renuncia prematura sin diagnóstico completo no es autoridad: es una venta que no se hizo.
 
 CUANDO LA CONCLUSIÓN YA ESTÁ DICHA:
 Si ya has afirmado que la operación no encaja para este cliente, o si ya has dado una respuesta completa y suficiente:
@@ -719,29 +753,43 @@ function buildCoachLitePrompt(
   lang: Lang,
 ): string {
   if (lang === "en") {
-    return `You are a sales professor annotating a live simulation. MANDATORY FORMAT — exactly 3 lines, nothing else:
+    return `You are a senior sales professor annotating a live simulation for audit purposes.
+Output ONLY a valid JSON object with exactly these 7 fields. No markdown, no intro, no extra text.
 
-Line 1: **Tactical name** (2–4 words in bold only, no period)
-Line 2: - what the seller does or detects (≤7 words, no period)
-Line 3: - why it works / what goal it achieves (≤7 words, no period)
+Fields:
+- signal: type of signal detected in the client's message (e.g. "price objection", "technical doubt", "comparison with alternative", "third-party blocker", "genuine interest", "evasion")
+- reading: one-sentence tactical reading of what the client is really expressing
+- mission: what the seller is trying to achieve with this specific response (one sentence)
+- next_move: what ideally should happen in the next seller turn (one sentence)
+- strategy: short tactical name for the move the seller made (2–5 words)
+- why_this_response: is this response correct or suboptimal for this moment, and why (one sentence)
+- alternative: a better or alternative response the seller could have given — or "optimal" if this response was strong
 
 Context: ${context || "Generic sale"}
 Client said: "${userMessage}"
 Seller responded: "${aiMessage}"
 
-3 lines only. No intro, no extra sentences, no praise.`;
+Return ONLY valid JSON. Example:
+{"signal":"price objection","reading":"Client is anchoring at a lower price to test concession space","mission":"Hold value anchor and redirect to ROI logic","next_move":"Isolate whether price is the only blocker or if there are others","strategy":"Value anchor hold","why_this_response":"Correct — seller avoids entering price negotiation before clarifying value","alternative":"optimal"}`;
   }
-  return `Eres un profesor de ventas anotando la simulación. FORMATO OBLIGATORIO — exactamente 3 líneas, nada más:
+  return `Eres un profesor de ventas sénior anotando una simulación en directo para auditoría.
+Devuelve SOLO un objeto JSON válido con exactamente estos 7 campos. Sin markdown, sin introducción, sin texto extra.
 
-Línea 1: **Nombre táctico** (2–4 palabras en negrita, sin punto)
-Línea 2: - qué hace o detecta el vendedor (≤7 palabras, sin punto)
-Línea 3: - por qué funciona o qué objetivo consigue (≤7 palabras, sin punto)
+Campos:
+- signal: tipo de señal detectada en el mensaje del cliente (ej: "objeción de precio", "duda técnica", "comparación con alternativa", "tercero decisor", "interés real", "evasión")
+- reading: lectura táctica en una frase de lo que el cliente está expresando realmente
+- mission: qué intenta conseguir el vendedor con esta respuesta concreta (una frase)
+- next_move: qué debería pasar idealmente en el siguiente turno del vendedor (una frase)
+- strategy: nombre corto de la táctica que usa el vendedor (2–5 palabras)
+- why_this_response: ¿es esta respuesta correcta o subóptima para este momento, y por qué? (una frase)
+- alternative: una respuesta mejor o alternativa que el vendedor podría haber dado — o "óptimo" si la respuesta fue sólida
 
 Contexto: ${context || "Venta genérica"}
 Cliente dijo: "${userMessage}"
 Vendedor respondió: "${aiMessage}"
 
-3 líneas exactas. Sin introducción, sin frases extra, sin elogios.`;
+Devuelve SOLO JSON válido. Ejemplo:
+{"signal":"objeción de precio","reading":"El cliente ancla en precio bajo para probar si hay margen de concesión","mission":"Sostener el ancla de valor y redirigir a la lógica de retorno","next_move":"Aislar si el precio es el único bloqueo o si hay otros","strategy":"Sostén de ancla de valor","why_this_response":"Correcto — el vendedor evita entrar en negociación de precio antes de clarificar valor","alternative":"óptimo"}`;
 }
 
 async function generateCoachLite(
@@ -754,7 +802,7 @@ async function generateCoachLite(
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      max_tokens: 280,
+      max_tokens: 500,
       temperature: 0,
       messages: [{ role: "user", content: buildCoachLitePrompt(userMessage, aiMessage, context, lang) }],
     });
@@ -767,7 +815,7 @@ async function generateCoachLite(
         sessionId,
         mode: "arena",
         model: "gpt-4o-mini",
-        maxTokensConfigured: 280,
+        maxTokensConfigured: 500,
         promptTokens: usage.prompt_tokens,
         completionTokens: usage.completion_tokens,
         totalTokens: usage.total_tokens,
@@ -777,7 +825,33 @@ async function generateCoachLite(
     }
     const raw = completion.choices[0]?.message?.content?.trim() ?? "";
     if (!raw) return null;
-    return { explanation: raw };
+
+    // Parse structured JSON fields
+    let fields: CoachLiteFields | undefined;
+    try {
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(raw);
+      if (parsed && typeof parsed === "object" && parsed.strategy) {
+        fields = {
+          signal: String(parsed.signal ?? ""),
+          reading: String(parsed.reading ?? ""),
+          mission: String(parsed.mission ?? ""),
+          next_move: String(parsed.next_move ?? ""),
+          strategy: String(parsed.strategy ?? ""),
+          why_this_response: String(parsed.why_this_response ?? ""),
+          alternative: String(parsed.alternative ?? ""),
+        };
+      }
+    } catch {
+      // JSON parse failed — fall back to using raw text as explanation
+    }
+
+    // Build display explanation string (keeps backward compat with CoachNote UI)
+    const explanation = fields
+      ? `**${fields.strategy}**\n- ${fields.mission}\n- ${fields.why_this_response}`
+      : raw;
+
+    return { explanation, ...(fields ? { fields } : {}) };
   } catch {
     return null;
   }

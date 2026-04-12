@@ -1,0 +1,100 @@
+## OBJETIVO
+Hacer dos mejoras clave en Arena `client` mode:
+1. que el log descargable de Arena tenga nivel de auditoría real, incluyendo `coach`, `journey` y lectura táctica por turno, para poder compartirlo con ChatGPT y revisarlo bien;
+2. subir de forma seria el nivel del vendedor IA para que deje de sonar blando, inconsistente o repetitivo y se acerque mucho más a un vendedor top.
+
+## CONTEXTO
+- Ahora mismo Arena `client` mode sirve para practicar y detectar fallos, pero todavía tiene dos problemas fuertes:
+  - el log descargable no es lo bastante rico para auditar bien la conversación;
+  - el vendedor IA todavía no está al nivel que debería.
+- El caso observado deja claro varios fallos:
+  - contradicción en números dentro de la misma conversación;
+  - mala gestión de objeciones;
+  - repetición de conclusiones;
+  - abandono prematuro del producto;
+  - mala lectura de señales como perfil técnico, objeción real, comparación con otras ofertas y posible tercero decisor.
+- Quiero arreglar estas dos cosas a la vez, porque una me permite auditar mejor y la otra mejorar de verdad la calidad de la simulación.
+
+## RESTRICCIONES
+- No tocar Copiloto
+- No rehacer Arena desde cero
+- No romper `start / turn / finish`
+- No cambiar la UX principal salvo donde haga falta para enriquecer el log o mejorar comportamiento
+- No hacer un vendedor más largo por defecto
+- No convertir el log en un volcado caótico
+- No instalar dependencias nuevas salvo necesidad real
+- Tocar solo lo necesario en:
+  - vendedor IA de Arena client
+  - export de logs / audit log de Arena
+  - sales brain compartido si aplica
+
+---
+
+## PARTE 1 — LOG DE ARENA CON NIVEL DE AUDITORÍA REAL
+
+### Problema actual
+El log de Arena que se descarga sirve como resumen o transcripción, pero no tiene toda la información táctica que sí necesito para auditarlo bien después con ChatGPT.
+
+Quiero que el log exportado de Arena tenga suficiente riqueza para analizar:
+- qué dijo el vendedor
+- qué detectó el sistema
+- qué intentaba conseguir
+- en qué etapa del proceso estaba
+- qué objeción estaba leyendo
+- qué siguiente paso veía
+- si estaba forzando cierre o no
+
+### Cambio exacto
+Quiero que el log descargable de Arena exporte, por turno, además de la conversación:
+
+#### 1. Bloque `coach`
+Si existe `coach` o `coachLite` en Arena client, exportarlo por turno con campos como:
+- `signal`
+- `mission`
+- `next_move`
+- `reading`
+- `strategy`
+- `why_this_response`
+- `alternative`
+
+No hace falta usar exactamente esos nombres si el shape actual es distinto, pero quiero toda la información táctica visible y útil.
+
+#### 2. Bloque `journey`
+Exportar también por turno el estado del `journey`, incluyendo como mínimo:
+- etapa actual
+- explicación breve de la etapa actual
+- siguiente etapa
+- explicación breve de la siguiente etapa
+- meta / goal
+- pasos restantes
+- riesgo de cierre prematuro
+
+Si existen etapas estructuradas, renderizarlas también en formato legible.
+
+#### 3. Más valor táctico en el `.md`
+Quiero que el `.md` no sea solo transcripción.  
+Quiero que se pueda leer como log de auditoría seria.
+
+Formato orientativo por turno:
+
+```md id="8w8kby"
+### Turno X — VENDEDOR
+Mensaje: ...
+
+Coach:
+- signal: ...
+- mission: ...
+- next_move: ...
+- reading: ...
+- strategy: ...
+- why_this_response: ...
+- alternative: ...
+
+Journey:
+- now: ...
+- now_help: ...
+- next: ...
+- next_help: ...
+- goal: ...
+- steps_remaining: ...
+- premature_close_risk: ...

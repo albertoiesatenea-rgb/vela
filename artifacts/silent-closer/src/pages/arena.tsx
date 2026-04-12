@@ -64,9 +64,20 @@ interface JourneyData {
   premature_close_risk: "low" | "medium" | "high";
 }
 
+interface CoachLiteFields {
+  signal: string;
+  reading: string;
+  mission: string;
+  next_move: string;
+  strategy: string;
+  why_this_response: string;
+  alternative: string;
+}
+
 interface CoachLite {
   explanation: string;
   journey?: JourneyData;
+  fields?: CoachLiteFields;
 }
 
 interface ArenaSummary {
