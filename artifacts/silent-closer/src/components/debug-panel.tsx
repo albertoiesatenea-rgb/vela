@@ -36,16 +36,15 @@ interface UsageSnapshot {
 // ── Formatters ────────────────────────────────────────────────────────────────
 const USD_TO_EUR = 0.92;
 
-// European-format euros: comma decimal, € suffix, fixed decimals to avoid width shifts.
+// European-format euros: comma decimal, € suffix (no space — avoids mono-font wrap bugs).
 function fmtEur(usd: number | null): string {
   if (usd === null)   return "—";
   const v = usd * USD_TO_EUR;
-  if (v === 0)        return "0,00 €";
-  // Always 4 decimal places for sub-cent amounts so the string width stays constant
-  if (v < 0.01)       return `${v.toFixed(4).replace(".", ",")} €`;
-  if (v < 0.10)       return `${v.toFixed(3).replace(".", ",")} €`;
-  if (v < 1)          return `${v.toFixed(2).replace(".", ",")} €`;
-  return `${v.toFixed(2).replace(".", ",")} €`;
+  if (v === 0)        return "0,00€";
+  if (v < 0.01)       return `${v.toFixed(4).replace(".", ",")}€`;
+  if (v < 0.10)       return `${v.toFixed(3).replace(".", ",")}€`;
+  if (v < 1)          return `${v.toFixed(2).replace(".", ",")}€`;
+  return `${v.toFixed(2).replace(".", ",")}€`;
 }
 
 // Internal dollar formatter used inside the detail panel tables.
@@ -270,9 +269,10 @@ export function DebugPanel({ sessionId }: { sessionId?: string | null }) {
       <button
         onClick={() => setOpen(!open)}
         className={cn(
-          "fixed bottom-3 right-3 z-40 font-mono text-[9px] tracking-wider",
-          "w-[76px] text-center py-1 rounded border select-none tabular-nums",
-          "transition-colors duration-150",
+          "fixed bottom-3 right-3 z-40 text-[10px] tracking-wide",
+          "w-[80px] text-center py-1 rounded border select-none",
+          "whitespace-nowrap overflow-hidden tabular-nums",
+          "transition-colors duration-100",
           open
             ? "text-white bg-zinc-800 border-zinc-600"
             : "text-zinc-500 border-zinc-800 hover:text-zinc-300 hover:border-zinc-600",
