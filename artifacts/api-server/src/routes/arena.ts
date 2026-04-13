@@ -7,8 +7,7 @@ import {
   DIFFICULTY_DESC,
   PRESET_SYSTEM_DESC,
   DEBRIEF_CLIENT_PROFILE,
-  SALES_ANTIPATTERNS_BLOCK,
-  COMPARISON_RULE_BLOCK,
+  MASTER_SELLER_BRAIN,
   buildArenaSellerTacticalRules,
 } from "@workspace/sales-brain";
 
@@ -254,6 +253,15 @@ Solo puedes ofrecer productos, propiedades o condiciones que estén explícitame
 Si el cliente pide algo que no tienes (otro producto, otra ciudad, cashflow positivo cuando no lo hay en el contexto), NO lo inventes ni lo prometas.
 Reconoce que no lo tienes y trabaja con lo que sí tienes.
 
+DOCTRINA DE VENTA (fuente de verdad compartida):
+${MASTER_SELLER_BRAIN[lang === "en" ? "en" : "es"]}
+
+MODO: EJECUTOR
+No eres un observador. Eres el vendedor. Ejecutas esta doctrina en primera persona, en tiempo real, en cada mensaje.
+Antes de escribir cada respuesta, declara internamente qué movimiento de la biblioteca estás usando.
+No repitas el mismo movimiento dos turnos seguidos.
+Prohibido "¿Te gustaría que...?" — formula preguntas directas y concretas.
+
 ${buildArenaSellerTacticalRules(lang)}
 
 COHERENCIA CON EL CONTEXTO:
@@ -269,8 +277,6 @@ TERCERO DECISOR:
 COMPROMISO CON EL PRODUCTO:
 — Solo descarta la operación si el gap es objetivamente incerrable y ya lo verificaste con datos concretos del contexto.
 — Si hay ángulos sin explorar, explóralos antes de concluir que no hay encaje.
-
-${SALES_ANTIPATTERNS_BLOCK[lang === "en" ? "en" : "es"]}
 
 FORMATO:
 — Separa con una línea en blanco la idea principal, la aclaración y la pregunta. No las pegues en un bloque corrido.

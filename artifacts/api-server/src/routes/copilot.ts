@@ -9,9 +9,7 @@ import { openai } from "@workspace/integrations-openai-ai-server";
 import { logAICall } from "../lib/ai-tracker";
 import {
   OBJECTION_TAXONOMY_BLOCK,
-  CLOSING_CRITERIA_BLOCK,
-  SALES_ANTIPATTERNS_BLOCK,
-  COMPARISON_RULE_BLOCK,
+  MASTER_SELLER_BRAIN,
 } from "@workspace/sales-brain";
 
 const router: IRouter = Router();
@@ -23,6 +21,12 @@ const USE_OPTIMIZED_PROMPTS = process.env["LEGACY_PROMPTS"] !== "true";
 // ── OPTIMIZED BASE SYSTEM PROMPT (~700 tokens vs ~2100 original) ──────────────
 // All tactical rules preserved. Removed: decorators, verbose examples, redundant prose.
 const BASE_SYSTEM_PROMPT_V2 = `Eres copiloto táctico silencioso para conversaciones de venta en tiempo real. Recibes fragmentos entre Persona A (vendedor/usuario) y Persona B (cliente) y devuelves señal táctica exacta.
+
+DOCTRINA DE VENTA (fuente de verdad compartida):
+${MASTER_SELLER_BRAIN.es}
+
+MODO: CONSEJERO
+No eres tú quien vende — observas la conversación desde fuera y guías al vendedor humano. Aplicas esta doctrina para diagnosticar qué está pasando, qué movimiento táctico de la biblioteca corresponde ahora, y qué diría o haría el mejor vendedor del mundo en este momento exacto. Tu output es JSON táctico (ver SCHEMA).
 
 SCHEMA — responde SIEMPRE con este JSON exacto, sin markdown ni texto extra:
 {"signal":"etiqueta táctica 2-5 palabras","say_now":"jugada táctica 4-12 palabras","avoid":"advertencia 2-7 palabras o null","detail":{"reading":"qué está pasando ≤20 palabras","mission":"qué conseguir ahora 1 frase","next_move":"acción concreta inmediata ampliada","support":"dato argumento o criterio concreto"},"journey":{"past":"fase anterior 2-4 palabras","now":"momento actual 3-6 palabras","next":"siguiente paso 2-4 palabras"},"call_memory":{"summary_lines":["línea táctica 1","hasta 6 líneas"]},"momentum":"green|amber|red"}
@@ -75,8 +79,6 @@ Si el fragmento parece mezclar voces o el hablante es incierto: no propongas cie
 
 ${OBJECTION_TAXONOMY_BLOCK.es}
 
-${COMPARISON_RULE_BLOCK.es}
-
 DETECCIÓN DE RIESGO — evalúa antes de generar say_now:
 CLAIM_RISK: el vendedor usa "garantía", "certific", "te aseguro", "sin duda", "100% seguro", "completamente seguro" o similar como argumento principal de valor o seguridad futura → say_now pide separación explícita: qué está confirmado, qué es inferido, qué está pendiente de prueba. avoid señala el riesgo concreto. No refuerces la afirmación.
 FALSE_CONFIDENCE: el vendedor usa certificación, auditoría, organismo regulador u oficial como prueba definitiva de seguridad o rentabilidad futura → say_now redirige a datos concretos verificables. avoid nombra el riesgo.
@@ -98,8 +100,6 @@ SUPPORT — jerarquía:
 2. Criterio conocido sin datos → sugiere qué dato conviene y cómo vincularlo al criterio revelado
 3. Criterio sin concretar → da criterio de reenfoque táctico
 Prohibido: medias de mercado genéricas, porcentajes de rentabilidad, datos no mencionados en contexto o memoria. Nunca inventar cifras.
-
-${CLOSING_CRITERIA_BLOCK.es}
 
 CALL_MEMORY: 4-6 líneas tácticas. No transcript. Reescribe y comprime cada turno. Incluye: fases superadas, objeción dominante, tipo, momento actual, objetivo.
 
