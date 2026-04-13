@@ -34,15 +34,29 @@ interface UsageSnapshot {
 }
 
 // ── Formatters ────────────────────────────────────────────────────────────────
-// Pure-dollar format throughout — avoids ¢ rendering issues in monospace fonts.
+const USD_TO_EUR = 0.92;
+
+// European-format euros: comma decimal, € suffix, fixed decimals to avoid width shifts.
+function fmtEur(usd: number | null): string {
+  if (usd === null)   return "—";
+  const v = usd * USD_TO_EUR;
+  if (v === 0)        return "0,00 €";
+  // Always 4 decimal places for sub-cent amounts so the string width stays constant
+  if (v < 0.01)       return `${v.toFixed(4).replace(".", ",")} €`;
+  if (v < 0.10)       return `${v.toFixed(3).replace(".", ",")} €`;
+  if (v < 1)          return `${v.toFixed(2).replace(".", ",")} €`;
+  return `${v.toFixed(2).replace(".", ",")} €`;
+}
+
+// Internal dollar formatter used inside the detail panel tables.
 function fmt$(v: number | null): string {
   if (v === null)    return "?";
   if (v === 0)       return "$0.00";
-  if (v < 0.00005)   return "<$0.0001";          // effectively zero
-  if (v < 0.01)      return `$${v.toFixed(4)}`;  // e.g. "$0.0002", "$0.0056"
-  if (v < 0.10)      return `$${v.toFixed(3)}`;  // e.g. "$0.012",  "$0.098"
-  if (v < 1)         return `$${v.toFixed(2)}`;  // e.g. "$0.45"
-  return `$${v.toFixed(2)}`;                     // e.g. "$1.23"
+  if (v < 0.00005)   return "<$0.0001";
+  if (v < 0.01)      return `$${v.toFixed(4)}`;
+  if (v < 0.10)      return `$${v.toFixed(3)}`;
+  if (v < 1)         return `$${v.toFixed(2)}`;
+  return `$${v.toFixed(2)}`;
 }
 function fmtK(v: number): string {
   if (v >= 100_000) return `${(v / 1000).toFixed(0)}k`;
@@ -220,11 +234,9 @@ export function DebugPanel({ sessionId }: { sessionId?: string | null }) {
   const filteredRoutes   = data?.routes.filter(r => mode === "all" || r.route.startsWith(mode)) ?? [];
   const filteredCalls    = data?.recentCalls.filter(c => mode === "all" || c.mode === mode) ?? [];
 
-  // Button label: just the cost — simple and readable
+  // Button label: cost in euros, European format
   const displayCost = session?.totalCostUsd ?? data?.global.totalCostUsd ?? null;
-  const buttonCostLabel = displayCost !== null && displayCost > 0
-    ? fmt$(displayCost)
-    : "$0.00";
+  const buttonCostLabel = fmtEur(displayCost ?? 0);
 
   return (
     <>
@@ -258,8 +270,9 @@ export function DebugPanel({ sessionId }: { sessionId?: string | null }) {
       <button
         onClick={() => setOpen(!open)}
         className={cn(
-          "fixed bottom-3 right-3 z-40 font-mono text-[9px] tracking-wider uppercase",
-          "px-2.5 py-1 rounded border transition-all select-none whitespace-nowrap tabular-nums",
+          "fixed bottom-3 right-3 z-40 font-mono text-[9px] tracking-wider",
+          "w-[76px] text-center py-1 rounded border select-none tabular-nums",
+          "transition-colors duration-150",
           open
             ? "text-white bg-zinc-800 border-zinc-600"
             : "text-zinc-500 border-zinc-800 hover:text-zinc-300 hover:border-zinc-600",
