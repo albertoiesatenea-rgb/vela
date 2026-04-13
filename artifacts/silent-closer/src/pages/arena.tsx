@@ -1650,14 +1650,17 @@ export function Arena({
               const showCoachSlot = role === "client" && coachOn && msg.speaker === "ai" && !!coachLiteMap[msg.index];
               if (msg.speaker === "note") {
                 return (
-                  <div key={i} className="flex items-center gap-2 py-1">
+                  <div key={i} className="flex items-center gap-2 py-1 min-w-0 overflow-hidden">
                     {role === "client" && coachOn && <div className="w-44 shrink-0" />}
-                    <div className="flex-1 h-px bg-sky-900/40" />
-                    <span className="text-[9px] font-mono tracking-wide text-sky-400/80 shrink-0 flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-sky-800/40 bg-sky-950/30">
-                      <StickyNote className="w-2.5 h-2.5" />
-                      {msg.message}
+                    <div className="flex-1 h-px bg-sky-900/40 min-w-0" />
+                    <span
+                      title={msg.message}
+                      className="text-[9px] font-mono tracking-wide text-sky-400/80 shrink flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-sky-800/40 bg-sky-950/30 max-w-[260px] min-w-0"
+                    >
+                      <StickyNote className="w-2.5 h-2.5 shrink-0" />
+                      <span className="truncate">{msg.message}</span>
                     </span>
-                    <div className="flex-1 h-px bg-sky-900/40" />
+                    <div className="flex-1 h-px bg-sky-900/40 min-w-0" />
                   </div>
                 );
               }
