@@ -244,7 +244,7 @@ export interface CopilotSessionData {
 
 export interface ArenaMessageEntry {
   index: number;
-  speaker: "user" | "ai";
+  speaker: "user" | "ai" | "note";
   message: string;
 }
 
@@ -596,7 +596,7 @@ export function buildArenaAuditLog(data: ArenaSessionData): AuditLog {
   // Build exchange-based turns — group messages as AI-open + user + AI-response triplets
   // Flat approach: one AuditTurn per message, richer cross-referencing
   const turns: AuditTurn[] = [];
-  const msgs = data.allMessages;
+  const msgs = data.allMessages.filter(m => m.speaker !== "note");
 
   for (let i = 0; i < msgs.length; i++) {
     const msg = msgs[i];
@@ -679,13 +679,21 @@ export function buildArenaAuditLog(data: ArenaSessionData): AuditLog {
     });
   }
 
-  // Readable transcript
-  const readable_transcript = msgs.map((m, i) => {
-    const label = m.speaker === "user"
-      ? (data.role === "seller" ? "VENDEDOR" : "CLIENTE")
-      : (aiRole === "seller" ? "IA VENDEDOR" : "IA CLIENTE");
-    return `[${i + 1}] [${label}]: ${m.message}`;
-  });
+  // Readable transcript — includes note injections inline at the point they occurred
+  const allMsgsWithNotes = data.allMessages;
+  let conversationTurnNum = 0;
+  const readable_transcript: string[] = [];
+  for (const m of allMsgsWithNotes) {
+    if (m.speaker === "note") {
+      readable_transcript.push(`[→ INSTRUCCIÓN AL VENDEDOR]: ${m.message}`);
+    } else {
+      conversationTurnNum++;
+      const label = m.speaker === "user"
+        ? (data.role === "seller" ? "VENDEDOR" : "CLIENTE")
+        : (aiRole === "seller" ? "IA VENDEDOR" : "IA CLIENTE");
+      readable_transcript.push(`[${conversationTurnNum}] [${label}]: ${m.message}`);
+    }
+  }
 
   // Derive final state from last AI message
   const lastAiMsg = [...msgs].reverse().find(m => m.speaker === "ai");

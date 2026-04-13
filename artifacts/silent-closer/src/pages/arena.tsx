@@ -1088,6 +1088,9 @@ export function Arena({
 
   const handleExportLog = () => {
     if (!summary) return;
+    // Use messages (live state) to preserve note positions; filter notes out for count
+    const liveMsgs = messages.length > 0 ? messages : allTurns;
+    const conversationMsgs = liveMsgs.filter(m => m.speaker === "user" || m.speaker === "ai");
     const log = buildArenaAuditLog({
       sessionId: arenaSessionId,
       lang,
@@ -1095,11 +1098,11 @@ export function Arena({
       context: summary.context,
       outcome: summary.outcome,
       outcomeSource: exitNote ? "user" : "ai",
-      totalTurns: summary.totalTurns,
-      userTurns: summary.userTurns,
+      totalTurns: conversationMsgs.length,
+      userTurns: conversationMsgs.filter(m => m.speaker === "user").length,
       createdAt: summary.createdAt,
       closedAt: summary.closedAt,
-      allMessages: allTurns,
+      allMessages: liveMsgs,
       exitNote: exitNote ?? null,
       debrief: summary.debrief ?? null,
       runtimeInstructions: sellerNotes.length > 0 ? sellerNotes : undefined,
@@ -1109,11 +1112,9 @@ export function Arena({
   };
 
   const handleMidSessionDownload = useCallback(() => {
-    // Use live messages (not allTurns — that's only set on session end)
-    const liveTurns = messages.filter(m => m.speaker === "user" || m.speaker === "ai");
-    if (liveTurns.length === 0) return;
+    const conversationMsgs = messages.filter(m => m.speaker === "user" || m.speaker === "ai");
+    if (conversationMsgs.length === 0) return;
     const now = new Date().toISOString();
-    const userTurns = liveTurns.filter(t => t.speaker === "user").length;
     const log = buildArenaAuditLog({
       sessionId: arenaSessionId,
       lang,
@@ -1121,11 +1122,11 @@ export function Arena({
       context,
       outcome: "in_progress",
       outcomeSource: "system",
-      totalTurns: liveTurns.length,
-      userTurns,
+      totalTurns: conversationMsgs.length,
+      userTurns: conversationMsgs.filter(m => m.speaker === "user").length,
       createdAt: now,
       closedAt: now,
-      allMessages: liveTurns,
+      allMessages: messages,
       exitNote: null,
       debrief: null,
       runtimeInstructions: sellerNotes.length > 0 ? sellerNotes : undefined,
