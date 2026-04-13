@@ -220,17 +220,11 @@ export function DebugPanel({ sessionId }: { sessionId?: string | null }) {
   const filteredRoutes   = data?.routes.filter(r => mode === "all" || r.route.startsWith(mode)) ?? [];
   const filteredCalls    = data?.recentCalls.filter(c => mode === "all" || c.mode === mode) ?? [];
 
-  // Button label: tok count + cost — prefer current session, fall back to global
-  const displayCost   = session?.totalCostUsd   ?? data?.global.totalCostUsd   ?? null;
-  const displayTokens = session?.totalTokens    ?? data?.global.totalTokens    ?? null;
-  const buttonCostLabel = (() => {
-    const hasCost = displayCost !== null && displayCost > 0;
-    const hasTok  = displayTokens !== null && displayTokens > 0;
-    if (!hasCost && !hasTok) return "AI $";
-    const tokPart  = hasTok  ? fmtK(displayTokens!) + "t" : null;
-    const costPart = hasCost ? fmt$(displayCost!)          : null;
-    return ["AI", tokPart, costPart].filter(Boolean).join(" ");
-  })();
+  // Button label: just the cost — simple and readable
+  const displayCost = session?.totalCostUsd ?? data?.global.totalCostUsd ?? null;
+  const buttonCostLabel = displayCost !== null && displayCost > 0
+    ? fmt$(displayCost)
+    : "$0.00";
 
   return (
     <>
