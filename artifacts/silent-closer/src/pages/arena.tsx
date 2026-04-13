@@ -752,7 +752,6 @@ export function Arena({
   const [showEarlyExit, setShowEarlyExit] = useState(false);
   // Seller notes (client mode only)
   const [noteText, setNoteText] = useState("");
-  const [noteCount, setNoteCount] = useState(0);
   const [sellerNotes, setSellerNotes] = useState<string[]>([]);
   // CoachLite (client mode only): coach data per message index, global on/off
   const [coachLiteMap, setCoachLiteMap] = useState<Record<number, CoachLite>>({});
@@ -872,7 +871,6 @@ export function Arena({
     setConversationState(null);
     setInput("");
     setNoteText("");
-    setNoteCount(0);
     setSellerNotes([]);
     setExitStep(null);
     setPendingExitReason("");
@@ -1023,7 +1021,6 @@ export function Arena({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ arenaSessionId, note }),
       });
-      setNoteCount(c => c + 1);
       setSellerNotes(prev => [...prev, note]);
       // Insert a visual note marker in the conversation
       setMessages(prev => [
@@ -1845,9 +1842,6 @@ export function Arena({
                     disabled={isSending}
                     className="flex-1 min-w-0 bg-transparent border-b border-zinc-800 focus:border-zinc-600 text-[11px] font-mono text-white placeholder:text-zinc-500 focus:outline-none py-1 transition-colors disabled:opacity-40"
                   />
-                  {noteCount > 0 && (
-                    <span className="text-[8px] font-mono text-sky-400 tabular-nums shrink-0">{noteCount}</span>
-                  )}
                 </div>
               )}
               <div className="grid gap-2" style={{gridTemplateColumns: "1fr auto"}}>
