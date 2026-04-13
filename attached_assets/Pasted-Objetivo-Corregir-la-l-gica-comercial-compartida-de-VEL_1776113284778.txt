@@ -1,0 +1,100 @@
+Objetivo
+Corregir la lógica comercial compartida de VELA para que Copiloto, Arena vendedor, Arena cliente y auditoría manejen bien objeciones concretas, eviten falsas dicotomías, no autodescalifiquen activos demasiado pronto y dejen de depender de una combinación demasiado floja de heurística + gpt-4o-mini sin runtime en casos finos.
+
+Contexto del problema
+He auditado un segundo caso de José Romero en Arena cliente y confirma que el problema no es local. Ya no se inventa empresa o persona, pero la venta sigue rota:
+
+la IA vendedora no responde la objeción central sobre la renta anormalmente baja del inmueble
+sigue usando marcos genéricos de “seguridad patrimonial” y “largo plazo” en vez de resolver la duda concreta
+usa falsas dicotomías del tipo “rentabilidad inmediata vs seguridad” cuando el cliente ya dijo que la zona, la financiación y el activo le cuadran y el único bloqueo es el alquiler bajo respecto al precio y a la media
+acaba autodescalificando el activo demasiado pronto (“este inmueble puede no ser lo ideal”, “no es el adecuado”, “sigamos buscando opciones”) sin haber defendido correctamente el caso ni aislado si el contrato antiguo tiene recorrido real de actualización
+el coach interno marca varios “FALLO GRAVE”, pero el resumen final vuelve a dejar likely_primary_failure: none, unresolved_objections: null y no anomalies detected
+la sesión corre con runtime_instructions_active: no, model: gpt-4o-mini y arena_state_model: keyword_heuristic + gpt-4o-mini, lo que parece insuficiente para casos comerciales complejos
+
+Cambios requeridos
+
+Implementar una secuencia obligatoria de objeción concreta en el núcleo compartido:
+a) responder la objeción concreta
+b) aislar si ese es el freno real
+c) medir si, resuelto eso, queda algo más
+d) solo después avanzar, redirigir o descalificar
+Esta secuencia debe usarse en Copiloto, Arena cliente, Arena vendedor y auditoría.
+Añadir guardarraíl contra falsas dicotomías:
+si el cliente ya ha dicho que no discute seguridad, ciudad, financiación o proceso, el sistema no puede volver a preguntar “seguridad o rentabilidad”
+debe centrarse en la duda concreta formulada
+Prohibir autodescalificación temprana del activo:
+el vendedor IA no puede pasar a “este activo no es para ti” sin antes:
+responder la objeción central
+aislar el criterio dominante
+verificar si el bloqueo es estructural o solo técnico/comparativo
+si descalifica, debe quedar claro por qué y en qué criterio exacto falla
+Mejorar manejo de comparación con medias/portales/rentas:
+cuando el cliente compare renta actual con media de zona o referencia externa, el sistema debe:
+distinguir contrato actual vs mercado teórico
+distinguir media de portal vs realidad del caso
+distinguir seguridad del inquilino vs potencial de actualización
+devolver el marco al criterio de decisión del cliente
+prohibido responder solo con “patrimonio”, “seguridad” o “largo plazo” si no aterriza la comparación concreta
+Activar o sustituir runtime logic en casos finos:
+revisar por qué runtime_instructions_active: no
+si existe una capa runtime opcional para reforzar seller behavior, activarla en Arena y Copiloto cuando el contexto tenga:
+objeción concreta
+fase avanzada
+comparación externa
+posible decisión final
+si no existe, crear una capa equivalente de enforcement en prompt assembly / state routing
+Sincronizar coach y auditoría:
+si el coach marca “FALLO GRAVE” repetido, el summary no puede dejar:
+likely_primary_failure: none
+unresolved_objections: null
+no anomalies detected
+mapear flags compartidos para:
+primary_blocker_unresolved
+seller_used_false_dichotomy
+premature_asset_disqualification
+generic_reframe_without_resolution
+audit_summary_conflict
+Hacer que Arena vendedor también use esta lógica:
+el cliente IA debe objetar con precisión
+el coaching debe penalizar si el vendedor humano evade la objeción concreta con abstracciones
+el sistema no debe premiar discursos largos o blandos que no resuelven la duda real
+
+Restricciones
+
+No rehacer VELA entero
+Centralizar la lógica compartida en vez de duplicarla por modo
+Mantener compatibilidad con contexto libre actual
+No romper sesiones simples
+Priorizar robustez comercial sobre respuestas bonitas
+
+Entregables
+
+Refactor o patch del núcleo comercial compartido
+Integración en Copiloto
+Integración en Arena cliente
+Integración en Arena vendedor
+Integración en auditoría y summary
+Tests de regresión sobre José Romero
+
+Tests
+
+Caso José Romero:
+ante objeción “2,3% es poquísimo para 188k”, el sistema no puede contestar solo con “patrimonio a largo plazo”
+debe responder la lógica concreta de esa renta y luego aislar si ese es el freno real
+Falsa dicotomía:
+si el cliente ya dijo que valora seguridad y que el único bloqueo es la renta, el vendedor no puede volver a preguntar “seguridad o rentabilidad”
+Autodescalificación:
+el vendedor IA no puede decir “este activo no es para ti” sin haber defendido antes el caso y aislado el criterio dominante
+Auditoría:
+si hay varios “FALLO GRAVE”, el summary debe reflejar fallo primario real y objeciones no resueltas
+Runtime:
+en casos finos con comparación externa y decisión avanzada, no puede quedar runtime_instructions_active: no sin una capa equivalente de enforcement
+
+Criterios de aceptación
+
+El sistema responde objeciones concretas con precisión
+Deja de usar falsas dicotomías cuando no tocan
+No regala el activo demasiado pronto
+Copiloto, Arena vendedor, Arena cliente y auditoría comparten la misma lógica comercial base
+El summary deja de contradecir al coach
+El caso José Romero deja de morirse por abstracción blanda y rendición prematura

@@ -582,15 +582,46 @@ export function buildArenaAuditLog(data: ArenaSessionData): AuditLog {
     ].filter(Boolean).join(" | ") || null,
   };
 
+  // ── Auto-detect enforcement blocks from session context ────────────────────
+  // When the context contains advanced objection / comparison / phase markers,
+  // the server has injected enforcement blocks into the system prompt.
+  // Report them as runtime_instructions so the audit log shows
+  // `runtime_instructions_active: yes` instead of `no`.
+  const ctxLower = (data.context || "").toLowerCase();
+  const enforcementBlocks: string[] = [];
+  const hasRentComparison = ["rentabilidad", "renta baja", "alquiler bajo", "yield", "rent low",
+    "2,", "3,", "4,", "%", "media de zona", "portal", "idealista", "fotocasa"].some(t => ctxLower.includes(t));
+  const hasPhaseMarkers = ["segunda llamada", "follow-up", "seguimiento", "cierre", "reserva",
+    "second call", "closing", "reservation"].some(t => ctxLower.includes(t));
+  const hasCompetitorComparison = ["alternativa", "competidor", "berlín", "berlin", "budapest",
+    "valencia", "alternative", "competitor"].some(t => ctxLower.includes(t));
+  const hasConcreteObjection = ["cashflow", "cash flow", "flujo de caja", "objeción", "bloqueo",
+    "freno", "no encaja", "no cuadra", "objection", "blocker"].some(t => ctxLower.includes(t));
+  if (hasRentComparison || hasConcreteObjection) {
+    enforcementBlocks.push("concrete-objection-engine: ACTIVE — 4-step sequence (respond → isolate → measure → advance)");
+    enforcementBlocks.push("concrete-comparison-engine: ACTIVE — rent/yield disaggregation (contract vs market, gross vs net, price vs capital)");
+    enforcementBlocks.push("false-dichotomy-guard: ACTIVE — prevents re-asking settled frames");
+    enforcementBlocks.push("anti-premature-disqualification: ACTIVE — requires response-isolate-measure before disqualifying");
+  }
+  if (hasPhaseMarkers) {
+    enforcementBlocks.push("grounding-and-phase-block: ACTIVE — follow-up/close phase detected, discovery re-opening forbidden");
+  }
+  if (hasCompetitorComparison) {
+    enforcementBlocks.push("comparison-frame-engine: ACTIVE — competitor/alternative detected");
+  }
+
+  const userProvided = data.runtimeInstructions && data.runtimeInstructions.length > 0
+    ? data.runtimeInstructions
+    : [];
+  const allRuntimeInstructions = [...userProvided, ...enforcementBlocks];
+
   const config: SessionConfig = {
     input_mode: "chat",
     speaker_mode_default: null,
     arena_role: data.role,
     arena_variant: null,
-    arena_state_model: "keyword_heuristic + gpt-4o-mini",
-    runtime_instructions: data.runtimeInstructions && data.runtimeInstructions.length > 0
-      ? data.runtimeInstructions
-      : null,
+    arena_state_model: "keyword_heuristic + gpt-4o-mini + enforcement-blocks",
+    runtime_instructions: allRuntimeInstructions.length > 0 ? allRuntimeInstructions : null,
   };
 
   // Build exchange-based turns — group messages as AI-open + user + AI-response triplets

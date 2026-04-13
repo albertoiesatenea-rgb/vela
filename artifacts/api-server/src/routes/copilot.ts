@@ -750,6 +750,30 @@ router.post("/copilot/audit-report", async (req, res) => {
   const hasCommitmentAttempt  = commitmentAttemptTerms.some(t => combinedFull.includes(t));
   const prematureCloseAttempt = hasActiveObjection && hasCommitmentAttempt;
 
+  // ── Generic reframe detection — concrete objection met with abstraction ──
+  const rentObjectionTerms = [
+    "rentabilidad", "renta baja", "alquiler bajo", "yield", "rent low", "2,3%", "2.3%",
+    "poquísimo", "muy poco", "demasiado bajo", "very low", "too low",
+    "media de zona", "media del barrio", "portal", "fotocasa", "idealista",
+  ];
+  const genericReframeTerms = [
+    "patrimonio a largo plazo", "seguridad patrimonial", "largo plazo", "futuro patrimoni",
+    "seguridad", "long-term wealth", "patrimony", "long term", "long-term security",
+    "crecimiento patrimonial", "futuro a largo", "asset security",
+  ];
+  const hasRentObjection   = rentObjectionTerms.some(t => combinedFull.includes(t));
+  const hasGenericReframe  = genericReframeTerms.some(t => combinedFull.includes(t));
+  const genericReframeFlag = hasRentObjection && hasGenericReframe;
+
+  // ── False dichotomy detection — presenting settled frames as open choices ──
+  const dichotomyTerms = [
+    "¿seguridad o rentabilidad", "seguridad o retorno", "seguridad o cashflow",
+    "largo plazo o corto", "patrimonio o renta", "security or return", "security or cashflow",
+    "long-term or short", "security vs return", "patrimony or yield",
+  ];
+  const falseDichotomyFlag = dichotomyTerms.some(t => combinedFull.includes(t))
+    && hasActiveObjection;
+
   // Secondary decision-maker — also check human_notes
   const secondaryDmTerms = ["esposa", "marido", "pareja", "socio", "socia", "familia", "wife", "husband", "partner", "spouse", "family", "validar con", "consultar con", "hablarlo con", "comentarlo con", "confirmar con", "hablar con ella", "hablar con él", "discuss with", "check with", "talk it over", "aprobación de", "autorización de", "decidimos juntos", "decidir juntos", "we decide together"];
   const hasSecondaryDecisionMaker = secondaryDmTerms.some(t => combinedFull.includes(t) || humanNotesLower.includes(t));
@@ -804,7 +828,7 @@ Tu suspected_soft_next_step DEBE ser "no". Restricción del sistema, no negociab
 SÍ puedes señalar qué falta para alcanzar calidad "fuerte" (ej. criterio de decisión no explicitado). Pero no a costa de negar los compromisos operativos confirmados.`)
     : "";
 
-  const noFailureGuardrail = likelyNoFailure && !isLost && !prematureCloseAttempt
+  const noFailureGuardrail = likelyNoFailure && !isLost && !prematureCloseAttempt && !genericReframeFlag && !falseDichotomyFlag
     ? (isEn
         ? `\n— SYSTEM ANALYSIS: no clear primary failure detected. Do NOT assign "seller" in failure_owner unless there is explicit evidence in memory — not inferred conversational patterns. If there was a real gap, name it specifically; do not use loss of conversational control as a catch-all blame.`
         : `\n— ANÁLISIS DEL SISTEMA: no se detectó fallo primario claro. NO asignes "vendedor" en failure_owner salvo evidencia explícita en memoria — no patrones de control inferidos. Si hubo un gap real, nómbralo específicamente; no uses pérdida de control conversacional como culpa genérica.`)
@@ -826,6 +850,38 @@ REQUISITOS DE AUDITORÍA cuando este flag está activo:
 — Si la objeción seguía activa cuando se intentó el cierre: regístralo en rules_violated ("cierre prematuro con objeción activa") y en failure_owner ("vendedor")
 — NO suprimas este fallo ni lo etiquetes como "timing" o "sistema" salvo evidencia explícita de que la objeción se resolvió antes
 — La supresión de "sin fallo primario" está desactivada para esta llamada — evalúa la resolución de la objeción de forma independiente`)
+    : "";
+
+  const genericReframeGuardrail = genericReframeFlag
+    ? (isEn
+        ? `\n\n━━ SYSTEM FLAG: GENERIC REFRAME ON CONCRETE OBJECTION ━━
+Memory/transcript contains signals of a concrete rent/yield/price objection AND generic abstraction responses ("long-term wealth", "patrimony", "security") without addressing the specific figures cited.
+AUDIT REQUIREMENTS:
+— Verify whether the seller ever engaged the specific math, figure or percentage the client mentioned
+— If the seller consistently deflected to abstraction without addressing the concrete number: log as rules_violated ("respuesta genérica a objeción concreta de renta") and failure_owner ("vendedor")
+— This is a grave failure equivalent to unresolved objection — do NOT suppress or reduce to "suboptimal"`
+        : `\n\n━━ FLAG DEL SISTEMA: REENCUADRE GENÉRICO A OBJECIÓN CONCRETA ━━
+La memoria/transcripción contiene señales de una objeción concreta de renta/rentabilidad/precio Y respuestas de abstracción genérica ("patrimonio a largo plazo", "seguridad patrimonial") sin abordar las cifras específicas citadas.
+REQUISITOS DE AUDITORÍA:
+— Verifica si el vendedor alguna vez abordó la matemática, cifra o porcentaje concreto que mencionó el cliente
+— Si el vendedor derivó consistentemente hacia la abstracción sin abordar el número concreto: regístralo en rules_violated ("respuesta genérica a objeción concreta de renta") y en failure_owner ("vendedor")
+— Este es un fallo grave equivalente a objeción no resuelta — NO lo suprimas ni lo reduzcas a "subóptimo"`)
+    : "";
+
+  const falseDichotomyGuardrail = falseDichotomyFlag
+    ? (isEn
+        ? `\n\n━━ SYSTEM FLAG: POSSIBLE FALSE DICHOTOMY DETECTED ━━
+Memory/transcript contains signals of a dichotomy frame ("security or return?", "long-term vs cashflow?") while the client had an active specific objection. This suggests the seller re-opened a settled frame instead of engaging the concrete blocker.
+AUDIT REQUIREMENTS:
+— Verify whether the client had already accepted one pole of the framing and then named a different specific objection
+— If the seller responded by re-presenting the accepted frame as an open choice instead of addressing the new blocker: log as rules_violated ("falsa dicotomía con marco ya aceptado") and failure_owner ("vendedor")
+— Do NOT suppress — re-framing accepted beliefs as open questions is a grave tactical error`
+        : `\n\n━━ FLAG DEL SISTEMA: POSIBLE FALSA DICOTOMÍA DETECTADA ━━
+La memoria/transcripción contiene señales de un marco dicotómico ("¿seguridad o rentabilidad?", "¿largo plazo o cashflow?") mientras el cliente tenía una objeción específica activa. Esto sugiere que el vendedor reabrió un marco ya resuelto en lugar de abordar el bloqueo concreto.
+REQUISITOS DE AUDITORÍA:
+— Verifica si el cliente ya había aceptado uno de los polos del encuadre y luego nombró una objeción específica diferente
+— Si el vendedor respondió re-presentando el marco aceptado como una elección abierta en lugar de abordar el nuevo bloqueo: regístralo en rules_violated ("falsa dicotomía con marco ya aceptado") y en failure_owner ("vendedor")
+— NO suprimas — re-encuadrar creencias aceptadas como preguntas abiertas es un error táctico grave`)
     : "";
 
   const alternativesBlock = isAlternativesDecision
@@ -982,7 +1038,7 @@ RISK FLAGS:
 — suspected_unresolved_technical_objection: "yes" if a specific technical objection was deferred without evidence. "no" otherwise.
 — suspected_false_confidence: "yes" if seller used official body as definitive proof of future value. "no" otherwise.
 — suspected_soft_next_step: "yes" ONLY if no operative commitment (no date, no channel, no deliverable). "no" otherwise.
-— If the buyer showed an analytical profile: evaluate if the seller responded with precision or generic persuasion.${nextStepGuardrail}${noFailureGuardrail}${prematureCloseGuardrail}${alternativesBlock}${secondaryDmBlock}${speakerGate}
+— If the buyer showed an analytical profile: evaluate if the seller responded with precision or generic persuasion.${nextStepGuardrail}${noFailureGuardrail}${prematureCloseGuardrail}${genericReframeGuardrail}${falseDichotomyGuardrail}${alternativesBlock}${secondaryDmBlock}${speakerGate}
 
 Return EXACTLY this JSON, no markdown, no extra text:
 ${schema}`
@@ -1012,7 +1068,7 @@ FLAGS DE RIESGO:
 — suspected_unresolved_technical_objection: "yes" si una objeción técnica específica fue diferida sin evidencia. "no" en caso contrario.
 — suspected_false_confidence: "yes" si el vendedor usó organismo oficial como prueba definitiva de valor futuro. "no" en caso contrario.
 — suspected_soft_next_step: "yes" SOLO si no hay compromiso operativo (sin fecha, canal ni entregable). "no" en caso contrario.
-— Si el comprador mostró perfil analítico: evalúa si el vendedor respondió con precisión o persuasión genérica.${nextStepGuardrail}${noFailureGuardrail}${prematureCloseGuardrail}${alternativesBlock}${secondaryDmBlock}${speakerGate}
+— Si el comprador mostró perfil analítico: evalúa si el vendedor respondió con precisión o persuasión genérica.${nextStepGuardrail}${noFailureGuardrail}${prematureCloseGuardrail}${genericReframeGuardrail}${falseDichotomyGuardrail}${alternativesBlock}${secondaryDmBlock}${speakerGate}
 
 Devuelve EXACTAMENTE este JSON, sin markdown, sin texto extra:
 ${schema}`;

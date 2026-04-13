@@ -699,6 +699,124 @@ REGLA DURA: Proponer reserva, señal, pago o cualquier compromiso con una objeci
 El debrief lo registrará como fallo grave. Sin excepciones.`;
 }
 
+// ── Guardia contra falsas dicotomías ─────────────────────────────────────────
+// Cuando el cliente ya aceptó o descartó un marco, el vendedor no puede volver a él
+// presentándolo como la alternativa en una dicotomía.
+// Fuente de verdad compartida: Arena vendedor (client mode), coaching, auditoría.
+export function buildFalseDichotomyGuard(lang: Lang): string {
+  if (lang === "en") {
+    return `FALSE DICHOTOMY GUARD — absolute enforcement:
+A false dichotomy is presenting two poles (e.g. "security vs return", "long-term vs cashflow") when the client has already settled one of them.
+
+Detection rule: if the client explicitly stated they accept, value or don't dispute frame X, any question or argument that presents X as an open alternative is a false dichotomy.
+
+Examples of forbidden moves:
+— Client: "Long-term horizon is fine. My problem is the rent is too low." → Seller: "Is this about security or cashflow?" = FORBIDDEN (horizon/security is not in question)
+— Client: "The location and financing work for me. The issue is the 2.3% yield." → Seller: "Would you prefer safety or immediate return?" = FORBIDDEN (safety was already accepted)
+— Client: "My only concern is the rent relative to the price." → Seller: "This is about long-term wealth vs short-term income." = FORBIDDEN (imposes a dichotomy the client already resolved)
+
+REQUIRED BEHAVIOR: When the client has named their sole or primary blocker, address that blocker directly. Do NOT reframe into a dichotomy that includes frames the client already settled.
+If distinction is needed, do it around the specific blocker criterion only — never around already-accepted dimensions.`;
+  }
+  return `GUARDIA CONTRA FALSAS DICOTOMÍAS — cumplimiento absoluto:
+Una falsa dicotomía es presentar dos polos (ej. "seguridad vs rentabilidad", "largo plazo vs cashflow") cuando el cliente ya ha fijado su posición en uno de ellos.
+
+Regla de detección: si el cliente declaró explícitamente que acepta, valora o no discute el marco X, cualquier pregunta o argumento que presente X como alternativa abierta es una falsa dicotomía.
+
+Ejemplos de movimientos prohibidos:
+— Cliente: "El horizonte largo plazo me parece bien. Mi problema es que el alquiler es muy bajo." → Vendedor: "¿Buscas seguridad o rentabilidad a corto?" = PROHIBIDO (seguridad/largo plazo no está en cuestión)
+— Cliente: "La zona y la financiación me cuadran. El tema es el 2,3% de rentabilidad." → Vendedor: "¿Prefieres seguridad patrimonial o retorno inmediato?" = PROHIBIDO (la seguridad ya estaba aceptada)
+— Cliente: "Mi única duda es la renta respecto al precio." → Vendedor: "Esto es una cuestión de patrimonio a largo plazo vs renta inmediata." = PROHIBIDO (impone una dicotomía que el cliente ya resolvió)
+
+COMPORTAMIENTO OBLIGATORIO: Cuando el cliente ha nombrado su bloqueo único o principal, ve directamente a ese bloqueo. NO reencuadres en una dicotomía que incluya marcos que el cliente ya aceptó.
+Si necesitas distinguir, hazlo en torno al criterio del bloqueo específico únicamente — nunca en torno a dimensiones ya aceptadas.`;
+}
+
+// ── Prohibición de autodescalificación prematura del activo ───────────────────
+// El vendedor no puede descartar la operación sin completar la secuencia mínima:
+// responder → aislar → medir → solo entonces descalificar o avanzar.
+// Fuente de verdad compartida: Arena vendedor (client mode), coaching, auditoría.
+export function buildAntiPrematureDisqualification(lang: Lang): string {
+  if (lang === "en") {
+    return `ANTI-PREMATURE DISQUALIFICATION — absolute enforcement:
+Phrases like "this asset might not be for you", "let's keep looking for options", "this doesn't fit your criteria" are FORBIDDEN until ALL of the following are true:
+
+1. The concrete objection was answered directly (not reframed, not sidestepped)
+2. The client's dominant criterion was explicitly isolated: what is the single condition that, if met, would make this work?
+3. Whether the blocker is STRUCTURAL (inherent to the asset — unfixable) or TECHNICAL/COMPARATIVE (solvable with data, alternative frame or new information) was determined
+4. If structural: the gap was confirmed with real data from the session context, not inferred
+
+MANDATORY DISQUALIFICATION SEQUENCE:
+a) RESPOND the objection concretely — address the specific math, comparison or condition stated
+b) ISOLATE the dominant criterion — ask what would need to change for this to work
+c) MEASURE whether the gap is closeable — use real data from context, not assumption
+d) Only then: DISQUALIFY (if confirmed structural) or ADVANCE (if closeable or partially resolvable)
+
+HARD RULE: "Let's explore other options" / "this may not be right for you" before completing steps a–c = premature disqualification = grave failure.
+This rule holds even if the client expresses frustration or impatience.`;
+  }
+  return `PROHIBICIÓN DE AUTODESCALIFICACIÓN PREMATURA DEL ACTIVO — cumplimiento absoluto:
+Frases como "este activo puede no ser para ti", "sigamos buscando opciones", "esto no encaja con tu criterio" están PROHIBIDAS hasta que se cumplan TODAS las siguientes:
+
+1. La objeción concreta fue respondida directamente (no reencuadrada, no esquivada)
+2. El criterio dominante del cliente fue aislado explícitamente: ¿cuál es la condición única que, de cumplirse, haría que esto tuviera sentido?
+3. Se determinó si el bloqueo es ESTRUCTURAL (inherente al activo — no solucionable) o TÉCNICO/COMPARATIVO (resoluble con dato, marco alternativo o nueva información)
+4. Si es estructural: el gap fue confirmado con datos reales del contexto de sesión, no inferido
+
+SECUENCIA DE DESCALIFICACIÓN OBLIGATORIA:
+a) RESPONDE la objeción concretamente — aborda la matemática, comparación o condición específica planteada
+b) AÍSLA el criterio dominante — pregunta qué tendría que cambiar para que esto tuviera sentido
+c) MIDE si el gap es cerrable — usa datos reales del contexto, no supuestos
+d) Solo entonces: DESCALIFICA (si estructural y confirmado) o AVANZA (si cerrable o parcialmente resoluble)
+
+REGLA DURA: "Sigamos buscando" / "puede que esto no sea lo tuyo" antes de completar los pasos a–c = descalificación prematura = fallo grave.
+Esta regla se mantiene aunque el cliente exprese frustración o impaciencia.`;
+}
+
+// ── Motor de comparación concreta ─────────────────────────────────────────────
+// Cuando el cliente compara renta actual con media de zona, portal u otra referencia,
+// el sistema debe distinguir cinco dimensiones antes de responder.
+// Reemplaza/supera respuestas genéricas como "patrimonio" o "largo plazo".
+// Fuente de verdad compartida: Arena vendedor (client mode), coaching, auditoría.
+export function buildConcreteComparisonEngine(lang: Lang): string {
+  if (lang === "en") {
+    return `CONCRETE COMPARISON ENGINE — activated when client compares rent, yield or price with any market reference (portal, zone average, comparable):
+
+Before responding to ANY rent/yield comparison objection, disaggregate the client's reference into FIVE dimensions:
+1. CURRENT CONTRACT vs MARKET: is the current rent the result of a long-term or below-market contract? These are different variables. Never conflate them.
+2. CURRENT RENT vs POTENTIAL RENT: what would the unit rent for if the contract ended or was updated? Is there a CPI or annual review clause? When is the next update and by how much?
+3. PORTAL AVERAGE vs SPECIFIC CASE: portal averages include vacant units, new leases, varied sizes. How does this specific unit compare to its direct comparables (same area, size, condition)?
+4. GROSS YIELD vs NET YIELD: the client's reference may be gross. After taxes, fees, insurance, vacancy, management — what is the net yield?
+5. YIELD ON PRICE vs YIELD ON CAPITAL: if financed, the relevant metric is return on capital deployed, not return on total price.
+
+MANDATORY SEQUENCE when client raises a concrete rent/yield comparison:
+(a) ACKNOWLEDGE the specific figure: "You're comparing [X]% on [€Y] — I hear that."
+(b) DISAGGREGATE: identify which of the 5 dimensions is driving the perceived gap
+(c) RESPOND to that specific dimension with data or explicit honest uncertainty: "I don't have that figure — what I can say is [X]"
+(d) ISOLATE: "If we resolved [that specific dimension], is there anything else blocking you?"
+(e) Only then: propose the relevant next step
+
+ABSOLUTE PROHIBITION: responding to "the yield is 2.3%" with "this is about long-term wealth and patrimony" without first addressing the specific math = generic abstraction without concrete response = GRAVE FAILURE.`;
+  }
+  return `MOTOR DE COMPARACIÓN CONCRETA — se activa cuando el cliente compara renta, rentabilidad o precio con cualquier referencia de mercado (portal, media de zona, comparable):
+
+Antes de responder a CUALQUIER objeción de comparación de renta/rentabilidad, desagrega la referencia del cliente en CINCO dimensiones:
+1. CONTRATO ACTUAL vs MERCADO: ¿la renta actual es resultado de un contrato antiguo o por debajo de mercado? Son variables distintas. Nunca las confundas.
+2. RENTA ACTUAL vs RENTA POTENCIAL: ¿a cuánto se alquilaría el inmueble si el contrato terminara o se actualizara? ¿Hay cláusula de actualización por IPC o revisión anual? ¿Cuándo es la próxima y por cuánto?
+3. MEDIA DE PORTAL vs CASO REAL: las medias de portal/zona incluyen pisos vacíos, contratos nuevos, distintos tamaños. ¿Cómo compara este inmueble específico con sus comparables directos (misma zona, mismo tamaño, mismo estado)?
+4. RENTABILIDAD BRUTA vs NETA: la referencia del cliente puede ser bruta. Tras IBI, comunidad, seguro, vacancia, gestión — ¿cuál es la rentabilidad neta?
+5. RENTABILIDAD SOBRE PRECIO vs SOBRE CAPITAL: si hay financiación, la métrica relevante es el retorno sobre capital aportado, no sobre el precio total.
+
+SECUENCIA OBLIGATORIA cuando el cliente plantea una comparación concreta de renta/rentabilidad:
+(a) RECONOCE la cifra específica: "Estás comparando el [X]% sobre [€Y] — entiendo el punto."
+(b) DESAGREGA: identifica cuál de las 5 dimensiones genera el gap percibido
+(c) RESPONDE a esa dimensión concreta con dato o incertidumbre honesta explícita: "Esa cifra no la tengo — lo que sí puedo decir es [X]"
+(d) AÍSLA: "Si resolvemos [esa dimensión concreta], ¿hay algo más que te frene?"
+(e) Solo entonces: propón el paso relevante
+
+PROHIBICIÓN ABSOLUTA: responder a "la rentabilidad es del 2,3%" con "esto es una cuestión de patrimonio a largo plazo y seguridad" sin antes abordar la matemática concreta = reencuadre genérico sin respuesta concreta = FALLO GRAVE.`;
+}
+
 // ── Motor táctico compartido para Arena vendedor ───────────────────────────────
 // Mismo núcleo analítico que Copilot, adaptado al rol de vendedor activo.
 // Fuente de verdad única: cualquier mejora táctica aquí se propaga a ambas superficies.

@@ -11,6 +11,9 @@ import {
   buildArenaSellerTacticalRules,
   buildGroundingAndPhaseBlock,
   buildObjectionFirstPolicy,
+  buildFalseDichotomyGuard,
+  buildAntiPrematureDisqualification,
+  buildConcreteComparisonEngine,
   extractContextGrounding,
 } from "@workspace/sales-brain";
 
@@ -404,6 +407,9 @@ ${langRule}`;
 
     // Objection-first policy — enforces resolve-before-close sequence
     const objectionFirstBlock = buildObjectionFirstPolicy(lang);
+    const falseDichotomyBlock  = buildFalseDichotomyGuard(lang);
+    const antiDisqualBlock     = buildAntiPrematureDisqualification(lang);
+    const concreteCompBlock    = buildConcreteComparisonEngine(lang);
 
     // Detect sellerNote intent for conditional blocks
     const noteText = (sellerNotes ?? []).join(" ").toLowerCase();
@@ -487,6 +493,12 @@ COMPROMISO CON EL PRODUCTO:
 — Si hay ángulos sin explorar, explóralos antes de concluir que no hay encaje.
 
 ${objectionFirstBlock}
+
+${falseDichotomyBlock}
+
+${antiDisqualBlock}
+
+${concreteCompBlock}
 
 PROHIBICIÓN DE DATOS INVENTADOS — REGLA DURA:
 — NUNCA cites porcentajes de revalorización futuros, comparativas históricas ni cifras de mercado si no están en los DATOS VERIFICADOS DEL CONTEXTO o si el cliente no las mencionó explícitamente.
@@ -685,7 +697,7 @@ ${transcript}
 RÚBRICA:
 1. Pesa outcome Y calidad de ejecución por igual.
 2. TECHO DURO: score ≤ 7 si el comprador repite una demanda central (datos, evidencia, método, precio concreto) dos o más veces y el vendedor no la resuelve con concreción en esa conversación, aunque el outcome sea next_step.
-3. PENALIZACIONES GRAVES (−2 a −3 c/u — marcar explícitamente en critique): vendedor cede el marco ("sí, X parece mejor", "la decisión es tuya", "si prefieres X") sin completar el ciclo de reencuadre · vendedor valida que la alternativa rival es superior · vendedor construye ejemplo numérico que favorece claramente a la alternativa rival · tono político/consultivo con validaciones vacías repetitivas ("entiendo perfectamente", "totalmente válido") con objeción central viva · cierre propuesto con objeción principal activa.
+3. PENALIZACIONES GRAVES (−2 a −3 c/u — marcar explícitamente en critique): vendedor cede el marco ("sí, X parece mejor", "la decisión es tuya", "si prefieres X") sin completar el ciclo de reencuadre · vendedor valida que la alternativa rival es superior · vendedor construye ejemplo numérico que favorece claramente a la alternativa rival · tono político/consultivo con validaciones vacías repetitivas ("entiendo perfectamente", "totalmente válido") con objeción central viva · cierre propuesto con objeción principal activa · respuesta genérica ("patrimonio a largo plazo", "seguridad", "futuro") a objeción concreta de renta/rentabilidad sin abordar la matemática citada por el cliente · falsa dicotomía ("¿seguridad o rentabilidad?") cuando el cliente ya había aceptado uno de esos marcos y nombrado un bloqueo específico diferente · descalificación prematura del activo ("sigamos buscando", "puede no ser lo tuyo") sin haber respondido la objeción, aislado el criterio dominante y medido si el gap es cerrable.
 4. PENALIZACIONES MENORES (−1 a −2 c/u): vendedor propone reunión/llamada/cierre antes de resolver la objeción principal · siguiente paso queda ambiguo o sin acción/fecha concreta · vendedor repite la misma estructura de respuesta sin adaptarse.
 5. SENSIBILIDAD AL PERFIL: aplica el criterio del perfil indicado arriba para juzgar si el vendedor respondió correctamente.
 6. Referencias: closed vs cliente difícil → mín 8; lost/broken → máx 5; next_step buena ejecución → hasta 8; next_step ejecución débil → 5–6. Con fallo grave → máx 5 independientemente del outcome.
@@ -706,7 +718,7 @@ ${transcript}
 RUBRIC:
 1. Weight outcome AND execution quality equally.
 2. HARD CAP: score ≤ 7 if the buyer repeats a core demand (data, evidence, method, specific price) two or more times and the seller never addresses it concretely in this conversation — even if outcome is next_step.
-3. GRAVE PENALTIES (−2 to −3 each — call out explicitly in critique): seller cedes the frame ("yes, X seems better", "the decision is yours", "if you prefer X") without completing the reframe cycle · seller validates that the rival alternative is superior · seller builds a numerical example that clearly favors the rival alternative · consultive/political tone with repeated empty validations ("I completely understand", "totally valid") with the central objection still alive · close proposed with the main objection still active.
+3. GRAVE PENALTIES (−2 to −3 each — call out explicitly in critique): seller cedes the frame ("yes, X seems better", "the decision is yours", "if you prefer X") without completing the reframe cycle · seller validates that the rival alternative is superior · seller builds a numerical example that clearly favors the rival alternative · consultive/political tone with repeated empty validations ("I completely understand", "totally valid") with the central objection still alive · close proposed with the main objection still active · generic abstraction ("long-term wealth", "safety", "patrimony") in response to a concrete rent/yield/price objection without first addressing the specific math the client cited · false dichotomy ("safety or returns?") when the client had already explicitly accepted one of those frames and named a different specific blocker · premature asset disqualification ("let's keep looking", "this may not be for you") without first completing the response-isolate-measure sequence.
 4. MINOR PENALTIES (−1 to −2 each): seller proposes meeting/call/close before resolving main objection · next step is ambiguous or lacks a concrete action/date · seller repeats the same response structure without adapting.
 5. PROFILE SENSITIVITY: apply the buyer profile criterion above to judge whether the seller responded correctly.
 6. Score references: closed vs tough client → min 8; lost/broken → max 5; next_step good execution → up to 8; next_step weak execution → 5–6. With a grave failure → max 5 regardless of outcome.
@@ -1099,6 +1111,9 @@ GRAVE FAILURE — mark why_this_response as "GRAVE FAILURE" (not "suboptimal") i
 - Built a numerical example that clearly favors the rival alternative without using it to attack the comparison criterion
 - Repeated empty validations ("I understand completely", "totally valid", "great question") with the main blocker unresolved
 - Closed or proposed a next step while the central objection was still active
+- Responded to a concrete rent/yield/price objection with generic abstraction ("long-term wealth", "patrimony", "security") without first addressing the specific math or figure the client cited
+- Created a false dichotomy ("security vs return?", "long-term vs cashflow?") when the client had already explicitly accepted one of those frames and named a different specific blocker
+- Disqualified the asset or suggested looking elsewhere ("this may not be right for you", "let's explore other options") before completing the mandatory response-isolate-measure sequence
 
 Return ONLY valid JSON. Example:
 {"signal":"price objection","reading":"Client is anchoring at a lower price to test concession space","mission":"Hold value anchor and redirect to ROI logic","next_move":"Isolate whether price is the only blocker or if there are others","strategy":"Value anchor hold","why_this_response":"Correct — seller avoids entering price negotiation before clarifying value","alternative":"optimal"}`;
@@ -1125,6 +1140,9 @@ FALLO GRAVE — marca why_this_response como "FALLO GRAVE" (no "subóptimo") si 
 - Construyó un ejemplo numérico que favorece claramente a la alternativa rival sin usarlo para atacar el criterio de comparación
 - Repitió validaciones vacías ("entiendo perfectamente", "totalmente válido", "qué buena pregunta") con el bloqueo central sin resolver
 - Cerró o propuso siguiente paso con la objeción central todavía activa
+- Respondió a una objeción concreta de renta/rentabilidad/precio con abstracción genérica ("patrimonio a largo plazo", "seguridad patrimonial") sin abordar primero la matemática o cifra específica que citó el cliente
+- Creó una falsa dicotomía ("¿seguridad o rentabilidad?", "¿largo plazo o cashflow?") cuando el cliente ya había aceptado explícitamente uno de esos marcos y nombrado un bloqueo específico diferente
+- Descalificó el activo o sugirió buscar alternativas ("sigamos buscando", "puede que no sea para ti") sin completar la secuencia obligatoria responder-aislar-medir
 
 Devuelve SOLO JSON válido. Ejemplo:
 {"signal":"objeción de precio","reading":"El cliente ancla en precio bajo para probar si hay margen de concesión","mission":"Sostener el ancla de valor y redirigir a la lógica de retorno","next_move":"Aislar si el precio es el único bloqueo o si hay otros","strategy":"Sostén de ancla de valor","why_this_response":"Correcto — el vendedor evita entrar en negociación de precio antes de clarificar valor","alternative":"óptimo"}`;
