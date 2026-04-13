@@ -1,0 +1,117 @@
+Objetivo
+Corregir el núcleo comercial compartido de VELA para que el enforcement activo se refleje de verdad en el comportamiento del vendedor IA, especialmente en objeciones concretas sobre rentas, contratos y comparación con mercado. El sistema ya muestra mejoras superficiales, pero sigue sin completar la lógica de respuesta y sigue contradiciéndose en la auditoría.
+
+Contexto del problema
+He auditado una tercera sesión de José Romero en Arena cliente. Esta vez el sistema ya muestra mejoras parciales:
+
+no inventa identidad ni empresa
+runtime_instructions_active: yes
+existen bloques activos de enforcement:
+concrete-objection-engine
+concrete-comparison-engine
+false-dichotomy-guard
+anti-premature-disqualification
+grounding-and-phase-block
+comparison-frame-engine
+
+Pero el comportamiento real sigue fallando:
+
+ante una objeción sobre “2,3 % de rentabilidad del alquiler” la IA reencuadra mal hacia retorno sobre capital inicial por financiación al 86 %, y el cliente le corrige explícitamente
+cuando el cliente aclara que la duda es la renta concreta del inquilino y no la lógica general del modelo, la IA sigue respondiendo con abstracciones de seguridad, patrimonio y largo plazo
+el vendedor empieza a autodescalificar el activo demasiado pronto (“este inmueble podría no encajar”, “miramos otros inmuebles”) sin haber defendido antes el caso ni aislado si la objeción es estructural o salvable
+el coach vuelve a marcar varios “FALLO GRAVE”
+el summary vuelve a cerrar con likely_primary_failure: none, unresolved_objections: null y no anomalies detected
+
+Conclusión: el enforcement existe, pero hoy es débil o decorativo. Está mejorando síntomas, no corrigiendo la decisión comercial del sistema.
+
+Cambios requeridos
+
+Hacer vinculante el concrete-objection-engine
+no basta con declararlo activo
+debe obligar a esta secuencia:
+a) responder exactamente la objeción formulada
+b) aislar si ese es el freno real
+c) medir si resuelto eso queda algo más
+d) solo entonces avanzar, redirigir o descartar
+Añadir detector de referencia concreta de rentabilidad
+distinguir entre:
+yield bruta sobre precio total
+retorno sobre capital inicial
+renta actual del contrato
+renta de mercado teórica
+si el cliente habla del alquiler actual del inquilino, el sistema no puede reencuadrar a capital inicial salvo que lo conecte explícitamente después
+Endurecer anti-premature-disqualification
+el vendedor IA no puede pasar a:
+“este inmueble no es para ti”
+“miramos otros inmuebles”
+“sigamos buscando opciones”
+sin antes:
+responder bien la objeción central
+defender el caso actual con criterio
+confirmar que el bloqueo es realmente innegociable
+Añadir regla de “defender antes de abrir alternativa”
+si el cliente plantea objeción concreta sobre un activo que por lo demás sí le gusta, el sistema debe primero:
+defender el activo
+ordenar la comparación
+medir si el contrato/renta rompe el caso
+solo después puede abrir búsqueda de alternativa
+Mejorar concrete-comparison-engine
+cuando el cliente compare renta actual con lo que “debería pagarse” o con lo que dice ChatGPT, el vendedor debe distinguir:
+contrato antiguo vs mercado actual
+renta existente vs capacidad legal real de actualización
+calidad de la microzona vs foto inicial del alquiler
+precio total del activo vs rendimiento de ese contrato específico
+prohibido contestar solo con “patrimonio”, “seguridad”, “largo plazo”
+Ajustar coaching y summary para que lean del mismo estado compartido
+si el coach marca “FALLO GRAVE” por objeción no resuelta o reencuadre incompleto, el summary no puede seguir en limpio
+crear flags compartidos:
+primary_objection_misread
+concrete_objection_not_resolved
+premature_asset_disqualification
+summary_coach_conflict
+Aplicar la misma lógica a los 3 modos
+Copiloto: guidance debe obligar a responder la objeción concreta antes de redirigir
+Arena cliente: seller generation debe seguir la secuencia completa
+Arena vendedor: coaching debe penalizar discursos abstractos que no responden la duda central
+
+Restricciones
+
+No rehacer todo VELA
+Aprovechar la infraestructura de enforcement existente
+No duplicar lógica distinta por modo
+Mantener compatibilidad con contexto libre actual
+No romper casos simples
+Priorizar precisión comercial sobre frases bonitas
+
+Entregables
+
+Patch del concrete-objection-engine
+Patch del concrete-comparison-engine
+Patch del anti-premature-disqualification
+Patch de detección de referencia concreta de rentabilidad
+Patch de auditoría y summary
+Integración en Copiloto, Arena cliente y Arena vendedor
+Tests de regresión
+
+Tests
+
+Caso José Romero
+si el cliente dice “2,3 % del alquiler me parece bajísimo”, el sistema debe identificar si habla de yield del contrato, no de ROE sobre capital inicial
+si el cliente aclara “me refiero a lo que paga el inquilino”, el siguiente turno debe responder exactamente a eso
+Defensa antes de alternativa
+el vendedor no puede ofrecer “mirar otros inmuebles” sin haber defendido el caso actual y sin confirmar que la objeción es estructural
+Anti-disqualification
+frases como “este activo puede no ser el adecuado” deben quedar bloqueadas si la secuencia responder → aislar → medir no se ha completado
+Auditoría
+si hay varios “FALLO GRAVE”, el summary no puede cerrar con none y no anomalies detected
+Cross-mode
+Copiloto, Arena cliente y Arena vendedor deben compartir la misma lectura de objeción principal y estado de resolución
+
+Criterios de aceptación
+
+El enforcement activo se refleja en el comportamiento real del vendedor
+El sistema responde objeciones concretas sin cambiar de cifra ni de marco
+El vendedor deja de abandonar el activo antes de defenderlo
+Copiloto, Arena cliente, Arena vendedor y auditoría quedan alineados
+El summary deja de contradecir al coach
+El caso José Romero deja de atascarse por abstracción blanda y renuncia prematura

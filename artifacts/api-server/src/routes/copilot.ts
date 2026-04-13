@@ -83,6 +83,8 @@ DETECCIÓN DE RIESGO — evalúa antes de generar say_now:
 CLAIM_RISK: el vendedor usa "garantía", "certific", "te aseguro", "sin duda", "100% seguro", "completamente seguro" o similar como argumento principal de valor o seguridad futura → say_now pide separación explícita: qué está confirmado, qué es inferido, qué está pendiente de prueba. avoid señala el riesgo concreto. No refuerces la afirmación.
 FALSE_CONFIDENCE: el vendedor usa certificación, auditoría, organismo regulador u oficial como prueba definitiva de seguridad o rentabilidad futura → say_now redirige a datos concretos verificables. avoid nombra el riesgo.
 UNRESOLVED_TECHNICAL_OBJ: el cliente pregunta por cifras, rentabilidad, retorno, tasa, datos o metodología específica, y el vendedor responde con reencuadre genérico sin datos → say_now pivota a precisión: recomienda aportar el dato concreto o reconocer explícitamente lo que no se puede confirmar todavía. No validar la respuesta genérica.
+YIELD_TYPE_MISMATCH: el cliente pregunta por la renta del contrato / lo que paga el inquilino / la media de zona (TIPO 1/2) y el vendedor responde cambiando a retorno sobre capital / ROE / apalancamiento (TIPO 5) sin puente explícito → say_now alerta: "Primero responde la renta del inquilino. Luego puedes mostrar el retorno sobre capital. Sin ese puente, es una evasión." avoid: "cambio de tipo sin puente = deflexión, no respuesta".
+DISQUAL_GATE: el vendedor sugiere "sigamos buscando" / "puede que no sea para ti" / "miramos otros inmuebles" con una objeción activa sin haber completado responder-aislar-medir → say_now detiene: "No abras alternativa todavía. Primero responde la objeción concreta, aísla el criterio, mide si el gap es estructural." avoid: "descalificación prematura — el activo no ha sido defendido".
 ANALYTICAL_BUYER: el cliente pide datos, criterios precisos, evidencia o metodología → say_now responde con precisión, nunca con persuasión genérica. Prioriza separar: confirmado / inferido / pendiente de prueba.
 Si no hay riesgo detectado: procede con el flujo táctico normal.
 
@@ -774,6 +776,37 @@ router.post("/copilot/audit-report", async (req, res) => {
   const falseDichotomyFlag = dichotomyTerms.some(t => combinedFull.includes(t))
     && hasActiveObjection;
 
+  // ── Yield type mismatch detection — TYPE 1/2 objection reframed to TYPE 5 ──
+  // Fires when memory/transcript shows the client asked about contract/market rent
+  // AND the response was about yield on equity/capital (without an explicit bridge).
+  const contractRentObjectionTerms = [
+    "lo que paga el inquilino", "renta del contrato", "renta actual", "alquiler actual",
+    "€", "por mes", "al mes", "la renta que tiene", "lo que entra", "what the tenant pays",
+    "current rent", "actual rent", "actual lease", "monthly rent",
+    "media de zona", "lo que dice idealista", "chatgpt", "zone average", "market says",
+    "debería pagar más", "debería ser más", "should pay more",
+  ];
+  const equityReframeTerms = [
+    "retorno sobre capital", "rentabilidad sobre capital", "roi", "roe",
+    "sobre los 14", "sobre tu capital", "sobre lo que aportas", "sobre tu inversión",
+    "financiación al 86", "financiación al 100", "apalancamiento", "leverage",
+    "yield on equity", "return on capital", "return on investment", "on your equity",
+    "on your capital", "on what you put in",
+  ];
+  const hasContractRentObjection = contractRentObjectionTerms.some(t => combinedFull.includes(t));
+  const hasEquityReframe = equityReframeTerms.some(t => combinedFull.includes(t));
+  const yieldTypeMismatchFlag = hasContractRentObjection && hasEquityReframe && hasActiveObjection;
+
+  // ── Premature disqualification detection — asset abandoned before defence ──
+  const disqualPhraseTerms = [
+    "sigamos buscando", "busquemos otros", "otros inmuebles", "miramos otros",
+    "puede que no sea", "puede no ser lo tuyo", "esto no encaja", "no encaja con tu",
+    "let's explore other", "let's look at other", "other properties",
+    "this may not be", "this doesn't fit", "find something else",
+  ];
+  const hasDisqualPhrase = disqualPhraseTerms.some(t => combinedFull.includes(t));
+  const disqualGateFlag = hasDisqualPhrase && hasActiveObjection;
+
   // Secondary decision-maker — also check human_notes
   const secondaryDmTerms = ["esposa", "marido", "pareja", "socio", "socia", "familia", "wife", "husband", "partner", "spouse", "family", "validar con", "consultar con", "hablarlo con", "comentarlo con", "confirmar con", "hablar con ella", "hablar con él", "discuss with", "check with", "talk it over", "aprobación de", "autorización de", "decidimos juntos", "decidir juntos", "we decide together"];
   const hasSecondaryDecisionMaker = secondaryDmTerms.some(t => combinedFull.includes(t) || humanNotesLower.includes(t));
@@ -828,7 +861,7 @@ Tu suspected_soft_next_step DEBE ser "no". Restricción del sistema, no negociab
 SÍ puedes señalar qué falta para alcanzar calidad "fuerte" (ej. criterio de decisión no explicitado). Pero no a costa de negar los compromisos operativos confirmados.`)
     : "";
 
-  const noFailureGuardrail = likelyNoFailure && !isLost && !prematureCloseAttempt && !genericReframeFlag && !falseDichotomyFlag
+  const noFailureGuardrail = likelyNoFailure && !isLost && !prematureCloseAttempt && !genericReframeFlag && !falseDichotomyFlag && !yieldTypeMismatchFlag && !disqualGateFlag
     ? (isEn
         ? `\n— SYSTEM ANALYSIS: no clear primary failure detected. Do NOT assign "seller" in failure_owner unless there is explicit evidence in memory — not inferred conversational patterns. If there was a real gap, name it specifically; do not use loss of conversational control as a catch-all blame.`
         : `\n— ANÁLISIS DEL SISTEMA: no se detectó fallo primario claro. NO asignes "vendedor" en failure_owner salvo evidencia explícita en memoria — no patrones de control inferidos. Si hubo un gap real, nómbralo específicamente; no uses pérdida de control conversacional como culpa genérica.`)
@@ -882,6 +915,42 @@ REQUISITOS DE AUDITORÍA:
 — Verifica si el cliente ya había aceptado uno de los polos del encuadre y luego nombró una objeción específica diferente
 — Si el vendedor respondió re-presentando el marco aceptado como una elección abierta en lugar de abordar el nuevo bloqueo: regístralo en rules_violated ("falsa dicotomía con marco ya aceptado") y en failure_owner ("vendedor")
 — NO suprimas — re-encuadrar creencias aceptadas como preguntas abiertas es un error táctico grave`)
+    : "";
+
+  const yieldTypeMismatchGuardrail = yieldTypeMismatchFlag
+    ? (isEn
+        ? `\n\n━━ SYSTEM FLAG: YIELD TYPE MISMATCH DETECTED ━━
+Memory/transcript shows the client raised a CONTRACT RENT or MARKET RENT objection (what the tenant pays / zone average) AND the session contains an equity/ROE reframe (yield on capital / 86% financing / leverage). This indicates the seller likely switched yield types without an explicit bridge.
+AUDIT REQUIREMENTS:
+— Verify whether the seller explicitly acknowledged the TYPE 1/2 objection (contract rent / market rent) BEFORE reframing to TYPE 5 (yield on equity / return on capital)
+— Verify whether the seller said something equivalent to "I'm moving from [contract rent X%] to [yield on your invested capital Y%] — here's why they're different"
+— If the seller silently switched from TYPE 1/2 to TYPE 5 without this bridge: log as rules_violated ("evasión por discordancia de tipo de rentabilidad") and failure_owner ("vendedor")
+— A numerically correct TYPE 5 reframe WITHOUT the bridge = deflection, not a response`
+        : `\n\n━━ FLAG DEL SISTEMA: DISCORDANCIA DE TIPO DE RENTABILIDAD DETECTADA ━━
+La memoria/transcripción muestra que el cliente planteó una objeción de RENTA DEL CONTRATO o RENTA DE MERCADO (lo que paga el inquilino / media de zona) Y la sesión contiene un reencuadre de capital/ROE (retorno sobre capital / financiación al 86% / apalancamiento). Esto indica que el vendedor probablemente cambió de tipo de rentabilidad sin puente explícito.
+REQUISITOS DE AUDITORÍA:
+— Verifica si el vendedor reconoció explícitamente la objeción de TIPO 1/2 (renta de contrato / renta de mercado) ANTES de reencuadrar a TIPO 5 (retorno sobre capital / apalancamiento)
+— Verifica si el vendedor dijo algo equivalente a "Paso de [la renta del contrato al X%] a [tu retorno real sobre capital aportado al Y%] — te explico la diferencia"
+— Si el vendedor cambió silenciosamente de TIPO 1/2 a TIPO 5 sin este puente: regístralo en rules_violated ("evasión por discordancia de tipo de rentabilidad") y en failure_owner ("vendedor")
+— Un reencuadre a TIPO 5 numéricamente correcto SIN el puente = evasión, no respuesta`)
+    : "";
+
+  const disqualGateGuardrail = disqualGateFlag
+    ? (isEn
+        ? `\n\n━━ SYSTEM FLAG: PREMATURE ASSET DISQUALIFICATION DETECTED ━━
+Memory/transcript contains phrases suggesting the seller abandoned the current asset or opened an alternative search ("let's explore other options", "this may not be for you", "let's look at other properties") while an active objection was present.
+AUDIT REQUIREMENTS:
+— Verify whether, BEFORE any disqualification phrase, the seller: (1) addressed the specific objection concretely, (2) isolated the dominant criterion explicitly, (3) measured whether the gap was structural using context data
+— If ANY of the three steps was missing when the seller disqualified: log as rules_violated ("descalificación prematura sin completar secuencia responder-aislar-medir") and failure_owner ("vendedor")
+— If the client demanded to stop and the seller complied after a genuine attempt: this is NOT a failure — note the sequence was attempted
+— Do NOT suppress — abandoning the asset before defending it is a grave tactical error`
+        : `\n\n━━ FLAG DEL SISTEMA: DESCALIFICACIÓN PREMATURA DEL ACTIVO DETECTADA ━━
+La memoria/transcripción contiene frases que sugieren que el vendedor abandonó el activo actual o abrió una búsqueda alternativa ("sigamos buscando", "puede que no sea lo tuyo", "veamos otros inmuebles") mientras había una objeción activa.
+REQUISITOS DE AUDITORÍA:
+— Verifica si ANTES de cualquier frase de descalificación, el vendedor: (1) respondió la objeción concreta directamente, (2) aisló el criterio dominante explícitamente, (3) midió si el gap era estructural usando datos del contexto
+— Si FALTABA cualquiera de los tres pasos cuando el vendedor descalificó: regístralo en rules_violated ("descalificación prematura sin completar secuencia responder-aislar-medir") y en failure_owner ("vendedor")
+— Si el cliente insistió en parar y el vendedor cedió tras un intento genuino: NO es un fallo — anota que se intentó la secuencia
+— NO suprimas — abandonar el activo sin defenderlo primero es un error táctico grave`)
     : "";
 
   const alternativesBlock = isAlternativesDecision
@@ -1038,7 +1107,7 @@ RISK FLAGS:
 — suspected_unresolved_technical_objection: "yes" if a specific technical objection was deferred without evidence. "no" otherwise.
 — suspected_false_confidence: "yes" if seller used official body as definitive proof of future value. "no" otherwise.
 — suspected_soft_next_step: "yes" ONLY if no operative commitment (no date, no channel, no deliverable). "no" otherwise.
-— If the buyer showed an analytical profile: evaluate if the seller responded with precision or generic persuasion.${nextStepGuardrail}${noFailureGuardrail}${prematureCloseGuardrail}${genericReframeGuardrail}${falseDichotomyGuardrail}${alternativesBlock}${secondaryDmBlock}${speakerGate}
+— If the buyer showed an analytical profile: evaluate if the seller responded with precision or generic persuasion.${nextStepGuardrail}${noFailureGuardrail}${prematureCloseGuardrail}${genericReframeGuardrail}${falseDichotomyGuardrail}${yieldTypeMismatchGuardrail}${disqualGateGuardrail}${alternativesBlock}${secondaryDmBlock}${speakerGate}
 
 Return EXACTLY this JSON, no markdown, no extra text:
 ${schema}`
@@ -1068,7 +1137,7 @@ FLAGS DE RIESGO:
 — suspected_unresolved_technical_objection: "yes" si una objeción técnica específica fue diferida sin evidencia. "no" en caso contrario.
 — suspected_false_confidence: "yes" si el vendedor usó organismo oficial como prueba definitiva de valor futuro. "no" en caso contrario.
 — suspected_soft_next_step: "yes" SOLO si no hay compromiso operativo (sin fecha, canal ni entregable). "no" en caso contrario.
-— Si el comprador mostró perfil analítico: evalúa si el vendedor respondió con precisión o persuasión genérica.${nextStepGuardrail}${noFailureGuardrail}${prematureCloseGuardrail}${genericReframeGuardrail}${falseDichotomyGuardrail}${alternativesBlock}${secondaryDmBlock}${speakerGate}
+— Si el comprador mostró perfil analítico: evalúa si el vendedor respondió con precisión o persuasión genérica.${nextStepGuardrail}${noFailureGuardrail}${prematureCloseGuardrail}${genericReframeGuardrail}${falseDichotomyGuardrail}${yieldTypeMismatchGuardrail}${disqualGateGuardrail}${alternativesBlock}${secondaryDmBlock}${speakerGate}
 
 Devuelve EXACTAMENTE este JSON, sin markdown, sin texto extra:
 ${schema}`;
