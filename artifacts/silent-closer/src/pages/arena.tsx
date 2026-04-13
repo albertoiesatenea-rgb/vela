@@ -1011,27 +1011,37 @@ export function Arena({
 
   const submitNote = useCallback(async () => {
     const note = noteText.trim();
-    if (!note || !arenaSessionId) return;
-    // Clear immediately, don't wait for fetch
+    const sessionId = arenaSessionId;
+    if (!note || !sessionId) return;
     setNoteText("");
     setIsSending(true);
+
+    // Step 1: persist the note on the server
     try {
       await fetch("/api/arena/note", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ arenaSessionId, note }),
+        body: JSON.stringify({ arenaSessionId: sessionId, note }),
       });
-      setSellerNotes(prev => [...prev, note]);
-      // Insert a visual note marker in the conversation
-      setMessages(prev => [
-        ...prev,
-        { index: -1, speaker: "note", message: note },
-      ]);
-      // Trigger the seller to repitch with the new constraint
+    } catch (err) {
+      console.error("[arena] note send failed:", err);
+      setIsSending(false);
+      return;
+    }
+
+    // Note stored — show visual marker immediately
+    setSellerNotes(prev => [...prev, note]);
+    setMessages(prev => [
+      ...prev,
+      { index: -1, speaker: "note", message: note },
+    ]);
+
+    // Step 2: ask seller to reposition based on the new constraint
+    try {
       const res = await fetch("/api/arena/repitch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ arenaSessionId }),
+        body: JSON.stringify({ arenaSessionId: sessionId }),
       });
       const data = await res.json() as { message?: string };
       const aiMsg = data.message ?? "";
@@ -1041,7 +1051,10 @@ export function Arena({
           { index: prev.length, speaker: "ai", message: aiMsg },
         ]);
       }
-    } catch { /* silent */ }
+    } catch (err) {
+      console.error("[arena] repitch failed:", err);
+    }
+
     setIsSending(false);
     setTimeout(() => textareaRef.current?.focus(), 50);
   }, [noteText, arenaSessionId]);
@@ -1636,14 +1649,14 @@ export function Arena({
               const showCoachSlot = role === "client" && coachOn && msg.speaker === "ai" && !!coachLiteMap[msg.index];
               if (msg.speaker === "note") {
                 return (
-                  <div key={i} className="flex items-center gap-2 py-0.5">
+                  <div key={i} className="flex items-center gap-2 py-1">
                     {role === "client" && coachOn && <div className="w-44 shrink-0" />}
-                    <div className="flex-1 h-px bg-zinc-800" />
-                    <span className="text-[8px] font-mono tracking-widest uppercase text-zinc-600 shrink-0 flex items-center gap-1">
+                    <div className="flex-1 h-px bg-sky-900/40" />
+                    <span className="text-[9px] font-mono tracking-wide text-sky-400/80 shrink-0 flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-sky-800/40 bg-sky-950/30">
                       <StickyNote className="w-2.5 h-2.5" />
                       {msg.message}
                     </span>
-                    <div className="flex-1 h-px bg-zinc-800" />
+                    <div className="flex-1 h-px bg-sky-900/40" />
                   </div>
                 );
               }
