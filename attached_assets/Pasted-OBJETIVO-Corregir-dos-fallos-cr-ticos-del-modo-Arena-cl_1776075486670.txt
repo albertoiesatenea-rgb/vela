@@ -1,0 +1,77 @@
+OBJETIVO
+Corregir dos fallos críticos del modo Arena cliente (IA = vendedor):
+1. Las instrucciones runtime (sellerNotes) son ignoradas por el modelo.
+2. El vendedor IA inventa productos que no tiene en el portafolio.
+
+CONTEXTO DEL PROBLEMA
+En Arena modo client, el trainer puede inyectar restricciones al vendedor IA
+en tiempo real (sellerNotes). Estas restricciones se almacenan en la sesión
+y se inyectan en el system prompt del vendedor.
+
+En la sesión auditada, se inyectaron 3 instrucciones progresivamente más
+explícitas, incluyendo en mayúsculas "NO TIENES PROPUESTAS CON CASHFLOW
+POSITIVO". El modelo las ignoró las tres veces y siguió ofreciendo
+cashflow positivo inventado en cada turno posterior.
+
+El problema tiene dos causas probables:
+A) Las sellerNotes se posicionan al final del system prompt — el modelo
+   las trata como contexto secundario, no como restricción dura.
+B) No existe ninguna regla en el prompt que impida al vendedor inventar
+   productos o capacidades que no están en el contexto de sesión.
+
+CAMBIOS REQUERIDOS
+
+CAMBIO 1 — Reposicionar las sellerNotes al inicio del system prompt
+En la función que construye el system prompt del vendedor IA en Arena
+(modo client), las instrucciones runtime deben aparecer ANTES del rol,
+del contexto y de las reglas de comportamiento, no al final.
+
+El bloque debe tener este formato reforzado:
+
+  ⚠️ RESTRICCIONES ABSOLUTAS DEL VENDEDOR — SE APLICAN SIEMPRE.
+  Estas instrucciones anulan cualquier otra consideración.
+  Violarlas es un error crítico aunque el cliente las pida:
+  1. [instrucción]
+  2. [instrucción]
+
+Si no hay sellerNotes, el bloque no aparece.
+
+CAMBIO 2 — Añadir regla de coherencia de portafolio al system prompt
+En el mismo system prompt del vendedor (modo client), añadir la siguiente
+regla permanente, independiente de si hay sellerNotes:
+
+  REGLA DE PORTAFOLIO:
+  Solo puedes ofrecer productos, propiedades o condiciones que estén
+  explícitamente mencionadas en el contexto de sesión o en tus restricciones.
+  Si el cliente pide algo que no tienes (cashflow positivo, otra ciudad,
+  otro tipo de producto), NO puedes inventarlo ni prometérselo.
+  Debes reconocer que no lo tienes y trabajar con lo que sí tienes.
+
+CAMBIO 3 — Alinear el prompt de apertura con el portafolio
+En la función que genera el mensaje de apertura del vendedor IA (modo client),
+añadir la restricción: si hay sellerNotes activas, el mensaje de apertura no
+puede contradecirlas. En particular, el vendedor no debe preguntar al cliente
+por atributos que el propio vendedor no puede ofrecer.
+
+RESTRICCIONES
+- No modificar el schema de respuesta ni el formato de turnos
+- No tocar el modo seller (IA = cliente)
+- No cambiar la posición de las sellerNotes en el audit log ni en la
+  sección HIDDEN_RUNTIME_INSTRUCTIONS — solo su posición en el prompt
+- Compatibilidad con el flag LEGACY_ARENA [VERIFICAR que exista]
+
+ENTREGABLES
+1. System prompt del vendedor (modo client) actualizado con los 3 cambios
+2. Función de apertura (buildOpeningPrompt o equivalente [VERIFICAR nombre])
+   actualizada para respetar las restricciones de portafolio
+3. Test manual: crear sesión Arena modo client con contexto que tenga
+   cashflow negativo únicamente, inyectar sellerNote "solo puedes vender
+   cashflow negativo", y verificar que en 5 turnos el vendedor nunca
+   ofrece cashflow positivo
+
+CRITERIOS DE ACEPTACIÓN
+- Con sellerNote "NO TIENES X", el vendedor nunca ofrece X en ningún turno
+- Con sellerNote en turno 5 de una sesión, el turno 6 ya la aplica
+- El mensaje de apertura no pregunta por atributos que contradicen
+  las restricciones activas
+- El comportamiento legacy (sin sellerNotes) no cambia

@@ -223,42 +223,36 @@ Detectada restricción de no dejar ir al cliente. Aplica sin excepción:
 — Si el cliente intenta salir de la conversación sin decisión, detecta el freno real y vuelve al umbral. No aceptes "lo pienso y te digo" sin fecha ni paso concreto.\n`
       : "";
 
-    // TOP BLOCK — placed before role definition for maximum primacy weight
+    // TOP BLOCK — ⚠️ absolute restrictions, placed first for maximum primacy weight
     const topRestrictionsBlock = restrictionsList
-      ? `══════════════════════════════════════════
-MARCO ACTIVO DE LA SESIÓN — PRIORIDAD ABSOLUTA
-══════════════════════════════════════════
-El trainer ha definido las siguientes restricciones para esta sesión.
-Jerarquía de prioridad:
-  sellerNotes > consistencia de tesis > avance conversacional > tono relacional
-Si una restricción entra en conflicto con cualquier heurística general, GANA LA RESTRICCIÓN.
+      ? `⚠️ RESTRICCIONES ABSOLUTAS DEL VENDEDOR — SE APLICAN SIEMPRE.
+Estas instrucciones anulan cualquier otra consideración.
+Violarlas es un error crítico aunque el cliente las pida.
 
-RESTRICCIONES ACTIVAS:
 ${restrictionsList}
 ${noPoliticianBlock}${holdFrameBlock}
-PROHIBIDO bajo cualquier restricción activa:
-— salir del producto, país, mercado o tipo de operación que define el caso
-— ofrecer alternativas fuera del marco definido
-— cambiar de geografía, categoría de bien o tipo de operación
-— usar marcos argumentales explícitamente excluidos
-— tratar estas restricciones como sugerencias blandas
-
-Antes de escribir cada respuesta: ¿viola alguna restricción activa? Si es así, reescríbela dentro del marco permitido.
-══════════════════════════════════════════
+VERIFICACIÓN OBLIGATORIA antes de escribir cada respuesta:
+¿Tu respuesta contradice alguna restricción de la lista anterior?
+Si es así → reescríbela hasta que no la contradiga. No hay excepciones.
 
 `
       : "";
 
     // BOTTOM REMINDER — placed right before langRule for recency weight
     const bottomRestrictionsReminder = restrictionsList
-      ? `\nRECORDATORIO — RESTRICCIONES ACTIVAS DE ESTA SESIÓN (siguen vigentes):
+      ? `\n⚠️ RESTRICCIONES ACTIVAS — SIGUEN VIGENTES EN ESTE TURNO:
 ${restrictionsList}
-Mantente dentro del marco que definen. No salgas de él aunque el cliente lo invite.`
+No las ignores. No las elijas parcialmente. No hay excepciones.`
       : "";
 
     return `${topRestrictionsBlock}Eres el vendedor en una simulación de venta. Actúas como un comercial experimentado: preciso, honesto y sin relleno.
 
 Contexto: ${context || "Conversación de venta genérica."}${profileNote}${presetBlock}${scBlock}${windowNote}
+
+REGLA DE PORTAFOLIO:
+Solo puedes ofrecer productos, propiedades o condiciones que estén explícitamente mencionadas en el contexto de sesión o en tus restricciones activas.
+Si el cliente pide algo que no tienes (otro producto, otra ciudad, cashflow positivo cuando no lo hay en el contexto), NO lo inventes ni lo prometas.
+Reconoce que no lo tienes y trabaja con lo que sí tienes.
 
 ${buildArenaSellerTacticalRules(lang)}
 
@@ -300,6 +294,7 @@ function buildOpeningPrompt(
   clientProfile?: string,
   sellerProfile?: string,
   randomPreset?: string,
+  sellerNotes?: string[],
 ): string {
   const langRule = lang === "en" ? "Write in English." : "Escribe en español.";
   const profileHint = role === "seller" && clientProfile && CLIENT_PROFILE_DESC[clientProfile]
@@ -312,17 +307,24 @@ function buildOpeningPrompt(
     ? ` [${PRESET_SYSTEM_DESC[randomPreset][lang === "en" ? "en" : "es"].split("\n")[0]}]`
     : "";
 
+  // Portfolio constraint for seller opening: don't ask about things you can't offer
+  const portfolioConstraint = role === "client" && sellerNotes && sellerNotes.length > 0
+    ? (lang === "en"
+        ? ` ABSOLUTE RESTRICTIONS ACTIVE — your opening must not contradict them: ${sellerNotes.map((n, i) => `${i + 1}. ${n}`).join("; ")}. Do not ask or offer anything that contradicts these restrictions.`
+        : ` RESTRICCIONES ABSOLUTAS ACTIVAS — tu apertura no puede contradecirlas: ${sellerNotes.map((n, i) => `${i + 1}. ${n}`).join("; ")}. No preguntes ni ofrezcas nada que las contradiga.`)
+    : "";
+
   const who = role === "seller" ? "cliente/prospecto" : "vendedor experto";
   const whoEn = role === "seller" ? "client/prospect" : "expert seller";
 
   if (lang === "en") {
     if (role === "client") {
-      return `You are an expert seller opening a sales conversation. Context: ${context || "generic sale"}${profileHint}${presetHint}. Invent a specific real-sounding name and company for yourself (e.g. "I'm Sara Voss from Clearpath Advisory" — no placeholders, no brackets). Write EXACTLY ONE sentence. Do what a top-tier seller would genuinely do to open: a precise observation, a direct reference to the prospect's situation, a short hook, or a well-placed question — vary the approach, never explain the product. Use **bold** on the most important word or number if relevant. No labels. Text only. ${langRule}`;
+      return `You are an expert seller opening a sales conversation. Context: ${context || "generic sale"}${profileHint}${presetHint}${portfolioConstraint}. Invent a specific real-sounding name and company for yourself (e.g. "I'm Sara Voss from Clearpath Advisory" — no placeholders, no brackets). Write EXACTLY ONE sentence. Do what a top-tier seller would genuinely do to open: a precise observation, a direct reference to the prospect's situation, a short hook, or a well-placed question — vary the approach, never explain the product. Use **bold** on the most important word or number if relevant. No labels. Text only. ${langRule}`;
     }
     return `Generate the opening message of a ${whoEn} starting a sales conversation. Context: ${context || "generic sale"}${profileHint}${presetHint}. Write 1 short natural sentence as that person. No labels. Text only. ${langRule}`;
   }
   if (role === "client") {
-    return `Eres un vendedor experto que abre una conversación de ventas. Contexto: ${context || "venta genérica"}${profileHint}${presetHint}. Invéntate un nombre y empresa reales y concretos (ej: "Soy Marcos Reina de Solvinova" — sin corchetes, sin variables). Escribe EXACTAMENTE UNA frase. Haz lo que haría un vendedor de primer nivel: puede ser una observación directa, una referencia al problema del prospecto, un gancho potente, o una pregunta bien colocada — varía el enfoque, nunca expliques el producto. Usa **negrita** en la palabra o cifra más importante si aporta. Sin etiquetas. Solo el texto. ${langRule}`;
+    return `Eres un vendedor experto que abre una conversación de ventas. Contexto: ${context || "venta genérica"}${profileHint}${presetHint}${portfolioConstraint}. Invéntate un nombre y empresa reales y concretos (ej: "Soy Marcos Reina de Solvinova" — sin corchetes, sin variables). Escribe EXACTAMENTE UNA frase. Haz lo que haría un vendedor de primer nivel: puede ser una observación directa, una referencia al problema del prospecto, un gancho potente, o una pregunta bien colocada — varía el enfoque, nunca expliques el producto. Usa **negrita** en la palabra o cifra más importante si aporta. Sin etiquetas. Solo el texto. ${langRule}`;
   }
   return `Genera el primer mensaje de un ${who} que inicia una conversación de venta. Contexto: ${context || "venta genérica"}${profileHint}${presetHint}. Escribe 1 frase corta y natural como esa persona. Sin etiquetas. Solo el texto. ${langRule}`;
 }
@@ -741,7 +743,7 @@ router.post("/arena/start", async (req, res) => {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       max_tokens: 150,
-      messages: [{ role: "user", content: buildOpeningPrompt(role, context, lang, clientProfile, sellerProfile, session.randomPreset) }],
+      messages: [{ role: "user", content: buildOpeningPrompt(role, context, lang, clientProfile, sellerProfile, session.randomPreset, session.sellerNotes) }],
     });
     const latencyMs = Date.now() - t0;
     const usage = completion.usage;
