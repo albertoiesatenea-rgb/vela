@@ -726,6 +726,30 @@ router.post("/copilot/audit-report", async (req, res) => {
   const alternativesTerms = ["cuál de las dos", "cuál de los dos", "cuál elegir", "la a o", "la b o", "opción a o", "opción b", "alternativa a", "alternativa b", "option a or", "option b", "which of the two", "which one", "elegir entre", "comparar entre", "decidir entre", "entre las dos", "entre los dos", "entre ambas", "entre ambos", "dos opciones", "two options", "la otra opción", "the other option", "la primera o", "the first or"];
   const isAlternativesDecision = alternativesTerms.some(t => combinedFull.includes(t) || humanNotesLower.includes(t));
 
+  // ── Premature close detection — objection active when close was attempted ──
+  // Fires when the combined text shows (a) a factual objection AND (b) a close/commitment attempt.
+  // Used to override likelyNoFailure and inject a hard audit guardrail.
+  const activeObjectionTerms = [
+    "cashflow", "cash flow", "flujo de caja", "flujo neto", "rentabilidad", "rendimiento",
+    "demasiado caro", "muy caro", "precio alto", "precio elevado", "no me llega", "no tengo",
+    "aportación mensual", "aportación mínima", "cuota mensual", "hipoteca", "monthly cost",
+    "alternativa", "competidor", "la otra opción", "berlín", "valencia", "budapest",
+    "no me convence", "tengo dudas", "no estoy seguro", "no lo veo claro", "no lo veo",
+    "no encaja", "no cuadra", "no tiene sentido", "doesn't make sense", "not convinced",
+    "objeción", "bloqueo", "freno", "the problem is", "el problema es", "my concern",
+  ];
+  const commitmentAttemptTerms = [
+    "reserva", "reservation", "señal", "depósito", "deposit",
+    "firma", "contrato", "contract", "escritura", "notaría",
+    "formalizar", "avanzamos", "we move forward", "close the deal",
+    "€1.500", "€ 1.500", "1500 €", "1,500", "€3.000", "€5.000",
+    "reservar ahora", "reserve now", "puedes reservar", "you can reserve",
+    "el siguiente paso es reservar", "next step is to reserve",
+  ];
+  const hasActiveObjection    = activeObjectionTerms.some(t => combinedFull.includes(t));
+  const hasCommitmentAttempt  = commitmentAttemptTerms.some(t => combinedFull.includes(t));
+  const prematureCloseAttempt = hasActiveObjection && hasCommitmentAttempt;
+
   // Secondary decision-maker — also check human_notes
   const secondaryDmTerms = ["esposa", "marido", "pareja", "socio", "socia", "familia", "wife", "husband", "partner", "spouse", "family", "validar con", "consultar con", "hablarlo con", "comentarlo con", "confirmar con", "hablar con ella", "hablar con él", "discuss with", "check with", "talk it over", "aprobación de", "autorización de", "decidimos juntos", "decidir juntos", "we decide together"];
   const hasSecondaryDecisionMaker = secondaryDmTerms.some(t => combinedFull.includes(t) || humanNotesLower.includes(t));
@@ -780,10 +804,28 @@ Tu suspected_soft_next_step DEBE ser "no". Restricción del sistema, no negociab
 SÍ puedes señalar qué falta para alcanzar calidad "fuerte" (ej. criterio de decisión no explicitado). Pero no a costa de negar los compromisos operativos confirmados.`)
     : "";
 
-  const noFailureGuardrail = likelyNoFailure && !isLost
+  const noFailureGuardrail = likelyNoFailure && !isLost && !prematureCloseAttempt
     ? (isEn
         ? `\n— SYSTEM ANALYSIS: no clear primary failure detected. Do NOT assign "seller" in failure_owner unless there is explicit evidence in memory — not inferred conversational patterns. If there was a real gap, name it specifically; do not use loss of conversational control as a catch-all blame.`
         : `\n— ANÁLISIS DEL SISTEMA: no se detectó fallo primario claro. NO asignes "vendedor" en failure_owner salvo evidencia explícita en memoria — no patrones de control inferidos. Si hubo un gap real, nómbralo específicamente; no uses pérdida de control conversacional como culpa genérica.`)
+    : "";
+
+  const prematureCloseGuardrail = prematureCloseAttempt
+    ? (isEn
+        ? `\n\n━━ SYSTEM FLAG: POSSIBLE PREMATURE CLOSE DETECTED ━━
+The combined memory and transcript contain signals of (a) an active factual objection and (b) a concrete close/commitment attempt. This pattern is a grave tactical failure.
+AUDIT REQUIREMENTS when this flag is active:
+— Verify whether the stated objection was fully resolved BEFORE the close was proposed
+— If the objection was still active when the close was attempted: log it as rules_violated ("cierre prematuro con objeción activa") and failure_owner ("vendedor")
+— Do NOT suppress this failure or label it as "timing" or "system" unless there is explicit evidence the objection was resolved first
+— The "no primary failure" suppression is disabled for this call — evaluate objection resolution independently`
+        : `\n\n━━ FLAG DEL SISTEMA: POSIBLE CIERRE PREMATURO DETECTADO ━━
+La memoria y transcripción combinadas contienen señales de (a) una objeción factual activa y (b) un intento de cierre o compromiso concreto. Este patrón es un fallo táctico grave.
+REQUISITOS DE AUDITORÍA cuando este flag está activo:
+— Verifica si la objeción declarada estaba completamente resuelta ANTES de proponer el cierre
+— Si la objeción seguía activa cuando se intentó el cierre: regístralo en rules_violated ("cierre prematuro con objeción activa") y en failure_owner ("vendedor")
+— NO suprimas este fallo ni lo etiquetes como "timing" o "sistema" salvo evidencia explícita de que la objeción se resolvió antes
+— La supresión de "sin fallo primario" está desactivada para esta llamada — evalúa la resolución de la objeción de forma independiente`)
     : "";
 
   const alternativesBlock = isAlternativesDecision
@@ -940,7 +982,7 @@ RISK FLAGS:
 — suspected_unresolved_technical_objection: "yes" if a specific technical objection was deferred without evidence. "no" otherwise.
 — suspected_false_confidence: "yes" if seller used official body as definitive proof of future value. "no" otherwise.
 — suspected_soft_next_step: "yes" ONLY if no operative commitment (no date, no channel, no deliverable). "no" otherwise.
-— If the buyer showed an analytical profile: evaluate if the seller responded with precision or generic persuasion.${nextStepGuardrail}${noFailureGuardrail}${alternativesBlock}${secondaryDmBlock}${speakerGate}
+— If the buyer showed an analytical profile: evaluate if the seller responded with precision or generic persuasion.${nextStepGuardrail}${noFailureGuardrail}${prematureCloseGuardrail}${alternativesBlock}${secondaryDmBlock}${speakerGate}
 
 Return EXACTLY this JSON, no markdown, no extra text:
 ${schema}`
@@ -970,7 +1012,7 @@ FLAGS DE RIESGO:
 — suspected_unresolved_technical_objection: "yes" si una objeción técnica específica fue diferida sin evidencia. "no" en caso contrario.
 — suspected_false_confidence: "yes" si el vendedor usó organismo oficial como prueba definitiva de valor futuro. "no" en caso contrario.
 — suspected_soft_next_step: "yes" SOLO si no hay compromiso operativo (sin fecha, canal ni entregable). "no" en caso contrario.
-— Si el comprador mostró perfil analítico: evalúa si el vendedor respondió con precisión o persuasión genérica.${nextStepGuardrail}${noFailureGuardrail}${alternativesBlock}${secondaryDmBlock}${speakerGate}
+— Si el comprador mostró perfil analítico: evalúa si el vendedor respondió con precisión o persuasión genérica.${nextStepGuardrail}${noFailureGuardrail}${prematureCloseGuardrail}${alternativesBlock}${secondaryDmBlock}${speakerGate}
 
 Devuelve EXACTAMENTE este JSON, sin markdown, sin texto extra:
 ${schema}`;

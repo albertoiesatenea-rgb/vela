@@ -1,0 +1,165 @@
+Objetivo
+Corregir la lógica comercial compartida de VELA para que funcione bien en los tres frentes: Copiloto, Arena vendedor y Arena cliente. El fallo observado explotó en Arena cliente, pero no debe tratarse como bug local de ese modo. Debe resolverse en un núcleo comercial común que gobierne lectura de fase, grounding, objeciones, timing de cierre, comparación externa, transición de estados y auditoría.
+
+Contexto del problema
+He auditado una sesión real de Arena cliente con José Romero y el activo Sickingenstraße 6 en Dresden. El contexto cargado era bueno: fase avanzada, comparación Dresden vs. Magdeburg, objeción viva sobre alquiler/cashflow/actualización de renta, peso real de la mujer y llamada final de validación/cierre. Aun así, la IA:
+
+abrió con nombre y empresa inventados
+rompió relación previa
+reabrió discovery
+no resolvió la objeción concreta
+cedió el marco a portal/comparativa externa
+cerró con la reserva de 1.500 € con la objeción central abierta
+provocó rechazo por presión
+y la auditoría interna no clasificó bien el fallo, pese a marcar varios “FALLO GRAVE” en coaching
+
+Este fallo se vio en Arena cliente porque ahí la IA hacía de vendedor, pero la causa raíz afecta a todo VELA:
+
+Copiloto puede guiar mal si la lectura de fase y bloqueo está mal
+Arena vendedor puede construir clientes irreales o evaluar mal si el diagnóstico es flojo
+Arena cliente vende mal si no respeta fase, grounding y objeción real
+
+Cambios requeridos
+
+Crear o reforzar un núcleo comercial compartido de VELA
+Debe existir una capa común, reusable por Copiloto, Arena vendedor, Arena cliente y auditoría, responsable de:
+detectar fase real del proceso
+detectar objetivo real de la llamada
+detectar objeción principal vs objeciones accesorias
+detectar si la objeción sigue abierta o ya está razonablemente resuelta
+detectar criterio dominante del cliente
+detectar si toca discovery, fit, blocker, advance o close
+detectar si el cierre es prematuro
+detectar si una comparación externa cambia el marco
+Blindar grounding e identidad
+Ese núcleo debe forzar:
+respeto a empresa, asesor, relación previa y contexto existente
+prohibición de inventar nombre de asesor, empresa o marco de relación si ya viene definido en contexto
+si el caso es follow-up o cierre, no puede abrir como primer contacto
+Forzar lectura de fase en todos los modos
+Copiloto:
+say_now, mission, next_move, support y journey deben nacer de la fase real, no de una heurística plana
+
+Arena cliente:
+
+la IA vendedora no puede reabrir discovery si el caso ya está trabajado
+no puede cerrar con objeción principal abierta
+
+Arena vendedor:
+
+el cliente IA debe objetar según la fase real
+la evaluación/coaching no puede premiar movimientos fuera de fase
+no debe construir clientes caricaturescos ni absurdamente exploratorios cuando el caso es ya de decisión
+Añadir policy estricta de objeción concreta
+Cuando el cliente haga una objeción o pregunta factual específica, el sistema debe obligar a esta secuencia:
+a) responder la objeción concreta
+b) aislar si ese es el freno real
+c) medir si, resuelto eso, queda algo más
+d) solo entonces avanzar o cerrar
+
+Prohibir respuestas genéricas del tipo:
+
+“activo defensivo”
+“tranquilidad patrimonial”
+“largo plazo”
+si no aterrizan la objeción específica planteada
+Guardarraíl anti-cierre prematuro compartido
+Debe aplicarse en:
+Copiloto guidance
+Arena cliente seller generation
+Arena vendedor coaching/evaluation
+
+Regla:
+si el cliente verbaliza que “todo encaja salvo X”, el sistema debe interpretar que sigue en blocker o fit, no en close
+No se puede sugerir ni ejecutar reserva, pago o siguiente paso de compromiso si la objeción principal sigue abierta explícitamente
+
+Manejo fuerte de comparativas externas
+Cuando aparezcan:
+portal
+media de zona
+otra ciudad
+otro activo
+otra empresa
+el sistema no debe:
+rendirse
+decir “habría que investigarlo”
+validar sin reencuadrar
+
+Debe obligar a:
+
+comparar con criterio correcto
+distinguir media de portal vs caso real
+distinguir contrato real vs precio teórico
+distinguir activo comparable vs no comparable
+recuperar el criterio de decisión del cliente
+Sincronizar coaching y auditoría con el núcleo comercial
+Si el coach interno marca:
+“FALLO GRAVE”
+objeción no resuelta
+cierre prematuro
+ruptura de fase
+ruptura de grounding
+el resumen final y los audit hints no pueden terminar en:
+likely_primary_failure: none
+no anomalies detected
+
+La auditoría debe depender de las mismas reglas comerciales que el runtime, no de heurísticas sueltas.
+
+Exponer shared signals para todos los modos
+Crear señales comunes que puedan usar Copiloto, Arena vendedor, Arena cliente y auditoría:
+detected_phase
+detected_primary_blocker
+blocker_resolved_status
+premature_close_risk
+grounding_confidence
+comparison_frame_risk
+followup_vs_discovery_confidence
+seller_identity_conflict
+next_valid_move
+
+Restricciones
+
+No rehacer VELA entero
+No hacer tres lógicas separadas por modo si se puede centralizar
+Priorizar un shared core consumido por cada modo
+Mantener compatibilidad con el contexto libre actual
+No romper UI ni flujos ya existentes salvo lo mínimo necesario
+Si el código real ya tiene piezas reutilizables, extenderlas en vez de duplicarlas
+
+Entregables
+
+Núcleo comercial compartido o refactor equivalente
+Integración de ese núcleo en Copiloto
+Integración de ese núcleo en Arena cliente
+Integración de ese núcleo en Arena vendedor
+Integración de ese núcleo en auditoría / session summary / audit hints
+Tests de regresión
+
+Tests
+
+Caso José Romero en Arena cliente
+no inventa nombre/empresa
+no abre como primer contacto
+no reabre discovery
+responde objeción concreta sobre alquiler/actualización antes de cerrar
+no pide reserva con objeción central abierta
+Caso José Romero en Copiloto
+say_now y next_move deben reflejar que la llamada es de validación final
+no debe sugerir reexplicar Immvest desde cero
+no debe sugerir cierre hasta aislar la duda del alquiler
+Caso José Romero en Arena vendedor
+el cliente IA debe objetar desde la lógica real del caso, no como cliente frío
+el coaching debe penalizar si el vendedor humano cierra sin resolver la objeción del alquiler
+el coaching debe premiar si aísla bien el único bloqueo real
+Auditoría
+si hay ruptura de grounding, cierre prematuro o objeción principal abierta, el resumen no puede salir limpio
+likely_primary_failure y audit_notes deben reflejar el fallo real
+
+Criterios de aceptación
+
+Los tres modos comparten la misma lógica comercial base
+Copiloto guía mejor según fase y bloqueo real
+Arena cliente vende sin romper grounding ni cerrar prematuro
+Arena vendedor evalúa y simula con más realismo
+La auditoría deja de contradecir al coaching
+El caso José Romero ya no colapsa por presión artificial, desubicación de fase o validación blanda de comparativas externas

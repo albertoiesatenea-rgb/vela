@@ -9,6 +9,9 @@ import {
   DEBRIEF_CLIENT_PROFILE,
   MASTER_SELLER_BRAIN,
   buildArenaSellerTacticalRules,
+  buildGroundingAndPhaseBlock,
+  buildObjectionFirstPolicy,
+  extractContextGrounding,
 } from "@workspace/sales-brain";
 
 const router = Router();
@@ -395,6 +398,13 @@ ${langRule}`;
     // Verified context data block — limits the seller to numbers that are actually in context
     const verifiedDataBlock = buildVerifiedDataBlock(context, lang);
 
+    // Grounding + phase block — anchors seller identity and call phase from context
+    const groundingPhaseBlock = buildGroundingAndPhaseBlock(context, lang);
+    const groundingInject = groundingPhaseBlock ? `\n\n${groundingPhaseBlock}` : "";
+
+    // Objection-first policy — enforces resolve-before-close sequence
+    const objectionFirstBlock = buildObjectionFirstPolicy(lang);
+
     // Detect sellerNote intent for conditional blocks
     const noteText = (sellerNotes ?? []).join(" ").toLowerCase();
     const noPoliticianMode = /polit|consult|bland[ao]|suave|soft/i.test(noteText);
@@ -444,7 +454,7 @@ No las ignores. No las elijas parcialmente. No hay excepciones.`
 
     return `${topRestrictionsBlock}Eres el vendedor en una simulación de venta. Actúas como un comercial experimentado: preciso, honesto y sin relleno.
 
-Contexto: ${context || "Conversación de venta genérica."}${profileNote}${presetBlock}${scBlock}${windowNote}${verifiedDataBlock}
+Contexto: ${context || "Conversación de venta genérica."}${profileNote}${presetBlock}${scBlock}${windowNote}${verifiedDataBlock}${groundingInject}
 
 REGLA DE PORTAFOLIO:
 Solo puedes ofrecer productos, propiedades o condiciones que estén explícitamente mencionadas en el contexto de sesión o en tus restricciones activas.
@@ -475,6 +485,8 @@ TERCERO DECISOR:
 COMPROMISO CON EL PRODUCTO:
 — Solo descarta la operación si el gap es objetivamente incerrable y ya lo verificaste con datos concretos del contexto.
 — Si hay ángulos sin explorar, explóralos antes de concluir que no hay encaje.
+
+${objectionFirstBlock}
 
 PROHIBICIÓN DE DATOS INVENTADOS — REGLA DURA:
 — NUNCA cites porcentajes de revalorización futuros, comparativas históricas ni cifras de mercado si no están en los DATOS VERIFICADOS DEL CONTEXTO o si el cliente no las mencionó explícitamente.
@@ -589,14 +601,27 @@ function buildOpeningPrompt(
   const who = role === "seller" ? "cliente/prospecto" : "vendedor experto";
   const whoEn = role === "seller" ? "client/prospect" : "expert seller";
 
+  // Extract seller identity from context — use it verbatim if found, invent otherwise
+  const ctxGrounding = extractContextGrounding(context || "");
+  const identityInstruction = ctxGrounding.identityFound
+    ? ((): string => {
+        const nameStr = [ctxGrounding.sellerName, ctxGrounding.sellerCompany].filter(Boolean).join(" de ");
+        return lang === "en"
+          ? `Your identity is already in the context: ${nameStr}. Use it verbatim — do NOT invent a different name or company.`
+          : `Tu identidad ya está en el contexto: ${nameStr}. Úsala textualmente — PROHIBIDO inventarte otro nombre o empresa.`;
+      })()
+    : (lang === "en"
+        ? `Invent a specific real-sounding name and company for yourself (e.g. "I'm Sara Voss from Clearpath Advisory" — no placeholders, no brackets).`
+        : `Invéntate un nombre y empresa reales y concretos (ej: "Soy Marcos Reina de Solvinova" — sin corchetes, sin variables).`);
+
   if (lang === "en") {
     if (role === "client") {
-      return `You are an expert seller opening a sales conversation. Context: ${context || "generic sale"}${profileHint}${presetHint}${portfolioConstraint}. Invent a specific real-sounding name and company for yourself (e.g. "I'm Sara Voss from Clearpath Advisory" — no placeholders, no brackets). Write EXACTLY ONE sentence. Do what a top-tier seller would genuinely do to open: a precise observation, a direct reference to the prospect's situation, a short hook, or a well-placed question — vary the approach, never explain the product. Use **bold** on the most important word or number if relevant. No labels. Text only. ${langRule}`;
+      return `You are an expert seller opening a sales conversation. Context: ${context || "generic sale"}${profileHint}${presetHint}${portfolioConstraint}. ${identityInstruction} Write EXACTLY ONE sentence. Do what a top-tier seller would genuinely do to open: a precise observation, a direct reference to the prospect's situation, a short hook, or a well-placed question — vary the approach, never explain the product. Use **bold** on the most important word or number if relevant. No labels. Text only. ${langRule}`;
     }
     return `Generate the opening message of a ${whoEn} starting a sales conversation. Context: ${context || "generic sale"}${profileHint}${presetHint}. Write 1 short natural sentence as that person. No labels. Text only. ${langRule}`;
   }
   if (role === "client") {
-    return `Eres un vendedor experto que abre una conversación de ventas. Contexto: ${context || "venta genérica"}${profileHint}${presetHint}${portfolioConstraint}. Invéntate un nombre y empresa reales y concretos (ej: "Soy Marcos Reina de Solvinova" — sin corchetes, sin variables). Escribe EXACTAMENTE UNA frase. Haz lo que haría un vendedor de primer nivel: puede ser una observación directa, una referencia al problema del prospecto, un gancho potente, o una pregunta bien colocada — varía el enfoque, nunca expliques el producto. Usa **negrita** en la palabra o cifra más importante si aporta. Sin etiquetas. Solo el texto. ${langRule}`;
+    return `Eres un vendedor experto que abre una conversación de ventas. Contexto: ${context || "venta genérica"}${profileHint}${presetHint}${portfolioConstraint}. ${identityInstruction} Escribe EXACTAMENTE UNA frase. Haz lo que haría un vendedor de primer nivel: puede ser una observación directa, una referencia al problema del prospecto, un gancho potente, o una pregunta bien colocada — varía el enfoque, nunca expliques el producto. Usa **negrita** en la palabra o cifra más importante si aporta. Sin etiquetas. Solo el texto. ${langRule}`;
   }
   return `Genera el primer mensaje de un ${who} que inicia una conversación de venta. Contexto: ${context || "venta genérica"}${profileHint}${presetHint}. Escribe 1 frase corta y natural como esa persona. Sin etiquetas. Solo el texto. ${langRule}`;
 }

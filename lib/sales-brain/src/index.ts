@@ -517,6 +517,188 @@ ABSOLUTE PROHIBITIONS:
 — Empty validations ("I completely understand", "totally valid", "great question") with active blocker`,
 };
 
+// ── Grounding contextual y detección de fase ──────────────────────────────────
+// Extrae identidad del vendedor y fase de la llamada directamente del texto de
+// contexto de sesión. Fuente de verdad compartida para Arena y Copilot.
+
+export interface ContextGrounding {
+  sellerName?: string;
+  sellerCompany?: string;
+  identityFound: boolean;
+  isFollowUp: boolean;
+  isClose: boolean;
+  phaseLabel: { es: string; en: string };
+}
+
+export function extractContextGrounding(context: string): ContextGrounding {
+  const text = context || "";
+  const lower = text.toLowerCase();
+
+  // ── Identity detection ───────────────────────────────────────────────────
+  let sellerName: string | undefined;
+  let sellerCompany: string | undefined;
+
+  // Pattern: "Soy [Name] de [Company]" / "I'm [Name] from [Company]"
+  const soDeRe = /(?:soy|i am|i'm)\s+([A-ZÁÉÍÓÚÜÑ][a-záéíóúüñA-Z]+(?:\s+[A-ZÁÉÍÓÚÜÑ][a-záéíóúüñA-Z]+)?)\s+(?:de|from)\s+([A-ZÁÉÍÓÚÜÑ][^\.,\n\r]{1,40})/i;
+  const soDeMatch = text.match(soDeRe);
+  if (soDeMatch) {
+    sellerName    = soDeMatch[1].trim();
+    sellerCompany = soDeMatch[2].trim().replace(/[,.]$/, "");
+  }
+
+  // Pattern: "Vendedor/Asesor/Agente: Name"
+  if (!sellerName) {
+    const labelRe = /(?:vendedor|asesor|agente|comercial|advisor|agent|seller)[:\s]+([A-ZÁÉÍÓÚÜÑ][a-záéíóúüñA-Z]+(?:\s+[A-ZÁÉÍÓÚÜÑ][a-záéíóúüñA-Z]+)?)/i;
+    const m = text.match(labelRe);
+    if (m) sellerName = m[1].trim();
+  }
+
+  // Pattern: "Me llamo X" / "My name is X"
+  if (!sellerName) {
+    const nameRe = /(?:me llamo|mi nombre es|my name is)\s+([A-ZÁÉÍÓÚÜÑ][a-záéíóúüñA-Z]+(?:\s+[A-ZÁÉÍÓÚÜÑ][a-záéíóúüñA-Z]+)?)/i;
+    const m = text.match(nameRe);
+    if (m) sellerName = m[1].trim();
+  }
+
+  // Company when name found but company not yet extracted
+  if (sellerName && !sellerCompany) {
+    const coRe = /(?:de la empresa|empresa|company)\s+([A-ZÁÉÍÓÚÜÑ][A-Za-záéíóúüñ0-9\s]{2,25})/i;
+    const m = text.match(coRe);
+    if (m) sellerCompany = m[1].trim();
+  }
+
+  const identityFound = !!sellerName;
+
+  // ── Phase detection ──────────────────────────────────────────────────────
+  const followUpTokens = [
+    "segunda llamada", "second call", "follow-up", "followup", "seguimiento",
+    "ya hemos hablado", "we've spoken", "we spoke", "we already spoke",
+    "la semana pasada", "last week", "el otro día", "the other day",
+    "ya le expliqué", "ya se lo expliqué", "i already explained",
+    "volvemos a hablar", "coming back to", "retomamos",
+    "llamada de seguimiento", "follow up call",
+    "segunda reunión", "second meeting", "tercera reunión", "third meeting",
+    "estuvimos hablando", "quedamos en", "recontact",
+  ];
+  const closeTokens = [
+    "llamada de cierre", "closing call", "reunión de cierre", "closing meeting",
+    "proponer reserva", "pedir reserva", "cerrar reserva",
+    "firma", "contrato de arras", "contrato de señal",
+    "depósito", "deposit", "señal económica",
+    "formalizar", "formalise", "formalize",
+    "escritura", "notaría", "notary",
+  ];
+
+  const isFollowUp = followUpTokens.some(t => lower.includes(t));
+  const isClose    = closeTokens.some(t => lower.includes(t));
+
+  const phaseLabel = isClose
+    ? { es: "CIERRE",          en: "CLOSING"       }
+    : isFollowUp
+    ? { es: "SEGUIMIENTO",     en: "FOLLOW-UP"     }
+    : { es: "PRIMER CONTACTO", en: "FIRST CONTACT" };
+
+  return { sellerName, sellerCompany, identityFound, isFollowUp, isClose, phaseLabel };
+}
+
+// ── Grounding + phase injectable block ────────────────────────────────────────
+// Inyectar en el prompt del vendedor de Arena (cliente mode) para:
+// (a) anclar identidad real cuando está en el contexto
+// (b) prohibir reapertura de discovery en llamadas de seguimiento/cierre
+export function buildGroundingAndPhaseBlock(context: string, lang: Lang): string {
+  const g = extractContextGrounding(context);
+  const parts: string[] = [];
+
+  if (g.identityFound) {
+    const nameStr = [g.sellerName, g.sellerCompany].filter(Boolean).join(" de ");
+    if (lang === "en") {
+      parts.push(
+`SELLER IDENTITY — extracted from context (DO NOT override):
+Your name and company are explicitly provided in the session context: ${nameStr}.
+Use them verbatim. It is FORBIDDEN to introduce yourself under any other name or company.`
+      );
+    } else {
+      parts.push(
+`IDENTIDAD DEL VENDEDOR — extraída del contexto (NO sobreescribir):
+Tu nombre y empresa están indicados en el contexto de sesión: ${nameStr}.
+Úsalos tal cual en todos los turnos. PROHIBIDO presentarte con otro nombre o empresa diferente.`
+      );
+    }
+  }
+
+  if (g.isClose) {
+    if (lang === "en") {
+      parts.push(
+`CALL PHASE: CLOSING
+The relationship and product are already established. ABSOLUTE PROHIBITIONS:
+— Do not reopen basic discovery (who are you, what do you do, what are you looking for)
+— Do not re-present the product from scratch
+— The client already knows the offer and has decided to evaluate it
+— Your sole mission: remove the last blocker and lock the micro-commitment
+— Proposing a reservation, deposit, or commitment while a stated objection remains unresolved = PREMATURE CLOSE (grave failure)`
+      );
+    } else {
+      parts.push(
+`FASE DE LA LLAMADA: CIERRE
+La relación y el producto ya están establecidos. PROHIBICIONES ABSOLUTAS:
+— No reabras discovery básico (quién eres, qué haces, qué busca)
+— No vuelvas a presentar el producto desde cero
+— El cliente ya conoce la oferta y ha decidido evaluarla
+— Tu única misión: eliminar el último bloqueo y fijar el microcompromiso
+— Proponer reserva, señal o cualquier compromiso con una objeción declarada todavía abierta = CIERRE PREMATURO (fallo grave)`
+      );
+    }
+  } else if (g.isFollowUp) {
+    if (lang === "en") {
+      parts.push(
+`CALL PHASE: FOLLOW-UP
+The prospect already knows you and the offer. PROHIBITIONS:
+— Do not reopen discovery already covered in previous contact
+— Do not re-anchor value arguments the client has already processed
+— Focus on: what changed since last contact, what's still blocking, what's the next concrete step
+— Unresolved objections from the previous call are STILL ACTIVE until explicitly resolved`
+      );
+    } else {
+      parts.push(
+`FASE DE LA LLAMADA: SEGUIMIENTO
+El prospecto ya te conoce y conoce la oferta. PROHIBICIONES:
+— No reabras discovery ya cubierto en el contacto anterior
+— No vuelvas a anclar argumentos de valor que el cliente ya procesó
+— Céntrate en: qué cambió desde el último contacto, qué sigue bloqueando, cuál es el siguiente paso concreto
+— Las objeciones sin resolver de la llamada anterior están TODAVÍA ACTIVAS hasta que se resuelvan explícitamente`
+      );
+    }
+  }
+
+  return parts.join("\n\n");
+}
+
+// ── Política objeción-primero ──────────────────────────────────────────────────
+// Bloque de cumplimiento absoluto para impedir cierres prematuros.
+// Compartido entre Arena vendedor (cliente mode) y Copilot coaching.
+export function buildObjectionFirstPolicy(lang: Lang): string {
+  if (lang === "en") {
+    return `OBJECTION-FIRST POLICY — absolute enforcement:
+If the client has stated a concrete factual objection (specific number, threshold, condition, competitor comparison) that has NOT been directly answered yet:
+1. ADDRESS the objection head-on in this turn — do not defer, do not sidestep
+2. ISOLATE: is this the only real blocker, or are there others?
+3. VERIFY RESOLUTION: did the client acknowledge the answer? Until confirmed, the objection is still active
+4. Only AFTER objection is confirmed resolved: propose a next step or close
+
+HARD RULE: Proposing a reservation, deposit, payment, or any commitment while a concrete stated objection remains unresolved = PREMATURE CLOSE.
+The debrief will log it as a grave failure. No exceptions.`;
+  }
+  return `POLÍTICA OBJECIÓN-PRIMERO — cumplimiento absoluto:
+Si el cliente ha planteado una objeción factual concreta (número específico, umbral, condición, comparación con competidor) que NO ha sido respondida directamente todavía:
+1. RESPONDE la objeción de frente en este turno — no la postergues, no la esquives
+2. AÍSLA: ¿es este el único bloqueo real, o hay otros?
+3. VERIFICA LA RESOLUCIÓN: ¿el cliente reconoció la respuesta? Hasta que lo haga, la objeción sigue activa
+4. Solo DESPUÉS de confirmar resolución: propón siguiente paso o cierre
+
+REGLA DURA: Proponer reserva, señal, pago o cualquier compromiso con una objeción declarada todavía sin resolver = CIERRE PREMATURO.
+El debrief lo registrará como fallo grave. Sin excepciones.`;
+}
+
 // ── Motor táctico compartido para Arena vendedor ───────────────────────────────
 // Mismo núcleo analítico que Copilot, adaptado al rol de vendedor activo.
 // Fuente de verdad única: cualquier mejora táctica aquí se propaga a ambas superficies.
