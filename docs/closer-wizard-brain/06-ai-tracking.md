@@ -55,7 +55,7 @@ Modelos desconocidos devuelven `estimatedCostUsd = null`.
   endpoint: string         // e.g. "analyze" | "terminal-state"
   mode: "copilot" | "arena"
   sessionId?: string
-  model: string
+  model: string            // e.g. "gpt-4o" o "gpt-4o-mini"
   maxTokensConfigured: number
   promptTokens: number
   completionTokens: number
@@ -121,9 +121,9 @@ El punto de entrada principal. Se llama después de cada `openai.chat.completion
 logAICall({
   route: "copilot/analyze",
   endpoint: "analyze",
-  sessionId: req.body.sessionId,
+  sessionId: req.headers["x-session-id"] as string | undefined,
   mode: "copilot",
-  model: "gpt-4o-mini",
+  model: ANALYZE_MODEL,   // "gpt-4o"
   maxTokensConfigured: 900,
   promptTokens: usage.prompt_tokens,
   completionTokens: usage.completion_tokens,
@@ -135,25 +135,21 @@ logAICall({
 
 ### `closeSession(sessionId)`
 
-Llamar cuando termina una sesión (fin de llamada en copiloto o finish en arena). Registra totales de sesión en Pino y programa la eliminación de las stats tras 10 minutos. Mantiene los datos visibles en el debug panel durante ese tiempo.
+Llamar cuando termina una sesión (fin de llamada en copiloto o finish en arena). Registra totales de sesión en Pino y programa la eliminación de las stats tras 10 minutos.
 
 ### `getUsageSnapshot()`
 
-Devuelve la estructura completa servida por `GET /api/debug/usage`. Top 20 sesiones por coste, todas las rutas ordenadas por coste, últimas 50 llamadas recientes invertidas (más reciente primero).
+Devuelve la estructura completa servida por `GET /api/debug/usage`. Top 20 sesiones por coste, todas las rutas ordenadas por coste, últimas 50 llamadas recientes invertidas.
 
 ### `estimateModelCost(model, promptTokens, completionTokens)`
 
-Devuelve `number | null`. Usar para estimación de coste por llamada con cualquier modelo.
-
-### `estimateCost(promptTokens, completionTokens)` *(deprecated)*
-
-Alias legacy que hardcodea gpt-4o-mini. Usar `estimateModelCost()` en su lugar.
+Devuelve `number | null`. Usar para estimación de coste por llamada con cualquier modelo, incluyendo gpt-4o.
 
 ---
 
 ## Líneas de log Pino
 
-Cada `logAICall()` emite un log Pino estructurado:
+Cada `logAICall()` emite:
 
 ```json
 {
@@ -163,18 +159,18 @@ Cada `logAICall()` emite un log Pino estructurado:
   "endpoint": "analyze",
   "sessionId": "uuid",
   "mode": "copilot",
-  "model": "gpt-4o-mini",
+  "model": "gpt-4o",
   "prompt_tokens": 712,
   "completion_tokens": 443,
   "total_tokens": 1155,
-  "cost_usd": 0.000372,
+  "cost_usd": 0.006250,
   "latency_ms": 834,
   "status": "ok",
   "notes": null
 }
 ```
 
-Mensaje legible: `[AI] copilot/analyze:analyze | in=712 out=443 | $0.000372 | 834ms`
+Mensaje legible: `[AI] copilot/analyze:analyze | in=712 out=443 | $0.006250 | 834ms`
 
 `closeSession()` emite una línea de totales de sesión:
 ```json
@@ -184,8 +180,8 @@ Mensaje legible: `[AI] copilot/analyze:analyze | in=712 out=443 | $0.000372 | 83
   "mode": "copilot",
   "calls": 12,
   "total_tokens": 14200,
-  "cost_usd": 0.004680,
-  "avg_latency_ms": 798
+  "cost_usd": 0.054680,
+  "avg_latency_ms": 1120
 }
 ```
 
@@ -196,9 +192,14 @@ Mensaje legible: `[AI] copilot/analyze:analyze | in=712 out=443 | $0.000372 | 83
 | Route tag | Endpoints |
 |-----------|---------|
 | `copilot/analyze` | `analyze` |
-| `copilot/summarize` | `summarize` |
+| `copilot/summarize` | `summarize`, `summarize-full` |
 | `copilot/context-label` | `context-label` |
 | `arena/start` | `opening` |
-| `arena/turn` | `turn`, `terminal-state` |
+| `arena/turn` | `turn`, `terminal-state`, `coach-lite`, `journey`, `shortcut` |
 | `arena/suggest` | `suggest` |
 | `arena/finish` | `debrief` |
+| `arena/repitch` | `turn` |
+| `arena/preset-context` | `preset-context` |
+| `arena/adapt-context` | `adapt-context` |
+
+**Rutas no registradas en logAICall:** `copilot/audit-report`, `arena/audit-report`, `arena/note` (sin IA). Pendiente de confirmar en código.

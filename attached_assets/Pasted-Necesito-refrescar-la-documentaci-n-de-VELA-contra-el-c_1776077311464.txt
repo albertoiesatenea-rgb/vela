@@ -1,0 +1,81 @@
+Necesito refrescar la documentación de VELA contra el código REAL actual en Replit.
+
+Objetivo
+Generar documentos actualizados, precisos y ejecutables sobre el estado actual del proyecto. No quiero teoría, intención original ni suposiciones. Quiero documentación basada en el código que existe ahora mismo.
+
+Reglas duras
+1. Usa como fuente principal el código real actual de Replit.
+2. Si algo no está confirmado en código, dilo explícitamente.
+3. No inventes rutas, componentes, flags, flujos ni comportamiento.
+4. No rellenes huecos con “probablemente”, “seguramente” o explicaciones genéricas.
+5. No rehagas toda la documentación si solo hay cambios parciales. Actualiza con criterio.
+6. Si detectas desfase entre docs previas y código actual, prioriza el código actual.
+7. Escribe en español técnico, directo, limpio y sin humo.
+8. Devuelve contenido listo para copiar a archivos `.md`.
+
+Qué necesito que hagas
+1. Recorre el proyecto y detecta el estado real actual de:
+   - arquitectura
+   - rutas API
+   - prompts activos
+   - lógica Arena
+   - tracking AI
+   - audit logs
+   - debug panel
+   - feature flags
+   - cualquier flujo nuevo o eliminado
+2. Compara eso con la documentación existente si está en el repo.
+3. Identifica:
+   - qué docs siguen vigentes
+   - cuáles están desfasadas
+   - cuáles faltan
+4. Regenera o actualiza solo los documentos necesarios.
+5. Mantén nombres de archivo claros y numerados si el sistema actual ya sigue ese patrón.
+
+Formato de salida obligatorio
+Primero devuelve un bloque breve llamado RESUMEN DE REFRESH con:
+- documentos revisados
+- documentos nuevos
+- documentos actualizados
+- documentos eliminados o fusionados
+- gaps no confirmados
+
+Después devuelve los archivos completos, uno por uno, con este formato exacto:
+
+=== FILE: <nombre-del-archivo>.md ===
+<contenido completo del archivo>
+
+Criterio de calidad por documento
+Cada documento debe:
+- decir qué archivo o zona del código respalda lo que afirma
+- distinguir entre “verificado contra código real” y “pendiente de confirmar” si aplica
+- evitar explicaciones abstractas
+- incluir rutas, nombres de funciones, flags, límites, modelos, campos y comportamiento real cuando existan
+- señalar gaps reales del sistema, no maquillarlos
+
+Prioridad de documentos
+Si existen o encajan con el proyecto, refresca estos primero:
+- 01-current-state.md
+- 02-architecture.md
+- 03-api-routes.md
+- 04-prompts.md
+- 05-arena-logic.md
+- 06-ai-tracking.md
+- 07-audit-log.md
+- 08-debug-panel.md
+- 09-feature-flags.md
+- 10-replit-prompt-style.md
+- 11-sales-references.md
+
+Entregable final
+Quiero documentos finales listos para guardar, no un análisis narrativo.
+Si ves que un documento no necesita cambios, dilo y no lo reescribas entero.
+Si ves un desfase grave global, entonces sí propón una regeneración completa del set.
+
+Criterio de aceptación
+- cada afirmación importante sale del código real
+- no hay funciones inventadas
+- no hay rutas inventadas
+- no hay comportamiento supuesto
+- los gaps están marcados con claridad
+- los archivos quedan listos para pegar en el repo

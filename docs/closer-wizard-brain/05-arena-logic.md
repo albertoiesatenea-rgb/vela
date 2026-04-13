@@ -1,6 +1,6 @@
 # VELA — Arena Logic
 
-Arena es un simulador de conversación de ventas donde el usuario practica vendiendo (o siendo vendido) contra una IA.
+Arena es un simulador de conversación de ventas donde el usuario practica vendiendo (seller mode) o siendo vendido (client mode) contra una IA.
 
 ---
 
@@ -9,32 +9,99 @@ Arena es un simulador de conversación de ventas donde el usuario practica vendi
 ```
 POST /api/arena/start
   └─ Crea ArenaSession en memoria del servidor
-  └─ IA genera mensaje de apertura (max_tokens=150)
+  └─ IA genera mensaje de apertura (gpt-4o-mini, max_tokens=150)
   └─ Devuelve { arenaSessionId, openingMessage }
 
-Usuario envía mensaje → POST /api/arena/turn  (se repite)
+Usuario escribe mensaje (o elige shortcutDirection) → POST /api/arena/turn  (se repite)
+  └─ shortcutDirection? → genera mensaje del usuario con gpt-4o-mini (max_tokens=60)
   └─ Añade turno del usuario a session.turns
-  └─ IA genera respuesta (max_tokens=300, historial con windowing)
-  └─ Detección de estado terminal condicional (max_tokens=5)
-  └─ Devuelve { aiMessage, terminalSignal }
+  └─ IA genera respuesta (gpt-4o, max_tokens=220-300, historial con windowing)
+  └─ Detección de estado terminal (condicional, gpt-4o-mini, max_tokens=5) — solo seller
+  └─ CoachLite + Journey en paralelo (gpt-4o-mini) — solo client mode
+  └─ Devuelve { aiMessage, terminalSignal, coachLite?, generatedUserMessage? }
 
-Sesión termina (detectado o manual) → POST /api/arena/finish
-  └─ Genera debrief si role=seller
+[Opcional] → POST /api/arena/note (añade instrucción, sin IA)
+[Opcional] → POST /api/arena/repitch (genera reposicionamiento visual, NO a session.turns)
+
+Sesión termina → POST /api/arena/finish
+  └─ Genera debrief si role=seller y userTurns > 0 (gpt-4o-mini, max_tokens=300)
   └─ Llama closeSession() en ai-tracker (mantiene stats 10 min)
   └─ Devuelve { turns, summary }
   └─ Sesión en memoria eliminada tras 5 min timeout
+
+[Opcional] → POST /api/arena/audit-report (gpt-4o-mini, análisis forense independiente)
 ```
 
 ---
 
 ## Roles
 
-| Rol del usuario | IA juega de |
-|----------------|------------|
-| `seller` | Cliente/prospecto — configurado con personalidad y dificultad |
-| `client` | Vendedor/consultor — configurado con personalidad de vendedor |
+| Rol del usuario | IA juega de | Features activos |
+|----------------|------------|-----------------|
+| `seller` | Cliente/prospecto — con personalidad y dificultad | Terminal detection, debrief, sellerNotes en sistema |
+| `client` | Vendedor/consultor — con personalidad de vendedor | CoachLite, Journey, sellerNotes como restricciones del vendedor |
 
-En seller mode la IA juega de prospecto realista y la detección terminal está activa. En client mode la IA juega de consultor y la detección terminal está desactivada.
+---
+
+## Sistema de presets
+
+6 presets disponibles. Cada uno genera un contexto propio via `POST /api/arena/preset-context`.
+
+| Clave | Escenario |
+|-------|---------|
+| `immvest` | Inversión inmobiliaria |
+| `saas` | Software como servicio B2B |
+| `b2b` | Venta B2B general |
+| `high_ticket` | Producto / servicio premium |
+| `coaching` | Coaching, formación, consultoría |
+| `challenge` | Escenario desafiante / adversarial |
+
+Los presets se definen en `PRESET_SYSTEM_DESC` en `lib/sales-brain/src/index.ts`. El backend inyecta la descripción del preset en el system prompt del turno si `randomPreset` está definido.
+
+---
+
+## Contexto estructurado (arenaStructuredContext)
+
+Campos opcionales que refinan el escenario:
+
+| Campo | Propósito |
+|-------|---------|
+| `meeting_goal` | Objetivo concreto de esta sesión |
+| `main_blocker` | Bloqueo conocido de la sesión |
+| `blocker_status` | `"open" \| "partial" \| "resolved"` |
+| `what_not_to_do` | Errores a evitar |
+| `valid_outcome_today` | Qué resultado cuenta como éxito |
+| `known_context_notes` | Información extra de contexto |
+
+**Importante:** `blocker_status` en Arena usa `"open" | "partial" | "resolved"` (NO `"partially_resolved"` — eso es del Copiloto structured_context).
+
+---
+
+## sellerNotes — instrucciones inyectadas
+
+Un array de strings en `session.sellerNotes[]`. Nunca se almacena en `session.turns`.
+
+- Se añaden via `POST /api/arena/note`. Sin llamada IA.
+- Se inyectan en el system prompt de todos los turnos siguientes como bloque de restricciones duras:
+  ```
+  RESTRICCIONES DEL VENDEDOR (instrucciones adicionales):
+  - ${note 1}
+  - ${note 2}
+  ```
+- En `POST /api/arena/start`, si ya hay `sellerNotes`, se inyectan también en el prompt de apertura.
+- En `buildOpeningPrompt()`, el parámetro `sellerNotes?` se usa para añadir restricciones desde el inicio.
+
+---
+
+## shortcutDirection
+
+Si se pasa `shortcutDirection: "agree" | "object"` en `/api/arena/turn`:
+
+1. La IA genera el mensaje del usuario (gpt-4o-mini, max_tokens=60, temperature=0.9) — acordando o objetando según la dirección.
+2. El mensaje generado se usa como `userMessage` para el turno normal.
+3. Se devuelve en `generatedUserMessage` en la response.
+
+El turno se registra en `session.turns` como si el usuario lo hubiera enviado manualmente.
 
 ---
 
@@ -42,15 +109,18 @@ En seller mode la IA juega de prospecto realista y la detección terminal está 
 
 | Clave | Descripción |
 |-------|-------------|
-| `analytical` | Necesitas datos, precisión, proceso y evidencia antes de decidir. Haces preguntas técnicas. Rechazas vaguedades. |
-| `emotional` | Decides por confianza, conexión y sensación personal. Te influyen historias reales y la empatía del vendedor. |
-| `skeptical` | Desconfías por defecto. Cuestionas promesas y claims inflados. Solo te convencen pruebas concretas y consistencia. |
-| `cautious` | Temes equivocarte. Buscas seguridad, validación externa y pasos reversibles. La presión te aleja. |
-| `dominant` | Quieres control, velocidad y autoridad. Interrumpes, marcas el ritmo y castigas la debilidad. |
-| `indecisive` | Te cuesta comprometerte. Das vueltas, cambias de opinión y necesitas guía clara para decidir. |
-| `negotiator` | Presionas en precio, comparas alternativas, pides concesiones y usas la negociación como palanca principal. |
+| `analytical` | Datos, precisión, proceso, evidencia antes de decidir. Rechaza vaguedades. |
+| `emotional` | Confianza, conexión, sensación personal. Le influyen historias reales. |
+| `skeptical` | Desconfía por defecto. Solo le convencen pruebas concretas y consistencia. |
+| `cautious` | Teme equivocarse. Busca seguridad y validación externa. La presión le aleja. |
+| `dominant` | Control, velocidad, autoridad. Castiga la debilidad. |
+| `indecisive` | Le cuesta comprometerse. Necesita guía clara para decidir. |
+| `negotiator` | Presiona en precio, pide concesiones, usa la negociación como palanca. |
 
-**Compatibilidad hacia atrás (backend):** Los valores legacy `insecure` y `hard_negotiator` son normalizados automáticamente a `cautious` y `negotiator` respectivamente en `/api/arena/start`.
+**Aliases de compatibilidad (normalizados en `/api/arena/start`):**
+- `insecure` → `cautious`
+- `hard_negotiator` → `negotiator`
+- `random` / `aleatorio` → `undefined` (se elige aleatoriamente del array de perfiles)
 
 ---
 
@@ -58,12 +128,12 @@ En seller mode la IA juega de prospecto realista y la detección terminal está 
 
 | Clave | Descripción |
 |-------|-------------|
-| `communicative` | Construyes relación con anécdotas y ejemplos. A veces te extiendes demasiado. |
-| `authoritative` | Directo, asertivo, controlas la conversación, rebates objeciones con firmeza. |
-| `technical` | Hablas de características y datos con detalle. Preciso pero a veces poco emocional. |
-| `passive` | Escuchas mucho, no presionas, esperas que el cliente llegue a sus conclusiones. |
-| `aggressive` | Presionas para cerrar, creas urgencia, no aceptas "no" fácilmente. |
-| `consultive` | Haces muchas preguntas, entiendes necesidades primero y adaptas tu solución. |
+| `communicative` | Construye relación con anécdotas. A veces se extiende demasiado. |
+| `authoritative` | Directo, asertivo, controla la conversación, rebate con firmeza. |
+| `technical` | Características y datos con detalle. Preciso pero a veces poco emocional. |
+| `passive` | Escucha mucho, no presiona, espera que el cliente llegue a conclusiones. |
+| `aggressive` | Presiona para cerrar, crea urgencia, no acepta "no" fácilmente. |
+| `consultive` | Hace preguntas, entiende necesidades primero y adapta su solución. |
 
 ---
 
@@ -72,39 +142,38 @@ En seller mode la IA juega de prospecto realista y la detección terminal está 
 | Clave | Comportamiento |
 |-------|---------------|
 | `easy` | Pocas objeciones, abierto a escuchar. |
-| `normal` | Algunas objeciones válidas, necesitas buenos argumentos. |
-| `hard` | Muchas objeciones, comparas con competencia, difícil de convencer. |
-| `brutal` | Escéptico, cuestionas todo, objeciones fuertes, solo cedes ante argumentos muy sólidos. |
+| `normal` | Algunas objeciones válidas, necesita buenos argumentos. |
+| `hard` | Muchas objeciones, compara con competencia, difícil de convencer. |
+| `brutal` | Escéptico, cuestiona todo, objeciones fuertes, solo cede ante argumentos muy sólidos. |
 
 ---
 
 ## History Windowing
 
-Cuando `LEGACY_ARENA=false` (default):
+Constante: `ARENA_HISTORY_WINDOW = 12`
 
-- Solo los **últimos 12 turnos** de la conversación se envían a la IA por cada respuesta de turno.
-- El system prompt incluye una nota explicando la longitud total de la conversación para mantener consistencia.
-- El historial completo siempre se guarda en `session.turns` para la transcripción final y el debrief.
-- `DEBRIEF_MAX_TURNS = 15` — el debrief solo analiza los últimos 15 turnos en sesiones largas.
-- `SUGGEST_MAX_TURNS = 10` — suggest solo usa los últimos 10 turnos.
+Cuando `LEGACY_ARENA=false` (default):
+- Solo los **últimos 12 turnos** se envían a la IA por cada respuesta de turno.
+- El system prompt incluye nota explicando la longitud total para consistencia.
+- El historial completo siempre se guarda en `session.turns` para transcripción final y debrief.
+- `DEBRIEF_MAX_TURNS = 15` — debrief solo analiza últimos 15 turnos.
+- `SUGGEST_MAX_TURNS = 10` — suggest usa últimos 10 turnos.
+- `COACH_LITE_WINDOW = 12` — CoachLite usa misma ventana.
 
 Cuando `LEGACY_ARENA=true`:
-- Se envía el historial completo en cada turno. Sin windowing. Sin detección terminal condicional.
+- Array `session.turns` completo enviado en cada petición. Sin windowing. Sin detección terminal condicional.
 
 ---
 
 ## Detección de estado terminal
 
-La detección terminal es el mecanismo que identifica automáticamente cuándo una conversación de ventas ha llegado a un desenlace definitivo.
+Solo en **seller mode**. La detección es costosa — se omite si no se cumplen condiciones.
 
-### Cuándo se ejecuta
+### Cuándo se ejecuta (`shouldCheckTerminal()`)
 
-La detección solo corre en **seller mode**. Un check se dispara si CUALQUIERA de:
-
-1. `turns.length >= 4` Y se encuentra una **keyword** en el último mensaje de la IA
-2. `turns.length >= 6` Y `turns.length % 3 === 0` (safety net cada 3 turnos tras el turno 6)
-
-Esta es la función `shouldCheckTerminal()`. Si ninguna condición se cumple, la detección se omite completamente (ahorra una llamada API).
+Un check se dispara si CUALQUIERA de:
+1. `turns.length >= 4` Y keyword encontrada en el último mensaje de la IA
+2. `turns.length >= 6` Y `turns.length % 3 === 0` (safety net cada 3 turnos)
 
 ### Keywords que disparan detección (Español)
 
@@ -124,51 +193,70 @@ when do i sign, i'll pay with, by card, send the proposal,
 not interested at all, definitely not, won't buy, stop here, goodbye, bye
 ```
 
-**Excluidos intencionalmente:** Frases amplias como "de acuerdo", "siguiente paso", "cuándo podemos" NO disparan detección porque aparecen frecuentemente en conversación normal.
-
 ### Prompt de detección
 
-Envía los últimos 6 turnos al modelo y pide exactamente una palabra: `none | closed | next_step | lost | broken`.
+Envía los últimos 6 turnos, pide exactamente una palabra: `none | closed | next_step | lost | broken`.
 
-**Definiciones de outcome (estrictas):**
+**Outcomes (definiciones estrictas):**
 - `none` — conversación abierta o ambigua (default ante la duda)
-- `closed` — cliente se comprometió explícitamente a comprar (dijo que compra, preguntó cuándo firma, preguntó cómo pagar)
-- `next_step` — cliente comprometió una acción **concreta**: confirmó fecha de reunión, pidió contrato/propuesta, preguntó por formas de pago — "lo pensaré" NO cuenta
+- `closed` — cliente se comprometió explícitamente a comprar
+- `next_step` — cliente comprometió acción concreta: fecha de reunión, pedido de contrato/propuesta — "lo pensaré" NO cuenta
 - `lost` — cliente rechazó definitivamente, sin vuelta atrás
 - `broken` — ruptura total, cliente cortó la conversación
 
 ### Fallback
 
-Si la llamada API falla o devuelve un valor inesperado, el resultado es `"none"`.
+Si la llamada falla o devuelve valor inesperado → `"none"`.
 
 ---
 
-## Feature de Suggest
+## CoachLite (client mode)
 
-El botón ✨ en seller mode llama a `POST /api/arena/suggest`. La sugerencia devuelta:
+Llamado en paralelo con el turno. Analiza la respuesta del vendedor IA y produce 7 campos de coaching para el usuario-cliente.
 
-1. Se muestra al usuario brevemente
-2. Se envía automáticamente como turno del usuario (llama a `POST /api/arena/turn`)
+**Campos output:**
+```json
+{
+  "signal": "string",
+  "reading": "string",
+  "mission": "string",
+  "next_move": "string",
+  "strategy": "string",
+  "why_this_response": "string",
+  "alternative": "string"
+}
+```
 
-Esto significa que suggest cuenta como dos llamadas API — una para la sugerencia y otra para la respuesta de la IA a ella.
+Si la respuesta de CoachLite contiene marcadores de FALLO GRAVE (regex: `/FALLO GRAVE/i`), el frontend registra el penalty en `gravePenalties[]`. El debrief recibe `GRAVE_PENALTY_COUNT` como contexto.
+
+---
+
+## Journey (client mode)
+
+Llamado en paralelo con CoachLite. Indica la etapa actual de la conversación en 6 etapas.
+
+**Etapas:** `context` → `problem` → `blocker` → `fit` → `advance` → `close`
+
+Cada etapa es `"done" | "current" | "upcoming"`.
+
+Campos adicionales: `now_help` (qué hacer ahora), `next_help` (hacia dónde mover), `premature_close_risk` (`"low" | "medium" | "high"`).
 
 ---
 
 ## Debrief
 
-Generado al final de sesión para sesiones de seller con al menos un turno del usuario.
-
-Recibe `clientProfile` de la sesión y lo usa para evaluación sensible al perfil.
+Generado al final de sesión para sesiones de seller con `userTurns > 0`.
 
 ### Rúbrica de puntuación
 
 1. **Peso doble**: outcome Y calidad de ejecución se pesan por igual.
-2. **Techo duro**: score ≤ 7 si el comprador repite una demanda central (datos, evidencia, método, precio concreto) dos o más veces y el vendedor no la resuelve con concreción en esa conversación — aunque el outcome sea `next_step`.
+2. **Techo duro**: score ≤ 7 si el comprador repite demanda central dos o más veces sin resolución.
 3. **Penalizaciones** (−1 a −2 c/u):
    - Vendedor propone reunión/llamada/cierre antes de resolver la objeción principal.
-   - Siguiente paso queda ambiguo, abierto o sin acción/fecha concreta.
-   - Vendedor repite la misma estructura de respuesta sin adaptarse al comprador.
-4. **Sensibilidad al perfil**: el prompt incluye el criterio específico del `clientProfile` para que el evaluador juzgue si el vendedor respondió correctamente a ese tipo de comprador.
+   - Siguiente paso queda ambiguo sin acción/fecha concreta.
+   - Vendedor repite la misma estructura de respuesta sin adaptarse.
+4. **Techo de FALLO GRAVE**: Si `GRAVE_PENALTY_COUNT ≥ 1`, score máximo = 5.
+5. **Sensibilidad al perfil**: el prompt incluye criterio específico del `clientProfile`.
 
 ### Referencias de score
 
@@ -179,11 +267,7 @@ Recibe `clientProfile` de la sesión y lo usa para evaluación sensible al perfi
 | Next_step + ejecución débil | 5–6 |
 | Lost / broken | máx 5 |
 | Comprador repite demanda central sin resolver | máx 7 (techo duro) |
-
-- Critique: exactamente 3 frases cortas accionables en imperativo, específicas a esta conversación.
-- temperature=0.2 (más estricto y consistente que el valor anterior 0.4).
-
-El debrief se muestra en la pantalla post-sesión de Arena y se incluye en el audit log.
+| FALLO GRAVE detectado por CoachLite | máx 5 |
 
 ---
 

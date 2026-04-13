@@ -10,10 +10,10 @@ Los feature flags se establecen como variables de entorno en el proceso del API 
 
 | Valor | Comportamiento |
 |-------|---------------|
-| sin definir / `"false"` | Prompt de copiloto V2 (~700 tokens de entrada, compacto, estructurado) |
-| `"true"` | Prompt de copiloto V1 (~2100 tokens de entrada, verboso, con ejemplos) |
+| sin definir / `"false"` | Prompt de copiloto V2 (~700 tokens de sistema, compacto, con conversation_history) |
+| `"true"` | Prompt de copiloto V1 (~2100 tokens de sistema, verboso, con ejemplos) |
 
-El prompt V1 es funcionalmente equivalente al V2 pero cuesta ~3× más por llamada de analyze. Usar V1 solo para depurar regresiones de prompt o cuando el prompt V2 produce output incorrecto.
+El prompt V1 es funcionalmente equivalente al V2 pero cuesta ~3× más por llamada de analyze. Ambos usan `gpt-4o`. Usar V1 solo para depurar regresiones de prompt.
 
 **Impacto:** Solo afecta a `POST /api/copilot/analyze`. Sin efecto en summarize, context-label, o rutas de Arena.
 
@@ -34,6 +34,7 @@ El prompt V1 es funcionalmente equivalente al V2 pero cuesta ~3× más por llama
 - Detección de estado terminal: solo corre en keyword match O cada 3 turnos tras el turno 6
 - Transcripción del debrief: limitada a los últimos 15 turnos
 - Transcripción del suggest: limitada a los últimos 10 turnos
+- CoachLite y Journey: usan ventana de 12 turnos
 
 ### Modo legacy
 
@@ -41,7 +42,7 @@ El prompt V1 es funcionalmente equivalente al V2 pero cuesta ~3× más por llama
 - Detección terminal en cada turno (≥ turno 4), independientemente de keywords
 - Sin límites de transcripción para debrief o suggest
 
-Usar `LEGACY_ARENA=true` para depurar problemas de consistencia de la IA en sesiones muy largas, o para comparar gasto de tokens contra el modo optimizado.
+Usar `LEGACY_ARENA=true` para depurar problemas de consistencia de la IA en sesiones muy largas.
 
 **Impacto:** Afecta a `POST /api/arena/turn`, `POST /api/arena/suggest`, y `POST /api/arena/finish`.
 
@@ -60,11 +61,15 @@ O via las environment variables / secrets de Replit en el API server.
 
 ---
 
-## Comparativa de coste
+## Comparativa de coste (estimado)
 
-| Modo | Coste por llamada analyze (aprox) | Coste por turno Arena (aprox) |
-|------|----------------------------------|------------------------------|
-| Optimizado (default) | ~$0.00037 | ~$0.00025 (windowed) |
-| Legacy | ~$0.00110 | ~$0.00040+ (historial completo) |
+Los precios a continuación son aproximados con longitudes de conversación medias.
 
-Números aproximados con precios de gpt-4o-mini asumiendo longitudes de conversación medias.
+| Modo | Coste por llamada copilot/analyze | Coste por turno Arena (gpt-4o) |
+|------|----------------------------------|-------------------------------|
+| Optimizado (default) | ~$0.0060 | ~$0.0045 (windowed) |
+| Legacy | ~$0.0180 | ~$0.0090+ (historial completo) |
+
+**Nota:** El modelo de analyze y arena/turn principal es ahora `gpt-4o` (~16× más caro por token de output que gpt-4o-mini). El coste por sesión es significativamente mayor que en versiones anteriores que usaban gpt-4o-mini para estas llamadas.
+
+Las llamadas auxiliares (terminal-state, coach-lite, journey, suggest, debrief, etc.) siguen siendo `gpt-4o-mini` y tienen coste marginal comparado con el turno principal.
