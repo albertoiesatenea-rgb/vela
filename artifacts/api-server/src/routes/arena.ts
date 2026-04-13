@@ -198,24 +198,44 @@ ${langRule}`;
       ? sellerNotes.map((n, i) => `${i + 1}. ${n}`).join("\n")
       : "";
 
+    // Detect sellerNote intent for conditional blocks
+    const noteText = (sellerNotes ?? []).join(" ").toLowerCase();
+    const noPoliticianMode = /polit|consult|bland[ao]|suave|soft/i.test(noteText);
+    const holdFrameMode    = /dejes ir|dejes al cliente|no.*ir|let.*go|hold|retener/i.test(noteText);
+
+    // Conditional: NO POLITICIAN MODE block
+    const noPoliticianBlock = noPoliticianMode
+      ? `\nMODO SIN POLÍTICO — ACTIVO:
+Detectada restricción de tono político/consultivo. Aplica sin excepción:
+— Frases cortas. Si supera 15 palabras, córtala.
+— PROHIBIDO: "entiendo perfectamente", "es totalmente válido", "la decisión final depende de ti", "no estoy aquí para convencerte", "explora lo que prefieras".
+— PROHIBIDO: validaciones blandas repetitivas, preguntas suaves con objeción central viva.
+— Formato de respuesta: 1) golpe de criterio directo → 2) explicación en 1 frase → 3) remate que obliga a elegir marco.
+— Ejemplo: "No. Estás comparando caja mensual con rentabilidad total. Berlín te suena más segura porque la entiendes, no porque esté mejor comprada. La pregunta no es dónde cobras 100€ hoy; es dónde construyes más patrimonio con menos capital inmovilizado."\n`
+      : "";
+
+    // Conditional: HOLD THE FRAME enforcement block
+    const holdFrameBlock = holdFrameMode
+      ? `\nMODO RETENCIÓN DE MARCO — ACTIVO:
+Detectada restricción de no dejar ir al cliente. Aplica sin excepción:
+— Si el cliente trae una alternativa, activa SOSTENIMIENTO_DE_MARCO del motor táctico. Completa el ciclo completo antes de cualquier cesión.
+— PROHIBIDO: "si prefieres X", "parece que X encaja mejor para ti", "la decisión es tuya", "si no te convence lo dejamos aquí".
+— Si el cliente intenta salir de la conversación sin decisión, detecta el freno real y vuelve al umbral. No aceptes "lo pienso y te digo" sin fecha ni paso concreto.\n`
+      : "";
+
     // TOP BLOCK — placed before role definition for maximum primacy weight
     const topRestrictionsBlock = restrictionsList
       ? `══════════════════════════════════════════
 MARCO ACTIVO DE LA SESIÓN — PRIORIDAD ABSOLUTA
 ══════════════════════════════════════════
 El trainer ha definido las siguientes restricciones para esta sesión.
-Tienen prioridad absoluta sobre:
-— tu inercia comercial general
-— las heurísticas y tácticas del vendedor
-— el preset o dificultad configurados
-— cualquier argumento que creas que "vendería mejor"
-
-Si una restricción entra en conflicto con una heurística general, GANA LA RESTRICCIÓN.
-No puedes salir del marco que definen, aunque la alternativa parezca más efectiva.
+Jerarquía de prioridad:
+  sellerNotes > consistencia de tesis > avance conversacional > tono relacional
+Si una restricción entra en conflicto con cualquier heurística general, GANA LA RESTRICCIÓN.
 
 RESTRICCIONES ACTIVAS:
 ${restrictionsList}
-
+${noPoliticianBlock}${holdFrameBlock}
 PROHIBIDO bajo cualquier restricción activa:
 — salir del producto, país, mercado o tipo de operación que define el caso
 — ofrecer alternativas fuera del marco definido
@@ -366,9 +386,10 @@ ${transcript}
 RÚBRICA:
 1. Pesa outcome Y calidad de ejecución por igual.
 2. TECHO DURO: score ≤ 7 si el comprador repite una demanda central (datos, evidencia, método, precio concreto) dos o más veces y el vendedor no la resuelve con concreción en esa conversación, aunque el outcome sea next_step.
-3. PENALIZACIONES (−1 a −2 c/u): vendedor propone reunión/llamada/cierre antes de resolver la objeción principal · siguiente paso queda ambiguo o sin acción/fecha concreta · vendedor repite la misma estructura de respuesta sin adaptarse.
-4. SENSIBILIDAD AL PERFIL: aplica el criterio del perfil indicado arriba para juzgar si el vendedor respondió correctamente.
-5. Referencias: closed vs cliente difícil → mín 8; lost/broken → máx 5; next_step buena ejecución → hasta 8; next_step ejecución débil → 5–6.
+3. PENALIZACIONES GRAVES (−2 a −3 c/u — marcar explícitamente en critique): vendedor cede el marco ("sí, X parece mejor", "la decisión es tuya", "si prefieres X") sin completar el ciclo de reencuadre · vendedor valida que la alternativa rival es superior · vendedor construye ejemplo numérico que favorece claramente a la alternativa rival · tono político/consultivo con validaciones vacías repetitivas ("entiendo perfectamente", "totalmente válido") con objeción central viva · cierre propuesto con objeción principal activa.
+4. PENALIZACIONES MENORES (−1 a −2 c/u): vendedor propone reunión/llamada/cierre antes de resolver la objeción principal · siguiente paso queda ambiguo o sin acción/fecha concreta · vendedor repite la misma estructura de respuesta sin adaptarse.
+5. SENSIBILIDAD AL PERFIL: aplica el criterio del perfil indicado arriba para juzgar si el vendedor respondió correctamente.
+6. Referencias: closed vs cliente difícil → mín 8; lost/broken → máx 5; next_step buena ejecución → hasta 8; next_step ejecución débil → 5–6. Con fallo grave → máx 5 independientemente del outcome.
 
 Responde SOLO con JSON válido:
 {"score":<1-10>,"critique":["frase 1","frase 2","frase 3"]}
@@ -386,9 +407,10 @@ ${transcript}
 RUBRIC:
 1. Weight outcome AND execution quality equally.
 2. HARD CAP: score ≤ 7 if the buyer repeats a core demand (data, evidence, method, specific price) two or more times and the seller never addresses it concretely in this conversation — even if outcome is next_step.
-3. PENALTIES (−1 to −2 each): seller proposes meeting/call/close before resolving main objection · next step is ambiguous or lacks a concrete action/date · seller repeats the same response structure without adapting.
-4. PROFILE SENSITIVITY: apply the buyer profile criterion above to judge whether the seller responded correctly.
-5. Score references: closed vs tough client → min 8; lost/broken → max 5; next_step good execution → up to 8; next_step weak execution → 5–6.
+3. GRAVE PENALTIES (−2 to −3 each — call out explicitly in critique): seller cedes the frame ("yes, X seems better", "the decision is yours", "if you prefer X") without completing the reframe cycle · seller validates that the rival alternative is superior · seller builds a numerical example that clearly favors the rival alternative · consultive/political tone with repeated empty validations ("I completely understand", "totally valid") with the central objection still alive · close proposed with the main objection still active.
+4. MINOR PENALTIES (−1 to −2 each): seller proposes meeting/call/close before resolving main objection · next step is ambiguous or lacks a concrete action/date · seller repeats the same response structure without adapting.
+5. PROFILE SENSITIVITY: apply the buyer profile criterion above to judge whether the seller responded correctly.
+6. Score references: closed vs tough client → min 8; lost/broken → max 5; next_step good execution → up to 8; next_step weak execution → 5–6. With a grave failure → max 5 regardless of outcome.
 
 Reply ONLY with valid JSON:
 {"score":<1-10>,"critique":["point 1","point 2","point 3"]}
@@ -772,6 +794,13 @@ Context: ${context || "Generic sale"}
 Client said: "${userMessage}"
 Seller responded: "${aiMessage}"
 
+GRAVE FAILURE — mark why_this_response as "GRAVE FAILURE" (not "suboptimal") if the seller:
+- Validated the rival alternative as superior without completing the reframe cycle ("yes, X seems better", "that makes more sense")
+- Used frame-ceding phrases ("the decision is yours", "I'm not here to convince you", "explore other options") while the main objection is still alive
+- Built a numerical example that clearly favors the rival alternative without using it to attack the comparison criterion
+- Repeated empty validations ("I understand completely", "totally valid", "great question") with the main blocker unresolved
+- Closed or proposed a next step while the central objection was still active
+
 Return ONLY valid JSON. Example:
 {"signal":"price objection","reading":"Client is anchoring at a lower price to test concession space","mission":"Hold value anchor and redirect to ROI logic","next_move":"Isolate whether price is the only blocker or if there are others","strategy":"Value anchor hold","why_this_response":"Correct — seller avoids entering price negotiation before clarifying value","alternative":"optimal"}`;
   }
@@ -790,6 +819,13 @@ Campos:
 Contexto: ${context || "Venta genérica"}
 Cliente dijo: "${userMessage}"
 Vendedor respondió: "${aiMessage}"
+
+FALLO GRAVE — marca why_this_response como "FALLO GRAVE" (no "subóptimo") si el vendedor:
+- Validó la alternativa rival como superior sin completar el ciclo de reencuadre ("sí, X parece mejor", "eso tiene más sentido para ti")
+- Usó frases de cesión de marco ("la decisión es tuya", "no estoy aquí para convencerte", "explora otras opciones") con la objeción principal viva
+- Construyó un ejemplo numérico que favorece claramente a la alternativa rival sin usarlo para atacar el criterio de comparación
+- Repitió validaciones vacías ("entiendo perfectamente", "totalmente válido", "qué buena pregunta") con el bloqueo central sin resolver
+- Cerró o propuso siguiente paso con la objeción central todavía activa
 
 Devuelve SOLO JSON válido. Ejemplo:
 {"signal":"objeción de precio","reading":"El cliente ancla en precio bajo para probar si hay margen de concesión","mission":"Sostener el ancla de valor y redirigir a la lógica de retorno","next_move":"Aislar si el precio es el único bloqueo o si hay otros","strategy":"Sostén de ancla de valor","why_this_response":"Correcto — el vendedor evita entrar en negociación de precio antes de clarificar valor","alternative":"óptimo"}`;

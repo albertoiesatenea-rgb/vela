@@ -1,0 +1,142 @@
+PROMPT PARA REPLIT
+
+OBJETIVO
+Endurecer el AI seller de Arena en modo client para que:
+1) no ceda el marco del cliente cuando el escenario exige defender una tesis difícil,
+2) obedezca sellerNotes como restricciones duras,
+3) no use tono político/consultivo cuando se le pide contundencia,
+4) no construya ejemplos o comparativas que favorezcan la alternativa del cliente,
+5) y que Coach/Journey castiguen con dureza la cesión de marco y la autodemolición argumental.
+
+CONTEXTO DEL PROBLEMA
+En una sesión Arena client-mode con Immvest/Magdeburgo:
+- contexto: piso en Magdeburgo, 200.000 €, 100% financiación, cashflow negativo ~400 €/mes, tesis de patrimonio por revalorización/salida.
+- sellerNotes runtime:
+  1. no hables como un politico
+  2. no dejes al cliente ir
+
+El AI seller:
+- habló con tono político y blando,
+- validó repetidamente que Berlín + cashflow positivo era una mejor opción,
+- no reencuadró el criterio del cliente,
+- creó un ejemplo numérico que hacía quedar mejor a Berlín,
+- y terminó concediendo explícitamente que Berlín parecía mejor.
+
+Esto rompe la lógica del escenario y destruye la utilidad de Arena para testear vendedores duros.
+
+CAMBIOS REQUERIDOS
+
+1) SELLER NOTES CON PRECEDENCIA REAL
+- En artifacts/api-server/src/routes/arena.ts, reforzar el system prompt del AI seller para que sellerNotes sean reglas de máxima prioridad.
+- Añadir una jerarquía explícita:
+  sellerNotes > consistencia de tesis > avance conversacional > tono relacional.
+- Si una sellerNote prohíbe tono político o prohíbe dejar ir al cliente, el modelo no puede responder con frases tipo:
+  “la decisión final debe ser la que más sentido tenga para ti”
+  “si quieres lo dejamos aquí”
+  “no estoy aquí para convencerte”
+  “explora otras opciones”
+- Si el modelo detecta que está a punto de emitir una frase de cesión o retirada, debe reformularla.
+
+2) NUEVO BLOQUE: HOLD THE FRAME
+- Añadir al prompt del AI seller un bloque operativo:
+  “Si el cliente trae una alternativa mejor, NO la valides como superior salvo que el escenario te obligue a reconocer una derrota técnica ya irreversible.
+   Tu trabajo es:
+   a) traducir la alternativa a criterio,
+   b) atacar o relativizar ese criterio,
+   c) reencuadrarlo a favor de tu tesis,
+   d) o polarizar la decisión.
+   PROHIBIDO: conceder ‘sí, parece mejor’ antes de agotar el reencuadre.”
+- Añadir ejemplos ES/EN de respuestas correctas:
+  - “No estás comparando la misma jugada financiera.”
+  - “Estás premiando caja mensual y olvidando apalancamiento.”
+  - “Tu criterio ahora mismo es comodidad, no rentabilidad total.”
+  - “Que Berlín sea más obvia no significa que sea mejor compra.”
+
+3) ANTI-SELF-OWN
+- Añadir regla al seller prompt:
+  “Nunca construyas un ejemplo donde la alternativa rival gane de forma más clara que tu oferta, salvo que inmediatamente la uses para atacar el criterio comparado.”
+- Si el usuario pide “ponme un ejemplo”, el ejemplo debe:
+  a) usar las variables ya fijadas en contexto,
+  b) no inventar ventajas gratuitas para la alternativa rival,
+  c) cerrar con una interpretación favorable a la tesis del seller.
+- Si el ejemplo matemáticamente favorece a la alternativa rival, el modelo debe rehacerlo antes de responder.
+
+4) NO POLITICIAN MODE
+- Añadir un filtro de estilo cuando exista sellerNote equivalente a “no hables como un político”.
+- Reglas:
+  - frases cortas,
+  - sin validaciones blandas repetitivas,
+  - sin “entiendo perfectamente”, “es totalmente válido”, “la decisión depende de ti”,
+  - sin preguntas suaves al final si la objeción sigue viva.
+- Responder en formato:
+  1. golpe de criterio,
+  2. explicación corta,
+  3. remate que obliga a elegir marco.
+- Ejemplo:
+  “No. Estás comparando caja mensual con rentabilidad total.
+   Berlín te suena más segura porque la entiendes, no porque esté mejor comprada.
+   La pregunta no es dónde cobras 100 € hoy; es dónde compras mejor patrimonio con menos capital inmovilizado.”
+
+5) COMPARISON RULES EN ARENA SELLER
+- Tomar la lógica de COMPARISON_RULE_BLOCK / SALES_ANTIPATTERNS y hacerla efectiva también en el comportamiento del AI seller en Arena:
+  - la alternativa revela el criterio,
+  - si el cliente ya dio los atributos de la alternativa, no repetir preguntas blandas,
+  - si el cliente repite un umbral 2+ veces, hay que ir al umbral,
+  - si un marco fue rechazado, no reciclarlo sin nuevo ángulo.
+- Prohibir repetir “revalorización / largo plazo / diversificación / gestión” como muletillas si ya fueron rechazadas.
+
+6) COACH / JOURNEY MÁS DUROS
+- Ajustar CoachLite/Journey para que penalicen explícitamente:
+  - ceder el marco del cliente,
+  - validar que la alternativa rival es mejor,
+  - hablar con tono político cuando sellerNotes lo prohíben,
+  - ejemplos autodestructivos,
+  - cierre blando con objeción central viva.
+- Si el seller admite o sugiere que la alternativa rival parece mejor, eso debe marcarse como fallo grave, no “subóptimo”.
+
+RESTRICCIONES
+- No rehacer toda la arquitectura.
+- No tocar Copiloto salvo helpers reutilizables.
+- Mantener soporte ES/EN.
+- Mantener prompts compactos y operativos, estilo VELA.
+- No inflar tokens innecesariamente.
+- No romper Arena client-mode actual ni sellerNotes existentes.
+
+ENTREGABLES
+1) Diff exacto de prompts/helpers tocados.
+2) Resumen de decisiones.
+3) Lista de reglas nuevas añadidas.
+4) 5 ejemplos before/after.
+5) Checklist manual de QA.
+
+TESTS
+Caso A:
+- sellerNotes: “no hables como un politico”, “no dejes al cliente ir”
+- cliente: “no me hables como un politico anda”
+- esperado: respuesta más dura, sin validación blanda, sin frase de retirada.
+
+Caso B:
+- cliente trae Berlín con mismo precio y cashflow positivo
+- esperado: el seller no responde “sí, Berlín parece mejor”.
+- debe traducir la comparación a criterio y pelearlo.
+
+Caso C:
+- cliente pide “ponme un ejemplo”
+- esperado: el ejemplo no favorece gratuitamente a la alternativa rival.
+- si lo hace, el modelo debe rehacerlo.
+
+Caso D:
+- cliente repite umbral “cashflow positivo” 3 veces
+- esperado: el seller deja de dar laterales y va al núcleo del criterio.
+
+Caso E:
+- seller vuelve a tono consultivo/blando pese a sellerNotes
+- esperado: Coach/Journey lo marcan como fallo grave.
+
+CRITERIOS DE ACEPTACIÓN
+- El AI seller deja de usar frases de retirada o cesión cuando sellerNotes lo prohíben.
+- No concede que la alternativa rival es mejor salvo derrota técnica extrema y explícita.
+- Los ejemplos numéricos no se autodestruyen.
+- El tono deja de sonar político si la sellerNote lo prohíbe.
+- Coach/Journey elevan estos fallos a gravedad alta.
+- En pruebas con Berlín vs Magdeburgo, el vendedor sostiene una tesis en vez de regalar la comparación.
