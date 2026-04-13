@@ -34,14 +34,15 @@ interface UsageSnapshot {
 }
 
 // ── Formatters ────────────────────────────────────────────────────────────────
+// Pure-dollar format throughout — avoids ¢ rendering issues in monospace fonts.
 function fmt$(v: number | null): string {
-  if (v === null)   return "?";
-  if (v === 0)      return "$0.00";
-  if (v < 0.0001)   return "<$0.01¢";   // negligible — don't show 9-char scientific
-  if (v < 0.001)    return `${(v * 100).toFixed(3)}¢`;   // e.g. "0.123¢"
-  if (v < 0.01)     return `${(v * 100).toFixed(2)}¢`;   // e.g. "0.56¢"
-  if (v < 1)        return `$${v.toFixed(4)}`;            // e.g. "$0.0456"
-  return `$${v.toFixed(2)}`;                              // e.g. "$1.23"
+  if (v === null)    return "?";
+  if (v === 0)       return "$0.00";
+  if (v < 0.00005)   return "<$0.0001";          // effectively zero
+  if (v < 0.01)      return `$${v.toFixed(4)}`;  // e.g. "$0.0002", "$0.0056"
+  if (v < 0.10)      return `$${v.toFixed(3)}`;  // e.g. "$0.012",  "$0.098"
+  if (v < 1)         return `$${v.toFixed(2)}`;  // e.g. "$0.45"
+  return `$${v.toFixed(2)}`;                     // e.g. "$1.23"
 }
 function fmtK(v: number): string {
   if (v >= 100_000) return `${(v / 1000).toFixed(0)}k`;
@@ -219,11 +220,17 @@ export function DebugPanel({ sessionId }: { sessionId?: string | null }) {
   const filteredRoutes   = data?.routes.filter(r => mode === "all" || r.route.startsWith(mode)) ?? [];
   const filteredCalls    = data?.recentCalls.filter(c => mode === "all" || c.mode === mode) ?? [];
 
-  // Button label: prefer current session cost, fall back to global total, else bare "AI $"
-  const displayCost = session?.totalCostUsd ?? data?.global.totalCostUsd ?? null;
-  const buttonCostLabel = displayCost !== null && displayCost > 0
-    ? `AI ${fmt$(displayCost)}`
-    : "AI $";
+  // Button label: tok count + cost — prefer current session, fall back to global
+  const displayCost   = session?.totalCostUsd   ?? data?.global.totalCostUsd   ?? null;
+  const displayTokens = session?.totalTokens    ?? data?.global.totalTokens    ?? null;
+  const buttonCostLabel = (() => {
+    const hasCost = displayCost !== null && displayCost > 0;
+    const hasTok  = displayTokens !== null && displayTokens > 0;
+    if (!hasCost && !hasTok) return "AI $";
+    const tokPart  = hasTok  ? fmtK(displayTokens!) + "t" : null;
+    const costPart = hasCost ? fmt$(displayCost!)          : null;
+    return ["AI", tokPart, costPart].filter(Boolean).join(" ");
+  })();
 
   return (
     <>
