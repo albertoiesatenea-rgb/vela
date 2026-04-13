@@ -91,6 +91,19 @@ const TERMINAL_HINTS: Record<Lang, string[]> = {
   ],
 };
 
+// ── Sentence count helper (client mode compaction) ────────────────────────────
+// Approximates sentence count by looking for sentence-ending punctuation.
+// Handles bold markdown, ellipsis, and Spanish/English patterns robustly.
+function countSentences(text: string): number {
+  // Strip markdown bold markers for cleaner counting
+  const clean = text.replace(/\*\*/g, "");
+  // Match sentence-ending punctuation followed by whitespace/newline/end, or end of string
+  const matches = clean.match(/[.!?…]+(?:\s|$|\n)/g);
+  if (!matches) return 1;
+  // Collapse sequences that are just "..." (single ellipsis) to avoid overcounting
+  return matches.filter(m => !/^\.{2,}/.test(m.trim())).length || 1;
+}
+
 function shouldCheckTerminal(turns: ArenaTurn[], lang: Lang): boolean {
   if (turns.length < 4) return false;
   // Safety net: always check every 3 turns after turn 6
@@ -277,6 +290,25 @@ TERCERO DECISOR:
 COMPROMISO CON EL PRODUCTO:
 — Solo descarta la operación si el gap es objetivamente incerrable y ya lo verificaste con datos concretos del contexto.
 — Si hay ángulos sin explorar, explóralos antes de concluir que no hay encaje.
+
+CONCISIÓN Y FOCO TÁCTICO — REGLAS DURAS (aplican SIEMPRE en modo client):
+— TURNO NORMAL: máximo 2 frases totales. Sin excepciones salvo objeción técnica compleja.
+— OBJECIÓN TÉCNICA COMPLEJA: máximo 3 frases.
+— Nunca más de 1 pregunta por turno. Elige la más útil.
+— Nunca más de 1 idea principal por turno. Si tienes dos, elige la más importante.
+— PROHIBIDO: tono enciclopédico, docente o de mini-artículo.
+— PROHIBIDO: contexto histórico, teoría, storytelling o comparativas si el comprador no lo pidió explícitamente.
+— PROHIBIDO: listas largas (máx 2 ítems por respuesta). No rellenes con narrativa aspiracional.
+
+PRIORIDAD TÁCTICA — ANTES DE CUALQUIER EXPLICACIÓN:
+Si el comprador NO ha definido aún criterio de decisión, umbral de precio o condición de avance:
+→ PRIORIZA "Diagnosticar con pregunta concreta". No lances una explicación larga sin ese dato.
+Si el comprador expresa una preferencia clara:
+→ 1 frase de respuesta + 1 pregunta de criterio o umbral. No más.
+
+COMPRADOR ANALÍTICO — formato preferido cuando el perfil sea analítico o haga preguntas técnicas:
+(1) Conclusión concreta en 1 frase → (2) Criterio o umbral relevante en 1 frase → (3) Pregunta directa.
+Si faltan cifras reales, di qué falta en 1 frase y pregunta qué umbral necesita para decidir. NUNCA inventes números.
 
 FORMATO:
 — Separa con una línea en blanco la idea principal, la aclaración y la pregunta. No las pegues en un bloque corrido.
@@ -1101,6 +1133,59 @@ async function generateShortcutResponse(
   }
 }
 
+// ── Client-mode response compaction ──────────────────────────────────────────
+// Safety net: if the AI seller response exceeds CLIENT_MODE_MAX_SENTENCES,
+// run a fast mini-prompt to compress it while preserving clarity and tone.
+// This catches cases where the model ignores the conciseness rules in the system prompt.
+const CLIENT_MODE_MAX_SENTENCES = 3;
+
+async function compactIfNeeded(
+  aiMessage: string,
+  context: string,
+  lang: Lang,
+  sessionId: string,
+): Promise<string> {
+  if (countSentences(aiMessage) <= CLIENT_MODE_MAX_SENTENCES) return aiMessage;
+
+  const prompt = lang === "en"
+    ? `This seller response in a sales simulation is too long. Rewrite it in a maximum of ${CLIENT_MODE_MAX_SENTENCES} sentences. Preserve the single most important idea and the question if there is one. Keep a natural conversational tone — no robotic or telegraphic writing. No information loss on the key point. Return ONLY the rewritten response, no labels, no quotes.\n\nOriginal:\n${aiMessage}`
+    : `Esta respuesta del vendedor en una simulación de venta es demasiado larga. Reescríbela en máximo ${CLIENT_MODE_MAX_SENTENCES} frases. Conserva la idea más importante y la pregunta si hay una. Tono conversacional natural — sin escritura robótica ni telegráfica. Sin perder el punto clave. Devuelve SOLO la respuesta reescrita, sin etiquetas, sin comillas.\n\nOriginal:\n${aiMessage}`;
+
+  const t0 = Date.now();
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_tokens: 150,
+      temperature: 0.2,
+      messages: [{ role: "user", content: prompt }],
+    });
+    const latencyMs = Date.now() - t0;
+    const usage = completion.usage;
+    if (usage) {
+      logAICall({
+        route: "arena/turn",
+        endpoint: "compact",
+        sessionId,
+        mode: "arena",
+        model: "gpt-4o-mini",
+        maxTokensConfigured: 150,
+        promptTokens: usage.prompt_tokens,
+        completionTokens: usage.completion_tokens,
+        totalTokens: usage.total_tokens,
+        latencyMs,
+        status: "ok",
+      });
+    }
+    const compacted = completion.choices[0]?.message?.content?.trim();
+    // Only use compacted if it's non-empty and shorter than original
+    return compacted && compacted.length > 10 && compacted.length < aiMessage.length
+      ? compacted
+      : aiMessage;
+  } catch {
+    return aiMessage; // Fallback: return original on any error
+  }
+}
+
 // ── POST /api/arena/turn ──────────────────────────────────────────────────────
 router.post("/arena/turn", async (req, res) => {
   const { arenaSessionId, userMessage, shortcutDirection } = req.body as {
@@ -1196,6 +1281,12 @@ router.post("/arena/turn", async (req, res) => {
     aiMessage = completion.choices[0]?.message?.content?.trim() ?? "";
   } catch {
     aiMessage = session.lang === "en" ? "(No response)" : "(Sin respuesta)";
+  }
+
+  // Client mode: compact response if it exceeds the sentence limit.
+  // This is a safety net on top of the conciseness rules in the system prompt.
+  if (session.role === "client" && aiMessage) {
+    aiMessage = await compactIfNeeded(aiMessage, session.context, session.lang, arenaSessionId);
   }
 
   session.turns.push({

@@ -1,0 +1,82 @@
+## OBJETIVO
+Hacer que el vendedor IA de Arena (modo client) sea mucho más conciso y orientado a preguntas, reduciendo monólogo y aumentando control de conversación.
+
+## CONTEXTO
+- Archivo principal a revisar: `artifacts/api-server/src/routes/arena.ts`
+- Según la documentación actual, en Arena modo client el vendedor ya opera con movimientos explícitos como:
+  1. Diagnosticar con pregunta concreta
+  2. Responder directo y breve
+  3. Identificar umbral concreto
+  4. Admitir con honestidad que no encaja
+- La apertura del vendedor ya está documentada como “una frase” y “nunca explica el producto”.
+- Aun así, en la sesión auditada `a58bcf4e-3447-4c0d-a235-527dee1075d8` el vendedor respondió con bloques largos y explicativos, en lugar de usar una intervención corta que hiciera hablar más al cliente.
+- La doctrina interna de ventas indica que:
+  - quien hace las preguntas controla
+  - la venta consultiva funciona con muchas preguntas y poco pitch
+  - hablar demasiado para llenar silencios es un error
+  - con compradores analíticos hay que dar estructura y dejar espacio para procesar
+
+## CAMBIOS REQUERIDOS
+1. Endurecer el prompt del vendedor IA en modo client para imponer reglas visibles de longitud:
+   - apertura: máximo 1 frase + 1 pregunta
+   - turno normal: máximo 2 frases
+   - objeción técnica compleja: máximo 3 frases
+   - nunca más de 1 pregunta por turno
+   - nunca más de 1 idea principal por turno
+
+2. Cambiar la prioridad táctica del vendedor:
+   - si faltan criterios de decisión del comprador, priorizar siempre “diagnosticar con pregunta concreta”
+   - no hacer explicación larga si el comprador aún no ha definido umbral, criterio o condición de avance
+   - si el comprador expresa una preferencia clara, responder en una frase y devolver una pregunta de criterio o umbral
+
+3. Añadir reglas explícitas de estilo:
+   - evitar tono enciclopédico, docente o de mini-artículo
+   - evitar listas implícitas largas dentro de una misma respuesta
+   - evitar meter contexto histórico, teoría, storytelling o comparativas si el comprador no lo pidió
+   - sonar como vendedor preciso, no como Wikipedia
+
+4. Añadir una heurística simple post-respuesta para compactar salidas demasiado largas:
+   - si `aiMessage` excede el límite de frases definido para ese tipo de turno, recortar o regenerar con una instrucción de compresión
+   - preservar claridad y naturalidad
+   - no dejar texto telegráfico raro ni frases rotas
+
+5. Añadir una preferencia táctica para compradores analíticos:
+   - formato preferido: conclusión corta → criterio/umbral → pregunta
+   - prohibido responder con narrativa aspiracional
+   - prohibido inventar cifras
+   - si faltan números, decirlo en una frase y preguntar qué umbral necesita para decidir
+
+6. Añadir tests o casos de comprobación con ejemplos:
+   - una respuesta larga actual debe transformarse en una versión mucho más corta
+   - un comprador analítico debe recibir preguntas de criterio más que discurso explicativo
+   - la apertura no debe explicar el producto
+
+## RESTRICCIONES
+- No reescribir Arena completo.
+- No tocar Copiloto.
+- No romper CoachLite, Journey, sellerNotes, repitch ni shortcutDirection.
+- Mantener el estilo conversacional natural.
+- No instalar dependencias nuevas salvo necesidad estricta.
+- No convertir al vendedor en un bot seco o robótico; debe seguir sonando humano.
+
+## ENTREGABLES
+- [ ] `artifacts/api-server/src/routes/arena.ts` actualizado con reglas más duras de concisión para modo client
+- [ ] helper local opcional para compactar o validar longitud de salida
+- [ ] comentarios mínimos en código explicando la lógica de concisión
+- [ ] casos de prueba o checks manuales claros
+
+## TESTS
+- Caso 1: apertura del vendedor en modo client = 1 frase + 1 pregunta, sin explicación de producto
+- Caso 2: respuesta a objeción simple = máximo 2 frases
+- Caso 3: respuesta a objeción técnica = máximo 3 frases
+- Caso 4: comprador analítico recibe una pregunta de criterio/umbral en vez de un bloque explicativo
+- Caso 5: una salida larga tipo “mini-Wikipedia” se compacta antes de devolverse
+- Caso 6: no hay regresión en tonos ni en flujo de Arena
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] El vendedor IA en modo client responde de forma claramente más corta
+- [ ] En la mayoría de turnos no terminales, el vendedor hace avanzar la conversación con una pregunta concreta
+- [ ] Las respuestas visibles no se convierten en monólogos explicativos
+- [ ] Con compradores analíticos, el sistema prioriza criterio, umbral y claridad
+- [ ] La app compila sin errores
+- [ ] No hay regresiones en funcionalidades adyacentes de Arena
