@@ -210,3 +210,9 @@ id = "ELiSM6Guip1oVQS8d7cr_"
 uri = "file://vela-doc-refresh.zip"
 type = "unspecified"
 title = "vela-doc-refresh.zip — 11 documentos internos"
+
+[[outputs]]
+id = "9aezf_HKdUW1LttiqEm-r"
+uri = "file://vela-brain-docs.tar.gz"
+type = "unspecified"
+title = "VELA Brain Docs — todos los documentos (.tar.gz)"
