@@ -104,6 +104,145 @@ function countSentences(text: string): number {
   return matches.filter(m => !/^\.{2,}/.test(m.trim())).length || 1;
 }
 
+// ── Question cadence helpers ──────────────────────────────────────────────────
+// Detect if a text string ends with a question mark (handles bold markdown wrappers).
+function endsWithQuestion(text: string): boolean {
+  const stripped = text.trim().replace(/\*\*/g, "");
+  return /\?[\s"'»\u00BB]*$/.test(stripped);
+}
+
+// Client signals that they want clarity or an example — seller should explain, not ask.
+const CLARITY_PATTERNS: Record<Lang, string[]> = {
+  es: [
+    "explícame", "explica", "ponme un ejemplo", "dame un ejemplo", "ejemplo concreto",
+    "más claro", "más simple", "en simple", "simplifica", "sin jerga", "no entiendo",
+    "no me queda claro", "no queda claro",
+  ],
+  en: [
+    "explain", "give me an example", "concrete example",
+    "more clearly", "simpler", "simplify", "no jargon", "don't understand",
+    "not clear",
+  ],
+};
+
+// Client signals frustration specifically with questions being asked too often.
+const FRUSTRATION_PATTERNS: Record<Lang, string[]> = {
+  es: [
+    "basta de preguntas", "deja de preguntar", "para de preguntar",
+    "siempre preguntas", "solo preguntas", "tantas preguntas", "más preguntas",
+    "no me preguntes", "sin preguntas",
+  ],
+  en: [
+    "stop asking", "you keep asking", "always questions", "just questions",
+    "enough questions", "no more questions", "no questions",
+  ],
+};
+
+// Markers of a competitor or concrete alternative being raised.
+const COMPETITOR_PATTERNS: Record<Lang, string[]> = {
+  es: [
+    "berlín", "berlin", "madrid", "barcelona", "lisboa", "lisboa", "dubai", "miami",
+    "alternativa", "otra opción", "en vez de", "en lugar de", "la competencia",
+    "el otro", "la otra", "prefiero otra", "mejor opción",
+  ],
+  en: [
+    "alternative", "competitor", "instead of", "rather than", "other option",
+    "prefer another", "better option",
+  ],
+};
+
+interface CadenceAnalysis {
+  lastAiHadQuestion: boolean;       // previous AI turn ended with question
+  recentQuestionCount: number;      // questions in last 3 AI turns
+  clientWantsClarity: boolean;      // client asked for explanation / example
+  clientFrustratedWithQuestions: boolean; // client explicitly asked to stop questions
+  competitorMentioned: boolean;     // client brought a concrete alternative
+  repeatedObjection: boolean;       // same objection keyword in last 2 user messages
+}
+
+// Analyze the session turn history to detect cadence patterns.
+// Called only for client mode (AI = seller).
+// currentUserMessage must be the INCOMING user message (not yet in session.turns).
+function analyzeQuestionCadence(session: ArenaSession, currentUserMessage: string): CadenceAnalysis {
+  const aiTurns = session.turns.filter(t => t.speaker === "ai");
+  const lastAiHadQuestion = aiTurns.length > 0
+    ? endsWithQuestion(aiTurns[aiTurns.length - 1]!.message)
+    : false;
+
+  const lastThreeAiTurns = aiTurns.slice(-3);
+  const recentQuestionCount = lastThreeAiTurns.filter(t => endsWithQuestion(t.message)).length;
+
+  // Use the CURRENT incoming user message for pattern detection (not the previous one in history)
+  const lower = currentUserMessage.toLowerCase();
+
+  const clarityPatterns = CLARITY_PATTERNS[session.lang];
+  const frustrationPatterns = FRUSTRATION_PATTERNS[session.lang];
+  const competitorPatterns = COMPETITOR_PATTERNS[session.lang];
+
+  const clientWantsClarity = clarityPatterns.some(p => lower.includes(p));
+  const clientFrustratedWithQuestions = frustrationPatterns.some(p => lower.includes(p));
+  const competitorMentioned = competitorPatterns.some(p => lower.includes(p));
+
+  // Repeated objection: same keyword in the last user message in history AND the current one
+  const prevUserMsg = [...session.turns].reverse().find(t => t.speaker === "user")?.message ?? "";
+  const recentUserMsgs = [prevUserMsg.toLowerCase(), lower].filter(Boolean);
+  const OBJECTION_KEYWORDS = session.lang === "es"
+    ? ["precio", "caro", "cara", "no me convence", "no encaja", "no tengo", "no puedo", "no es el momento"]
+    : ["price", "expensive", "not convinced", "doesn't fit", "can't", "not the right time"];
+  const repeatedObjection = recentUserMsgs.length >= 2 &&
+    OBJECTION_KEYWORDS.some(kw => recentUserMsgs.every(m => m.includes(kw)));
+
+  return {
+    lastAiHadQuestion, recentQuestionCount,
+    clientWantsClarity, clientFrustratedWithQuestions,
+    competitorMentioned, repeatedObjection,
+  };
+}
+
+// Build an inline contextual instruction to inject into the system prompt for this turn.
+// Returns empty string when no cadence correction is needed.
+function buildCadenceNote(analysis: CadenceAnalysis, lang: Lang): string {
+  const notes: string[] = [];
+
+  if (analysis.clientFrustratedWithQuestions) {
+    notes.push(lang === "es"
+      ? "⚠️ MODO EXPLICACIÓN CLARA ACTIVADO — ESTE TURNO: El cliente expresó frustración con las preguntas. Responde con (1) una explicación directa, (2) un ejemplo concreto si aplica. CERO preguntas al final. Sin jerga. Frases cortas."
+      : "⚠️ CLEAR EXPLANATION MODE — THIS TURN: Client expressed frustration with questions. Respond with (1) a direct explanation, (2) a concrete example if applicable. ZERO questions at the end. No jargon. Short sentences.");
+  } else if (analysis.clientWantsClarity) {
+    notes.push(lang === "es"
+      ? "⚠️ TURNO DE EXPLICACIÓN — ESTE TURNO: El cliente pidió claridad o un ejemplo. Responde con explicación directa + ejemplo concreto si aplica. Sin jerga. Sin pregunta al final de este turno."
+      : "⚠️ EXPLANATION TURN — THIS TURN: Client asked for clarity or an example. Respond with direct explanation + concrete example if applicable. No jargon. No question at the end of this turn.");
+  } else if (analysis.recentQuestionCount >= 2) {
+    notes.push(lang === "es"
+      ? "⚠️ MODO STATEMENT FORZADO — ESTE TURNO: Hiciste pregunta en 2+ de los últimos 3 turnos. Este turno: haz una afirmación táctica o propón un paso concreto. Sin pregunta al final."
+      : "⚠️ STATEMENT MODE — THIS TURN: You asked a question in 2+ of the last 3 turns. This turn: make a tactical statement or propose a concrete next step. No question at the end.");
+  } else if (analysis.lastAiHadQuestion) {
+    notes.push(lang === "es"
+      ? "⚠️ Hiciste pregunta en el turno anterior. Si el cliente ya dio suficiente contexto, responde con una afirmación o propuesta. Solo haz pregunta si es imprescindible para avanzar."
+      : "⚠️ You asked a question in the previous turn. If the client gave enough context, respond with a statement or proposal. Only ask if strictly necessary to advance.");
+  }
+
+  if (analysis.competitorMentioned) {
+    notes.push(lang === "es"
+      ? "⚠️ COMPARACIÓN COMPETITIVA — ESTE TURNO: El cliente trajo una alternativa concreta. Usa este formato: (1) Reconoce el criterio real del cliente en 1 frase. (2) Compara en 2-3 ejes concretos — sé honesto si la alternativa gana en alguno. (3) Solo haz pregunta si ayuda a decidir entre criterios reales y distintos de los ya explorados. PROHIBIDO: '¿qué prefieres?', '¿qué valoras más?', '¿qué es más importante para ti?' si ya hiciste alguna variación de esa pregunta."
+      : "⚠️ COMPETITIVE COMPARISON — THIS TURN: Client brought a concrete alternative. Use this format: (1) Acknowledge the client's real criterion in 1 sentence. (2) Compare on 2-3 concrete axes — be honest if the rival wins on some. (3) Only ask a question if it helps decide between genuinely different criteria not already explored. FORBIDDEN: 'what do you prefer?', 'what matters most?', 'what's more important to you?' if you've already asked any variation of that.");
+  }
+
+  return notes.length > 0
+    ? `\n\n[INSTRUCCIÓN CONTEXTUAL — OBLIGATORIA ESTE TURNO]\n${notes.join("\n")}`
+    : "";
+}
+
+// Lightweight structured event logger for question cadence observability.
+// These events are captured by the Pino logger alongside regular request logs.
+function logCadenceEvent(
+  sessionId: string,
+  event: "ends_in_question" | "statement_forced" | "clarity_mode" | "journey_gated" | "coach_lite_gated",
+  detail?: string,
+): void {
+  console.log(JSON.stringify({ type: "cadence", sessionId, event, ...(detail ? { detail } : {}), ts: Date.now() }));
+}
+
 function shouldCheckTerminal(turns: ArenaTurn[], lang: Lang): boolean {
   if (turns.length < 4) return false;
   // Safety net: always check every 3 turns after turn 6
@@ -171,6 +310,7 @@ function buildSystemPrompt(
   sellerNotes?: string[],
   randomPreset?: string,
   arenaStructuredContext?: ArenaStructuredContext,
+  cadenceNote = "",
 ): string {
   const langRule = lang === "en" ? "Respond only in English." : "Responde solo en español.";
 
@@ -310,6 +450,30 @@ COMPRADOR ANALÍTICO — formato preferido cuando el perfil sea analítico o hag
 (1) Conclusión concreta en 1 frase → (2) Criterio o umbral relevante en 1 frase → (3) Pregunta directa.
 Si faltan cifras reales, di qué falta en 1 frase y pregunta qué umbral necesita para decidir. NUNCA inventes números.
 
+DISCIPLINA DE PREGUNTAS — REGLA DOCTRINAL:
+Preguntar no es movimiento por defecto. Preguntar en exceso rompe el rapport y bloquea el avance.
+— NO hagas pregunta si el cliente ya dio suficiente contexto en este turno.
+— NO hagas pregunta si el cliente acaba de pedir explicación, claridad o un ejemplo.
+— NO hagas pregunta si el cliente expresa frustración con las preguntas ("basta", "siempre preguntas", etc.).
+— NO repitas con otras palabras una pregunta de criterio o prioridad que ya hiciste antes en la misma sesión.
+— NO uses como cierre de turno: "¿qué prefieres?", "¿qué valoras más?", "¿qué es más importante para ti?" si ya hiciste alguna variación antes.
+— SÍ haz pregunta cuando: no tienes el criterio de decisión del cliente y sin él no puedes avanzar; o cuando hay un fork real entre dos opciones y el cliente necesita elegir.
+— Una pregunta por turno como máximo. Si no hay razón táctica concreta para preguntar → haz un statement.
+
+MODO EXPLICACIÓN CLARA — actívalo cuando el cliente pida claridad o exprese frustración:
+(1) Una explicación directa en 1-2 frases. Sin jerga. Sin abstracciones no concretadas.
+(2) Un ejemplo comparativo concreto si aplica.
+(3) CERO preguntas al final de esa respuesta.
+Prohibido usar en este modo: "mercado estable", "crecimiento patrimonial", "menor volatilidad" si no los acompañas de cifras reales.
+
+COMPARACIÓN COMPETITIVA — cuando el cliente traiga una alternativa concreta:
+Nunca respondas con otra pregunta abierta de priorización.
+Usa este formato:
+(1) Reconoce el criterio real del cliente en 1 frase concreta.
+(2) Compara en 2-3 ejes concretos. Sé honesto: si la alternativa gana en algún eje, dilo.
+(3) Solo haz pregunta si sirve para decidir entre criterios reales distintos de los ya explorados.
+Prohibido cuando ya hiciste variación de esa pregunta: "¿qué prefieres?", "¿qué valoras más?", "¿qué es más importante para ti?"
+
 FORMATO:
 — Separa con una línea en blanco la idea principal, la aclaración y la pregunta. No las pegues en un bloque corrido.
 — Si hay 2 o 3 opciones o condiciones, ponlas en lista con guión: "- **Opción:** descripción breve"
@@ -320,7 +484,7 @@ FORMATO:
 
 TONO: conversacional, claro, creíble. Como una persona, no como un chatbot.
 Usa **negrita** para cifras, condiciones clave, conclusiones directas y cualquier término que el lector deba captar de un vistazo. Úsala con criterio — no en cada frase, pero sí donde aporte claridad.
-Sin etiquetas ni metacomentarios.${bottomRestrictionsReminder}
+Sin etiquetas ni metacomentarios.${bottomRestrictionsReminder}${cadenceNote}
 ${langRule}`;
   }
 }
@@ -1133,11 +1297,40 @@ async function generateShortcutResponse(
   }
 }
 
+// ── Strip trailing question (frustration mode enforcement) ────────────────────
+// When the client explicitly asked to stop getting questions, deterministically
+// remove a trailing question from the AI response so the rule is honored even
+// if the model ignores the system prompt instruction.
+// Only removes the last question paragraph if the response has multiple paragraphs
+// or multiple sentences — avoids gutting single-sentence responses.
+function removeTrailingQuestion(text: string): string {
+  const trimmed = text.trimEnd();
+  // Split on blank-line paragraph boundaries
+  const paragraphs = trimmed.split(/\n\s*\n/);
+  if (paragraphs.length >= 2) {
+    const lastPara = paragraphs[paragraphs.length - 1]!.trim();
+    // If the last paragraph is purely a question (no declarative sentence)
+    if (/\?[\s*»"']*$/.test(lastPara) && !/[.!][^?]*$/.test(lastPara)) {
+      return paragraphs.slice(0, -1).join("\n\n").trimEnd();
+    }
+  }
+  // Single paragraph — strip only if there is a sentence before the trailing question
+  const lastQMatch = trimmed.match(/([.!]\s+|\n)(\*{0,2}¿[^?]*\?[*\s]*)$/);
+  if (lastQMatch) {
+    const cutAt = trimmed.lastIndexOf(lastQMatch[0]!);
+    const before = trimmed.slice(0, cutAt + 1).trimEnd(); // keep sentence-ending punct
+    if (before.length > 20) return before;
+  }
+  return trimmed;
+}
+
 // ── Client-mode response compaction ──────────────────────────────────────────
 // Safety net: if the AI seller response exceeds CLIENT_MODE_MAX_SENTENCES,
 // run a fast mini-prompt to compress it while preserving clarity and tone.
 // This catches cases where the model ignores the conciseness rules in the system prompt.
 const CLIENT_MODE_MAX_SENTENCES = 3;
+// Journey is computed every N AI turns to reduce cost. CoachLite still runs every turn.
+const JOURNEY_GATE_INTERVAL = 3;
 
 async function compactIfNeeded(
   aiMessage: string,
@@ -1218,6 +1411,24 @@ router.post("/arena/turn", async (req, res) => {
     generatedUserMessage = effectiveUserMessage;
   }
 
+  // ── Cadence analysis (client mode only) — must run BEFORE user turn is pushed ──
+  // analyzeQuestionCadence reads session.turns to detect patterns in AI's last messages
+  // and the incoming user message. We call it here so the analysis reflects the true
+  // last AI turn and the current user input before it's appended.
+  const cadence = session.role === "client" ? analyzeQuestionCadence(session, effectiveUserMessage) : null;
+  const cadenceNote = cadence ? buildCadenceNote(cadence, session.lang) : "";
+
+  // Log pre-response cadence events (what mode we're forcing BEFORE the AI responds)
+  if (cadence) {
+    if (cadence.clientFrustratedWithQuestions) {
+      logCadenceEvent(arenaSessionId, "clarity_mode", "client_frustrated");
+    } else if (cadence.clientWantsClarity) {
+      logCadenceEvent(arenaSessionId, "clarity_mode", "client_wants_clarity");
+    } else if (cadence.recentQuestionCount >= 2 || (cadence.lastAiHadQuestion && cadence.recentQuestionCount >= 1)) {
+      logCadenceEvent(arenaSessionId, "statement_forced", `recent_q=${cadence.recentQuestionCount}`);
+    }
+  }
+
   session.turns.push({
     index: session.turns.length,
     timestamp: new Date().toISOString(),
@@ -1239,6 +1450,7 @@ router.post("/arena/turn", async (req, res) => {
         historyLen,
         session.clientProfile, session.sellerProfile, session.difficulty,
         session.sellerNotes, session.randomPreset, session.arenaStructuredContext,
+        cadenceNote,
       ),
     },
   ];
@@ -1289,6 +1501,12 @@ router.post("/arena/turn", async (req, res) => {
     aiMessage = await compactIfNeeded(aiMessage, session.context, session.lang, arenaSessionId);
   }
 
+  // Frustration mode: if client explicitly asked to stop questions, strip any trailing question
+  // the model may have added despite the system prompt instruction.
+  if (session.role === "client" && aiMessage && cadence?.clientFrustratedWithQuestions) {
+    aiMessage = removeTrailingQuestion(aiMessage);
+  }
+
   session.turns.push({
     index: session.turns.length,
     timestamp: new Date().toISOString(),
@@ -1296,13 +1514,29 @@ router.post("/arena/turn", async (req, res) => {
     message: aiMessage,
   });
 
+  // ── Post-response observability: log if the AI seller response ended in a question ──
+  if (session.role === "client" && aiMessage && endsWithQuestion(aiMessage)) {
+    logCadenceEvent(arenaSessionId, "ends_in_question");
+  }
+
+  // ── Journey gating: only run Journey every JOURNEY_GATE_INTERVAL AI turns ──
+  // CoachLite runs every turn (high per-turn value). Journey changes slowly — no need
+  // to recompute it on every single turn. Skip also on first turn (no data yet).
+  const aiTurnCount = session.turns.filter(t => t.speaker === "ai").length;
+  const shouldRunJourney = session.role === "client" &&
+    aiTurnCount > 0 &&
+    aiTurnCount % JOURNEY_GATE_INTERVAL === 0;
+  if (session.role === "client" && !shouldRunJourney) {
+    logCadenceEvent(arenaSessionId, "journey_gated", `ai_turn=${aiTurnCount}`);
+  }
+
   // ── Run terminal detection + coachLite + journey in parallel ─────────────
   const [terminalSignal, coachLiteBase, journeyData] = await Promise.all([
     detectTerminalState(session.turns, session.role, session.lang, arenaSessionId, session.forceTerminal),
     session.role === "client"
       ? generateCoachLite(effectiveUserMessage, aiMessage, session.context, session.lang, arenaSessionId)
       : Promise.resolve(null),
-    session.role === "client"
+    shouldRunJourney
       ? generateJourney(session.turns, session.context, session.lang, arenaSessionId)
       : Promise.resolve(null),
   ]);

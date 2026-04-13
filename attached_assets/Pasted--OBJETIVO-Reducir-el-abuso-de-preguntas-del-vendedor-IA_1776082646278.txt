@@ -1,0 +1,121 @@
+## OBJETIVO
+Reducir el abuso de preguntas del vendedor IA en Arena modo client y bajar el coste por sesión sin romper el comportamiento principal del producto.
+
+## CONTEXTO
+- Producto: VELA, modo Arena.
+- Ruta principal: `POST /api/arena/turn`.
+- Según la documentación interna, en Arena modo client la IA actúa como vendedor y hoy usa un prompt con movimientos tácticos. En la práctica, los logs muestran que el vendedor sigue haciendo una pregunta en casi cada turno, incluso cuando el cliente ya ha dado contexto suficiente o pide explicaciones más claras.
+- En los logs recientes del escenario Immvest, el patrón repetido es:
+  - demasiadas preguntas consecutivas
+  - respuestas demasiado abiertas o blandas
+  - incapacidad para sostener una comparación competitiva contra Berlín sin regalar el marco
+  - el cliente llega a decir explícitamente “basta de tantas preguntas”
+- Además, el debug panel muestra coste alto para una sesión de chat simple, con la ruta dominante centrada en `turn` y un volumen elevado de llamadas/tokens.
+- Según la arquitectura actual, Arena puede disparar por turno:
+  - respuesta principal del modelo
+  - procesos auxiliares (CoachLite / Journey según modo)
+  - lógica adicional de estado
+- Hay que atacar el problema sin rehacer Arena entero.
+
+## CAMBIOS REQUERIDOS
+1. Endurecer el prompt del vendedor IA en Arena modo client para que deje de preguntar por defecto.
+   Reglas nuevas:
+   - no hacer pregunta en todos los turnos
+   - máximo 1 pregunta por turno
+   - preferencia por NO preguntar si el cliente:
+     - ya dio contexto suficiente
+     - pide una explicación
+     - pide una comparación
+     - expresa frustración con preguntas o lenguaje complejo
+   - si el cliente pide claridad (“explícamelo”, “ponme un ejemplo”, “basta de preguntas”), responder con:
+     - 1 explicación directa
+     - 1 ejemplo concreto si aplica
+     - 0 preguntas al final
+   - si el cliente ya explicitó su criterio de decisión, el vendedor no debe volver a preguntar lo mismo con otras palabras
+
+2. Añadir una heurística simple server-side en Arena modo client para controlar la cadencia de preguntas.
+   Implementar una lógica pequeña que mire los últimos turnos del vendedor y reduzca preguntas cuando:
+   - hubo pregunta en el turno anterior del vendedor
+   - hubo 2 preguntas en los últimos 3 turnos del vendedor
+   - el cliente acaba de pedir claridad o de que se deje de preguntar
+   En esos casos, forzar salida tipo statement en vez de question-ending.
+
+3. Añadir un “modo explicación clara” activado por señales del cliente.
+   Detectar patrones como:
+   - “basta de preguntas”
+   - “no entiendo”
+   - “explícame”
+   - “ponme un ejemplo”
+   - “más claro”
+   Cuando aparezcan, el vendedor debe cambiar temporalmente a este modo:
+   - frases más cortas
+   - sin jerga
+   - sin abstracciones tipo “mercado estable”, “crecimiento patrimonial”, “menos volatilidad” si no se concretan
+   - priorizar ejemplo comparativo simple
+   - 0 preguntas al final de esa respuesta
+
+4. Mejorar la gestión de comparación competitiva en Arena modo client.
+   Cuando el cliente traiga una alternativa concreta (por ejemplo Berlín), el vendedor no debe responder con otra pregunta abierta.
+   Debe usar este formato:
+   - reconocer el criterio real
+   - comparar en 2 o 3 ejes concretos
+   - decir con honestidad cuándo la alternativa rival gana
+   - solo hacer pregunta si sirve para decidir entre criterios reales, no para seguir flotando
+   Prohibir respuestas tipo:
+   - “¿qué prefieres priorizar?”
+   - “¿qué valoras más?”
+   - “¿qué es más importante para ti?”
+   cuando ya se haya hecho una variación de esa pregunta antes en la misma sesión
+
+5. Reducir coste por sesión en Arena sin romper UX.
+   Revisar el flujo de `POST /api/arena/turn` y limitar llamadas auxiliares innecesarias.
+   Objetivo:
+   - no ejecutar procesos auxiliares costosos en todos los turnos si no aportan valor real
+   - introducir gating simple para análisis secundarios
+   - priorizar la respuesta principal y bajar frecuencia de análisis derivados cuando la conversación está en loop o sin cambio de estado
+   Algunas ideas válidas si encajan con el código real:
+   - ejecutar análisis auxiliar solo cada N turnos
+   - no ejecutar análisis auxiliar si el cliente repite objeción ya detectada
+   - no ejecutar análisis auxiliar si no cambia el estado conversacional
+   - reusar estado ya calculado cuando no hay novedad
+   Importante: no asumir esta implementación exacta si el código real difiere; inspecciona el flujo actual y aplica la reducción mínima y segura posible.
+
+6. Añadir observabilidad específica para estos dos problemas.
+   En logs o tracker, registrar campos simples cuando:
+   - la salida del vendedor termina en pregunta
+   - se fuerza “statement mode”
+   - se activa “modo explicación clara”
+   - se omiten análisis auxiliares por gating de coste
+   Esto permitirá medir si el cambio realmente mejora ratio de preguntas y coste total.
+
+## RESTRICCIONES
+- No reescribir Arena completo.
+- No tocar Copiloto.
+- No romper `sellerNotes`, `repitch`, `shortcutDirection`, `CoachLite` ni `Journey`.
+- Mantener el estilo conversacional natural; el vendedor no debe sonar robótico.
+- No instalar dependencias nuevas salvo necesidad estricta.
+- Hacer cambios pequeños, seguros y localizados.
+- Si el código real no coincide exactamente con la documentación, adaptar el cambio al flujo real sin rehacer arquitectura.
+
+## ENTREGABLES
+- [ ] `artifacts/api-server/src/routes/arena.ts` modificado con nuevas reglas de concisión y control de preguntas en modo client
+- [ ] helper local pequeño para detectar sobreuso de preguntas / activar explanation mode si hace falta
+- [ ] gating de coste añadido en el flujo de turn para reducir llamadas auxiliares innecesarias
+- [ ] observabilidad mínima añadida para ratio de preguntas y gating de coste
+- [ ] comentarios breves en código explicando las decisiones
+
+## TESTS
+- Caso 1: si el vendedor hizo pregunta en el turno anterior y el cliente responde con más contexto, el siguiente turno del vendedor no termina en pregunta
+- Caso 2: si el cliente dice “basta de tantas preguntas”, la siguiente respuesta del vendedor no contiene pregunta y usa lenguaje más simple
+- Caso 3: si el cliente dice “ponme un ejemplo claro”, la respuesta del vendedor contiene ejemplo directo y cero pregunta final
+- Caso 4: si el cliente trae una alternativa competitiva concreta, el vendedor responde comparando criterios y no con otra pregunta genérica de priorización
+- Caso 5: en una sesión larga con objeción repetida, el número de llamadas auxiliares por turno baja respecto al comportamiento actual
+- Caso 6: la app compila sin errores y Arena sigue funcionando end-to-end
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] El vendedor IA en modo client hace claramente menos preguntas por sesión
+- [ ] Ya no pregunta por reflejo cuando el cliente pide explicación o claridad
+- [ ] Las respuestas comparativas son más directas y menos blandas
+- [ ] El coste medio de una sesión Arena baja de forma apreciable frente al comportamiento actual
+- [ ] No hay regresión visible en flujo conversacional ni en features adyacentes
+- [ ] La app compila sin errores
