@@ -50,6 +50,10 @@ export const AnalyzeConversationBody = zod.object({
     .max(1)
     .optional()
     .describe("Speaker attribution confidence 0-1 from AUTO mode session (omit for manual modes)"),
+  conversation_history: zod
+    .array(zod.string())
+    .optional()
+    .describe("Accumulated real conversation history — full turns in order, including current fragment as last entry"),
 });
 
 // Helper: accept string | null | undefined from AI and normalise to string | undefined

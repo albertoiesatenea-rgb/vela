@@ -494,12 +494,25 @@ export default function CopilotPage() {
       }
 
       const fullText = speakerPrefix + text;
+      // Build full history BEFORE state update (conversationLog still has previous turns)
+      const historyRaw = [...conversationLog, fullText];
+      const HISTORY_MAX = 16;
+      const HISTORY_TRIGGER = 20;
+      let conversationHistoryPayload: string[];
+      if (historyRaw.length > HISTORY_TRIGGER) {
+        const olderCount = historyRaw.length - HISTORY_MAX;
+        const summary = `[Resumen: ${olderCount} intercambio${olderCount !== 1 ? "s" : ""} anteriores]`;
+        conversationHistoryPayload = [summary, ...historyRaw.slice(-HISTORY_MAX)];
+      } else {
+        conversationHistoryPayload = historyRaw;
+      }
+
       setConversationLog(prev => [...prev, fullText]);
 
       // Snapshot memory before this turn
       const memoryBefore = callMemoryRef.current.slice();
 
-      // Serialize call_memory array to bulleted string for the API
+      // keep call_memory string for fallback / backward compat (used in summarize endpoint)
       const memLines = callMemoryRef.current;
       const memoryStr = memLines.length > 0
         ? memLines.map(l => `- ${l}`).join("\n")
@@ -511,6 +524,7 @@ export default function CopilotPage() {
             text: fullText,
             ...(sessionContext ? { context: sessionContext } : {}),
             ...(memoryStr ? { call_memory: memoryStr } : {}),
+            conversation_history: conversationHistoryPayload,
             ...(structuredContext ? { structured_context: structuredContext } : {}),
             lang: langRef.current,
             ...(capturedSpeakerMode === "auto" && speakerConfidence < 1.0

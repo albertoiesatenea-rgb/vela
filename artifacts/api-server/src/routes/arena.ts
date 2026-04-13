@@ -1167,11 +1167,12 @@ router.post("/arena/turn", async (req, res) => {
 
   let aiMessage = "";
   const t0 = Date.now();
+  const TURN_MODEL = "gpt-4o";
   try {
     // Client mode: AI is seller — cap at 220 (allows real context when needed, blocks walls of text)
     const turnMaxTokens = session.role === "client" ? 220 : 300;
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: TURN_MODEL,
       max_tokens: turnMaxTokens,
       messages: gptMessages,
     });
@@ -1183,7 +1184,7 @@ router.post("/arena/turn", async (req, res) => {
         endpoint: "turn",
         sessionId: arenaSessionId,
         mode: "arena",
-        model: "gpt-4o-mini",
+        model: TURN_MODEL,
         maxTokensConfigured: turnMaxTokens,
         promptTokens: usage.prompt_tokens,
         completionTokens: usage.completion_tokens,

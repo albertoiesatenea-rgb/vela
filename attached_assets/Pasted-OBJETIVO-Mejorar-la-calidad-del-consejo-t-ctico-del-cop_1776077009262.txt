@@ -1,0 +1,67 @@
+OBJETIVO
+Mejorar la calidad del consejo táctico del copiloto y del vendedor Arena
+cambiando dos variables: modelo y contexto de conversación.
+
+CAMBIO 1 — Modelo en llamadas críticas
+[VERIFICAR dónde se configura el modelo en cada endpoint]
+
+Cambiar el modelo usado en:
+- El endpoint principal de análisis del copiloto (copilot/analyze)
+- El endpoint de turno Arena modo client (arena/turn, llamada principal)
+
+De: gpt-4o-mini
+A: gpt-4o
+
+Mantener gpt-4o-mini para llamadas auxiliares de bajo coste:
+terminal detection, coach-lite, journey, context-label, preset-context.
+Estas son clasificaciones simples que no necesitan razonamiento profundo.
+
+CAMBIO 2 — Historial real en el copiloto
+[VERIFICAR cómo se construye el user message en copilot/analyze]
+
+Actualmente el copiloto recibe fragmentos sueltos más una call_memory
+comprimida. Cambiar para que el modelo reciba el historial acumulado de
+la conversación real en cada llamada, en formato limpio:
+
+  [Cliente]: texto
+  [Vendedor]: texto
+  [Cliente]: texto
+  ...
+  [Nuevo fragmento]: texto actual
+
+El historial se mantiene en el estado del frontend y se envía en cada
+llamada. Si supera 20 intercambios, enviar solo los últimos 16 más
+un resumen de los anteriores (similar al windowing de Arena).
+
+La call_memory sigue existiendo como output del modelo (es útil para
+el audit log y para el resumen final) pero deja de ser el único contexto
+que ve el modelo en cada turno.
+
+RESTRICCIONES
+- No tocar el schema de respuesta JSON (campos, nombres, estructura)
+- No tocar el modo seller de Arena (IA = cliente)
+- No tocar las llamadas auxiliares (terminal, coach-lite, journey,
+  context-label) — siguen en gpt-4o-mini
+- No modificar la longitud ni el formato del campo say_now — debe
+  seguir siendo conciso (4-12 palabras). Lo que mejora es la calidad
+  del razonamiento detrás, no la longitud del output
+- El historial que se envía no incluye las sellerNotes ni las instrucciones
+  internas — solo los mensajes reales de la conversación
+
+ENTREGABLES
+1. copilot/analyze usando gpt-4o con historial real de conversación
+2. arena/turn (llamada principal, modo client) usando gpt-4o
+3. Confirmar en el debug panel que las llamadas a analyze y arena/turn
+   muestran el modelo correcto en el campo model
+
+TESTS
+- Sesión copiloto con 5 turnos de conversación real: verificar que el
+  modelo recibe el historial completo, no solo el último fragmento
+- Verificar en debug panel que el coste por llamada de analyze sube
+  (confirma que el modelo cambió) y que las auxiliares siguen baratas
+- Comparar say_now antes y después: misma longitud, mejor elección táctica
+
+CRITERIO DE ACEPTACIÓN
+Pegar una conversación de venta real de 4 turnos en el copiloto y que
+el say_now del turno 5 sea la jugada que elegiría un vendedor experto —
+no la respuesta genérica. Conciso como siempre, pero decisivo.

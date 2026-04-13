@@ -397,21 +397,31 @@ router.post("/copilot/analyze", async (req, res) => {
     return;
   }
 
-  const { text, context, call_memory, lang, structured_context, speaker_confidence } = parseResult.data;
+  const { text, context, call_memory, lang, structured_context, speaker_confidence, conversation_history } = parseResult.data;
   const sessionId = (req.headers["x-session-id"] as string | undefined) ?? undefined;
 
-  const userMessage = [
-    call_memory ? `MEMORIA ACUMULADA:\n${call_memory}` : null,
-    `FRAGMENTO:\n${text}`,
-    "JSON táctico:",
-  ].filter(Boolean).join("\n\n");
+  // Build user message: prefer real conversation history over compressed call_memory
+  let userMessage: string;
+  if (conversation_history && conversation_history.length > 0) {
+    userMessage = [
+      `HISTORIAL DE CONVERSACIÓN:\n${conversation_history.join("\n")}`,
+      "JSON táctico:",
+    ].join("\n\n");
+  } else {
+    userMessage = [
+      call_memory ? `MEMORIA ACUMULADA:\n${call_memory}` : null,
+      `FRAGMENTO:\n${text}`,
+      "JSON táctico:",
+    ].filter(Boolean).join("\n\n");
+  }
 
+  const ANALYZE_MODEL = "gpt-4o";
   const t0 = Date.now();
   let status: "ok" | "error" | "partial" = "ok";
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: ANALYZE_MODEL,
       max_tokens: 900,
       messages: [
         { role: "system", content: buildSystemPrompt(context, lang, structured_context, speaker_confidence) },
@@ -427,7 +437,7 @@ router.post("/copilot/analyze", async (req, res) => {
         endpoint: "analyze",
         sessionId,
         mode: "copilot",
-        model: "gpt-4o-mini",
+        model: ANALYZE_MODEL,
         maxTokensConfigured: 900,
         promptTokens: usage.prompt_tokens,
         completionTokens: usage.completion_tokens,
@@ -466,7 +476,7 @@ router.post("/copilot/analyze", async (req, res) => {
       endpoint: "analyze",
       sessionId,
       mode: "copilot",
-      model: "gpt-4o-mini",
+      model: ANALYZE_MODEL,
       maxTokensConfigured: 900,
       promptTokens: 0,
       completionTokens: 0,
