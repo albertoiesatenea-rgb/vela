@@ -1,0 +1,100 @@
+## OBJETIVO
+Corregir de verdad el bug del badge flotante de coste IA en la esquina inferior derecha. El texto sigue viéndose solapado incluso después de quitar ancho fijo y overflow, así que ya no acepto más “ajustes de padding”: hay que encontrar la causa real y arreglarla.
+
+## CONTEXTO
+- La app tiene un debug panel / AI monitor y un badge flotante de coste.
+- La documentación interna sitúa el panel principal en `artifacts/silent-closer/src/components/debug-panel.tsx`, renderizado en `copilot.tsx` y `arena.tsx`.
+- Ya se intentó un fix visual superficial: quitar `w-[80px]`, `overflow-hidden`, `tracking-wide`, y usar `inline-flex`, `px-3`, `py-1`, `leading-none`.
+- Ese fix NO ha resuelto el problema.
+- La captura nueva sigue mostrando el importe roto/solapado. El efecto visual ya no parece un simple problema de ancho; parece más bien:
+  - texto renderizado dos veces
+  - dos badges montados a la vez en la misma posición
+  - pseudo-elemento (`::before` / `::after`) duplicando contenido
+  - transform / scale / zoom / translate aplicados al texto o al contenedor
+  - font rendering extraño por herencia de estilos
+  - estado duplicado o render duplicado del mismo nodo
+
+## CAMBIOS REQUERIDOS
+1. Localizar el componente exacto del badge flotante y revisar SU DOM REAL.
+   - No asumir que el bug está en CSS solamente.
+   - Inspeccionar:
+     - dónde se renderiza el badge
+     - cuántas veces se monta
+     - si se renderiza una sola vez o dos veces
+     - si el texto aparece duplicado en nodos hijos
+     - si hay pseudo-elementos con `content`
+     - si hay animaciones/transitions/transforms aplicadas
+
+2. Comprobar si el badge se está montando dos veces.
+   - Revisar `copilot.tsx`, `arena.tsx`, wrappers, layouts y cualquier componente compartido.
+   - Confirmar que no haya dos instancias activas del badge flotante en el mismo árbol visual.
+   - Si hay doble render, dejar una sola fuente de verdad.
+
+3. Revisar estilos computados del nodo del texto.
+   - Verificar y corregir si existen:
+     - `transform`
+     - `scale`
+     - `translate`
+     - `zoom`
+     - `text-shadow`
+     - `filter`
+     - `backdrop-filter`
+     - `mix-blend-mode`
+     - `absolute`/`relative` mal combinados
+     - `letter-spacing`
+     - `line-height`
+     - `font-feature-settings`
+     - `font-variant-numeric`
+   - Eliminar cualquier estilo que pueda producir ghosting o doble pintura del texto.
+
+4. Revisar si el importe se está pintando desde dos fuentes distintas.
+   - Ejemplos:
+     - label + span duplicado
+     - texto hardcodeado y texto dinámico a la vez
+     - `children` + prop `value`
+     - render condicional mal resuelto
+   - Debe quedar un único nodo visible con el valor final.
+
+5. Simplificar el badge al mínimo si hace falta.
+   - Dejar una estructura simple y robusta:
+     - 1 contenedor
+     - 1 label opcional (`AI`)
+     - 1 nodo de texto para el importe
+   - Sin efectos visuales innecesarios.
+   - Prioridad: legibilidad, no adornos.
+
+6. Validar que el fix funciona con distintos importes.
+   - Cortos, largos, con coma, con símbolo de moneda.
+   - El badge debe verse limpio en todos los casos.
+
+## RESTRICCIONES
+- No reescribir el debug panel completo.
+- No tocar backend ni cálculo de coste.
+- No parchear a ciegas solo con más padding o widths.
+- No instalar dependencias nuevas.
+- Mantener el estilo general del producto, pero priorizar legibilidad sobre estética.
+- Si el problema real es doble montaje o doble render, arreglar eso en origen, no maquillarlo con CSS.
+
+## ENTREGABLES
+- [ ] Componente exacto del badge localizado
+- [ ] Causa raíz identificada por escrito en el código o en el resumen final
+- [ ] Badge corregido sin solape ni ghosting
+- [ ] Verificación de que solo hay una instancia visible del badge
+- [ ] Fix limpio y mínimo, sin tocar lógica de negocio
+
+## TESTS
+- Caso 1: el badge muestra `0,00€` limpio, sin caracteres duplicados
+- Caso 2: el badge muestra `0,00001€` limpio
+- Caso 3: el badge muestra valores más largos sin ghosting
+- Caso 4: no existen dos badges renderizados en la misma esquina
+- Caso 5: no hay pseudo-elementos duplicando el valor
+- Caso 6: el panel principal sigue funcionando igual
+- Caso 7: la app compila sin errores
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] El texto del badge se ve una sola vez
+- [ ] No hay solape, doble pintura ni caracteres fantasma
+- [ ] El badge funciona con importes cortos y largos
+- [ ] La causa raíz queda realmente corregida, no maquillada
+- [ ] No hay regresión visual en el debug panel
+- [ ] La app compila sin errores

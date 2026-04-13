@@ -931,22 +931,20 @@ export default function CopilotPage() {
   }
 
   if (arenaRole !== null) {
+    // Arena already renders its own DebugPanel internally — do NOT add a second one here.
     return (
-      <>
-        <Arena
-          key={arenaKey}
-          context={sessionContext}
-          contextLabel={contextLabel}
-          role={arenaRole}
-          lang={lang}
-          arenaConfig={arenaConfig}
-          onExit={handleActuallyClearSession}
-          onGoArena={handleGoArena}
-          onGoArenaRole={handleGoArenaRole}
-          onRetry={() => setArenaKey(k => k + 1)}
-        />
-        <DebugPanel sessionId={null} />
-      </>
+      <Arena
+        key={arenaKey}
+        context={sessionContext}
+        contextLabel={contextLabel}
+        role={arenaRole}
+        lang={lang}
+        arenaConfig={arenaConfig}
+        onExit={handleActuallyClearSession}
+        onGoArena={handleGoArena}
+        onGoArenaRole={handleGoArenaRole}
+        onRetry={() => setArenaKey(k => k + 1)}
+      />
     );
   }
 
