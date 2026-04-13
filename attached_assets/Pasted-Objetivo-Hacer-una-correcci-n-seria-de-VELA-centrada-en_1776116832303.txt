@@ -1,0 +1,104 @@
+Objetivo
+Hacer una corrección seria de VELA centrada en tres frentes:
+
+reparar Copiloto en tiempo real,
+dejar de generar resúmenes/debrief falsos cuando el análisis falla,
+reforzar el cerebro vendedor compartido para que responda objeciones concretas con precisión en Copiloto, Arena cliente y auditoría.
+
+Contexto del problema
+He probado el mismo caso de José Romero en Arena cliente, Arena vendedor y Copiloto. El patrón es claro:
+
+el Prompter sí entrega contexto útil y detallado
+Arena vendedor funciona razonablemente bien: el cliente IA objeta con precisión y coherencia
+Arena cliente sigue flojo como vendedor: abstrae, no responde bien objeciones técnicas y a veces regala el activo demasiado pronto
+Copiloto ha fallado técnicamente en plena llamada: varios turnos con API call failed, análisis nulos y UI sin actualizar
+pese a eso, el debrief de Copiloto terminó con score: 7.2, global_state: sólida, fortalezas genéricas y reporte engañosamente aceptable
+la razón arquitectónica parece clara: copilot/summarize hoy se alimenta de call_memory, outcome, lang, full_report y speaker_uncertainty, pero no del transcript completo
+además, la auditoría y el summary siguen contradiciendo al coaching en Arena: aparecen varios “FALLO GRAVE” pero el summary exportado deja likely_primary_failure: none, unresolved_objections: null y no anomalies detected
+
+Cambios requeridos
+
+Reparar Copiloto real-time
+revisar /api/copilot/analyze
+arreglar causa de API call failed y parse errors repetidos
+implementar fallback robusto si falla el modelo:
+mantener UI viva
+mostrar estado de error claro
+no dejar campos tácticos en null sin feedback
+si el análisis falla, no fingir que Copiloto sigue funcionando
+Rehacer summarize/debrief para que no sea ciego
+modificar /api/copilot/summarize para que pueda usar transcript real o conversation_history resumido robustamente, no solo call_memory
+si hubo errores técnicos en analyze, el score final debe penalizarse o marcarse como poco fiable
+no permitir score alto y estado “sólida” si el runtime de guidance estuvo caído
+en el full report, incluir una bandera visible de fiabilidad del análisis
+Hacer visible el transcript de Copiloto al final de llamada
+añadir en la UI post-call una vista visible del historial de conversación, no solo descarga de audit log
+idealmente: transcript legible + memory + outcome + debrief
+debe servir para contrastar si el resumen es fiel
+Refactor del núcleo vendedor compartido
+reforzar sales-brain o capa equivalente compartida por Copiloto, Arena cliente y auditoría
+el vendedor debe responder objeciones concretas con secuencia obligatoria:
+a) responder la objeción concreta
+b) aislar si ese es el freno real
+c) medir si resuelto eso queda algo más
+d) solo entonces avanzar, cerrar o descartar
+prohibir reencuadres abstractos tipo “patrimonio / seguridad / largo plazo” si no aterrizan la duda concreta
+prohibir regalar el activo antes de defenderlo correctamente
+prohibir falsas dicotomías cuando el cliente ya dejó claro su criterio
+Alinear auditoría, coach y summary
+si coach marca “FALLO GRAVE”, el summary no puede cerrar limpio
+unificar flags de fallo real:
+technical_runtime_failure
+concrete_objection_unresolved
+premature_asset_disqualification
+summary_coach_conflict
+debrief_unreliable_due_to_missing_analysis
+hacer que audit hints y reportes finales lean de la misma verdad
+Revisar observabilidad del modelo
+los docs internos dicen gpt-4o para analyze y turnos principales, pero los logs exportados muestran model: gpt-4o-mini en sesiones de Copiloto/Arena
+confirmar si es solo metadata incorrecta o si realmente se está usando un modelo inferior
+si es metadata mala, corregir logging
+si es runtime real, revisar si ese modelo es suficiente para casos comerciales finos
+
+Restricciones
+
+No parchear solo un modo
+No duplicar lógicas separadas si puede centralizarse
+Mantener compatibilidad con contexto libre actual
+Priorizar robustez operativa y veracidad del debrief sobre estética
+No seguir maquillando sesiones malas con reportes bonitos
+
+Entregables
+
+fix de /api/copilot/analyze
+fix de /api/copilot/summarize
+transcript visible en UI post-call de Copiloto
+refactor del núcleo vendedor compartido
+alineación entre coach, summary y audit hints
+revisión del logging/model metadata
+tests de regresión
+
+Tests
+
+Copiloto José Romero:
+si falla analyze, la UI debe mostrar error y no fingir guidance válida
+el resumen final no puede salir “sólida 7.2” con 4 API failures y 4 parse errors
+Copiloto transcript:
+al cerrar llamada, debe verse historial legible sin depender de descargar el .md
+Arena cliente:
+ante objeción concreta sobre renta/contrato/garantía, el vendedor debe responder con precisión antes de abstraer o descartar
+Arena vendedor:
+el cliente IA debe seguir objetando con precisión como ahora o mejor
+no degradar este modo, que es de lo que mejor está funcionando
+Auditoría:
+si hay “FALLO GRAVE” repetido, likely_primary_failure no puede ser none
+unresolved_objections no puede seguir en null si la objeción sigue viva
+
+Criterios de aceptación
+
+Copiloto deja de caerse o, si cae, lo muestra claramente
+el debrief deja de mentir
+puedes revisar transcript visible al final
+Arena cliente deja de vender en abstracto
+Arena vendedor mantiene su calidad actual
+auditoría y summary dejan de contradecirse

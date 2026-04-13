@@ -486,8 +486,22 @@ router.post("/copilot/analyze", async (req, res) => {
       latencyMs,
       status: "error",
     });
-    req.log.error({ err }, "Error calling OpenAI");
-    res.status(500).json({ error: "Error analyzing conversation" });
+    req.log.error({ err }, "Error calling OpenAI for analyze");
+    // Return a valid 200 response so the UI stays alive — never let the UI hang on a failed turn.
+    // _runtime_error: true signals the frontend to show an error indicator without overwriting memory.
+    const isEn = lang === "en";
+    res.json({
+      signal: isEn ? "⚠ analysis error" : "⚠ error de análisis",
+      say_now: isEn
+        ? "Analysis unavailable — API error. Continue naturally."
+        : "Análisis no disponible — error de API. Continúa con naturalidad.",
+      avoid: null,
+      detail: null,
+      journey: null,
+      call_memory: null,
+      momentum: "red",
+      _runtime_error: true,
+    });
   }
 });
 
@@ -496,13 +510,41 @@ router.post("/copilot/summarize", async (req, res) => {
   const parseResult = CallSummarizeBody.safeParse(req.body);
   if (!parseResult.success) { res.status(400).json({ error: "Invalid request body" }); return; }
 
-  const { call_memory, outcome, lang, full_report, speaker_uncertainty } = parseResult.data;
+  const { call_memory, outcome, lang, full_report, speaker_uncertainty, analyze_failure_count, conversation_excerpt } = parseResult.data;
   const sessionId = (req.headers["x-session-id"] as string | undefined) ?? undefined;
   const isEn = lang === "en";
 
   const memoryText = call_memory?.length
     ? call_memory.map(l => `- ${l}`).join("\n")
     : (isEn ? "(No call data available)" : "(Sin datos de llamada disponibles)");
+
+  // ── Reliability penalty — injected when analyze had runtime errors ──────────
+  const failCount = analyze_failure_count ?? 0;
+  const isUnreliable = failCount > 0;
+  const reliabilityBlock = isUnreliable
+    ? (isEn
+        ? `\nRUNTIME RELIABILITY PENALTY (mandatory, apply before any other rule):
+${failCount} analysis turn(s) failed to produce AI output during this session (API errors or parse failures).
+Required: score MUST be ≤ 5.0 — insufficient data to produce a reliable coaching evaluation.
+Required: debrief_reliable: false in the JSON response.
+Required: global_state MUST reflect data insufficiency ("unreliable" / "data gap" / "incomplete").
+Required: note this limitation explicitly in improvements[0] and in full_report if generated.
+This is NOT a critique of the seller — it means VELA had too little data to coach.`
+        : `\nPENALIZACIÓN DE FIABILIDAD EN RUNTIME (obligatoria, aplica antes que cualquier otra regla):
+${failCount} turno(s) de análisis fallaron sin producir output de IA durante esta sesión (errores de API o fallos de parseo).
+Obligatorio: score DEBE ser ≤ 5.0 — datos insuficientes para una evaluación de coaching fiable.
+Obligatorio: debrief_reliable: false en el JSON de respuesta.
+Obligatorio: global_state DEBE reflejar la insuficiencia de datos ("no fiable" / "sin datos" / "incompleto").
+Obligatorio: señala esta limitación explícitamente en improvements[0] y en full_report si se genera.
+Esto NO es crítica al vendedor — significa que VELA tuvo datos insuficientes para hacer coaching.`)
+    : "";
+
+  // ── Conversation excerpt — richer than compressed memory when available ─────
+  const excerptBlock = (conversation_excerpt && conversation_excerpt.length > 0)
+    ? (isEn
+        ? `\nCONVERSATION EXCERPT (last ${conversation_excerpt.length} turns — more accurate than compressed memory):\n${conversation_excerpt.join("\n")}`
+        : `\nEXTRACTO DE CONVERSACIÓN (últimos ${conversation_excerpt.length} turnos — más preciso que la memoria comprimida):\n${conversation_excerpt.join("\n")}`)
+    : "";
 
   const outcomeText = outcome ?? (isEn ? "unclear" : "no claro");
   const wantsFullReport = !!full_report;
@@ -540,7 +582,8 @@ TONO: honesto, táctico. Sin coach barato. Sin frases genéricas.`)
     ? `You are an expert sales call analyst. Evaluate a completed sales call based on its tactical memory and reported outcome.
 
 Return EXACTLY this JSON, no markdown, no extra text:
-{"score":7.4,"global_state":"strong","result_label":"Next step agreed","strengths":["s1","s2"],"improvements":["i1","i2"],"full_report":${wantsFullReport ? '"report text"' : "null"}}
+{"score":7.4,"global_state":"strong","result_label":"Next step agreed","strengths":["s1","s2"],"improvements":["i1","i2"],"full_report":${wantsFullReport ? '"report text"' : "null"},"debrief_reliable":true}
+${reliabilityBlock}
 
 SCORING (0-10, conditional on execution quality):
 8.5-9.5: Real close, good execution, no unresolved technical objections, no overclaiming
@@ -573,7 +616,8 @@ ${fullReportInstructions}`
     : `Eres analista experto de llamadas de venta. Evalúa la llamada basándote en la memoria táctica y el resultado declarado.
 
 Devuelve EXACTAMENTE este JSON, sin markdown, sin texto extra:
-{"score":7.4,"global_state":"fuerte","result_label":"Siguiente paso acordado","strengths":["f1","f2"],"improvements":["m1","m2"],"full_report":${wantsFullReport ? '"texto del reporte"' : "null"}}
+{"score":7.4,"global_state":"fuerte","result_label":"Siguiente paso acordado","strengths":["f1","f2"],"improvements":["m1","m2"],"full_report":${wantsFullReport ? '"texto del reporte"' : "null"},"debrief_reliable":true}
+${reliabilityBlock}
 
 PUNTUACIÓN (0-10, condicional por calidad de ejecución):
 8.5-9.5: Cierre real, buena ejecución, sin objeciones técnicas abiertas, sin sobrepromesa
@@ -604,7 +648,7 @@ PUNTOS A MEJORAR: 2-3 observaciones tácticas específicas y honestas.
 
 ${fullReportInstructions}`;
 
-  const userMessage = `${isEn ? "TACTICAL CALL MEMORY" : "MEMORIA TÁCTICA"}:\n${memoryText}\n\n${isEn ? "REPORTED OUTCOME" : "RESULTADO DECLARADO"}: ${outcomeText}${speakerUncertaintyBlock}\n\n${isEn ? "Analyze and return JSON:" : "Analiza y devuelve el JSON:"}`;
+  const userMessage = `${isEn ? "TACTICAL CALL MEMORY" : "MEMORIA TÁCTICA"}:\n${memoryText}${excerptBlock}\n\n${isEn ? "REPORTED OUTCOME" : "RESULTADO DECLARADO"}: ${outcomeText}${speakerUncertaintyBlock}\n\n${isEn ? "Analyze and return JSON:" : "Analiza y devuelve el JSON:"}`;
 
   const t0 = Date.now();
   try {
@@ -642,12 +686,15 @@ ${fullReportInstructions}`;
       parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(rawContent);
     } catch {
       parsed = {
-        score: 5,
-        global_state: isEn ? "workable" : "trabajable",
+        score: isUnreliable ? 3 : 5,
+        global_state: isUnreliable ? (isEn ? "unreliable" : "no fiable") : (isEn ? "workable" : "trabajable"),
         result_label: outcomeText,
         strengths: [],
-        improvements: [],
+        improvements: isUnreliable
+          ? [isEn ? `⚠ Debrief unreliable: ${failCount} analysis turn(s) failed — insufficient data` : `⚠ Debrief no fiable: ${failCount} turno(s) de análisis fallaron — datos insuficientes`]
+          : [],
         full_report: null,
+        debrief_reliable: !isUnreliable,
       };
     }
 

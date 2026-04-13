@@ -148,6 +148,7 @@ interface CallSummary {
   strengths: string[];
   improvements: string[];
   fullReport?: string;
+  debriefReliable?: boolean;
 }
 
 interface BrutalAudit {
@@ -416,6 +417,9 @@ export default function CopilotPage() {
   const [brutalAuditOpen, setBrutalAuditOpen] = useState(false);
   const [brutalAuditError, setBrutalAuditError] = useState(false);
   const [humanNotes, setHumanNotes] = useState("");
+  const [analyzeErrorCount, setAnalyzeErrorCount] = useState(0);
+  const analyzeErrorCountRef = useRef(0);
+  const [transcriptOpen, setTranscriptOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [conversationLog, setConversationLog] = useState<string[]>([]);
   const [turnLog, setTurnLog] = useState<TurnLogEntry[]>([]);
@@ -534,6 +538,31 @@ export default function CopilotPage() {
         },
         {
           onSuccess: (res) => {
+            // ── Runtime error path: API returned 200 but flagged a backend failure ──
+            // Keep the previous tacticalState alive — do NOT overwrite memory or guidance.
+            if (res._runtime_error) {
+              setAnalyzeErrorCount(c => { analyzeErrorCountRef.current = c + 1; return c + 1; });
+              setTurnLog(prev => [...prev, {
+                turn_index: turnIndex,
+                timestamp,
+                source_mode: capturedInputMode,
+                speaker_mode: capturedSpeakerMode,
+                raw_fragment: text,
+                normalized_fragment: fullText,
+                inferred_speaker: inferredSpeaker,
+                memory_before: memoryBefore,
+                system_output: null,
+                memory_after: memoryBefore,
+                response_status: "error" as const,
+                parse_error: "API runtime error",
+                notes: null,
+                speaker_confidence: capturedSpeakerMode === "auto" ? speakerConfidence : undefined,
+                speaker_source: capturedSpeakerMode === "auto" ? (speakerSource as "rule" | "carryover" | "manual" | "unknown") : undefined,
+                auto_repaired: false,
+              }]);
+              return;
+            }
+            // ── Normal success path ──────────────────────────────────────────────
             const memoryAfter = res.call_memory?.summary_lines ?? [];
             setTacticalState({
               sayNow: res.say_now,
@@ -609,6 +638,7 @@ export default function CopilotPage() {
             });
           },
           onError: () => {
+            setAnalyzeErrorCount(c => { analyzeErrorCountRef.current = c + 1; return c + 1; });
             setTurnLog(prev => [...prev, {
               turn_index: turnIndex,
               timestamp,
@@ -717,6 +747,9 @@ export default function CopilotPage() {
     setBrutalAudit(null);
     setBrutalAuditOpen(false);
     setBrutalAuditError(false);
+    setAnalyzeErrorCount(0);
+    analyzeErrorCountRef.current = 0;
+    setTranscriptOpen(false);
     speakerSessionRef.current.reset();
     setSpeakerQualityLevel("normal");
   };
@@ -798,15 +831,24 @@ export default function CopilotPage() {
     setIsSummarizing(true);
     const memory = tacticalState.callMemory;
     const speakerUncertainty = computeSpeakerUncertainty();
+    const convExcerpt = conversationLog.slice(-12);
     try {
       const res = await fetch("/api/copilot/summarize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ call_memory: memory, outcome, lang: langRef.current, ...(speakerUncertainty ? { speaker_uncertainty: speakerUncertainty } : {}) }),
+        body: JSON.stringify({
+          call_memory: memory,
+          outcome,
+          lang: langRef.current,
+          analyze_failure_count: analyzeErrorCountRef.current,
+          conversation_excerpt: convExcerpt.length > 0 ? convExcerpt : undefined,
+          ...(speakerUncertainty ? { speaker_uncertainty: speakerUncertainty } : {}),
+        }),
       });
       const data = await res.json() as {
         score: number; global_state: string; result_label: string;
         strengths: string[]; improvements: string[]; full_report?: string;
+        debrief_reliable?: boolean;
       };
       setCallSummary({
         score: data.score,
@@ -814,14 +856,22 @@ export default function CopilotPage() {
         resultLabel: data.result_label,
         strengths: data.strengths ?? [],
         improvements: data.improvements ?? [],
+        debriefReliable: data.debrief_reliable,
       });
     } catch {
       setCallSummary({
-        score: 5,
-        globalState: langRef.current === "en" ? "workable" : "trabajable",
+        score: analyzeErrorCountRef.current > 0 ? 3 : 5,
+        globalState: analyzeErrorCountRef.current > 0
+          ? (langRef.current === "en" ? "unreliable" : "no fiable")
+          : (langRef.current === "en" ? "workable" : "trabajable"),
         resultLabel: outcome,
         strengths: [],
-        improvements: [],
+        improvements: analyzeErrorCountRef.current > 0
+          ? [langRef.current === "en"
+              ? `⚠ Debrief unreliable — ${analyzeErrorCountRef.current} analysis failure(s)`
+              : `⚠ Debrief no fiable — ${analyzeErrorCountRef.current} fallo(s) de análisis`]
+          : [],
+        debriefReliable: analyzeErrorCountRef.current === 0,
       });
     } finally {
       setIsSummarizing(false);
@@ -831,6 +881,7 @@ export default function CopilotPage() {
   const handleGenerateReport = async () => {
     setIsGeneratingReport(true);
     const speakerUncertainty = computeSpeakerUncertainty();
+    const convExcerpt = conversationLog.slice(-12);
     try {
       const res = await fetch("/api/copilot/summarize", {
         method: "POST",
@@ -840,6 +891,8 @@ export default function CopilotPage() {
           outcome: callOutcome,
           lang: langRef.current,
           full_report: true,
+          analyze_failure_count: analyzeErrorCountRef.current,
+          conversation_excerpt: convExcerpt.length > 0 ? convExcerpt : undefined,
           ...(speakerUncertainty ? { speaker_uncertainty: speakerUncertainty } : {}),
         }),
       });
@@ -1116,6 +1169,55 @@ export default function CopilotPage() {
                                 <span className="text-amber-600 mr-1.5">△</span>{s}
                               </p>
                             ))}
+                          </div>
+                        )}
+
+                        {/* ── Reliability warning — shown when analyze had failures ── */}
+                        {callSummary.debriefReliable === false && (
+                          <div className="flex items-start gap-3 border border-amber-900/60 bg-amber-950/30 rounded-xl px-4 py-3">
+                            <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                            <div className="flex flex-col gap-0.5">
+                              <p className="text-[10px] font-mono font-semibold text-amber-400 tracking-widest uppercase">
+                                {lang === "en" ? "Debrief unreliable" : "Debrief no fiable"}
+                              </p>
+                              <p className="text-[10px] font-mono text-amber-600 leading-relaxed">
+                                {lang === "en"
+                                  ? `${analyzeErrorCount} analysis turn(s) failed during the call — VELA had insufficient data. Score and observations may be misleading.`
+                                  : `${analyzeErrorCount} turno(s) de análisis fallaron durante la llamada — VELA tuvo datos insuficientes. La puntuación y observaciones pueden ser engañosas.`}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* ── Transcript — collapsible view of the raw conversation ── */}
+                        {conversationLog.length > 0 && (
+                          <div className="border border-zinc-800/60 rounded-xl overflow-hidden">
+                            <button
+                              onClick={() => setTranscriptOpen(o => !o)}
+                              className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-white/3 transition-colors"
+                              type="button"
+                            >
+                              <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-600">
+                                {lang === "en" ? "Conversation transcript" : "Transcripción de la conversación"}
+                                <span className="ml-2 text-zinc-700">({conversationLog.length} {lang === "en" ? "turns" : "turnos"})</span>
+                              </p>
+                              <span className={cn("text-zinc-600 text-xs font-mono transition-transform duration-200", transcriptOpen ? "rotate-180" : "")}>▾</span>
+                            </button>
+                            {transcriptOpen && (
+                              <div className="border-t border-zinc-800/60 px-4 pb-4 pt-3 max-h-72 overflow-y-auto">
+                                {conversationLog.map((turn, i) => {
+                                  const isClient = turn.startsWith("[CLIENTE]") || turn.startsWith("[CLIENT]");
+                                  const isMe = turn.startsWith("[YO]") || turn.startsWith("[ME]");
+                                  const labelColor = isClient ? "text-sky-500" : isMe ? "text-teal-400" : "text-zinc-500";
+                                  return (
+                                    <div key={i} className="flex gap-2 py-1 border-b border-zinc-800/30 last:border-0">
+                                      <span className="text-[9px] font-mono text-zinc-700 shrink-0 mt-[3px]">{i + 1}</span>
+                                      <p className={cn("text-[10px] font-mono leading-relaxed", labelColor)}>{turn}</p>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
                         )}
 

@@ -105,6 +105,10 @@ export const AnalyzeConversationResponse = zod.object({
     .describe(
       "Global tactical momentum — green (favorable, advancing), amber (neutral/workable), red (resistance, bad direction)",
     ),
+  _runtime_error: zod
+    .boolean()
+    .optional()
+    .describe("True when the analysis failed at the API level — UI should show error state and not update tactical memory"),
 });
 
 export const CallSummarizeBody = zod.object({
@@ -118,6 +122,16 @@ export const CallSummarizeBody = zod.object({
     unknown_turns: zod.number().optional(),
     total_turns: zod.number().optional(),
   }).optional().describe("Speaker uncertainty signal from auto-mode sessions"),
+  analyze_failure_count: zod
+    .number()
+    .int()
+    .min(0)
+    .optional()
+    .describe("Number of analyze turns that failed during the session — used to penalize score and flag unreliable debrief"),
+  conversation_excerpt: zod
+    .array(zod.string())
+    .optional()
+    .describe("Last N raw conversation turns (more accurate than compressed call_memory) — used when available"),
 });
 
 export const CallSummarizeResponse = zod.object({
@@ -127,4 +141,8 @@ export const CallSummarizeResponse = zod.object({
   strengths: zod.array(zod.string()).describe("2-3 tactical strengths"),
   improvements: zod.array(zod.string()).describe("2-3 tactical improvements"),
   full_report: zod.string().nullish().transform((v) => v ?? undefined).describe("Full detailed report (only when requested)"),
+  debrief_reliable: zod
+    .boolean()
+    .optional()
+    .describe("False when analyze failures reduced the data quality enough to make this debrief potentially misleading"),
 });
