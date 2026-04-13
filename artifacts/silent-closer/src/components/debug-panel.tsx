@@ -269,9 +269,10 @@ export function DebugPanel({ sessionId }: { sessionId?: string | null }) {
       <button
         onClick={() => setOpen(!open)}
         className={cn(
-          "fixed bottom-3 right-3 z-40 text-[10px] tracking-wide",
-          "w-[80px] text-center py-1 rounded border select-none",
-          "whitespace-nowrap overflow-hidden tabular-nums",
+          "fixed bottom-3 right-3 z-40",
+          "inline-flex items-center justify-center",
+          "px-3 py-1 rounded border select-none",
+          "text-[11px] leading-none whitespace-nowrap tabular-nums",
           "transition-colors duration-100",
           open
             ? "text-white bg-zinc-800 border-zinc-600"

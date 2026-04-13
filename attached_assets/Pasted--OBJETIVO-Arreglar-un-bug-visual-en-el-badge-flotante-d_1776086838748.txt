@@ -1,0 +1,72 @@
+## OBJETIVO
+Arreglar un bug visual en el badge flotante de coste IA para que el importe se lea correctamente y no haya solape de números dentro del botón/pill en la esquina inferior derecha.
+
+## CONTEXTO
+- La app ya tiene un monitor/debug panel de uso de IA y un badge flotante de coste visible en la UI.
+- En la captura actual, el texto del badge flotante aparece solapado: los números del importe se pisan entre sí y el valor no se puede leer bien.
+- El problema visible está en el badge pequeño de la esquina inferior derecha que muestra algo tipo `AI $0.0001€`.
+- La documentación interna sitúa el debug panel principal en `artifacts/silent-closer/src/components/debug-panel.tsx`, renderizado en `copilot.tsx` y `arena.tsx`, pero inspecciona el código real para encontrar exactamente qué componente renderiza el badge flotante de coste y qué clases/estilos le afectan.
+- No asumas que el bug está solo en el texto: puede venir de ancho fijo demasiado pequeño, `line-height`, `letter-spacing`, `font-feature-settings`, `font-variant-numeric`, `display`, `overflow`, `transform`, escalado, o una combinación de estilos heredados.
+
+## CAMBIOS REQUERIDOS
+1. Localizar el componente exacto que renderiza el badge flotante de coste IA.
+   - Revisar `artifacts/silent-closer/src/components/debug-panel.tsx`
+   - Revisar también las páginas o wrappers donde se monta el badge si no está dentro del panel principal
+   - Confirmar qué elemento contiene el texto del importe y qué clases Tailwind/CSS recibe
+
+2. Corregir el layout del badge para evitar solape de caracteres.
+   - Asegurar que el contenedor tenga ancho suficiente para el peor caso razonable de importe
+   - Evitar ancho fijo demasiado agresivo si existe
+   - Usar alineación horizontal estable (`inline-flex` o `flex`) con `items-center`
+   - Añadir separación clara entre label e importe
+   - Asegurar `whitespace-nowrap`
+   - Revisar y corregir `leading`, `tracking`, `font-size`, `padding`, `min-width`
+   - Evitar cualquier estilo que comprima horizontalmente o que cause overlap visual
+
+3. Estabilizar la renderización numérica.
+   - Si el badge usa una tipografía o setting que genera mala lectura, aplicar una solución robusta
+   - Considerar `tabular-nums` si ayuda
+   - Evitar mezclas raras de símbolos (`$`, `€`, decimales) que rompan el ancho visual
+   - Mantener el formato actual del valor salvo que el formateo mismo esté causando el bug
+
+4. Hacer el badge resistente a distintos importes.
+   - Debe verse bien con valores cortos y largos, por ejemplo:
+     - `AI $0.01`
+     - `AI $0.2782`
+     - `AI €12.53`
+     - `AI $0.0001`
+   - No debe cortarse, solaparse ni deformarse
+
+5. Validar que el fix no rompa el resto del debug panel.
+   - El panel principal, el pin/unpin y el badge flotante deben seguir funcionando igual
+   - No tocar lógica de tracking, cálculo de coste ni polling
+   - Solo arreglar presentación/layout salvo que descubras que el string renderizado también está mal formado
+
+## RESTRICCIONES
+- No reescribir el debug panel completo
+- No tocar backend ni tracker salvo que haya una razón mínima y clara
+- No romper el comportamiento actual de `copilot.tsx`, `arena.tsx` ni el overlay principal
+- No instalar dependencias nuevas
+- Mantener el estilo visual actual del producto lo máximo posible
+- Si el problema viene de una combinación de clases, aplicar el cambio mínimo y limpio
+
+## ENTREGABLES
+- [ ] Componente del badge flotante localizado y corregido
+- [ ] Estilos ajustados para que el importe se lea bien sin solape
+- [ ] Fix validado en importes cortos y largos
+- [ ] Cambio mínimo, limpio y sin regresiones visuales en el panel principal
+
+## TESTS
+- Caso 1: el badge muestra `AI $0.0001` sin solape de dígitos
+- Caso 2: el badge muestra `AI $0.2782` sin recorte ni compresión rara
+- Caso 3: el badge sigue viéndose bien con más de 6 caracteres numéricos
+- Caso 4: el badge no salta de línea
+- Caso 5: el panel principal sigue abriendo/cerrando/pineando igual que antes
+- Caso 6: la app compila sin errores
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] El texto del badge flotante se lee claramente
+- [ ] No hay solape de números ni símbolos
+- [ ] El contenedor del badge aguanta valores pequeños y largos
+- [ ] No hay regresión visual en el debug panel
+- [ ] La app compila sin errores
