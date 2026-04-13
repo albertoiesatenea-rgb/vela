@@ -1,0 +1,104 @@
+Objetivo
+ Corregir Copiloto para que sea estable durante toda la llamada y, además, elevar la calidad comercial del guidance cuando la objeción del cliente es técnica y concreta. El parche anterior mejoró transcript, debrief_reliable y honestidad del resumen, pero el analyze sigue fallando a ratos y el cerebro táctico sigue empujando a reencuadres demasiado abstractos.
+Contexto del problema
+ He probado otra llamada de Copiloto con el caso José Romero tras el parche anterior. El sistema ahora muestra mejoras visibles:
+transcript final visible
+banner de “Debrief no fiable”
+score ya no inflado absurdamente
+model metadata aparece como gpt-4o en el audit log
+Pero siguen dos fallos graves:
+Inestabilidad real de Copiloto
+ En el audit log aparecen 4 turnos con response_status: error y parse_error: API runtime error (turnos 3, 4, 11 y 14). Esto coincide con el comportamiento observado en UI: tras hablar el cliente, a veces aparece “actualizando” y luego la pantalla se queda exactamente igual, con guidance vieja. Esto significa que el frontend ya informa mejor del problema, pero el runtime sigue cayéndose demasiado para una sesión real.
+Guidance comercial insuficientemente fino
+ Aunque algunas lecturas son buenas, varios say_now / mission / next_move siguen siendo demasiado abstractos o tardíos:
+“confirma renta baja, pivota a seguridad futura”
+“pregunta qué nivel de estabilidad busca”
+ En este caso el cliente ya había concedido que valora la estabilidad. La objeción real era técnica: renta demasiado baja respecto al precio y falta de defendibilidad del alquiler actual. El guidance debía empujar a:
+responder con precisión qué se sabe y qué no se sabe sobre subida de renta
+distinguir contrato antiguo vs. posibilidad real de actualización
+usar la garantía de 6 años sin vender humo
+y decidir si el activo sigue siendo defendible o no
+ No debía volver a generalidades de “estabilidad vs rentabilidad”.
+Además, el debrief sigue siendo algo generoso:
+resultado: “Siguiente paso acordado”
+ cuando en realidad el cliente acaba yéndose con un “pásame otra propuesta por correo y si tengo tiempo la miro”, lo cual no es un siguiente paso fuerte sino un arrastre débil.
+Cambios requeridos
+Arreglar estabilidad real de /api/copilot/analyze
+investigar y corregir la causa de los API runtime error
+no basta con mostrar el fallo; hay que reducirlo de verdad
+revisar timeout, parseo, schema enforcement y manejo de respuestas incompletas
+si hay fallback, que regenere guidance útil mínima en vez de dejar guidance vieja sin más
+Añadir fallback táctico local cuando analyze falle
+si el backend falla, el frontend o una capa ligera local debe poder derivar una guía mínima a partir del último estado útil + último fragmento introducido
+no algo perfecto, pero sí mejor que dejar guidance congelada
+objetivo: evitar que el vendedor se quede a ciegas en mitad de la llamada
+Endurecer guidance para objeción técnica concreta
+ Cuando el sistema detecte objeción del tipo:
+renta demasiado baja
+contrato antiguo
+límite de subidas
+garantía de alquiler
+derramas / costes extraordinarios
+ el say_now, mission, next_move y support deben priorizar:
+ a) responder la duda técnica concreta
+ b) separar dato confirmado vs dato no confirmado
+ c) medir si ese punto decide el caso
+ d) solo después reencuadrar o descartar
+Prohibir guidance tipo:
+volver a preguntar “qué nivel de estabilidad busca”
+reabrir “rentabilidad vs seguridad”
+pivotar demasiado pronto a largo plazo
+ si el cliente ya concedió esa parte del marco
+Mejorar el etiquetado del resultado final
+si el cliente termina con frases tipo:
+“pásame otra propuesta”
+“si tengo tiempo la miro”
+“lo vamos viendo”
+“me tengo que ir”
+ sin compromiso concreto fuerte, no etiquetar como “Siguiente paso acordado” salvo que exista un next step realmente definido
+crear una categoría intermedia tipo:
+“seguimiento débil”
+“salida abierta”
+“avance flojo”
+ o equivalente
+Endurecer la Auditoría Brutal
+hacer que la explicación sea más concreta y menos genérica
+si la llamada murió porque no se defendió bien la matemática de la renta ni la subida futura, decirlo así
+no resumirlo solo como “faltó compromiso claro”
+Mantener transcript visible y debrief_reliable
+no romper lo que ya funciona
+conservar panel visible de transcripción
+conservar banner ámbar de fiabilidad
+Restricciones
+No rehacer Copiloto entero
+Mantener compatibilidad con el flujo actual de UI
+No degradar sesiones simples por sobrecomplicar la lógica
+Si hay fallback táctico local, que sea ligero y seguro
+No volver a inflar scores o estados
+Entregables
+Fix estable de analyze runtime
+Fallback táctico mínimo cuando analyze falle
+Mejora del motor de guidance para objeciones técnicas
+Mejora del etiquetado del resultado final
+Auditoría Brutal más precisa
+Tests de regresión del caso José Romero
+Tests
+Caso José Romero en Copiloto
+no debe haber guidance congelada cuando el cliente objeta sobre renta/contrato
+si analyze falla, debe aparecer guidance mínima de fallback
+no debe sugerir volver a “estabilidad vs rentabilidad” cuando eso ya fue concedido por el cliente
+Clasificación final
+si el cliente se va con “pásame algo y si tengo tiempo lo miro”, el resultado no puede llamarse “Siguiente paso acordado” como si fuera un avance sólido
+Auditoría
+la auditoría brutal debe identificar con precisión que el fallo fue no defender la defendibilidad del alquiler y del precio con suficiente claridad
+No regresión
+transcript visible sigue funcionando
+banner de fiabilidad sigue funcionando
+scores no vuelven a inflarse tras fallos de analyze
+Criterios de aceptación
+Copiloto deja de quedarse muerto o congelado a ratos
+cuando falle, existe guidance mínima útil
+el guidance es más fino en objeciones técnicas concretas
+el resultado final deja de ser generoso de más
+la auditoría brutal diagnostica mejor la realidad comercial de la llamada
+La última prueba de Copiloto no se hizo en modo escuchar ni dependía de transcripción de audio. Se hizo en modo escribir/simular hablantes, alternando manualmente YO y CLIENTE. El audit log ya refleja source_mode: simulate, speaker_mode_default: client, speaker_mode por turno y normalized_input con etiquetas [YO] y [CLIENTE]. Aun así hubo varios API runtime error, guidance congelada y actualizaciones incompletas de pantalla. Por tanto, este fallo no debe tratarse como problema de STT/micrófono, sino como problema real de analyze/runtime/guidance.

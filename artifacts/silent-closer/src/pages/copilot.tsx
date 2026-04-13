@@ -389,6 +389,52 @@ function ConversationTimeline({ journey, memoryLines }: { journey: Journey; memo
   );
 }
 
+// ── Local tactical fallback — pure function, no API call ─────────────────────
+// Called when analyze fails to ensure the seller is never left completely blind.
+// Only updates sayNow — previous memory, journey, and momentum are preserved.
+function computeLocalFallback(fragment: string, lang: "es" | "en"): string {
+  const f = fragment.toLowerCase();
+  const isClient = f.includes("[cliente]") || f.includes("[client]");
+  const isMe = f.includes("[yo]") || f.includes("[me]");
+
+  if (isClient) {
+    const hasTechnicalObjES = /renta|alquiler|€|precio|garantía|contrato|subida|derrama|ocupación|rentabilidad|tipo|hipoteca|coste|gasto/.test(f);
+    const hasTechnicalObjEN = /rent|lease|price|guarantee|contract|increase|yield|rate|cost|expense|mortgage/.test(f);
+    const hasComparisonES = /comparar|frente a|respecto a|versus|otros|otra propuesta|alternativa/.test(f);
+    const hasComparisonEN = /compar|versus|vs|alternative|other proposal|another option/.test(f);
+    const hasTimeOut = /me tengo que ir|no tengo tiempo|tiempo|me voy|gotta go|have to go|in a hurry/.test(f);
+
+    if (hasTechnicalObjES || hasTechnicalObjEN) {
+      return lang === "en"
+        ? "Address the concrete technical objection — separate confirmed from unknown data"
+        : "Responde la objeción técnica concreta — separa dato confirmado de dato pendiente";
+    }
+    if (hasComparisonES || hasComparisonEN) {
+      return lang === "en"
+        ? "Stay on this asset — isolate what criterion is not being met"
+        : "Quédate en este activo — aísla qué criterio no se está cumpliendo";
+    }
+    if (hasTimeOut) {
+      return lang === "en"
+        ? "Set a concrete next step before they go — date or deliverable"
+        : "Asegura siguiente paso concreto antes de que se vaya — fecha o entregable";
+    }
+    return lang === "en"
+      ? "Listen fully — then respond to the specific concern"
+      : "Escucha todo — luego responde la duda específica";
+  }
+
+  if (isMe) {
+    return lang === "en"
+      ? "Wait for client reaction before next move"
+      : "Espera reacción del cliente antes de tu siguiente jugada";
+  }
+
+  return lang === "en"
+    ? "Address client's last point directly"
+    : "Responde el último punto del cliente directamente";
+}
+
 export default function CopilotPage() {
   const [inputMode, setInputMode] = useState<InputMode>("listen");
   const [speakerMode, setSpeakerMode] = useState<SpeakerMode>("auto");
@@ -539,9 +585,12 @@ export default function CopilotPage() {
         {
           onSuccess: (res) => {
             // ── Runtime error path: API returned 200 but flagged a backend failure ──
-            // Keep the previous tacticalState alive — do NOT overwrite memory or guidance.
+            // Apply a lightweight local fallback so the seller is never left completely blind.
+            // Only sayNow is overwritten — memory, journey, and momentum stay from previous state.
             if (res._runtime_error) {
               setAnalyzeErrorCount(c => { analyzeErrorCountRef.current = c + 1; return c + 1; });
+              const fallbackSayNow = computeLocalFallback(fullText, langRef.current);
+              setTacticalState(prev => ({ ...prev, sayNow: fallbackSayNow }));
               setTurnLog(prev => [...prev, {
                 turn_index: turnIndex,
                 timestamp,
@@ -554,8 +603,8 @@ export default function CopilotPage() {
                 system_output: null,
                 memory_after: memoryBefore,
                 response_status: "error" as const,
-                parse_error: "API runtime error",
-                notes: null,
+                parse_error: "API runtime error — local fallback applied",
+                notes: `local_fallback: ${fallbackSayNow}`,
                 speaker_confidence: capturedSpeakerMode === "auto" ? speakerConfidence : undefined,
                 speaker_source: capturedSpeakerMode === "auto" ? (speakerSource as "rule" | "carryover" | "manual" | "unknown") : undefined,
                 auto_repaired: false,

@@ -59,6 +59,24 @@ ANTI-REPETICIÓN — REGLA CRÍTICA — antes de say_now determina el caso:
 5 CAMBIÓ EJE COMPLETAMENTE → reorienta todo
 Caso 1: micro-pasos válidos: concretar impacto, cuantificar magnitud, reenfocar al criterio real, resolver objeción, comparar con datos, proponer microcompromiso.
 
+MARCO CONCEDIDO — REGLA CRÍTICA:
+Si el cliente ya respondió afirmativamente o concedió sobre X (estabilidad, largo plazo, interés en el activo, criterio general), ese marco está CERRADO.
+PROHIBIDO: volver a preguntar por X, reabrir "¿seguridad o rentabilidad?", pivotar a "largo plazo" si eso ya fue concedido.
+El eje de trabajo se mueve automáticamente al GAP TÉCNICO o bloqueo específico que sigue activo.
+Ejemplos de marco concedido: "sí, me interesa la estabilidad" / "sí, entiendo el largo plazo" / "sí, me gusta el activo" → ya no se pregunta por eso.
+
+OBJECIÓN TÉCNICA CONCRETA — PROTOCOLO OBLIGATORIO:
+Cuando el cliente menciona cifras específicas, contratos, rentabilidades, garantías o derramas:
+PASO 1: Responde la duda técnica concreta primero (¿cuánto es realmente? ¿qué dice el contrato actual? ¿qué posibilidad real de subida hay?)
+PASO 2: Separa explícitamente — dato CONFIRMADO | dato INFERIDO | dato PENDIENTE DE VERIFICAR
+PASO 3: ¿Este gap técnico decide solo el caso, o hay más frenos?
+PASO 4: Solo después de los pasos 1-3: reencuadra, usa garantías reales, propón comparación
+Objeciones técnicas que activan este protocolo: renta baja / contrato antiguo / límite de subidas / garantía de alquiler / derramas / costes extraordinarios / precio alto respecto a renta / tipo de rentabilidad.
+PROHIBIDO (si ya concedió el marco general): volver a "¿qué nivel de estabilidad busca?" — ya lo dijo. Ir al gap técnico directo.
+say_now en objeción técnica: debe ser UNA acción concreta sobre la cifra o dato específico, no un reencuadre abstracto.
+✓ "confirma si la renta actual es de contrato o de mercado" ✓ "separa lo que está garantizado de lo que podría subir"
+✗ "pregunta qué nivel de estabilidad busca" ✗ "pivota al largo plazo" ✗ "habla de seguridad patrimonial"
+
 AVANCE DE ETAPA — el objetivo inicial del contexto no es sagrado:
 Si el eje real de la llamada es claridad de etapa, encaje de criterio, definición de criterio de decisión o siguiente paso con entregable concreto, clasifica como avance real. Solo hay fallo de cierre si las condiciones objetivas de cierre estaban dadas y no se aprovecharon.
 
@@ -418,18 +436,44 @@ router.post("/copilot/analyze", async (req, res) => {
   }
 
   const ANALYZE_MODEL = "gpt-4o";
+  const ANALYZE_TIMEOUT_MS = 25000;
   const t0 = Date.now();
   let status: "ok" | "error" | "partial" = "ok";
+  const isEn = lang === "en";
+
+  // ── Safe Zod fallback — guaranteed to pass schema validation ──────────────────
+  const buildSafeFallback = () => AnalyzeConversationResponse.parse({
+    signal: isEn ? "analysis recovering" : "análisis recuperándose",
+    say_now: isEn
+      ? "Address the client's last concern specifically"
+      : "Responde la duda concreta del cliente",
+    avoid: null,
+    detail: null,
+    journey: null,
+    call_memory: null,
+    momentum: "amber",
+  });
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: ANALYZE_MODEL,
-      max_tokens: 900,
-      messages: [
-        { role: "system", content: buildSystemPrompt(context, lang, structured_context, speaker_confidence) },
-        { role: "user", content: userMessage },
-      ],
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), ANALYZE_TIMEOUT_MS);
+
+    let completion: Awaited<ReturnType<typeof openai.chat.completions.create>>;
+    try {
+      completion = await openai.chat.completions.create(
+        {
+          model: ANALYZE_MODEL,
+          max_tokens: 1400,
+          messages: [
+            { role: "system", content: buildSystemPrompt(context, lang, structured_context, speaker_confidence) },
+            { role: "user", content: userMessage },
+          ],
+        },
+        { signal: controller.signal },
+      );
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     const latencyMs = Date.now() - t0;
     const usage = completion.usage;
@@ -440,7 +484,7 @@ router.post("/copilot/analyze", async (req, res) => {
         sessionId,
         mode: "copilot",
         model: ANALYZE_MODEL,
-        maxTokensConfigured: 900,
+        maxTokensConfigured: 1400,
         promptTokens: usage.prompt_tokens,
         completionTokens: usage.completion_tokens,
         totalTokens: usage.total_tokens,
@@ -457,19 +501,24 @@ router.post("/copilot/analyze", async (req, res) => {
       parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(rawContent);
     } catch {
       status = "partial";
-      req.log.warn({ rawContent }, "Failed to parse AI response as JSON");
-      parsed = {
-        signal: "falta claridad",
-        say_now: "haz una pregunta aclaratoria",
-        avoid: null,
-        detail: { reading: "", next_move: "", support: "" },
-        journey: { past: "—", now: "sin contexto", next: "concretar" },
-        call_memory: { summary_lines: ["Inicio de sesión", "Sin contexto claro todavía"] },
-        momentum: "amber",
-      };
+      req.log.warn({ rawContent: rawContent.slice(0, 200) }, "Failed to parse AI response as JSON — using safe fallback");
+      parsed = null;
     }
 
-    const validated = AnalyzeConversationResponse.parse(parsed);
+    // Zod parse inside its own guard — never let validation failure reach the outer catch
+    let validated;
+    if (parsed !== null) {
+      try {
+        validated = AnalyzeConversationResponse.parse(parsed);
+      } catch {
+        status = "partial";
+        req.log.warn("Zod validation failed on AI response — using safe fallback");
+        validated = buildSafeFallback();
+      }
+    } else {
+      validated = buildSafeFallback();
+    }
+
     res.json(validated);
   } catch (err) {
     const latencyMs = Date.now() - t0;
@@ -608,6 +657,13 @@ NEXT STEP QUALITY — reflect in scoring:
 — weak: no date, no channel, no deliverable → note as gap and penalize. Global_state should not be "strong".
 IMPORTANT: "useful" is a real advance. Penalize for missing decision criterion as a note, but do NOT degrade it to "no commitment" or "open result".
 
+WEAK EXIT SIGNAL — detect and label correctly:
+If the client's exit was: "send me something", "I'll look at it if I have time", "we'll see", "let me know later", "I have to go", "send me another proposal", "I'll think about it" — WITHOUT an explicit date, channel, or concrete next step, this is NOT "Next step agreed". It is a weak handoff.
+result_label must be: "Weak follow-up" (not "Next step agreed", not "Advancing")
+global_state must be: "weak" or "open" — NOT "strong", "solid", or "advancing"
+score must be capped at 5.9 — soft exits are tactical failures, not successes.
+Only use "Next step agreed" when there is a CONCRETE commitment: specific date or time + specific channel or deliverable + explicit agreement to that step.
+
 GLOBAL STATE: 1-2 words (strong/solid/advancing/workable/weak/blocked/lost/open)
 STRENGTHS: 2-3 specific tactical observations. No generic praise.
 IMPROVEMENTS: 2-3 specific, honest tactical observations.
@@ -641,6 +697,13 @@ CALIDAD DEL SIGUIENTE PASO — refleja en la puntuación:
 — útil: fecha/hora o canal concreto (videollamada, correo, enlace de reunión) o entregable concreto (propuesta, contrato, resumen, info a enviar) → avance real (6.5-7.5). NO describir como "conversación abierta" ni "sin compromiso claro". El siguiente paso existió y era operativo.
 — débil: sin fecha, sin canal, sin entregable → señala como debilidad, penaliza. Global_state no puede ser "fuerte".
 IMPORTANTE: "útil" es un avance real. Penaliza por falta de criterio de decisión como nota, pero NO lo degrades a "sin compromiso" ni "resultado abierto".
+
+SEÑAL DE SALIDA DÉBIL — detecta y etiqueta correctamente:
+Si el cliente se fue con frases como: "pásame algo", "si tengo tiempo lo miro", "lo vamos viendo", "ya te digo", "me tengo que ir", "mándame otra propuesta", "lo pienso" — SIN fecha, canal ni siguiente paso concreto acordado, esto NO es "Siguiente paso acordado". Es un arrastre débil.
+result_label debe ser: "Seguimiento débil" (no "Siguiente paso acordado", no "Avanzando")
+global_state debe ser: "floja" o "abierta" — NO "fuerte", "sólida" ni "avanzando"
+score debe estar limitado a 5.9 — las salidas blandas son fallos tácticos, no éxitos.
+Solo usa "Siguiente paso acordado" cuando hay un compromiso CONCRETO: fecha o hora específica + canal o entregable concreto + acuerdo explícito sobre ese paso.
 
 ESTADO GLOBAL: 1-2 palabras (fuerte/sólida/avanzando/trabajable/floja/bloqueada/perdida/abierta)
 PUNTOS FUERTES: 2-3 observaciones tácticas específicas. Sin elogios genéricos.
@@ -1154,7 +1217,11 @@ RISK FLAGS:
 — suspected_unresolved_technical_objection: "yes" if a specific technical objection was deferred without evidence. "no" otherwise.
 — suspected_false_confidence: "yes" if seller used official body as definitive proof of future value. "no" otherwise.
 — suspected_soft_next_step: "yes" ONLY if no operative commitment (no date, no channel, no deliverable). "no" otherwise.
-— If the buyer showed an analytical profile: evaluate if the seller responded with precision or generic persuasion.${nextStepGuardrail}${noFailureGuardrail}${prematureCloseGuardrail}${genericReframeGuardrail}${falseDichotomyGuardrail}${yieldTypeMismatchGuardrail}${disqualGateGuardrail}${alternativesBlock}${secondaryDmBlock}${speakerGate}
+— If the buyer showed an analytical profile: evaluate if the seller responded with precision or generic persuasion.
+WEAK EXIT SIGNAL — detect and name correctly:
+If the client's last words were "send me something", "if I have time I'll look at it", "we'll see", "let me think about it", "I have to go" — without a concrete date, channel, or deliverable: this is NOT a "Next step agreed". It is a tactical failure (soft exit / weak handoff). suspected_soft_next_step MUST be "yes". verdict and what_failed MUST name this specifically — not just "follow-up pending".
+RENT DEFENSE FAILURE — diagnose with precision:
+If the client raised a concrete rent/price/yield objection (rent too low, old contract, price high vs rent, rent increase limits, extraordinary costs) AND the seller: (a) deflected to generic abstractions without addressing the specific figure, OR (b) never separated confirmed vs inferred vs unknown data, OR (c) never measured whether the gap was structural — name it precisely in what_failed: "seller failed to defend the rent math and specifics of the objection" / "yield analysis was evasive — no confirmed/inferred/unknown separation" / "contractual rent defensibility was not addressed before any reframe". Do NOT summarize this as "commitment was unclear" or "conversation lost momentum".${nextStepGuardrail}${noFailureGuardrail}${prematureCloseGuardrail}${genericReframeGuardrail}${falseDichotomyGuardrail}${yieldTypeMismatchGuardrail}${disqualGateGuardrail}${alternativesBlock}${secondaryDmBlock}${speakerGate}
 
 Return EXACTLY this JSON, no markdown, no extra text:
 ${schema}`
@@ -1184,7 +1251,11 @@ FLAGS DE RIESGO:
 — suspected_unresolved_technical_objection: "yes" si una objeción técnica específica fue diferida sin evidencia. "no" en caso contrario.
 — suspected_false_confidence: "yes" si el vendedor usó organismo oficial como prueba definitiva de valor futuro. "no" en caso contrario.
 — suspected_soft_next_step: "yes" SOLO si no hay compromiso operativo (sin fecha, canal ni entregable). "no" en caso contrario.
-— Si el comprador mostró perfil analítico: evalúa si el vendedor respondió con precisión o persuasión genérica.${nextStepGuardrail}${noFailureGuardrail}${prematureCloseGuardrail}${genericReframeGuardrail}${falseDichotomyGuardrail}${yieldTypeMismatchGuardrail}${disqualGateGuardrail}${alternativesBlock}${secondaryDmBlock}${speakerGate}
+— Si el comprador mostró perfil analítico: evalúa si el vendedor respondió con precisión o persuasión genérica.
+SEÑAL DE SALIDA DÉBIL — detecta y nombra con precisión:
+Si las últimas palabras del cliente fueron "pásame algo", "si tengo tiempo lo miro", "lo vamos viendo", "lo pienso", "me tengo que ir", "mándame otra propuesta" — sin fecha, canal ni entregable concreto: esto NO es "Siguiente paso acordado". Es un fallo táctico (arrastre débil). suspected_soft_next_step DEBE ser "yes". verdict y what_failed DEBEN nombrarlo específicamente — no solo "seguimiento pendiente".
+FALLO DE DEFENSA DE RENTA — diagnostica con precisión:
+Si el cliente planteó una objeción concreta de renta/precio/rentabilidad (renta baja, contrato antiguo, precio alto respecto a renta, límites de subida, costes extraordinarios) Y el vendedor: (a) derivó a abstracciones genéricas sin abordar la cifra específica, O (b) nunca separó dato confirmado vs inferido vs pendiente, O (c) nunca midió si el gap era estructural — nómbralo con precisión en what_failed: "el vendedor no defendió la matemática de la renta ni la especificidad de la objeción" / "el análisis de rentabilidad fue evasivo — sin separación confirmado/inferido/pendiente" / "la defendibilidad de la renta contractual no se abordó antes de ningún reencuadre". NO lo resumas como "faltó compromiso claro" o "la conversación se diluyó".${nextStepGuardrail}${noFailureGuardrail}${prematureCloseGuardrail}${genericReframeGuardrail}${falseDichotomyGuardrail}${yieldTypeMismatchGuardrail}${disqualGateGuardrail}${alternativesBlock}${secondaryDmBlock}${speakerGate}
 
 Devuelve EXACTAMENTE este JSON, sin markdown, sin texto extra:
 ${schema}`;
