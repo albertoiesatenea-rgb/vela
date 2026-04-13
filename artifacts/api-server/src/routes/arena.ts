@@ -141,23 +141,37 @@ const FRUSTRATION_PATTERNS: Record<Lang, string[]> = {
 // Markers of a competitor or concrete alternative being raised.
 const COMPETITOR_PATTERNS: Record<Lang, string[]> = {
   es: [
-    "berlín", "berlin", "madrid", "barcelona", "lisboa", "lisboa", "dubai", "miami",
+    "berlín", "berlin", "leipzig", "magdeburg", "madrid", "barcelona", "lisboa", "dubai", "miami",
     "alternativa", "otra opción", "en vez de", "en lugar de", "la competencia",
-    "el otro", "la otra", "prefiero otra", "mejor opción",
+    "el otro", "la otra", "prefiero otra", "mejor opción", "otra propuesta",
   ],
   en: [
     "alternative", "competitor", "instead of", "rather than", "other option",
-    "prefer another", "better option",
+    "prefer another", "better option", "other deal",
+  ],
+};
+
+// Client signals that they want a direct, rapid response — no storytelling, no jargon.
+const TIME_PRESSURE_PATTERNS: Record<Lang, string[]> = {
+  es: [
+    "tengo poco tiempo", "no tengo tiempo", "rápido", "al grano", "en resumen",
+    "no me cuentes historias", "hablando claro", "sé directo", "sin rodeos",
+    "sin storytelling", "sin rollo", "punto por punto",
+  ],
+  en: [
+    "short on time", "no time", "quick", "to the point", "in short",
+    "no stories", "be direct", "cut to the chase", "no fluff", "straight to it",
   ],
 };
 
 interface CadenceAnalysis {
-  lastAiHadQuestion: boolean;       // previous AI turn ended with question
-  recentQuestionCount: number;      // questions in last 3 AI turns
-  clientWantsClarity: boolean;      // client asked for explanation / example
+  lastAiHadQuestion: boolean;             // previous AI turn ended with question
+  recentQuestionCount: number;            // questions in last 3 AI turns
+  clientWantsClarity: boolean;            // client asked for explanation / example
   clientFrustratedWithQuestions: boolean; // client explicitly asked to stop questions
-  competitorMentioned: boolean;     // client brought a concrete alternative
-  repeatedObjection: boolean;       // same objection keyword in last 2 user messages
+  clientTimePressed: boolean;             // client signalled urgency / wants brevity
+  competitorMentioned: boolean;           // client brought a concrete alternative
+  repeatedObjection: boolean;             // same objection keyword in last 2 user messages
 }
 
 // Analyze the session turn history to detect cadence patterns.
@@ -178,9 +192,11 @@ function analyzeQuestionCadence(session: ArenaSession, currentUserMessage: strin
   const clarityPatterns = CLARITY_PATTERNS[session.lang];
   const frustrationPatterns = FRUSTRATION_PATTERNS[session.lang];
   const competitorPatterns = COMPETITOR_PATTERNS[session.lang];
+  const timePressurePatterns = TIME_PRESSURE_PATTERNS[session.lang];
 
   const clientWantsClarity = clarityPatterns.some(p => lower.includes(p));
   const clientFrustratedWithQuestions = frustrationPatterns.some(p => lower.includes(p));
+  const clientTimePressed = timePressurePatterns.some(p => lower.includes(p));
   const competitorMentioned = competitorPatterns.some(p => lower.includes(p));
 
   // Repeated objection: same keyword in the last user message in history AND the current one
@@ -194,7 +210,7 @@ function analyzeQuestionCadence(session: ArenaSession, currentUserMessage: strin
 
   return {
     lastAiHadQuestion, recentQuestionCount,
-    clientWantsClarity, clientFrustratedWithQuestions,
+    clientWantsClarity, clientFrustratedWithQuestions, clientTimePressed,
     competitorMentioned, repeatedObjection,
   };
 }
@@ -203,6 +219,12 @@ function analyzeQuestionCadence(session: ArenaSession, currentUserMessage: strin
 // Returns empty string when no cadence correction is needed.
 function buildCadenceNote(analysis: CadenceAnalysis, lang: Lang): string {
   const notes: string[] = [];
+
+  if (analysis.clientTimePressed) {
+    notes.push(lang === "es"
+      ? "⚠️ MODO RESPUESTA DIRECTA — ESTE TURNO: El cliente indicó que tiene poco tiempo o pidió ir al grano. Aplica sin excepción: máximo 2 frases. CERO storytelling. CERO jerga abstracta. Si pide comparación, da comparación directa en 2 líneas. Si pide ejemplo, da el ejemplo sin introducción. Sin pregunta final salvo que sea imprescindible y muy concreta."
+      : "⚠️ DIRECT RESPONSE MODE — THIS TURN: Client signalled urgency or asked for brevity. Apply without exception: maximum 2 sentences. ZERO storytelling. ZERO abstract jargon. If they ask for comparison, give it in 2 lines. If they ask for an example, give it directly. No closing question unless strictly necessary and very specific.");
+  }
 
   if (analysis.clientFrustratedWithQuestions) {
     notes.push(lang === "es"
@@ -233,11 +255,14 @@ function buildCadenceNote(analysis: CadenceAnalysis, lang: Lang): string {
     : "";
 }
 
-// Lightweight structured event logger for question cadence observability.
+// Lightweight structured event logger for cadence and mode observability.
 // These events are captured by the Pino logger alongside regular request logs.
+// Useful for measuring: question rate, direct mode activation, mode distribution.
 function logCadenceEvent(
   sessionId: string,
-  event: "ends_in_question" | "statement_forced" | "clarity_mode" | "journey_gated" | "coach_lite_gated",
+  event:
+    | "ends_in_question" | "statement_forced" | "clarity_mode"
+    | "journey_gated" | "coach_lite_gated" | "direct_mode",
   detail?: string,
 ): void {
   console.log(JSON.stringify({ type: "cadence", sessionId, event, ...(detail ? { detail } : {}), ts: Date.now() }));
@@ -277,6 +302,23 @@ interface CoachLite {
   explanation: string;
   journey?: JourneyData;
   fields?: CoachLiteFields;
+}
+
+// ── Context verified-data extractor ──────────────────────────────────────────
+// Scans the session context string for numbers, percentages, currency values and
+// explicit facts that the seller IS allowed to use.  Any number not appearing
+// in this block or stated by the client in the conversation is "invented".
+// Returns a short prompt block (or empty string if no numeric facts found).
+function buildVerifiedDataBlock(context: string, lang: Lang): string {
+  // Match: standalone numbers with optional unit: %, €, $, k, mil, años, m², etc.
+  const raw = context.match(/\d+(?:[.,]\d+)?\s*(?:%|€|\$|k|K|mil(?:es)?|años?|m²|por\s+ciento|percent)?/gi) ?? [];
+  // Deduplicate and take up to 12 data points to keep prompt size bounded
+  const facts = [...new Set(raw.map(s => s.trim()).filter(s => s.length > 1))].slice(0, 12);
+  if (facts.length === 0) return "";
+  if (lang === "en") {
+    return `\n\nVERIFIED SESSION DATA (the only numbers you may cite in comparisons or examples):\n${facts.map(f => `— ${f}`).join("\n")}\nAny other number, percentage, or projection NOT in this list AND NOT stated by the client is INVENTED. Do not use it. If you lack a number, say so explicitly.`;
+  }
+  return `\n\nDATOS VERIFICADOS DEL CONTEXTO (los únicos que puedes citar en comparaciones o ejemplos):\n${facts.map(f => `— ${f}`).join("\n")}\nCualquier otro número, porcentaje o proyección que NO esté en esta lista Y que el cliente NO haya mencionado explícitamente es INVENTADO. No lo uses. Si te falta un dato, dilo con claridad.`;
 }
 
 // ── Prompt builders ───────────────────────────────────────────────────────────
@@ -350,6 +392,9 @@ ${langRule}`;
       ? sellerNotes.map((n, i) => `${i + 1}. ${n}`).join("\n")
       : "";
 
+    // Verified context data block — limits the seller to numbers that are actually in context
+    const verifiedDataBlock = buildVerifiedDataBlock(context, lang);
+
     // Detect sellerNote intent for conditional blocks
     const noteText = (sellerNotes ?? []).join(" ").toLowerCase();
     const noPoliticianMode = /polit|consult|bland[ao]|suave|soft/i.test(noteText);
@@ -399,7 +444,7 @@ No las ignores. No las elijas parcialmente. No hay excepciones.`
 
     return `${topRestrictionsBlock}Eres el vendedor en una simulación de venta. Actúas como un comercial experimentado: preciso, honesto y sin relleno.
 
-Contexto: ${context || "Conversación de venta genérica."}${profileNote}${presetBlock}${scBlock}${windowNote}
+Contexto: ${context || "Conversación de venta genérica."}${profileNote}${presetBlock}${scBlock}${windowNote}${verifiedDataBlock}
 
 REGLA DE PORTAFOLIO:
 Solo puedes ofrecer productos, propiedades o condiciones que estén explícitamente mencionadas en el contexto de sesión o en tus restricciones activas.
@@ -430,6 +475,31 @@ TERCERO DECISOR:
 COMPROMISO CON EL PRODUCTO:
 — Solo descarta la operación si el gap es objetivamente incerrable y ya lo verificaste con datos concretos del contexto.
 — Si hay ángulos sin explorar, explóralos antes de concluir que no hay encaje.
+
+PROHIBICIÓN DE DATOS INVENTADOS — REGLA DURA:
+— NUNCA cites porcentajes de revalorización futuros, comparativas históricas ni cifras de mercado si no están en los DATOS VERIFICADOS DEL CONTEXTO o si el cliente no las mencionó explícitamente.
+— NUNCA construyas un ejemplo numérico comparativo (ej. "en Berlín renta X% vs aquí Y%") si no tienes esas cifras en el contexto verificado.
+— Si te falta un dato, dilo así: "con lo que has compartido, no tengo esa cifra para comparar" o "sin datos comparables no te voy a vender esa conclusión".
+— Esta regla tiene prioridad sobre cualquier impulso de argumentar. El silencio honesto gana más credibilidad que el número inventado.
+
+COMPETIDOR APARENTEMENTE SUPERIOR — protocolo cuando el rival parece ganar en todos los criterios declarados:
+Si el cliente presenta una alternativa que, según sus propias palabras, gana en cashflow, revalorización, gestión y ubicación, el vendedor NO puede seguir fingiendo superioridad sin evidencia.
+Elige UNO de estos dos caminos:
+A) Identifica el único supuesto crítico no verificado del rival (ej. ocupación garantizada, coste oculto, riesgo de divisa) y centra la respuesta en ese punto exclusivamente. Una pregunta de verificación muy concreta.
+B) Admite con honestidad: "Si esos datos son reales y tus criterios son X e Y, la propuesta rival parece mejor para lo que buscas. Lo que no sé es si [supuesto no verificado]."
+PROHIBIDO: seguir comparando con genéricos cuando el cliente ya enumeró criterios concretos y el rival los satisface según lo dicho.
+
+NO AUTOGOL COMPARATIVO — regla de coherencia interna:
+Si tu propio ejemplo o comparación deja claramente mejor a la alternativa rival:
+— No intentes vender lo propio inmediatamente después sin cambiar el marco.
+— Reconoce el dato, luego cambia a: descalificación honesta del supuesto, verificación de riesgo, o recomendación realista.
+— Prohibido: usar un ejemplo que favorece al rival y luego concluir que la opción propia es mejor sin explicar por qué los datos no cierran lo que parece.
+
+SALIDA HONESTA — cuando no hay fit real:
+Si por los criterios explícitos del cliente la propuesta no encaja, puedes decirlo. De forma profesional:
+— "Con lo que me has dicho, no te voy a recomendar avanzar con esto. No encaja en [criterio X]."
+— Luego ofrece uno de: revisar un supuesto del rival, redefinir el criterio, o cerrar con recomendación de no seguir.
+— Un vendedor que cierra con honestidad cuando no hay fit construye más credibilidad que uno que sigue empujando sin datos.
 
 CONCISIÓN Y FOCO TÁCTICO — REGLAS DURAS (aplican SIEMPRE en modo client):
 — TURNO NORMAL: máximo 2 frases totales. Sin excepciones salvo objeción técnica compleja.
@@ -1420,6 +1490,9 @@ router.post("/arena/turn", async (req, res) => {
 
   // Log pre-response cadence events (what mode we're forcing BEFORE the AI responds)
   if (cadence) {
+    if (cadence.clientTimePressed) {
+      logCadenceEvent(arenaSessionId, "direct_mode");
+    }
     if (cadence.clientFrustratedWithQuestions) {
       logCadenceEvent(arenaSessionId, "clarity_mode", "client_frustrated");
     } else if (cadence.clientWantsClarity) {
@@ -1501,9 +1574,13 @@ router.post("/arena/turn", async (req, res) => {
     aiMessage = await compactIfNeeded(aiMessage, session.context, session.lang, arenaSessionId);
   }
 
-  // Frustration mode: if client explicitly asked to stop questions, strip any trailing question
-  // the model may have added despite the system prompt instruction.
-  if (session.role === "client" && aiMessage && cadence?.clientFrustratedWithQuestions) {
+  // Strict no-question modes: strip any trailing question that survived system-prompt instructions.
+  // Applied for: frustration (explicit stop-questions), clarity request, and time-pressed ("al grano").
+  if (session.role === "client" && aiMessage && (
+    cadence?.clientFrustratedWithQuestions ||
+    cadence?.clientWantsClarity ||
+    cadence?.clientTimePressed
+  )) {
     aiMessage = removeTrailingQuestion(aiMessage);
   }
 

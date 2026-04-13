@@ -1,0 +1,121 @@
+## OBJETIVO
+Corregir el comportamiento del vendedor IA en Arena modo client cuando el cliente trae una alternativa rival aparentemente superior, evitando concesiones blandas, cifras inventadas y respuestas que no se adaptan a señales explícitas de prisa o confusión.
+
+## CONTEXTO
+- Modo afectado: Arena con `role=client` (IA actúa como vendedor).
+- Los logs recientes muestran un patrón repetido:
+  - el cliente trae alternativas como Berlín o Leipzig con 100% financiación, cashflow positivo y mejor tesis de revalorización
+  - el vendedor valida demasiadas premisas del rival y luego intenta reencuadrar débilmente
+  - el vendedor usa preguntas blandas de priorización cuando el cliente ya dio criterio suficiente
+  - el vendedor usa abstracciones como “mercado menos saturado”, “más estable”, “más simple” sin bajarlas a criterios verificables
+  - en algunos casos mete ejemplos numéricos o proyecciones de revalorización sin soporte claro, lo que dispara desconfianza inmediata
+  - el cliente da señales explícitas como “tengo poco tiempo”, “no me cuentes historias”, “no entiendo”, “ponme un ejemplo fácil con números”, y el sistema no cambia de modo de verdad
+- La documentación interna de ventas exige no atacar al competidor a ciegas, clarificar diferencias reales, responder objeciones con evidencia y hacer recomendaciones directas cuando toca.
+- El objetivo no es hacer al vendedor más simpático. Es hacerlo más serio, más corto, más honesto y más difícil de desmontar.
+
+## CAMBIOS REQUERIDOS
+1. Endurecer el prompt del vendedor IA en Arena modo client con una regla de “competidor aparentemente superior”.
+   Nueva lógica:
+   - si el cliente presenta una alternativa que, según los datos expresados en la conversación, gana en cashflow, gestión, ubicación y revalorización, el vendedor NO debe seguir fingiendo superioridad sin base
+   - en ese caso debe hacer una de estas dos cosas:
+     A) identificar un supuesto crítico que aún no esté verificado y centrar la respuesta en ese único punto
+     B) admitir con honestidad que, si esos supuestos son reales, la propuesta rival parece mejor para los criterios declarados
+   - prohibir respuestas tipo “¿qué prefieres priorizar?” cuando el cliente ya explicitó el criterio varias veces
+
+2. Prohibir cifras y proyecciones inventadas o no sustentadas por el contexto.
+   Reglas nuevas:
+   - no dar porcentajes de revalorización futuros, comparativas históricas ni números de mercado si no están presentes en el contexto o en datos estructurados disponibles en esa sesión
+   - no inventar ejemplos numéricos comparativos que presenten resultados concretos de Berlín vs Magdeburg salvo que el usuario ya haya dado esas cifras o exista una fuente interna explícita disponible en el flujo real
+   - si faltan datos, el vendedor debe decirlo claramente:
+     - “con lo que has dicho, no puedo afirmar que Magdeburg revalorice más”
+     - “sin números comparables, no te voy a vender esa conclusión”
+   - si el modelo intenta producir cifras no soportadas, sanitizar o regenerar la salida
+
+3. Crear un modo de “respuesta directa” para señales explícitas del cliente.
+   Detectar patrones como:
+   - “tengo poco tiempo”
+   - “no me cuentes historias”
+   - “hablando claro”
+   - “no entiendo”
+   - “ponme un ejemplo fácil”
+   - “basta de preguntas”
+   Cuando aparezcan:
+   - máximo 2 frases
+   - cero jerga abstracta
+   - cero storytelling
+   - cero pregunta final salvo que sea imprescindible y muy concreta
+   - si pide ejemplo, dar ejemplo simple
+   - si pide comparación, responder comparación directa
+   - si pide claridad, no volver a marcos genéricos
+
+4. Añadir una regla de “no autogol comparativo”.
+   Si el vendedor usa un ejemplo o comparación:
+   - el ejemplo no puede dejar claramente mejor a la alternativa rival y luego intentar vender la opción propia sin explicarlo
+   - si el ejemplo favorece al rival, el vendedor debe reconocerlo y cambiar a:
+     - descalificación honesta
+     - verificación de supuestos
+     - recomendación realista
+   - prohibir que el sistema use ejemplos que generen contradicción interna en la misma respuesta
+
+5. Mejorar el manejo de objeción comparativa.
+   Cuando el cliente compare con otra oferta concreta, la respuesta debe seguir este formato:
+   - línea 1: reconocer el criterio real del cliente
+   - línea 2: decir qué parte del rival sí parece mejor según lo dicho
+   - línea 3: decir el único motivo serio por el que aún tendría sentido considerar la propuesta propia, o admitir que no lo hay todavía
+   - opcional: una sola pregunta de verificación, solo si descubre un supuesto crítico no confirmado
+   Prohibir:
+   - reencuadres vagos
+   - preguntas genéricas de priorización repetidas
+   - atacar al rival sin base
+
+6. Introducir una salida de recomendación honesta.
+   Si por los criterios explícitos del cliente la propuesta de Magdeburg no gana:
+   - el vendedor puede decirlo
+   - debe hacerlo de forma profesional y con control
+   - luego debe ofrecer uno de estos movimientos:
+     - revisar un supuesto crítico del rival
+     - redefinir el criterio de decisión
+     - cerrar elegantemente con recomendación de no avanzar
+   La idea es evitar que VELA siga vendiendo cuando ya perdió el fit.
+
+7. Añadir observabilidad mínima para estas nuevas reglas.
+   Registrar flags simples cuando:
+   - la respuesta admite que el rival parece mejor
+   - la respuesta entra en direct mode
+   - la respuesta es regenerada o saneada por cifras no soportadas
+   - la respuesta activa “verification question” en vez de “generic prioritization question”
+   Esto permitirá medir si el comportamiento mejora de verdad.
+
+## RESTRICCIONES
+- No reescribir Arena completo.
+- No tocar Copiloto.
+- No instalar dependencias nuevas salvo necesidad estricta.
+- Mantener el estilo conversacional natural.
+- No romper `sellerNotes`, `repitch`, `shortcutDirection`, `CoachLite` ni `Journey`.
+- Hacer cambios pequeños y localizados.
+- Si el código real no coincide exactamente con la documentación, adaptar el cambio al flujo real sin rehacer arquitectura.
+
+## ENTREGABLES
+- [ ] `artifacts/api-server/src/routes/arena.ts` ajustado en modo client con estas nuevas reglas
+- [ ] helper pequeño local para detectar direct mode / unsupported numeric claims / over-concession si hace falta
+- [ ] sanitización o regeneración mínima cuando la salida contenga cifras no soportadas
+- [ ] observabilidad básica añadida para medir activación de los nuevos modos
+- [ ] comentarios breves explicando por qué se añadió este control
+
+## TESTS
+- Caso 1: el cliente trae una oferta rival aparentemente mejor en todos los criterios y el vendedor NO responde con un reencuadre genérico; reconoce el fit débil o verifica un supuesto crítico
+- Caso 2: el cliente dice “tengo poco tiempo” y la respuesta sale en modo directo, sin introducción blanda ni pregunta genérica final
+- Caso 3: el cliente dice “ponme un ejemplo fácil con números” y el sistema no inventa cifras de mercado no soportadas
+- Caso 4: si el modelo genera una proyección futura de revalorización no sustentada, la salida se bloquea, sanea o regenera
+- Caso 5: si el ejemplo comparativo deja mejor al rival, el vendedor lo reconoce y no intenta vender Magdeburg como ganador sin explicación
+- Caso 6: si el cliente ya repitió su criterio varias veces, el vendedor no vuelve a preguntar “qué priorizas” con otras palabras
+- Caso 7: la app compila sin errores y Arena sigue funcionando end-to-end
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] El vendedor IA concede menos terreno de forma torpe al rival
+- [ ] Ya no aparecen cifras o proyecciones no soportadas en respuestas comparativas
+- [ ] El sistema cambia de modo cuando el cliente pide rapidez, claridad o lenguaje simple
+- [ ] Las comparaciones con Berlín/Leipzig son más honestas, más directas y menos blandas
+- [ ] VELA puede descalificar con control cuando no hay fit real
+- [ ] La app compila sin errores
+- [ ] No hay regresiones visibles en funcionalidades adyacentes de Arena

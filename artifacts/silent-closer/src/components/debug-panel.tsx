@@ -35,13 +35,18 @@ interface UsageSnapshot {
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 function fmt$(v: number | null): string {
-  if (v === null)  return "?";
-  if (v === 0)     return "$0";
-  if (v < 0.0001)  return `$${v.toFixed(6)}`;
-  return `$${v.toFixed(4)}`;
+  if (v === null)   return "?";
+  if (v === 0)      return "$0.00";
+  if (v < 0.0001)   return "<$0.01¢";   // negligible — don't show 9-char scientific
+  if (v < 0.001)    return `${(v * 100).toFixed(3)}¢`;   // e.g. "0.123¢"
+  if (v < 0.01)     return `${(v * 100).toFixed(2)}¢`;   // e.g. "0.56¢"
+  if (v < 1)        return `$${v.toFixed(4)}`;            // e.g. "$0.0456"
+  return `$${v.toFixed(2)}`;                              // e.g. "$1.23"
 }
 function fmtK(v: number): string {
-  if (v >= 1000) return `${(v / 1000).toFixed(1)}k`;
+  if (v >= 100_000) return `${(v / 1000).toFixed(0)}k`;
+  if (v >= 10_000)  return `${(v / 1000).toFixed(1)}k`;
+  if (v >= 1_000)   return `${(v / 1000).toFixed(2)}k`;
   return String(v);
 }
 function fmtMs(ms: number): string {
@@ -91,23 +96,26 @@ function setLS(key: string, val: boolean): void {
 }
 
 // ── KPI card ──────────────────────────────────────────────────────────────────
+// Each KPI is a row: label on the left, value on the right — no truncation risk.
 function Kpi({
   label, value, sub, hi = false,
 }: { label: string; value: string; sub?: string; hi?: boolean }) {
   return (
-    <div className="flex flex-col gap-0.5 min-w-0">
-      <span className="text-[7.5px] font-mono tracking-[0.18em] uppercase text-zinc-600 truncate">
+    <div className="flex items-baseline justify-between gap-2 min-w-0">
+      <span className="text-[7.5px] font-mono tracking-[0.14em] uppercase text-zinc-600 shrink-0">
         {label}
       </span>
-      <span className={cn(
-        "text-[13px] font-mono font-bold leading-none truncate",
-        hi ? "text-white" : "text-zinc-200",
-      )}>
-        {value}
-      </span>
-      {sub && (
-        <span className="text-[8px] font-mono text-zinc-600 leading-none truncate">{sub}</span>
-      )}
+      <div className="flex flex-col items-end min-w-0">
+        <span className={cn(
+          "text-[12px] font-mono font-bold leading-none tabular-nums",
+          hi ? "text-white" : "text-zinc-200",
+        )}>
+          {value}
+        </span>
+        {sub && (
+          <span className="text-[7px] font-mono text-zinc-600 leading-none tabular-nums">{sub}</span>
+        )}
+      </div>
     </div>
   );
 }
@@ -337,7 +345,7 @@ export function DebugPanel({ sessionId }: { sessionId?: string | null }) {
                   </div>
 
                   {session ? (
-                    <div className="grid grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
                       <Kpi label="Coste"    value={fmt$(session.totalCostUsd)}         hi />
                       <Kpi label="Tokens"   value={fmtK(session.totalTokens)} />
                       <Kpi label="Llamadas" value={String(session.calls)} />
@@ -360,7 +368,7 @@ export function DebugPanel({ sessionId }: { sessionId?: string | null }) {
                       </span>
                     )}
                   </div>
-                  <div className="grid grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
                     <Kpi label="Total $"  value={fmt$(data.global.totalCostUsd)} />
                     <Kpi label="Tokens"   value={fmtK(data.global.totalTokens)} />
                     <Kpi label="Calls"    value={String(data.global.calls)} />
