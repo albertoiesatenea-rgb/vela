@@ -1,0 +1,113 @@
+Objetivo
+Corregir Arena cliente para que el vendedor IA deje de responder en abstracto cuando el contexto ya trae una objeción técnica dominante, especialmente en casos de precio/renta/contrato/subida de alquiler como José Romero. El Prompter ya entrega un contexto suficientemente bueno; el problema está en cómo el vendedor IA lo ejecuta.
+
+Contexto del problema
+He probado varias conversaciones en Arena cliente con el mismo caso de José Romero usando el contexto generado por VELA x Immvest Prompter. El patrón es muy claro:
+
+el raw_context ya llega muy rico, con fase avanzada, objeción viva principal, datos del activo, lo que ya se respondió por email y qué sería mala/buena respuesta
+aun así, el vendedor IA sigue:
+reabriendo marcos ya concedidos como tranquilidad/familia/largo plazo
+evitando responder directamente a la cifra concreta del 2,3 % o a la renta muy baja
+creando falsas dicotomías del tipo “estabilidad vs rentabilidad”
+usando mal referencias temporales como la subida de abril de 2024 incluso cuando estamos en 2026
+metiendo a la mujer o alternativas demasiado pronto
+o regalando el activo antes de defenderlo bien
+
+Además, en varios logs el propio COACH_ANALYSIS marca FALLO GRAVE por no abordar la cifra concreta o por crear falsa dicotomía, así que el sistema ya detecta parte del fallo pero no corrige la ejecución.
+
+Cambios requeridos
+
+Crear un estado de “objeción técnica dominante” en Arena cliente
+si el contexto y/o el turno del cliente contienen objeciones como:
+renta demasiado baja
+2,3 % de rentabilidad
+contrato antiguo
+límites de subida
+garantía de alquiler
+derramas / costes extraordinarios
+entonces el vendedor IA debe entrar automáticamente en un modo especial y no puede abrir con preguntas genéricas sobre familia, tranquilidad o seguridad si eso ya fue concedido.
+Hacer hard-block del marco concedido
+si el cliente ya dijo algo como:
+“la tranquilidad te la compro”
+“la zona me cuadra”
+“el activo me gusta”
+“la estabilidad la entiendo”
+entonces ese marco queda cerrado
+el vendedor IA no puede volver a abrirlo como pregunta de exploración
+debe pasar directamente al gap técnico activo
+Hacer vinculante una estructura fija para objeción de renta
+Cuando la objeción dominante sea precio/renta/contrato, la respuesta del vendedor debe seguir esta secuencia:
+a) nombrar exactamente la objeción concreta
+b) separar:
+qué está confirmado
+qué es inferencia razonable
+qué falta por confirmar
+c) explicar el impacto real sobre la decisión
+d) medir si, resuelto eso, queda algo más
+e) solo después reencuadrar o avanzar
+
+Ejemplo de comportamiento correcto:
+
+“vale, entonces no estás discutiendo la zona ni el activo; estás discutiendo si esta renta concreta deja el caso defendible para ese precio”
+“lo confirmado es X, lo que no puedo prometer hoy es Y, y lo que eso implica es Z”
+Prohibir falsas dicotomías
+bloquear respuestas tipo:
+“¿prefieres tranquilidad o rentabilidad?”
+“¿prefieres patrimonio o cashflow?”
+si el cliente ya dejó claro que el único bloqueo es la renta o el precio
+si el false-dichotomy-guard ya existe, hacerlo de verdad vinculante y no decorativo
+Tratar referencias temporales como constraints duras
+si en contexto ya consta una subida en abril de 2024 y el cliente está hablando en 2026, el vendedor no puede formular esa subida como si fuera futura
+debe hablar de ella como hecho pasado y usarla solo como contexto, no como pseudo-solución mágica
+Prohibir desvíos tempranos a mujer/alternativas
+si la objeción técnica central sigue viva, el vendedor no puede:
+llevar la conversación a “metamos a tu mujer”
+ofrecer otras propiedades
+descalificar el activo
+sin haber completado antes la secuencia técnica de responder → aislar → medir
+Limpiar uso del contexto desde el Prompter
+confirmar en UI o docs internas que para VELA debe pegarse solo el CONTEXTO MAESTRO PARA VELA
+no hace falta que el runtime consuma también SITUACIÓN DETECTADA, DATA CHECK, PROBABLE, FALTA POR ACLARAR
+si llega todo mezclado, considerar sanitizarlo o priorizar automáticamente el bloque principal
+
+Restricciones
+
+No rehacer todo Arena
+No tocar Arena vendedor si no hace falta
+No romper la parte que ya funciona del Prompter
+No meter teoría de ventas más larga; quiero más obediencia táctica, no más texto
+Mantener compatibilidad con el contexto libre actual
+
+Entregables
+
+patch del runtime/prompt del vendedor IA en Arena cliente
+hard-block del marco concedido
+secuencia obligatoria para objeción técnica dominante
+bloqueo real de falsas dicotomías
+grounding temporal más estricto
+saneamiento o priorización del CONTEXTO MAESTRO PARA VELA
+tests con el caso José Romero
+
+Tests
+
+Caso José — 2,3 % rentabilidad
+el vendedor no puede responder con “tranquilidad o rentabilidad”
+debe nombrar la objeción exacta y trabajarla
+Caso José — “la tranquilidad te la compro”
+el vendedor no puede volver a abrir el marco de estabilidad/familia/seguridad como pregunta exploratoria
+Caso José — abril 2024
+el vendedor no puede hablar de esa subida como si fuera futura cuando el cliente corrige que estamos en 2026
+Caso José — mujer / alternativa
+el vendedor no puede desviar a “traigamos a tu mujer” ni a “busquemos otra propiedad” antes de cerrar o medir la objeción técnica
+Contexto Prompter
+el sistema debe comportarse igual o mejor recibiendo solo CONTEXTO MAESTRO PARA VELA
+idealmente debe ignorar o no depender de DATA CHECK
+
+Criterios de aceptación
+
+el vendedor IA deja de abstraer cuando la objeción es técnica
+deja de reabrir marcos ya concedidos
+deja de crear falsas dicotomías
+habla con grounding temporal correcto
+no regala el activo ni se escapa a terceros antes de tiempo
+el caso José Romero deja de romperse siempre por el mismo patrón

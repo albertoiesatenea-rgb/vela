@@ -327,6 +327,219 @@ function buildVerifiedDataBlock(context: string, lang: Lang): string {
   return `\n\nDATOS VERIFICADOS DEL CONTEXTO (los únicos que puedes citar en comparaciones o ejemplos):\n${facts.map(f => `— ${f}`).join("\n")}\nCualquier otro número, porcentaje o proyección que NO esté en esta lista Y que el cliente NO haya mencionado explícitamente es INVENTADO. No lo uses. Si te falta un dato, dilo con claridad.`;
 }
 
+// ── Context sanitizer ─────────────────────────────────────────────────────────
+// When the user pastes the full Prompter output (which contains multiple labeled blocks
+// like DATA CHECK, SITUACIÓN DETECTADA, PROBABLE, FALTA POR ACLARAR), extract only the
+// "CONTEXTO MAESTRO PARA VELA" section so the model isn't confused by the surrounding noise.
+// Falls back to the full context if no such block is found.
+function sanitizeArenaContext(context: string): string {
+  if (!context || context.length < 100) return context;
+  const masterRe = /CONTEXTO\s+MAESTRO\s+PARA\s+VELA[^\n]*\n([\s\S]+?)(?=\n(?:DATA\s+CHECK|SITUACI[ÓO]N\s+DETECTADA|PROBABLE|FALTA\s+POR\s+ACLARAR|TIPS|NOTAS|={3,}|─{3,}|—{3,}|-{4,})|$)/i;
+  const m = context.match(masterRe);
+  if (m && m[1] && m[1].trim().length > 80) {
+    return m[1].trim();
+  }
+  return context;
+}
+
+// ── Dominant technical objection signals ──────────────────────────────────────
+// Phrases in either language that indicate a rent/yield/price/contract objection is the
+// dominant active blocker. Used to activate the per-turn hard-block injection.
+const DOMINANT_TECH_SIGNALS: string[] = [
+  // ES — rent / yield / price
+  "renta muy baja", "renta baja", "renta demasiado baja", "renta insuficiente",
+  "2,3%", "2.3%", "el porcentaje", "la rentabilidad es baja", "rentabilidad muy baja",
+  "rentabilidad baja", "rendimiento bajo", "rentabilidad muy poca", "rentabilidad poca",
+  "la renta es baja", "la renta está baja", "la renta no cubre",
+  // ES — contract / rent increase
+  "contrato antiguo", "contrato de renta antigua", "precio de alquiler bajo",
+  "límite de subida", "límites de subida", "límite de actualización",
+  "cuándo sube el alquiler", "cuándo puede subir", "subida de alquiler",
+  // ES — extraordinary costs / price
+  "derrama", "cuota extraordinaria", "gastos extraordinarios", "coste extraordinario",
+  "precio alto", "precio muy alto", "el precio no encaja", "precio no me cuadra",
+  // EN equivalents
+  "rent is too low", "rent too low", "low rent", "rent very low",
+  "yield is low", "yield too low", "return is low", "2.3%", "1.8%",
+  "old contract", "legacy contract", "below-market rent",
+  "rent cap", "rent increase cap", "rent control",
+  "extraordinary costs", "special assessment", "price is too high",
+];
+
+// ── Conceded frame signals ─────────────────────────────────────────────────────
+// Phrases a client says that explicitly close a non-technical frame.
+// If detected in client turns, that frame must never be reopened as a question or argument.
+interface ConcededFrameSignal { patterns: string[]; frame: string }
+const CONCEDED_FRAME_SIGNALS: ConcededFrameSignal[] = [
+  {
+    patterns: [
+      "tranquilidad te la compro", "la tranquilidad me cuadra", "tranquilidad ok",
+      "la tranquilidad no la discuto", "la tranquilidad la entiendo",
+      "tranquilidad de acuerdo", "tranquilidad sí",
+      "i'll buy the stability", "stability works", "stability is fine",
+      "not disputing the stability", "long-term is fine", "long-term ok",
+    ],
+    frame: "tranquilidad/seguridad patrimonial",
+  },
+  {
+    patterns: [
+      "la zona me cuadra", "la zona me gusta", "zona ok",
+      "la ubicación me cuadra", "la ubicación me gusta",
+      "la ubicación no la discuto", "zona bien", "ubicación bien",
+      "the area works", "the location works", "location is fine",
+      "not disputing the location",
+    ],
+    frame: "zona/ubicación",
+  },
+  {
+    patterns: [
+      "el activo me gusta", "el piso me gusta", "la propiedad me gusta",
+      "el activo me cuadra", "el activo en sí ok", "el activo no es el problema",
+      "el activo no lo discuto", "la propiedad no es el problema",
+      "i like the property", "the asset is fine", "not rejecting the asset",
+    ],
+    frame: "el activo/propiedad",
+  },
+  {
+    patterns: [
+      "la estabilidad la entiendo", "la estabilidad me cuadra", "estabilidad ok",
+      "el largo plazo lo entiendo", "el largo plazo me cuadra",
+      "largo plazo ok", "el largo plazo no es el problema",
+    ],
+    frame: "estabilidad/horizonte a largo plazo",
+  },
+  {
+    patterns: [
+      "la financiación me cuadra", "la financiación ok",
+      "la financiación no es el problema", "financiación de acuerdo",
+      "financing works", "financing is ok", "financing not the issue",
+    ],
+    frame: "condiciones de financiación",
+  },
+];
+
+// ── Per-turn dominant objection injection ─────────────────────────────────────
+// Called each turn in client mode (AI = seller). Scans conversation state and returns
+// a high-priority injection block appended at the END of the system prompt.
+// Empty string when no technical objection is detected.
+function buildDominantObjectionInjection(
+  session: ArenaSession,
+  currentUserMessage: string,
+  lang: Lang,
+): string {
+  if (session.role !== "client") return "";
+
+  // Scan full context + entire history + current message for technical objection signals
+  const allText = [
+    session.context,
+    ...session.turns.map(t => t.message),
+    currentUserMessage,
+  ].join(" ").toLowerCase();
+
+  const hasDomTech = DOMINANT_TECH_SIGNALS.some(s => allText.includes(s.toLowerCase()));
+  if (!hasDomTech) return "";
+
+  // Detect conceded frames — scan client turns only
+  const clientHistoryLower = [
+    ...session.turns.filter(t => t.speaker === "user").map(t => t.message.toLowerCase()),
+    currentUserMessage.toLowerCase(),
+  ].join(" ");
+
+  const concededFrames: string[] = [];
+  for (const sig of CONCEDED_FRAME_SIGNALS) {
+    if (sig.patterns.some(p => clientHistoryLower.includes(p.toLowerCase()))) {
+      concededFrames.push(sig.frame);
+    }
+  }
+
+  // Detect past temporal references in context
+  const temporalRefs = (session.context.match(
+    /(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre|january|february|march|april|may|june|july|august|september|october|november|december)\s+(?:de\s+)?\d{4}/gi,
+  ) ?? []);
+  const currentYear = new Date().getFullYear();
+  const pastRefs = temporalRefs.filter(ref => {
+    const yr = ref.match(/\d{4}/);
+    return yr && parseInt(yr[0]) < currentYear;
+  });
+
+  // Client corrects a temporal framing by the seller
+  const clientCorrectsTime = /estamos en \d{4}|ya est[aá]n|ya subi[oó]|ya pasó|eso ya fue|ya ocurrió|that was|already happened|already went up|we('re| are) in \d{4}|that.s past|ya se aplic/i.test(currentUserMessage);
+
+  const parts: string[] = [];
+
+  // ── Core technical objection mode block ───────────────────────────────────
+  if (lang === "es") {
+    parts.push(`⚠️ MODO OBJECIÓN TÉCNICA DOMINANTE — ACTIVO ESTE TURNO
+Se ha detectado una objeción técnica/financiera activa (renta, rentabilidad, precio o contrato).
+Este modo tiene PRIORIDAD MÁXIMA sobre cualquier regla táctica general. No admite excepciones.
+
+SECUENCIA OBLIGATORIA — si no la sigues en orden, la respuesta es un FALLO GRAVE:
+a) NOMBRA la cifra o condición exacta que el cliente citó. Sin paráfrasis, sin abstracción.
+b) SEPARA explícitamente: "Lo confirmado es [X]. La inferencia razonable es [Y]. Lo que falta confirmar es [Z]."
+c) MIDE el impacto real de ese gap sobre la decisión de compra.
+d) MIDE el residuo: "Si resolvemos [X], ¿queda algo más que te frene?"
+e) Solo entonces: reencuadra o propón un siguiente paso concreto.
+
+PROHIBICIONES ABSOLUTAS ESTE TURNO — cualquier violación = FALLO GRAVE:
+— Responder a la objeción técnica con "esto es una cuestión de patrimonio a largo plazo" u otro reencuadre genérico sin antes abordar la matemática concreta del cliente.
+— Introducir a terceros (pareja, socio, asesor) como tema central antes de completar los pasos a–d.
+— Proponer otra propiedad o alternativa antes de completar los pasos a–d.
+— Crear dicotomías con marcos no técnicos si la objeción técnica sigue viva ("¿seguridad o rentabilidad?", "¿patrimonio o cashflow?" cuando el bloqueo real es la cifra de renta).`);
+  } else {
+    parts.push(`⚠️ DOMINANT TECHNICAL OBJECTION MODE — ACTIVE THIS TURN
+An active technical/financial objection has been detected (rent, yield, price, or contract).
+This mode has MAXIMUM PRIORITY over any general tactical rule. No exceptions.
+
+MANDATORY SEQUENCE — if you skip or reorder steps, the response is a GRAVE FAILURE:
+a) NAME the exact figure or condition the client cited. No paraphrase, no abstraction.
+b) SEPARATE explicitly: "What's confirmed is [X]. Reasonable inference is [Y]. What's still unconfirmed is [Z]."
+c) MEASURE the real impact of that gap on the purchase decision.
+d) MEASURE the residue: "If we resolve [X], is there anything else blocking you?"
+e) Only then: reframe or propose a concrete next step.
+
+ABSOLUTE PROHIBITIONS THIS TURN — any violation = GRAVE FAILURE:
+— Responding to the technical objection with "this is about long-term wealth" or any generic reframe without first addressing the client's specific math.
+— Introducing third parties (partner, advisor) as the main topic before completing steps a–d.
+— Proposing another property or alternative before completing steps a–d.
+— Creating dichotomies with non-technical frames while the technical objection is still live ("security or returns?", "wealth or cashflow?" when the real blocker is a specific rent figure).`);
+  }
+
+  // ── Conceded frames hard-block ────────────────────────────────────────────
+  if (concededFrames.length > 0) {
+    const frameList = concededFrames.map(f => `"${f}"`).join(", ");
+    if (lang === "es") {
+      parts.push(`MARCOS YA CONCEDIDOS — CIERRE DEFINITIVO:
+El cliente ha aceptado explícitamente estos marcos: ${frameList}.
+PROHIBICIÓN TOTAL: no puedes reabrir, citar ni usar ninguno de estos marcos como pregunta exploratoria, argumento de valor o polo en una dicotomía. Hacerlo es FALLO GRAVE.
+El único trabajo que te queda es la objeción técnica activa.`);
+    } else {
+      parts.push(`CONCEDED FRAMES — PERMANENTLY CLOSED:
+The client has explicitly accepted these frames: ${frameList}.
+TOTAL PROHIBITION: you cannot reopen, mention, or use any of these frames as an exploratory question, value argument, or pole in a dichotomy. Doing so is a GRAVE FAILURE.
+The only remaining work is the active technical objection.`);
+    }
+  }
+
+  // ── Temporal grounding ────────────────────────────────────────────────────
+  if (pastRefs.length > 0 || clientCorrectsTime) {
+    if (lang === "es") {
+      const refStr = pastRefs.slice(0, 3).join(", ");
+      parts.push(`ANCLAJE TEMPORAL — OBLIGATORIO:
+${refStr ? `El contexto cita eventos con fechas pasadas: ${refStr}. Son hechos consumados — no los presentes como algo que "va a ocurrir" o "podría ocurrir".` : ""}${clientCorrectsTime ? " El cliente acaba de corregir tu encuadre temporal. Acepta la corrección de inmediato y sin argumentar." : ""}
+PROHIBIDO: presentar como futura cualquier subida, revisión o actualización de renta o precio que el contexto o el cliente indiquen como ya ocurrida.
+CORRECTO: "en [mes año] se aplicó la revisión". PROHIBIDO: "habrá una próxima revisión" si ya ocurrió.`);
+    } else {
+      const refStr = pastRefs.slice(0, 3).join(", ");
+      parts.push(`TEMPORAL GROUNDING — MANDATORY:
+${refStr ? `Context cites events with past dates: ${refStr}. These are past facts — do not present them as things that "will happen" or "could happen".` : ""}${clientCorrectsTime ? " The client just corrected your temporal framing. Accept the correction immediately without arguing." : ""}
+FORBIDDEN: framing as future any rent increase, review, or update that context or client indicates already occurred.
+CORRECT: "in [month year] the review was applied". FORBIDDEN: "there will be an upcoming review" if it already happened.`);
+    }
+  }
+
+  return `\n\n[INSTRUCCIÓN TÁCTICA CRÍTICA — MÁXIMA PRIORIDAD — ESTE TURNO]\n${parts.join("\n\n")}`;
+}
+
 // ── Prompt builders ───────────────────────────────────────────────────────────
 function buildArenaScBlock(sc: ArenaStructuredContext | undefined, lang: Lang): string {
   if (!sc) return "";
@@ -359,6 +572,7 @@ function buildSystemPrompt(
   randomPreset?: string,
   arenaStructuredContext?: ArenaStructuredContext,
   cadenceNote = "",
+  objectionNote = "",
 ): string {
   const langRule = lang === "en" ? "Respond only in English." : "Responde solo en español.";
 
@@ -483,8 +697,12 @@ COHERENCIA CON EL CONTEXTO:
 — Si ya has afirmado que algo es fijo, no lo vuelvas a proponer como palanca.
 — Si el contexto no permite cerrar el gap con el umbral del cliente, reconócelo.
 
-TERCERO DECISOR:
-— Si aparece pareja, socio, comité, asesor u otro decisor: no lo ignores ni lo eludes.
+TERCERO DECISOR — CONDICIÓN PREVIA OBLIGATORIA:
+Solo puedes iniciar la maniobra de tercero (incluir a pareja, socio, asesor) si se cumplen las DOS condiciones siguientes:
+  1. La objeción técnica activa (renta, rentabilidad, precio, contrato) ya ha sido respondida directamente siguiendo la secuencia: nombrar cifra → separar confirmado/inferido/pendiente → medir residuo.
+  2. El cliente NO tiene ningún bloqueo técnico todavía sin cerrar.
+Si hay objeción técnica activa: PROHIBIDO llevar la conversación al tercero. El tercero es una maniobra de cierre, no una evasión de la objeción.
+Si se cumplen las condiciones:
 — Propón una de estas dos acciones: (a) incluir al tercero en la próxima conversación, o (b) cerrar un microcompromiso antes de que todo se enfríe.
 — "Lo hablo y te digo" sin fecha ni siguiente paso concreto = callejón sin salida. No lo aceptes como cierre de turno.
 
@@ -578,7 +796,7 @@ FORMATO:
 
 TONO: conversacional, claro, creíble. Como una persona, no como un chatbot.
 Usa **negrita** para cifras, condiciones clave, conclusiones directas y cualquier término que el lector deba captar de un vistazo. Úsala con criterio — no en cada frase, pero sí donde aporte claridad.
-Sin etiquetas ni metacomentarios.${bottomRestrictionsReminder}${cadenceNote}
+Sin etiquetas ni metacomentarios.${bottomRestrictionsReminder}${cadenceNote}${objectionNote}
 ${langRule}`;
   }
 }
@@ -1533,6 +1751,11 @@ router.post("/arena/turn", async (req, res) => {
   const cadence = session.role === "client" ? analyzeQuestionCadence(session, effectiveUserMessage) : null;
   const cadenceNote = cadence ? buildCadenceNote(cadence, session.lang) : "";
 
+  // ── Dominant technical objection injection (client mode only) ────────────
+  // Computed BEFORE the user turn is appended so it reads the same state as cadence.
+  // Appended at the very end of the system prompt for maximum recency weight.
+  const objectionNote = buildDominantObjectionInjection(session, effectiveUserMessage, session.lang);
+
   // Log pre-response cadence events (what mode we're forcing BEFORE the AI responds)
   if (cadence) {
     if (cadence.clientTimePressed) {
@@ -1564,11 +1787,12 @@ router.post("/arena/turn", async (req, res) => {
     {
       role: "system",
       content: buildSystemPrompt(
-        session.role, session.context, session.lang,
+        session.role, sanitizeArenaContext(session.context), session.lang,
         historyLen,
         session.clientProfile, session.sellerProfile, session.difficulty,
         session.sellerNotes, session.randomPreset, session.arenaStructuredContext,
         cadenceNote,
+        objectionNote,
       ),
     },
   ];
@@ -1761,7 +1985,7 @@ router.post("/arena/repitch", async (req, res) => {
     {
       role: "system",
       content: buildSystemPrompt(
-        session.role, session.context, session.lang,
+        session.role, sanitizeArenaContext(session.context), session.lang,
         historyLen,
         session.clientProfile, session.sellerProfile, session.difficulty,
         session.sellerNotes, session.randomPreset, session.arenaStructuredContext,
