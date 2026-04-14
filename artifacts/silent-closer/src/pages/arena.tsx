@@ -1238,12 +1238,14 @@ export function Arena({
     const isClosed = summary.outcome === "closed";
 
     return (
-      <div className="fixed inset-0 bg-black flex flex-col items-center justify-center px-6 overflow-y-auto py-5">
+      <div className="fixed inset-0 bg-black flex flex-col">
 
         {/* ── Confetti — fires on any win ──────────────────────────────────── */}
         <Confetti active={isWin} intensity={isClosed ? "high" : "medium"} />
 
-        <div className="w-full max-w-sm flex flex-col gap-3">
+        {/* Scrollable content area */}
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+        <div className="w-full max-w-sm mx-auto flex flex-col gap-3">
 
           {/* Brand */}
           <div className="flex items-center gap-2">
@@ -1500,36 +1502,35 @@ export function Arena({
             )}
           </div>
 
-          {/* Actions */}
-          <div className="flex flex-col gap-1.5 border-t border-white/8 pt-3">
+        </div>
+        </div>{/* end scrollable content */}
+
+        {/* ── Sticky action footer — always visible, never scrolled away ── */}
+        <div className="shrink-0 border-t border-white/8 px-6 py-4">
+          <div className="w-full max-w-sm mx-auto flex flex-col gap-1.5">
+            <button
+              onClick={onExit}
+              className="w-full bg-white text-black text-xs font-mono font-bold py-2.5 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all"
+            >
+              {t.CLOSE}
+            </button>
             {onRetry && (
               <button
                 onClick={onRetry}
-                className="w-full bg-white text-black text-xs font-mono font-bold py-2.5 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all"
+                className="w-full border border-zinc-800 text-zinc-300 text-xs font-mono font-bold py-2.5 rounded-xl hover:border-zinc-600 hover:text-white active:scale-[0.98] transition-all"
               >
                 {["closed", "next_step"].includes(summary.outcome) ? t.CLIENT_RETRY : t.DEBRIEF_RETRY}
               </button>
             )}
             <button
               onClick={handleDownloadReport}
-              className={cn(
-                "w-full text-xs font-mono font-bold py-2.5 rounded-xl active:scale-[0.98] transition-all",
-                onRetry
-                  ? "border border-zinc-800 text-zinc-300 hover:border-zinc-600 hover:text-white"
-                  : "bg-white text-black hover:bg-zinc-100"
-              )}
+              className="w-full text-center text-[10px] font-mono text-zinc-500 hover:text-zinc-200 py-1.5 transition-colors"
             >
               {lang === "es" ? "Descargar informe (.md)" : "Download report (.md)"}
             </button>
-            <button
-              onClick={onExit}
-              className="w-full text-center text-[10px] font-mono text-zinc-500 hover:text-zinc-200 py-1.5 transition-colors"
-            >
-              {t.CLOSE}
-            </button>
           </div>
-
         </div>
+
       </div>
     );
   }
