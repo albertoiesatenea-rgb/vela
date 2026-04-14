@@ -94,6 +94,7 @@ export interface ArenaTurnData {
   arena_role_of_user: string;
   ai_role_this_turn: string;
   user_message: string | null;
+  user_message_origin?: MessageOrigin;
   ai_message: string | null;
   conversation_state_before: string | null;
   conversation_state_after: string | null;
@@ -242,10 +243,13 @@ export interface CopilotSessionData {
 
 // ── Arena builder input types ─────────────────────────────────────────────────
 
+export type MessageOrigin = "manual" | "suggest_accepted" | "suggest_edited" | "shortcut_generated" | "unknown";
+
 export interface ArenaMessageEntry {
   index: number;
   speaker: "user" | "ai" | "note";
   message: string;
+  message_origin?: MessageOrigin;
 }
 
 export interface ArenaCoachEntry {
@@ -670,6 +674,7 @@ export function buildArenaAuditLog(data: ArenaSessionData): AuditLog {
       arena_role_of_user: data.role,
       ai_role_this_turn: aiRole,
       user_message: isUserMsg ? msg.message : (prevMsg?.speaker === "user" ? prevMsg.message : null),
+      user_message_origin: isUserMsg ? msg.message_origin : (prevMsg?.speaker === "user" ? prevMsg.message_origin : undefined),
       ai_message: !isUserMsg ? msg.message : (nextMsg?.speaker === "ai" ? nextMsg.message : null),
       conversation_state_before: stateBefore,
       conversation_state_after: stateAfter,
@@ -719,10 +724,15 @@ export function buildArenaAuditLog(data: ArenaSessionData): AuditLog {
       readable_transcript.push(`[→ INSTRUCCIÓN AL VENDEDOR]: ${m.message}`);
     } else {
       conversationTurnNum++;
-      const label = m.speaker === "user"
+      // Build speaker label — include message origin for seller/user turns when available
+      const baseLabel = m.speaker === "user"
         ? (data.role === "seller" ? "VENDEDOR" : "CLIENTE")
         : (aiRole === "seller" ? "IA VENDEDOR" : "IA CLIENTE");
-      readable_transcript.push(`[${conversationTurnNum}] [${label}]: ${m.message}`);
+      const originSuffix: string =
+        m.speaker === "user" && data.role === "seller" && m.message_origin && m.message_origin !== "unknown"
+          ? ` | ${m.message_origin}`
+          : "";
+      readable_transcript.push(`[${conversationTurnNum}] [${baseLabel}${originSuffix}]: ${m.message}`);
     }
   }
 
@@ -734,12 +744,29 @@ export function buildArenaAuditLog(data: ArenaSessionData): AuditLog {
   const isLost = ["lost", "broken"].includes(data.outcome);
   const isClosed = data.outcome === "closed";
 
+  // Origin stats — count how seller turns were composed (only in seller mode)
+  const userMsgs = msgs.filter(m => m.speaker === "user");
+  const originCounts: Record<string, number> = {};
+  for (const m of userMsgs) {
+    const o = (m as ArenaMessageEntry).message_origin ?? "unknown";
+    originCounts[o] = (originCounts[o] ?? 0) + 1;
+  }
+  const hasOriginData = Object.values(originCounts).some(c => c > 0) &&
+    !Object.keys(originCounts).every(k => k === "unknown");
+
   const auditNotes: string[] = [];
   if (isLost) auditNotes.push(`session ended as "${data.outcome}" — audit objection handling and closing approach`);
   if (isClosed) auditNotes.push("session closed successfully — useful as positive training example");
   if (data.debrief) auditNotes.push(`debrief score: ${data.debrief.score}/10`);
   if (data.exitNote?.text) auditNotes.push(`exit note from user: "${data.exitNote.text}"`);
   if (msgs.length > 20) auditNotes.push("conversation was long (>20 messages) — check for close-timing issues");
+  if (data.role === "seller" && hasOriginData) {
+    const parts = Object.entries(originCounts)
+      .filter(([, c]) => c > 0)
+      .map(([k, c]) => `${k}: ${c}`)
+      .join(", ");
+    auditNotes.push(`message origin breakdown — ${parts}`);
+  }
 
   const summary: SessionSummary = {
     final_outcome: data.outcome,

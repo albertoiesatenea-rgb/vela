@@ -12,11 +12,13 @@ type Lang = "es" | "en";
 type ConversationState = "favorable" | "tense" | "critical";
 export type ArenaOutcome = "closed" | "next_step" | "lost" | "broken" | "manual_stop" | "none";
 type FinalOutcome = Exclude<ArenaOutcome, "none">;
+type MessageOrigin = "manual" | "suggest_accepted" | "suggest_edited" | "shortcut_generated" | "unknown";
 
 interface ArenaMessage {
   index: number;
   speaker: "user" | "ai" | "note";
   message: string;
+  message_origin?: MessageOrigin;
 }
 
 interface ArenaDebrief {
@@ -745,8 +747,13 @@ export function Arena({
   const [conversationState, setConversationState] = useState<ConversationState | null>(null);
   // Terminal state detection (seller mode)
   const [pendingOutcome, setPendingOutcome] = useState<Exclude<ArenaOutcome, "none" | "manual_stop"> | null>(null);
-  // Suggested response
+  // Suggested response — origin tracking
   const [isSuggesting, setIsSuggesting] = useState(false);
+  // Stores the exact text of the last ✨ suggestion so we can compare at send-time.
+  // Using a ref (not state) to avoid triggering re-renders on every keystroke comparison.
+  const lastSuggestRef = useRef<string | null>(null);
+  // True when the textarea was just filled from ✨ Suggest and user hasn't typed yet.
+  const [isSuggestPrimed, setIsSuggestPrimed] = useState(false);
   const [shortcutPhase, setShortcutPhase] = useState<"client" | "vendor" | null>(null);
   // Early exit prompt (no user turns yet)
   const [showEarlyExit, setShowEarlyExit] = useState(false);
@@ -901,10 +908,14 @@ export function Arena({
     })();
   }, [role, lang, context, arenaConfig]);
 
-  const sendMessage = useCallback(async (text: string) => {
+  const sendMessage = useCallback(async (text: string, origin: MessageOrigin = "manual") => {
     if (!text.trim() || isSending || !arenaSessionId) return;
 
-    const userMsg: ArenaMessage = { index: messages.length, speaker: "user", message: text.trim() };
+    // Clear suggest tracking state immediately so the primed indicator disappears
+    lastSuggestRef.current = null;
+    setIsSuggestPrimed(false);
+
+    const userMsg: ArenaMessage = { index: messages.length, speaker: "user", message: text.trim(), message_origin: origin };
     const expectedAiIndex = messages.length + 1;
     setMessages(prev => [...prev, userMsg]);
     setInput("");
@@ -914,7 +925,7 @@ export function Arena({
       const res = await fetch("/api/arena/turn", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ arenaSessionId, userMessage: text.trim() }),
+        body: JSON.stringify({ arenaSessionId, userMessage: text.trim(), message_origin: origin }),
       });
       const data = await res.json() as { aiMessage: string; terminalSignal?: ArenaOutcome; coachLite?: CoachLite };
       setMessages(prev => [...prev, { index: prev.length, speaker: "ai", message: data.aiMessage }]);
@@ -1006,7 +1017,14 @@ export function Arena({
   }, [role, isStarting, isSending, isEnding, exitStep, isExitHovered, shortcutPhase, input, sendShortcut]);
 
   const handleSend = useCallback(() => {
-    void sendMessage(input);
+    const trimmed = input.trim();
+    if (!trimmed) return;
+    // Compute message origin by comparing with last Suggest text
+    let origin: MessageOrigin = "manual";
+    if (lastSuggestRef.current !== null) {
+      origin = trimmed === lastSuggestRef.current.trim() ? "suggest_accepted" : "suggest_edited";
+    }
+    void sendMessage(trimmed, origin);
   }, [input, sendMessage]);
 
   const submitNote = useCallback(async () => {
@@ -1077,14 +1095,19 @@ export function Arena({
       });
       const data = await res.json() as { suggestion?: string };
       if (data.suggestion) {
-        await sendMessage(data.suggestion);
+        // Fill the textarea so the user can review, edit or send.
+        // Track the exact text so we can classify the origin on send.
+        lastSuggestRef.current = data.suggestion;
+        setIsSuggestPrimed(true);
+        setInput(data.suggestion);
+        setTimeout(() => textareaRef.current?.focus(), 50);
       }
     } catch {
       // silently ignore
     } finally {
       setIsSuggesting(false);
     }
-  }, [arenaSessionId, isSuggesting, isSending, messages.length, lang, sendMessage]);
+  }, [arenaSessionId, isSuggesting, isSending, messages.length, lang]);
 
   const handleExportLog = () => {
     if (!summary) return;
@@ -1783,20 +1806,40 @@ export function Arena({
                 <textarea
                   ref={textareaRef}
                   value={input}
-                  onChange={e => setInput(e.target.value)}
+                  onChange={e => {
+                    setInput(e.target.value);
+                    // If the user starts typing over a primed suggestion, update the "primed" state.
+                    // We keep lastSuggestRef intact so we can still detect edited vs accepted on send.
+                    if (isSuggestPrimed && e.target.value !== (lastSuggestRef.current ?? "")) {
+                      setIsSuggestPrimed(false);
+                    }
+                  }}
                   onKeyDown={handleKeyDown}
                   placeholder={t.PLACEHOLDER}
                   rows={3}
                   disabled={isStarting || isSending}
                   autoFocus
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 pr-9 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-600 transition-colors resize-none leading-relaxed disabled:opacity-40"
+                  className={`w-full bg-zinc-950 border rounded-xl px-3 py-2.5 pr-9 text-sm text-white placeholder:text-zinc-500 focus:outline-none transition-colors resize-none leading-relaxed disabled:opacity-40 ${
+                    isSuggestPrimed
+                      ? "border-sky-600 focus:border-sky-400"
+                      : "border-zinc-800 focus:border-zinc-600"
+                  }`}
                 />
+                {isSuggestPrimed && (
+                  <span className="absolute bottom-2.5 left-3 text-[10px] text-sky-500 pointer-events-none select-none leading-none">
+                    ✦ {lang === "es" ? "sugerencia — edita o envía" : "suggestion — edit or send"}
+                  </span>
+                )}
                 <button
                   onClick={() => void fetchSuggestion()}
                   disabled={isSuggesting || isStarting || isSending || messages.length < 1}
                   onMouseDown={e => e.preventDefault()}
-                  title={lang === "es" ? "Enviar respuesta ideal" : "Send ideal response"}
-                  className="absolute top-2 right-2 p-1.5 rounded-lg text-zinc-500 hover:text-sky-400 hover:bg-white/8 transition-all disabled:opacity-25 disabled:pointer-events-none"
+                  title={lang === "es" ? "Obtener respuesta ideal" : "Get ideal response"}
+                  className={`absolute top-2 right-2 p-1.5 rounded-lg transition-all disabled:opacity-25 disabled:pointer-events-none ${
+                    isSuggestPrimed
+                      ? "text-sky-400 hover:text-sky-300 hover:bg-white/8"
+                      : "text-zinc-500 hover:text-sky-400 hover:bg-white/8"
+                  }`}
                 >
                   {isSuggesting
                     ? <Loader2 className="w-3.5 h-3.5 animate-spin" />

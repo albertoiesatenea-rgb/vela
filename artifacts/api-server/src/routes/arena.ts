@@ -24,11 +24,15 @@ type ArenaRole = "seller" | "client";
 type Lang = "es" | "en";
 export type ArenaOutcome = "closed" | "next_step" | "lost" | "broken" | "manual_stop" | "none";
 
+export type MessageOrigin = "manual" | "suggest_accepted" | "suggest_edited" | "shortcut_generated" | "unknown";
+const VALID_ORIGINS: MessageOrigin[] = ["manual", "suggest_accepted", "suggest_edited", "shortcut_generated", "unknown"];
+
 interface ArenaTurn {
   index: number;
   timestamp: string;
   speaker: "user" | "ai";
   message: string;
+  message_origin?: MessageOrigin;
 }
 
 interface ArenaStructuredContext {
@@ -1728,11 +1732,15 @@ async function compactIfNeeded(
 
 // ── POST /api/arena/turn ──────────────────────────────────────────────────────
 router.post("/arena/turn", async (req, res) => {
-  const { arenaSessionId, userMessage, shortcutDirection } = req.body as {
+  const { arenaSessionId, userMessage, shortcutDirection, message_origin } = req.body as {
     arenaSessionId?: string;
     userMessage?: string;
     shortcutDirection?: "agree" | "object";
+    message_origin?: string;
   };
+  const resolvedOrigin: MessageOrigin = shortcutDirection
+    ? "shortcut_generated"
+    : (VALID_ORIGINS.includes(message_origin as MessageOrigin) ? (message_origin as MessageOrigin) : "unknown");
 
   if (!arenaSessionId || (!userMessage?.trim() && !shortcutDirection)) {
     res.status(400).json({ error: "arenaSessionId and (userMessage or shortcutDirection) required" });
@@ -1789,6 +1797,7 @@ router.post("/arena/turn", async (req, res) => {
     timestamp: new Date().toISOString(),
     speaker: "user",
     message: effectiveUserMessage,
+    message_origin: resolvedOrigin,
   });
 
   // ── History windowing: use full history or last N turns ───────────────────

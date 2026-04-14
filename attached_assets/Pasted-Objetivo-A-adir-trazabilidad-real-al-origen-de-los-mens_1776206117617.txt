@@ -1,0 +1,89 @@
+Objetivo
+Añadir trazabilidad real al origen de los mensajes del vendedor en Arena seller para que la auditoría pueda distinguir si una respuesta fue escrita manualmente por el usuario o enviada a partir de la función ✨ Suggest. Ahora mismo el log no lo refleja, y eso hace que la auditoría de entrenamiento sea incompleta y potencialmente injusta.
+
+Contexto del problema
+He revisado los logs de Arena seller y ahora mismo los turnos del vendedor solo guardan texto (raw_input, normalized_input, etc.), pero no guardan cómo se generó ese mensaje. Al mismo tiempo, el producto ya tiene botón ✨ Suggest en Arena seller (POST /api/arena/suggest), pero la documentación actual deja claro que esa sugerencia es visual y que el frontend no la auto-envía como turno. Eso significa que, cuando el usuario copia/usa una sugerencia y luego envía el mensaje, el log actual lo registra como si fuera un mensaje normal, sin distinguir origen.
+
+Esto rompe parte del valor de la auditoría:
+
+no se puede saber si una mala respuesta fue culpa del usuario o de la sugerencia de VELA
+no se puede medir si Suggest está ayudando de verdad o está generando respuestas flojas
+no se puede entrenar bien el sistema porque falta causalidad
+
+Además, en el log de seller mode que he probado, las respuestas parecen largas, abstractas, poco cerradoras y poco convincentes. Si esas respuestas venían de Suggest, eso es un problema serio de calidad de la funcionalidad. Necesito poder medirlo con precisión.
+
+Cambios requeridos
+
+Añadir message_origin o equivalente a los turnos del vendedor en Arena seller
+Valores mínimos:
+manual
+suggest_accepted
+suggest_edited
+shortcut_generated si aplica
+unknown como fallback
+Propagar este origen desde frontend a backend
+Cuando el usuario:
+escribe manualmente y envía → manual
+usa Suggest y envía sin cambios → suggest_accepted
+usa Suggest, edita el texto y luego envía → suggest_edited
+
+Si hace falta, el frontend debe conservar temporalmente:
+
+último texto sugerido
+hash/string normalizado del último texto sugerido
+para comparar con el texto finalmente enviado
+Guardar esta info en sesión y en audit log
+añadir message_origin por turno en session.turns
+incluirlo en el audit log exportable
+incluirlo también en readable_transcript de forma discreta, por ejemplo:
+[YO | manual]: ...
+[YO | suggest]: ...
+[YO | suggest_edit]: ...
+No romper comportamiento actual de Arena
+no tocar la lógica comercial
+no tocar prompts
+no tocar scoring todavía
+solo observabilidad
+Añadir resumen agregado opcional al final del audit log
+Algo simple como:
+seller_turns_manual
+seller_turns_from_suggest
+seller_turns_from_suggest_edited
+
+No hace falta mostrarlo en UI todavía si ensucia demasiado, pero sí dejarlo en el log.
+
+Dejar preparado futuro uso en auditoría
+No hace falta cambiar ya la Brutal Audit, pero sí dejar disponible esta metadata para futuro:
+penalizar menos al usuario si la respuesta mala vino de Suggest
+detectar si Suggest genera respuestas demasiado largas, abstractas o flojas
+
+Restricciones
+
+No cambiar la UX principal
+No meter más complejidad visual innecesaria en pantalla
+No tocar Copiloto ni Arena cliente salvo que compartan tipos
+Mantener backward compatibility con logs antiguos si es posible
+Si no se puede saber el origen en algún caso, usar unknown, no inventar
+
+Entregables
+
+tracking de origen del mensaje del vendedor
+persistencia por turno en sesión
+inclusión en audit log exportado
+transcript legible con marca discreta de origen
+breve nota técnica explicando cómo se detecta suggest_accepted vs suggest_edited
+
+Tests
+
+Escribir un mensaje manual en Arena seller y verificar que el log pone manual
+Aceptar una sugerencia sin tocarla y verificar que el log pone suggest_accepted
+Aceptar una sugerencia, editarla y enviar, y verificar que el log pone suggest_edited
+Confirmar que el audit log exportado muestra esta metadata por turno
+Confirmar que no se rompe el flujo normal de Arena seller
+
+Criterios de aceptación
+
+cada turno del vendedor en Arena seller tiene origen trazable
+el audit log permite saber si la respuesta fue manual o vino de Suggest
+ya se puede auditar con justicia la calidad real de la funcionalidad ✨ Suggest
+no hay regresión visible en el producto
