@@ -1804,21 +1804,60 @@ export function Arena({
                 </button>
               </div>
               <div className="flex flex-col gap-1.5 h-full">
-                <button
-                  onClick={() => {
-                    const hasUserTurns = messages.some(m => m.speaker === "user");
-                    if (!hasUserTurns) { setShowEarlyExit(true); }
-                    else { void handleEnd("manual_stop"); }
+                {/* Vendedor end button — hover menu (mirrors Cliente mode pattern) */}
+                <div
+                  className="relative flex-1"
+                  onMouseEnter={() => {
+                    if (exitLeaveTimer.current) clearTimeout(exitLeaveTimer.current);
+                    if (!isEnding && !isSending && !isStarting) setIsExitHovered(true);
                   }}
-                  disabled={isEnding || isStarting}
-                  onMouseDown={e => e.preventDefault()}
-                  className="w-20 flex-1 rounded-xl border border-zinc-700 text-zinc-300 text-[9px] font-mono tracking-wider uppercase leading-snug hover:border-zinc-400 hover:text-white active:scale-[0.98] transition-all disabled:opacity-25 disabled:pointer-events-none flex items-center justify-center text-center px-1"
+                  onMouseLeave={() => {
+                    exitLeaveTimer.current = setTimeout(() => setIsExitHovered(false), 120);
+                  }}
                 >
-                  {isEnding
-                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    : <span>{lang === "es" ? "Terminar sesión" : "End session"}</span>
-                  }
-                </button>
+                  {isExitHovered && !isEnding && (
+                    <div
+                      className="absolute bottom-full right-0 mb-2 w-40 bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl overflow-hidden z-30"
+                      onMouseEnter={() => { if (exitLeaveTimer.current) clearTimeout(exitLeaveTimer.current); }}
+                      onMouseLeave={() => { exitLeaveTimer.current = setTimeout(() => setIsExitHovered(false), 120); }}
+                    >
+                      <button
+                        onClick={() => {
+                          setIsExitHovered(false);
+                          const hasUserTurns = messages.some(m => m.speaker === "user");
+                          if (!hasUserTurns) { setShowEarlyExit(true); }
+                          else { void handleEnd("manual_stop"); }
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-[10px] font-mono tracking-wide text-zinc-300 hover:bg-zinc-800/70 hover:text-white transition-colors text-left"
+                      >
+                        <span className="text-[11px] leading-none">■</span>
+                        {lang === "es" ? "Terminar sesión" : "End session"}
+                      </button>
+                      <button
+                        onClick={() => { setIsExitHovered(false); handleRestart(); }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-[10px] font-mono tracking-wide text-zinc-500 hover:bg-zinc-800/70 hover:text-sky-400 transition-colors text-left border-t border-zinc-800/60"
+                      >
+                        <span className="text-[11px] leading-none">↺</span>
+                        {lang === "es" ? "Reiniciar" : "Restart"}
+                      </button>
+                    </div>
+                  )}
+                  <button
+                    onMouseDown={e => e.preventDefault()}
+                    disabled={isEnding || isStarting}
+                    className={cn(
+                      "w-20 h-full rounded-xl border text-[9px] font-mono tracking-wider uppercase leading-snug transition-all disabled:opacity-25 disabled:pointer-events-none flex items-center justify-center text-center px-1",
+                      isExitHovered
+                        ? "border-zinc-500 text-white bg-zinc-800/40"
+                        : "border-zinc-700 text-zinc-300 hover:border-zinc-400 hover:text-white"
+                    )}
+                  >
+                    {isEnding
+                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      : <span>{lang === "es" ? "Terminar sesión" : "End session"}</span>
+                    }
+                  </button>
+                </div>
                 {messages.some(m => m.speaker === "user") && (
                   <button
                     onClick={handleMidSessionDownload}
@@ -1830,16 +1869,6 @@ export function Arena({
                     log
                   </button>
                 )}
-                <button
-                  onClick={handleRestart}
-                  onMouseDown={e => e.preventDefault()}
-                  disabled={isEnding || isStarting}
-                  title={lang === "es" ? "Reiniciar conversación" : "Restart conversation"}
-                  className="w-20 flex items-center justify-center gap-1 text-[8px] font-mono tracking-widest uppercase text-zinc-600 hover:text-sky-400 transition-colors disabled:opacity-25 disabled:pointer-events-none"
-                >
-                  <span className="text-[10px]">↺</span>
-                  {lang === "es" ? "reiniciar" : "restart"}
-                </button>
               </div>
             </div>
           ) : (

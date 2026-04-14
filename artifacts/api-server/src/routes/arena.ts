@@ -1011,12 +1011,19 @@ async function detectTerminalState(
 Responde ÚNICAMENTE con una de estas palabras:
 none | closed | next_step | lost | broken
 
-Definiciones ESTRICTAS — en caso de duda responde none:
-none = conversación abierta, en proceso, o ambigua
-closed = cliente cerró explícitamente (dijo que compra, cuándo firma, cómo paga)
-next_step = cliente COMPROMETIÓ un paso concreto: confirmó fecha de reunión, pidió contrato/propuesta, preguntó por formas de pago, confirmó disponibilidad para llamada concreta — NO vale solo "lo pensaré" ni "me parece bien"
-lost = cliente rechazó DEFINITIVAMENTE, sin vuelta atrás
-broken = ruptura total, corte de conversación
+Definiciones ESTRICTAS — ante cualquier duda responde none:
+none = conversación abierta, en proceso, ambigua, o el cliente pide más información
+closed = cliente cerró EXPLÍCITAMENTE: dijo que compra, confirmó cuándo firma, preguntó cómo pagar
+next_step = cliente COMPROMETIÓ un paso concreto (fecha de reunión confirmada, pidió contrato/propuesta enviada, confirmó disponibilidad para llamada en fecha concreta)
+lost = cliente rechazó DEFINITIVAMENTE, sin vuelta atrás, con cierre explícito
+broken = ruptura total, cliente cortó la conversación
+
+PROHIBIDO responder next_step si:
+— El cliente pide datos, ejemplos, cifras, comparativas o más información ("¿puedo tener ejemplos?", "necesito datos claros", "¿cómo ha crecido?")
+— El cliente usa frases ambiguas: "puede ser", "lo pensaré", "me lo tengo que plantear", "quiero reflexionarlo"
+— El cliente expresa interés pero NO ha confirmado ninguna acción concreta con fecha o entregable
+— La conversación sigue con preguntas activas por ninguna de las dos partes
+— La última frase del cliente es una pregunta o una petición de más información
 
 Conversación:
 ${recent}
@@ -1026,12 +1033,19 @@ Responde solo con la palabra:`
 Reply with ONLY one word:
 none | closed | next_step | lost | broken
 
-STRICT definitions — when in doubt reply none:
-none = still open, in progress, or ambiguous
-closed = client explicitly closed (said they'll buy, asked when to sign, asked how to pay)
-next_step = client COMMITTED to a concrete action: confirmed meeting date, requested contract/proposal, asked about payment methods, confirmed specific availability — "I'll think about it" does NOT qualify
-lost = client DEFINITIVELY rejected, no turning back
-broken = total breakdown, client cut off
+STRICT definitions — when in doubt, always reply none:
+none = still open, in progress, ambiguous, or client is requesting more information
+closed = client explicitly closed: said they'll buy, confirmed when to sign, asked how to pay
+next_step = client COMMITTED to a concrete action (confirmed meeting date, requested contract/proposal to be sent, confirmed specific call availability with a date)
+lost = client DEFINITIVELY rejected with explicit closure, no turning back
+broken = total breakdown, client cut off the conversation
+
+FORBIDDEN to reply next_step if:
+— Client requests data, examples, figures, comparisons, or more information ("can I have examples?", "I need clear data", "how has it grown?")
+— Client uses ambiguous phrases: "maybe", "I'll think about it", "I need to reflect", "could be"
+— Client shows interest but has NOT confirmed any concrete action with a date or deliverable
+— The conversation still has active questions from either side
+— The client's last line is a question or a request for more information
 
 Conversation:
 ${recent}
