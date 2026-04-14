@@ -833,20 +833,33 @@ export default function CopilotPage() {
     try { localStorage.setItem(SESSION_PERSIST_KEY, JSON.stringify(toSave)); } catch { /* ignore */ }
   }, [turnLog.length, conversationLog.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Recover a previous session — restore state + go to outcome picker ─────
-  const handleRecoverSession = () => {
-    if (!recoveredSession) return;
-    setConversationLog(recoveredSession.conversationLog);
-    setTurnLog(recoveredSession.turnLog);
-    setTacticalState(recoveredSession.tacticalState);
-    setSessionContext(recoveredSession.sessionContext);
-    setContextLabel(recoveredSession.contextLabel);
-    setSessionId(recoveredSession.sessionId);
-    setLang(recoveredSession.lang);
-    setAnalyzeErrorCount(recoveredSession.analyzeErrorCount);
-    analyzeErrorCountRef.current = recoveredSession.analyzeErrorCount;
+  // ── Restore core state from a persisted session ──────────────────────────
+  const applyRecoveredSession = (s: PersistedSession) => {
+    setConversationLog(s.conversationLog);
+    setTurnLog(s.turnLog);
+    setTacticalState(s.tacticalState);
+    setSessionContext(s.sessionContext);
+    setContextLabel(s.contextLabel);
+    saveLabel(s.contextLabel);
+    setSessionId(s.sessionId);
+    setLang(s.lang);
+    setAnalyzeErrorCount(s.analyzeErrorCount);
+    analyzeErrorCountRef.current = s.analyzeErrorCount;
     setRecoveredSession(null);
     clearSavedSession();
+  };
+
+  // Continue mid-call: restore everything and return to active session
+  const handleRecoverAndContinue = () => {
+    if (!recoveredSession) return;
+    applyRecoveredSession(recoveredSession);
+    // endStep stays "none" — user lands back in the active session UI
+  };
+
+  // Post-call review: restore and jump straight to the outcome / audit flow
+  const handleRecoverAndFinish = () => {
+    if (!recoveredSession) return;
+    applyRecoveredSession(recoveredSession);
     setEndStep("outcome");
   };
 
@@ -1142,12 +1155,21 @@ export default function CopilotPage() {
 
             {/* Actions */}
             <div className="flex flex-col gap-2">
+              {/* Primary — continue mid-call */}
               <button
-                onClick={handleRecoverSession}
+                onClick={handleRecoverAndContinue}
                 className="w-full flex items-center justify-center gap-2 bg-white text-black text-xs font-mono font-bold py-3.5 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all"
               >
-                {lang === "es" ? "Recuperar sesión y ver resultados" : "Recover session and see results"}
+                {lang === "es" ? "Continuar sesión" : "Continue session"}
               </button>
+              {/* Secondary — go straight to audit/results */}
+              <button
+                onClick={handleRecoverAndFinish}
+                className="w-full flex items-center justify-center gap-2 border border-white/15 text-white text-xs font-mono font-semibold py-3 rounded-xl hover:bg-white/5 active:scale-[0.98] transition-all"
+              >
+                {lang === "es" ? "La llamada ya terminó — ver resultados" : "Call is over — see results"}
+              </button>
+              {/* Tertiary — discard */}
               <button
                 onClick={() => { clearSavedSession(); setRecoveredSession(null); }}
                 className="w-full text-center text-[10px] font-mono text-zinc-500 hover:text-zinc-300 py-2 transition-colors"
