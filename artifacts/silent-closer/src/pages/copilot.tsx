@@ -488,7 +488,10 @@ export default function CopilotPage() {
 
   const sessionActive = sessionContext !== null;
   // True only once at least one analysis has run (call_memory gets populated)
-  const hasRealConversation = tacticalState.callMemory.length > 0;
+  // Robust check — uses turnLog (populated on both success AND error analyze calls)
+  // so a session where all analyze calls failed still shows as "real conversation".
+  // Fallback to callMemory for backwards compat if turnLog is somehow empty.
+  const hasRealConversation = turnLog.length > 0 || tacticalState.callMemory.length > 0 || conversationLog.length > 0;
   const speakerModeRef = useRef(speakerMode);
   speakerModeRef.current = speakerMode;
 
