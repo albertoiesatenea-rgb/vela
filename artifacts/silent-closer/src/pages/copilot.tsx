@@ -389,6 +389,45 @@ function ConversationTimeline({ journey, memoryLines }: { journey: Journey; memo
   );
 }
 
+// ── Session persistence ───────────────────────────────────────────────────────
+const SESSION_PERSIST_KEY = "vela_session_v1";
+const SESSION_MAX_AGE_MS = 8 * 60 * 60 * 1000; // 8 hours
+
+interface PersistedSession {
+  savedAt: number;
+  conversationLog: string[];
+  turnLog: TurnLogEntry[];
+  tacticalState: TacticalState;
+  sessionContext: string;
+  contextLabel: string;
+  sessionId: string;
+  lang: Lang;
+  analyzeErrorCount: number;
+}
+
+function loadSavedSession(): PersistedSession | null {
+  try {
+    const raw = localStorage.getItem(SESSION_PERSIST_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PersistedSession;
+    if (!parsed.savedAt || Date.now() - parsed.savedAt > SESSION_MAX_AGE_MS) {
+      localStorage.removeItem(SESSION_PERSIST_KEY);
+      return null;
+    }
+    if (!parsed.conversationLog?.length && !parsed.turnLog?.length) {
+      localStorage.removeItem(SESSION_PERSIST_KEY);
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function clearSavedSession() {
+  try { localStorage.removeItem(SESSION_PERSIST_KEY); } catch { /* ignore */ }
+}
+
 // ── Local tactical fallback — pure function, no API call ─────────────────────
 // Called when analyze fails to ensure the seller is never left completely blind.
 // Only updates sayNow — previous memory, journey, and momentum are preserved.
@@ -470,6 +509,7 @@ export default function CopilotPage() {
   const [conversationLog, setConversationLog] = useState<string[]>([]);
   const [turnLog, setTurnLog] = useState<TurnLogEntry[]>([]);
   const [sessionId, setSessionId] = useState<string>("");
+  const [recoveredSession, setRecoveredSession] = useState<PersistedSession | null>(() => loadSavedSession());
 
   // Stable listening-session flag — true from "Iniciar escucha" to "Pausar".
   // Unlike isListening from the hook (which flickers during segment restarts),
@@ -776,7 +816,43 @@ export default function CopilotPage() {
       .catch(() => {});
   };
 
+  // ── Save session to localStorage on every new turn ───────────────────────────
+  useEffect(() => {
+    if (!sessionContext || (turnLog.length === 0 && conversationLog.length === 0)) return;
+    const toSave: PersistedSession = {
+      savedAt: Date.now(),
+      conversationLog,
+      turnLog,
+      tacticalState,
+      sessionContext,
+      contextLabel: contextLabel || "",
+      sessionId,
+      lang,
+      analyzeErrorCount,
+    };
+    try { localStorage.setItem(SESSION_PERSIST_KEY, JSON.stringify(toSave)); } catch { /* ignore */ }
+  }, [turnLog.length, conversationLog.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Recover a previous session — restore state + go to outcome picker ─────
+  const handleRecoverSession = () => {
+    if (!recoveredSession) return;
+    setConversationLog(recoveredSession.conversationLog);
+    setTurnLog(recoveredSession.turnLog);
+    setTacticalState(recoveredSession.tacticalState);
+    setSessionContext(recoveredSession.sessionContext);
+    setContextLabel(recoveredSession.contextLabel);
+    setSessionId(recoveredSession.sessionId);
+    setLang(recoveredSession.lang);
+    setAnalyzeErrorCount(recoveredSession.analyzeErrorCount);
+    analyzeErrorCountRef.current = recoveredSession.analyzeErrorCount;
+    setRecoveredSession(null);
+    clearSavedSession();
+    setEndStep("outcome");
+  };
+
   const handleActuallyClearSession = () => {
+    clearSavedSession();
+    setRecoveredSession(null);
     setEndStep("none");
     setCallOutcome(null);
     setCallSummary(null);
@@ -1020,6 +1096,70 @@ export default function CopilotPage() {
 
   // Setup screen
   if (sessionContext === null) {
+    // ── Recovery screen — shown when a recent session was interrupted ────────
+    if (recoveredSession !== null) {
+      const ageMin = Math.round((Date.now() - recoveredSession.savedAt) / 60000);
+      const ageLabel = ageMin < 60
+        ? (lang === "es" ? `hace ${ageMin} min` : `${ageMin} min ago`)
+        : (lang === "es" ? `hace ${Math.round(ageMin / 60)} h` : `${Math.round(ageMin / 60)}h ago`);
+      const turns = recoveredSession.conversationLog.length || recoveredSession.turnLog.length;
+      const shortContext = (recoveredSession.contextLabel || recoveredSession.sessionContext || "")
+        .split("\n")[0].slice(0, 60);
+      return (
+        <div className="min-h-screen bg-black flex flex-col items-center justify-center px-6">
+          <div className="w-full max-w-sm flex flex-col gap-5">
+            {/* Header */}
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2 mb-3">
+                <VelaIcon className="w-3 h-3 text-zinc-400" />
+                <span className="text-[9px] font-mono tracking-[0.25em] uppercase text-zinc-400">VELA</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                <p className="text-[10px] font-mono tracking-widest uppercase text-amber-400">
+                  {lang === "es" ? "Sesión anterior guardada" : "Previous session found"}
+                </p>
+              </div>
+            </div>
+
+            {/* Session card */}
+            <div className="border border-amber-900/50 bg-amber-950/20 rounded-xl px-4 py-4 flex flex-col gap-2">
+              <p className="text-xs font-mono text-white leading-snug">
+                {shortContext || (lang === "es" ? "Sesión sin título" : "Untitled session")}
+              </p>
+              <div className="flex items-center gap-3 text-[10px] font-mono text-zinc-500">
+                <span>{turns} {lang === "es" ? "turnos" : "turns"}</span>
+                <span>·</span>
+                <span>{ageLabel}</span>
+                {recoveredSession.analyzeErrorCount > 0 && (
+                  <>
+                    <span>·</span>
+                    <span className="text-amber-600">{recoveredSession.analyzeErrorCount} {lang === "es" ? "fallos de análisis" : "analysis errors"}</span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={handleRecoverSession}
+                className="w-full flex items-center justify-center gap-2 bg-white text-black text-xs font-mono font-bold py-3.5 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all"
+              >
+                {lang === "es" ? "Recuperar sesión y ver resultados" : "Recover session and see results"}
+              </button>
+              <button
+                onClick={() => { clearSavedSession(); setRecoveredSession(null); }}
+                className="w-full text-center text-[10px] font-mono text-zinc-500 hover:text-zinc-300 py-2 transition-colors"
+              >
+                {lang === "es" ? "Descartar y empezar nueva sesión" : "Discard and start new session"}
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <>
         <ContextSetup
