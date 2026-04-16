@@ -1,0 +1,68 @@
+Quiero una verificación final de integridad del patch anterior. No quiero que sigas desarrollando nada nuevo todavía. Quiero que compruebes si la interrupción por budget/tokens pudo dejar algo a medias o inconsistente.
+
+Necesito que revises y me respondas de forma concreta y verificable:
+
+Si todos los cambios del patch anterior quedaron realmente aplicados en archivos y no solo planeados o parcialmente editados.
+Si la interrupción por budget/tokens pudo dejar:
+funciones nuevas declaradas pero no usadas
+estado frontend añadido pero no renderizado
+endpoints creados pero no conectados
+imports/types/schema inconsistentes
+ramas lógicas muertas
+cambios escritos en un sitio y no en otro
+código compilando pero con comportamiento incompleto
+
+Quiero que valides específicamente estas piezas:
+
+A. Copilot listen reliability
+
+listen_reliability_mode
+mapeo correcto de quality levels (normal, watch, low)
+uso correcto de unknown_rate
+no uso residual de unknownTurns o totalTurns
+anti-loop de say_now
+
+B. Post-call UX
+
+transcript visible
+auditoría brutal vendedor
+auditoría VELA
+opción de transcript importado/pegado
+conversación perfecta dentro de auditoría vendedor
+debrief no fiable cuando toca
+
+C. Backend
+
+endpoint de VELA audit
+schema actualizado
+perfect_conversation en seller audit
+analyze y summarize conectados con los nuevos campos
+
+D. Integración real
+
+que todo lo anterior no solo compile, sino que esté conectado de verdad de extremo a extremo
+
+Quiero que hagas esta revisión con este formato exacto:
+
+CAMBIOS CONFIRMADOS
+Lista exacta de lo que sí está implementado y en qué archivo/función.
+POSIBLES INCONSISTENCIAS
+Lista exacta de lo que podría haber quedado a medias o sospechoso.
+IMPACTO DE LA INTERRUPCIÓN
+Respuesta clara:
+“sin impacto”
+o “impacto parcial”
+o “sí, dejó cosas a medias”
+
+y por qué.
+
+TESTS MANUALES QUE ME RECOMIENDAS HACER YA
+Máximo 5 tests concretos, cortos y útiles.
+VEREDICTO FINAL
+Solo una de estas tres opciones:
+“Sí, el patch quedó bien aplicado”
+“Casi, pero hay que corregir X antes de probar”
+“No, hay partes importantes a medias”
+
+Importante:
+No quiero una respuesta tranquilizadora ni ambigua. Quiero una revisión dura, específica y con nombres de archivos, funciones y comportamientos reales. Si algo no lo puedes garantizar, dilo claro.
