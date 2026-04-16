@@ -1,0 +1,192 @@
+Objetivo
+Hacer un ajuste fino sobre la implementación actual del post-call de Copiloto. No quiero rehacer lo que ya se añadió. Quiero pulir el comportamiento y la UX según estas decisiones finales:
+
+La nota/puntuación de arriba debe seguir siendo solo del vendedor
+La calidad de VELA debe quedar solo dentro de “Auditoría Brutal — VELA”
+La importación de transcript debe ser simple: ver el transcript automático, poder pegar/subir uno mejor y refrescar los análisis con esa fuente nueva
+Si importo un transcript mejor, quiero que VELA lo use para recalcular todo lo post-call, pero sin perder la posibilidad de seguir viendo el transcript automático
+No quiero más funciones ni más ruido del necesario
+Si hace falta tocar algo visual, que sea para hacerlo más claro, más consistente y con menos scroll, no para rediseñar el mundo
+
+Contexto
+Ya hay cambios implementados de:
+
+reliability / anti-loop
+auditoría brutal vendedor
+auditoría brutal VELA
+transcript visible
+import transcript
+conversación perfecta
+
+No quiero volver a pedir todo eso desde cero.
+Quiero corregir y afinar la capa final de uso.
+
+Decisiones de producto que hay que respetar
+
+Score superior = vendedor
+La cabecera superior debe seguir respondiendo a:
+“¿cómo lo he hecho yo en la llamada?”
+
+Eso significa:
+
+score arriba = rendimiento del vendedor
+estado arriba = calidad comercial de la llamada
+puntos fuertes / puntos a mejorar = lectura comercial del vendedor
+
+No quiero que esa zona superior mezcle:
+
+señal de transcript
+confianza técnica
+loops
+diarización
+calidad del copiloto
+
+Todo eso va dentro de:
+Auditoría Brutal — VELA
+
+Importar transcript debe ser simple
+No quiero mil modos ni demasiados botones raros.
+
+Quiero esta lógica:
+
+transcript automático visible
+opción de pegar/subir transcript mejor
+botón claro de Refrescar análisis
+
+Comportamiento:
+
+si no subo nada, todo usa el transcript automático
+si pego/subo un transcript mejor y pulso refrescar, todo el análisis post-call usa ese transcript nuevo
+pero el transcript automático sigue siendo visible si quiero consultarlo
+si borro o vacío el transcript importado y refresco, vuelve a usar el automático
+
+No quiero una lluvia de funciones de “seleccionar fuente”, “comparar 5 versiones”, etc.
+Solo algo simple y potente.
+
+El transcript importado debe refrescar de verdad
+Cuando refresco con transcript nuevo, quiero que se recalculen con esa fuente:
+score del vendedor arriba
+resumen comercial
+auditoría brutal vendedor
+conversación perfecta
+auditoría brutal VELA si aplica
+cualquier lectura post-call que dependa de la conversación
+
+No quiero que el transcript importado sea decoración.
+Quiero que cambie la verdad de la auditoría.
+
+No quiero que la auditoría VELA me diga “qué transcript se usó”
+No quiero más texto innecesario.
+
+Regla:
+
+si no he subido transcript, usa el automático y ya está
+si subo uno y refresco, usa ese nuevo y ya está
+no necesito una frase extra tipo “se usó transcript importado”
+no ensuciéis la UI con metadatos innecesarios
+Orden visual más lógico
+Ahora mismo transcript, notas e importación deben sentirse como parte de la misma familia.
+
+Quiero una estructura post-call más clara, por ejemplo:
+
+Cabecera / score vendedor
+Transcript de la conversación
+Notas post-llamada
+Importar transcript / refrescar análisis
+Auditoría Brutal — Vendedor
+Auditoría Brutal — VELA
+acciones finales
+
+No quiero accordions sin jerarquía ni sensación de panel técnico caótico.
+
+Menos scroll y mejor consistencia
+Sin rehacer la UI entera:
+compactar spacing vertical si hace falta
+mejorar jerarquía
+reducir sensación de scroll infinito
+mantener coherencia visual entre bloques
+
+Cambios requeridos
+
+Ajustar la lógica del score superior
+asegurar que la puntuación y el estado de la parte superior siguen orientados al vendedor
+que no se contaminen por la auditoría técnica de VELA más de la cuenta
+sí pueden recalcularse con transcript importado, pero siguen siendo score comercial del vendedor
+Hacer que “Importar transcript + Refrescar análisis” sustituya la fuente de verdad post-call
+si hay transcript importado y se pulsa refrescar, usarlo para recalcular
+mantener visible el transcript automático
+permitir volver al automático simplemente quitando/vaciando el importado y refrescando
+Simplificar la UX de transcript
+transcript automático visible y claro
+bloque simple para pegar/subir transcript mejor
+botón claro de refrescar
+no meter más capas innecesarias
+Recalcular todas las salidas relevantes con la nueva fuente
+score vendedor
+resumen comercial
+auditoría vendedor
+conversación perfecta
+auditoría VELA
+No ensuciar la auditoría VELA con metainformación innecesaria
+no hace falta decir qué transcript se usó
+solo usar la fuente activa actual y dar el análisis
+Pulir diseño/espaciado/orden
+menos scroll inútil
+mejor agrupación
+consistencia visual
+sin rediseño grande
+
+Restricciones
+
+No rehacer el producto
+No tocar Arena vendedor ni Arena cliente
+No meter base de datos ni auth
+No volver a implementar reliability/anti-loop si ya está
+No meter funciones de gestión de fuentes complejas
+No añadir ruido visual
+Mantenerlo simple
+
+Entregables
+
+Cabecera superior claramente orientada al vendedor
+Transcript automático visible
+Bloque simple de transcript importado
+Botón de refrescar análisis
+Recalculo real de toda la capa post-call con la nueva fuente
+Auditoría VELA separada y limpia
+UX post-call más ordenada y con menos scroll
+Nota técnica breve explicando:
+qué se recalcula al refrescar
+cómo se vuelve al transcript automático
+qué se ha simplificado a nivel visual
+
+Tests
+
+Sin transcript importado
+el sistema usa el automático
+score vendedor, auditorías y conversación perfecta se generan normalmente
+Con transcript importado
+pego texto nuevo
+pulso refrescar
+cambian score vendedor, auditorías y conversación perfecta si la nueva fuente cambia la lectura
+Volver al automático
+borro el transcript importado
+pulso refrescar
+vuelve a usar el automático
+UX
+transcript, notas e importación se entienden mejor
+menos sensación de panel desordenado
+menos scroll torpe
+
+Criterios de aceptación
+
+El score superior sigue siendo comercial y del vendedor
+La auditoría VELA queda encerrada en su propio bloque
+El transcript importado cambia de verdad la auditoría cuando refrescas
+El transcript automático sigue siendo visible
+No se añade ruido innecesario
+La pantalla final se siente más clara, más consistente y más práctica sin cambiar el mundo
+
+Importante
+Este prompt no es para reabrir todo el patch anterior.
+Es para dejar bien cerrada la versión final de esta funcionalidad con una lógica simple:

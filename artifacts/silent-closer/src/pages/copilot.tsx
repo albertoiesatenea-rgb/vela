@@ -173,7 +173,6 @@ interface VelaAudit {
   say_now_quality: string;
   loops_detected: boolean;
   loop_explanation: string | null;
-  transcript_comparison: string | null;
   audit_confidence: "high" | "medium" | "low";
   technical_failures: string[];
   system_recommendations: string[];
@@ -1053,6 +1052,7 @@ export default function CopilotPage() {
           lang: langRef.current,
           analyze_failure_count: analyzeErrorCountRef.current,
           conversation_excerpt: convExcerpt.length > 0 ? convExcerpt : undefined,
+          imported_transcript: importedTranscript.trim() || undefined,
           ...(speakerUncertainty ? { speaker_uncertainty: speakerUncertainty } : {}),
         }),
       });
@@ -1122,8 +1122,8 @@ export default function CopilotPage() {
     });
   };
 
-  const handleLoadBrutalAudit = async () => {
-    if (brutalAudit || brutalAuditLoading) return;
+  const handleLoadBrutalAudit = async (force = false) => {
+    if (!force && (brutalAudit || brutalAuditLoading)) return;
     setBrutalAuditLoading(true);
     setBrutalAuditError(false);
     const speakerUncertainty = computeSpeakerUncertainty();
@@ -1139,6 +1139,7 @@ export default function CopilotPage() {
           context: sessionContext ?? undefined,
           lang,
           closing_excerpt: closingExcerpt.length > 0 ? closingExcerpt : undefined,
+          imported_transcript: importedTranscript.trim() || undefined,
           session_summary: callSummary ? {
             score: callSummary.score,
             global_state: callSummary.globalState,
@@ -1161,8 +1162,8 @@ export default function CopilotPage() {
     }
   };
 
-  const handleLoadVelaAudit = async () => {
-    if (velaAudit || velaAuditLoading) return;
+  const handleLoadVelaAudit = async (force = false) => {
+    if (!force && (velaAudit || velaAuditLoading)) return;
     setVelaAuditLoading(true);
     setVelaAuditError(false);
     const speakerMetrics = speakerMode === "auto" ? speakerSessionRef.current.getMetrics() : null;
@@ -1209,6 +1210,50 @@ export default function CopilotPage() {
       setVelaAuditError(true);
     } finally {
       setVelaAuditLoading(false);
+    }
+  };
+
+  const handleRefreshAnalysis = async () => {
+    if (!callOutcome) return;
+    // Reset all post-call outputs and close panels
+    setBrutalAudit(null);
+    setBrutalAuditError(false);
+    setBrutalAuditOpen(false);
+    setVelaAudit(null);
+    setVelaAuditError(false);
+    setVelaAuditOpen(false);
+    // Re-run summarize with current transcript source
+    setIsSummarizing(true);
+    const speakerUncertainty = computeSpeakerUncertainty();
+    const convExcerpt = conversationLog.slice(-12);
+    try {
+      const res = await fetch("/api/copilot/summarize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          call_memory: tacticalState.callMemory,
+          outcome: callOutcome,
+          lang: langRef.current,
+          analyze_failure_count: analyzeErrorCountRef.current,
+          conversation_excerpt: convExcerpt.length > 0 ? convExcerpt : undefined,
+          imported_transcript: importedTranscript.trim() || undefined,
+          ...(speakerUncertainty ? { speaker_uncertainty: speakerUncertainty } : {}),
+        }),
+      });
+      const data = await res.json() as {
+        score: number; global_state: string; result_label: string;
+        strengths: string[]; improvements: string[]; debrief_reliable?: boolean;
+      };
+      setCallSummary({
+        score: data.score,
+        globalState: data.global_state,
+        resultLabel: data.result_label,
+        strengths: data.strengths ?? [],
+        improvements: data.improvements ?? [],
+        debriefReliable: data.debrief_reliable,
+      });
+    } catch { /* keep existing summary if re-fetch fails */ } finally {
+      setIsSummarizing(false);
     }
   };
 
@@ -1469,7 +1514,7 @@ export default function CopilotPage() {
                         </div>
 
                         {/* Score + State row */}
-                        <div className="flex items-center gap-4 border-t border-white/5 pt-4">
+                        <div className="flex items-center gap-4 border-t border-white/5 pt-3">
                           <div className="flex flex-col">
                             <p className="text-[10px] font-mono tracking-widest uppercase text-zinc-400">{T[lang].CALL_SCORE}</p>
                             <p className="text-3xl font-mono font-bold text-white leading-none mt-0.5">
@@ -1482,30 +1527,6 @@ export default function CopilotPage() {
                             <p className="text-sm font-mono font-semibold text-white uppercase tracking-widest mt-0.5">{callSummary.globalState}</p>
                           </div>
                         </div>
-
-                        {/* Strengths */}
-                        {callSummary.strengths.length > 0 && (
-                          <div className="flex flex-col gap-1.5 border-t border-white/5 pt-4">
-                            <p className="text-[10px] font-mono tracking-widest uppercase text-zinc-400">{T[lang].STRENGTHS}</p>
-                            {callSummary.strengths.map((s, i) => (
-                              <p key={i} className="text-xs font-mono text-zinc-300 leading-relaxed">
-                                <span className="text-green-600 mr-1.5">→</span>{s}
-                              </p>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Improvements */}
-                        {callSummary.improvements.length > 0 && (
-                          <div className="flex flex-col gap-1.5 border-t border-white/5 pt-4">
-                            <p className="text-[10px] font-mono tracking-widest uppercase text-zinc-400">{T[lang].IMPROVEMENTS}</p>
-                            {callSummary.improvements.map((s, i) => (
-                              <p key={i} className="text-xs font-mono text-zinc-300 leading-relaxed">
-                                <span className="text-amber-600 mr-1.5">△</span>{s}
-                              </p>
-                            ))}
-                          </div>
-                        )}
 
                         {/* ── Reliability warning — shown when analyze had failures ── */}
                         {callSummary.debriefReliable === false && (
@@ -1521,6 +1542,30 @@ export default function CopilotPage() {
                                   : `${analyzeErrorCount} turno(s) de análisis fallaron durante la llamada — VELA tuvo datos insuficientes. La puntuación y observaciones pueden ser engañosas.`}
                               </p>
                             </div>
+                          </div>
+                        )}
+
+                        {/* Strengths */}
+                        {callSummary.strengths.length > 0 && (
+                          <div className="flex flex-col gap-1.5 border-t border-white/5 pt-3">
+                            <p className="text-[10px] font-mono tracking-widest uppercase text-zinc-400">{T[lang].STRENGTHS}</p>
+                            {callSummary.strengths.map((s, i) => (
+                              <p key={i} className="text-xs font-mono text-zinc-300 leading-relaxed">
+                                <span className="text-green-600 mr-1.5">→</span>{s}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Improvements */}
+                        {callSummary.improvements.length > 0 && (
+                          <div className="flex flex-col gap-1.5 border-t border-white/5 pt-3">
+                            <p className="text-[10px] font-mono tracking-widest uppercase text-zinc-400">{T[lang].IMPROVEMENTS}</p>
+                            {callSummary.improvements.map((s, i) => (
+                              <p key={i} className="text-xs font-mono text-zinc-300 leading-relaxed">
+                                <span className="text-amber-600 mr-1.5">△</span>{s}
+                              </p>
+                            ))}
                           </div>
                         )}
 
@@ -1579,37 +1624,46 @@ export default function CopilotPage() {
                           </div>
                         </div>
 
-                        {/* ── Import transcript — paste real call transcript for richer audit ── */}
+                        {/* ── Import transcript + Refresh ── */}
                         <div className="border border-zinc-800/60 rounded-xl overflow-hidden">
                           <button
                             onClick={() => setImportTranscriptOpen(o => !o)}
                             className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-white/3 transition-colors"
                             type="button"
                           >
-                            <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-600">
-                              {lang === "en" ? "Import transcript (optional)" : "Importar transcripción (opcional)"}
-                            </p>
                             <div className="flex items-center gap-2">
+                              <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-600">
+                                {lang === "en" ? "Use better transcript" : "Usar transcript mejor"}
+                              </p>
                               {importedTranscript.trim() && <span className="w-1.5 h-1.5 rounded-full bg-teal-500 shrink-0" />}
-                              <span className={cn("text-zinc-600 text-xs font-mono transition-transform duration-200", importTranscriptOpen ? "rotate-180" : "")}>▾</span>
                             </div>
+                            <span className={cn("text-zinc-600 text-xs font-mono transition-transform duration-200", importTranscriptOpen ? "rotate-180" : "")}>▾</span>
                           </button>
                           {importTranscriptOpen && (
-                            <div className="border-t border-zinc-800/60 px-4 pb-3 pt-2">
-                              <p className="text-[9px] font-mono text-zinc-600 mb-2 leading-relaxed">
+                            <div className="border-t border-zinc-800/60 px-4 pb-3 pt-2 flex flex-col gap-2">
+                              <p className="text-[9px] font-mono text-zinc-600 leading-relaxed">
                                 {lang === "en"
-                                  ? "Paste the real call transcript here — improves VELA audit accuracy and enables auto vs manual comparison."
-                                  : "Pega aquí la transcripción real de la llamada — mejora la precisión de la auditoría VELA y permite comparar con la auto-captura."}
+                                  ? "Paste a better transcript and refresh. Leave empty to use the auto-captured one."
+                                  : "Pega un transcript mejor y refresca. Déjalo vacío para usar el automático."}
                               </p>
                               <textarea
                                 value={importedTranscript}
-                                onChange={e => { setImportedTranscript(e.target.value); setVelaAudit(null); setVelaAuditError(false); }}
+                                onChange={e => setImportedTranscript(e.target.value)}
                                 placeholder={lang === "en"
                                   ? "Paste full transcript here..."
                                   : "Pega la transcripción completa aquí..."}
-                                rows={5}
+                                rows={4}
                                 className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-[11px] font-mono text-zinc-300 placeholder:text-zinc-700 resize-none outline-none leading-relaxed"
                               />
+                              <button
+                                onClick={() => void handleRefreshAnalysis()}
+                                disabled={isSummarizing}
+                                className="w-full flex items-center justify-center gap-2 bg-zinc-900 border border-zinc-700 text-white text-[11px] font-mono font-semibold py-2.5 rounded-lg hover:bg-zinc-800 hover:border-zinc-500 active:scale-[0.98] transition-all disabled:opacity-40"
+                              >
+                                {isSummarizing
+                                  ? <><Loader2 className="w-3 h-3 animate-spin" />{lang === "en" ? "Refreshing..." : "Refrescando..."}</>
+                                  : (lang === "en" ? "↻ Refresh analysis" : "↻ Refrescar análisis")}
+                              </button>
                             </div>
                           )}
                         </div>
@@ -1765,12 +1819,6 @@ export default function CopilotPage() {
                                     <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-600">{lang === "en" ? "Speaker attribution" : "Atribución de hablante"}</p>
                                     <p className="text-[11px] font-mono text-zinc-400 leading-relaxed">{velaAudit.speaker_attribution_quality}</p>
                                   </div>
-                                  {velaAudit.transcript_comparison && (
-                                    <div className="flex flex-col gap-1 border-t border-zinc-800 pt-2">
-                                      <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-600">{lang === "en" ? "Transcript comparison" : "Comparación de transcripciones"}</p>
-                                      <p className="text-[11px] font-mono text-zinc-400 leading-relaxed">{velaAudit.transcript_comparison}</p>
-                                    </div>
-                                  )}
                                   <AuditList label={lang === "en" ? "Technical failures" : "Fallos técnicos"} items={velaAudit.technical_failures} bullet="✗" color="text-amber-500" />
                                   <AuditList label={lang === "en" ? "System recommendations" : "Recomendaciones de sistema"} items={velaAudit.system_recommendations} bullet="→" color="text-zinc-400" />
                                 </>

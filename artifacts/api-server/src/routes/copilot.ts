@@ -582,7 +582,7 @@ router.post("/copilot/summarize", async (req, res) => {
   const parseResult = CallSummarizeBody.safeParse(req.body);
   if (!parseResult.success) { res.status(400).json({ error: "Invalid request body" }); return; }
 
-  const { call_memory, outcome, lang, full_report, speaker_uncertainty, analyze_failure_count, conversation_excerpt } = parseResult.data;
+  const { call_memory, outcome, lang, full_report, speaker_uncertainty, analyze_failure_count, conversation_excerpt, imported_transcript } = parseResult.data;
   const sessionId = (req.headers["x-session-id"] as string | undefined) ?? undefined;
   const isEn = lang === "en";
 
@@ -611,12 +611,16 @@ Obligatorio: señala esta limitación explícitamente en improvements[0] y en fu
 Esto NO es crítica al vendedor — significa que VELA tuvo datos insuficientes para hacer coaching.`)
     : "";
 
-  // ── Conversation excerpt — richer than compressed memory when available ─────
-  const excerptBlock = (conversation_excerpt && conversation_excerpt.length > 0)
+  // ── Conversation source — imported transcript takes precedence over auto-captured excerpt ─
+  const excerptBlock = imported_transcript?.trim()
     ? (isEn
-        ? `\nCONVERSATION EXCERPT (last ${conversation_excerpt.length} turns — more accurate than compressed memory):\n${conversation_excerpt.join("\n")}`
-        : `\nEXTRACTO DE CONVERSACIÓN (últimos ${conversation_excerpt.length} turnos — más preciso que la memoria comprimida):\n${conversation_excerpt.join("\n")}`)
-    : "";
+        ? `\nCONVERSATION TRANSCRIPT (manually verified — use as primary source):\n${imported_transcript.trim()}`
+        : `\nTRANSCRIPCIÓN DE CONVERSACIÓN (verificada manualmente — usa como fuente principal):\n${imported_transcript.trim()}`)
+    : (conversation_excerpt && conversation_excerpt.length > 0)
+      ? (isEn
+          ? `\nCONVERSATION EXCERPT (last ${conversation_excerpt.length} turns — more accurate than compressed memory):\n${conversation_excerpt.join("\n")}`
+          : `\nEXTRACTO DE CONVERSACIÓN (últimos ${conversation_excerpt.length} turnos — más preciso que la memoria comprimida):\n${conversation_excerpt.join("\n")}`)
+      : "";
 
   const outcomeText = outcome ?? (isEn ? "unclear" : "no claro");
   const wantsFullReport = !!full_report;
@@ -799,7 +803,7 @@ ${fullReportInstructions}`;
 router.post("/copilot/audit-report", async (req, res) => {
   const {
     call_memory, outcome, context, lang = "es", speaker_uncertainty,
-    closing_excerpt, session_summary, audit_hints_pack, human_notes,
+    closing_excerpt, session_summary, audit_hints_pack, human_notes, imported_transcript,
   } = req.body as {
     call_memory?: string[];
     outcome?: string;
@@ -810,6 +814,7 @@ router.post("/copilot/audit-report", async (req, res) => {
     session_summary?: { score?: number; global_state?: string; result_label?: string; strengths?: string[]; improvements?: string[] };
     audit_hints_pack?: { likely_primary_failure?: string; suspected_soft_next_step?: string; next_step_quality?: string; audit_notes?: string[] };
     human_notes?: string;
+    imported_transcript?: string;
   };
 
   const isEn = lang === "en";
@@ -1292,7 +1297,11 @@ ${schema}`;
     `${isEn ? "TACTICAL CALL MEMORY (compressed)" : "MEMORIA TÁCTICA (comprimida)"}:\n${memoryText}`
   );
 
-  if (hasClosingExcerpt) {
+  if (imported_transcript?.trim()) {
+    evidenceParts.push(
+      `${isEn ? "VERIFIED TRANSCRIPT (manually provided by seller — highest authority, use as primary source for all evaluation)" : "TRANSCRIPCIÓN VERIFICADA (proporcionada manualmente por el vendedor — máxima autoridad, usa como fuente principal para toda la evaluación)"}:\n${imported_transcript.trim()}`
+    );
+  } else if (hasClosingExcerpt) {
     evidenceParts.push(
       `${isEn ? "CLOSING TRANSCRIPT — last raw turns (authoritative for commitments/dates)" : "TRANSCRIPCIÓN DE CIERRE — últimas interacciones en bruto (fuente principal para compromisos/fechas)"}:\n${closingLines}`
     );
@@ -1418,10 +1427,7 @@ router.post("/copilot/audit-report-vela", async (req, res) => {
     evidenceParts.push((isEn ? "REPORTED OUTCOME: " : "RESULTADO DECLARADO: ") + outcome);
   }
 
-  const hasImportedTranscript = !!imported_transcript?.trim();
-  const hasAutoTranscript = !!(auto_transcript && auto_transcript.length > 0);
-
-  const velaSchema = `{"verdict":"string","reliability_level":"high|medium|low","reliability_explanation":"string","speaker_attribution_quality":"string","say_now_quality":"string","loops_detected":true|false,"loop_explanation":"string or null","transcript_comparison":"string or null","audit_confidence":"high|medium|low","technical_failures":["string"],"system_recommendations":["string"]}`;
+  const velaSchema = `{"verdict":"string","reliability_level":"high|medium|low","reliability_explanation":"string","speaker_attribution_quality":"string","say_now_quality":"string","loops_detected":true|false,"loop_explanation":"string or null","audit_confidence":"high|medium|low","technical_failures":["string"],"system_recommendations":["string"]}`;
 
   const systemPrompt = isEn
     ? `You are VELA performing a self-audit of its own performance as a real-time sales coaching system. You are NOT auditing the seller. You are auditing whether VELA's coaching was timely, varied, precise, and technically reliable during this session.
@@ -1431,8 +1437,7 @@ WHAT TO ASSESS:
 2. LOOP DETECTION: Were there repetitive suggestion patterns? If say_now repeated 3+ times consecutively, that is a coaching failure.
 3. SPEAKER ATTRIBUTION: Was speaker data reliable enough for precision coaching? High unknown rate = systemic limitation.
 4. TECHNICAL RELIABILITY: How many analyze failures occurred? What percentage of turns had no coaching?
-5. TRANSCRIPT COMPARISON: If both auto and imported transcripts are provided, note any significant gaps between what VELA captured vs what actually happened — and how those gaps might have degraded coaching quality.
-6. OVERALL AUDIT CONFIDENCE: Given data quality, how confident can we be in this session's coaching quality?
+5. OVERALL AUDIT CONFIDENCE: Given data quality, how confident can we be in this session's coaching quality?
 
 SELF-AUDIT RULES:
 — Be honest about systemic failures: loops, high error rates, poor speaker attribution are VELA failures, not seller failures.
@@ -1450,8 +1455,7 @@ QUÉ EVALUAR:
 2. DETECCIÓN DE LOOPS: ¿Hubo patrones de sugerencia repetitivos? Si say_now se repitió 3+ veces consecutivas, eso es un fallo de coaching.
 3. ATRIBUCIÓN DE HABLANTE: ¿Fueron los datos de hablante suficientemente fiables para un coaching preciso? Alta tasa de desconocidos = limitación sistémica.
 4. FIABILIDAD TÉCNICA: ¿Cuántos fallos de análisis ocurrieron? ¿Qué porcentaje de turnos no tuvo coaching?
-5. COMPARACIÓN DE TRANSCRIPCIONES: Si se proporcionan transcripción automática e importada, señala diferencias significativas entre lo que VELA capturó y lo que realmente ocurrió — y cómo esas diferencias pudieron degradar la calidad del coaching.
-6. CONFIANZA DE LA AUDITORÍA: Dada la calidad de los datos, ¿con qué confianza podemos evaluar la calidad del coaching de esta sesión?
+5. CONFIANZA DE LA AUDITORÍA: Dada la calidad de los datos, ¿con qué confianza podemos evaluar la calidad del coaching de esta sesión?
 
 REGLAS DE AUTO-AUDITORÍA:
 — Sé honesto sobre los fallos sistémicos: loops, altas tasas de error y mala atribución de hablante son fallos de VELA, no del vendedor.
@@ -1463,38 +1467,10 @@ REGLAS DE AUTO-AUDITORÍA:
 Devuelve EXACTAMENTE este JSON, sin markdown, sin texto extra:
 ${velaSchema}`;
 
-  const hasTranscriptComparison = hasAutoTranscript && hasImportedTranscript;
-  if (!hasTranscriptComparison) {
-    // patch schema to clarify null is expected
-    const userMessage = [
-      evidenceParts.join("\n\n"),
-      hasTranscriptComparison ? "" : (isEn ? "\nNote: Only one transcript source available — set transcript_comparison to null." : "\nNota: Solo una fuente de transcripción disponible — pon transcript_comparison en null."),
-    ].join("");
-
-    try {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        max_tokens: 800,
-        temperature: 0.3,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userMessage },
-        ],
-      });
-      const raw = completion.choices[0]?.message?.content ?? "{}";
-      const jsonMatch = raw.match(/\{[\s\S]*\}/);
-      const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(raw);
-      res.json(parsed);
-    } catch {
-      res.status(500).json({ error: "VELA audit generation failed" });
-    }
-    return;
-  }
-
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      max_tokens: 900,
+      max_tokens: 800,
       temperature: 0.3,
       messages: [
         { role: "system", content: systemPrompt },

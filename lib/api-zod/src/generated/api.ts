@@ -142,6 +142,10 @@ export const CallSummarizeBody = zod.object({
     .array(zod.string())
     .optional()
     .describe("Last N raw conversation turns (more accurate than compressed call_memory) — used when available"),
+  imported_transcript: zod
+    .string()
+    .optional()
+    .describe("Manually pasted transcript — used as primary conversation source, overrides auto-captured excerpt when present"),
 });
 
 export const CallSummarizeResponse = zod.object({
