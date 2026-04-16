@@ -389,7 +389,14 @@ function buildStructuredContextBlock(ctx: StructuredCtx | undefined, lang?: stri
   return `\n${header}:\n${lines.join("\n")}\n${footer}`;
 }
 
-function buildSystemPrompt(context?: string, lang?: string, structuredCtx?: StructuredCtx, speakerConfidence?: number): string {
+function buildSystemPrompt(
+  context?: string,
+  lang?: string,
+  structuredCtx?: StructuredCtx,
+  speakerConfidence?: number,
+  listenReliability?: "high" | "medium" | "low",
+  sayNowLoopCount?: number,
+): string {
   const contextBlock = context?.trim()
     ? `\nCONTEXTO DE SESIÓN:\n${context.trim()}\nUsa datos concretos de este contexto en detail.support cuando sea tácticamente oportuno.`
     : "";
@@ -406,7 +413,23 @@ function buildSystemPrompt(context?: string, lang?: string, structuredCtx?: Stru
       : `\nADVERTENCIA SPEAKER: La confianza de atribución de speaker es BAJA (${(speakerConfidence * 100).toFixed(0)}%). La etiqueta de speaker puede ser incorrecta. NO hagas suposiciones fuertes sobre quién habló. Mantén el consejo táctico general y evita actualizar memoria basada en este turno.`)
     : "";
 
-  return `${BASE_SYSTEM_PROMPT}${contextBlock}${structuredBlock}${langRule}${speakerGuardrail}`;
+  const reliabilityBlock = listenReliability === "low"
+    ? (lang === "en"
+      ? `\nLISTEN RELIABILITY: LOW — Session signal quality is poor (high speaker ambiguity, multiple analysis failures, or fragmented transcript). In low-reliability mode: (1) DO NOT give hyper-specific turn-level instructions; (2) DO NOT reference who said what unless clearly labeled; (3) Focus on HIGH-LEVEL orientation only; (4) Acknowledge signal limits in your reading when relevant; (5) say_now MUST be macro and actionable without precise attribution — e.g. "Orient next question toward budget or timeline" not "Confirm the specific objection she just raised".`
+      : `\nFIABILIDAD DE ESCUCHA: BAJA — La calidad de señal es pobre (alta ambigüedad de hablante, múltiples fallos de análisis o transcripción fragmentada). En modo baja fiabilidad: (1) NO des instrucciones hiperprecisas de turno; (2) NO referencíes quién dijo qué salvo etiqueta clara; (3) Focaliza en ORIENTACIÓN DE ALTO NIVEL únicamente; (4) Reconoce las limitaciones de señal en tu lectura cuando sea relevante; (5) El say_now DEBE ser macro y accionable sin atribución precisa — p.ej. "Orienta la siguiente pregunta a presupuesto o plazo" en lugar de "Confirma la objeción específica que acaba de plantear".`)
+    : listenReliability === "medium"
+      ? (lang === "en"
+        ? `\nLISTEN RELIABILITY: MEDIUM — Speaker attribution is partially uncertain. Moderate your tactical precision: avoid strong assumptions about who said specific things unless labeled. Keep advice actionable but slightly less micro-specific than in a high-confidence session.`
+        : `\nFIABILIDAD DE ESCUCHA: MEDIA — La atribución de hablante es parcialmente incierta. Modera tu precisión táctica: evita suposiciones fuertes sobre quién dijo qué salvo etiqueta clara. Mantén el consejo accionable pero ligeramente menos micro-específico que en sesión de alta confianza.`)
+      : "";
+
+  const loopBreakerBlock = (sayNowLoopCount !== undefined && sayNowLoopCount >= 3)
+    ? (lang === "en"
+      ? `\nANTI-LOOP OVERRIDE (CRITICAL): The same say_now has repeated approximately ${sayNowLoopCount} consecutive turns. This is a coaching failure. You MUST generate a COMPLETELY DIFFERENT say_now — not a paraphrase of the previous one. Change the tactical axis entirely: if previous advice asked a question, now recommend a statement or concrete action. If it explored a topic, now recommend advancing to next stage. The say_now for this turn must be detectably different from any recent pattern.`
+      : `\nANULACIÓN ANTI-LOOP (CRÍTICO): El mismo say_now se ha repetido aproximadamente ${sayNowLoopCount} turnos consecutivos. Esto es un fallo de coaching. DEBES generar un say_now COMPLETAMENTE DIFERENTE — no una paráfrasis del anterior. Cambia el eje táctico por completo: si el consejo anterior hacía una pregunta, ahora recomienda una declaración o acción concreta. Si exploraba un tema, ahora recomienda avanzar a la siguiente etapa. El say_now de este turno debe ser detectablemente diferente de cualquier patrón reciente.`)
+    : "";
+
+  return `${BASE_SYSTEM_PROMPT}${contextBlock}${structuredBlock}${langRule}${speakerGuardrail}${reliabilityBlock}${loopBreakerBlock}`;
 }
 
 // ── POST /api/copilot/analyze ─────────────────────────────────────────────────
@@ -417,7 +440,7 @@ router.post("/copilot/analyze", async (req, res) => {
     return;
   }
 
-  const { text, context, call_memory, lang, structured_context, speaker_confidence, conversation_history } = parseResult.data;
+  const { text, context, call_memory, lang, structured_context, speaker_confidence, conversation_history, say_now_loop_count, listen_reliability } = parseResult.data;
   const sessionId = (req.headers["x-session-id"] as string | undefined) ?? undefined;
 
   // Build user message: prefer real conversation history over compressed call_memory
@@ -465,7 +488,7 @@ router.post("/copilot/analyze", async (req, res) => {
           model: ANALYZE_MODEL,
           max_tokens: 1400,
           messages: [
-            { role: "system", content: buildSystemPrompt(context, lang, structured_context, speaker_confidence) },
+            { role: "system", content: buildSystemPrompt(context, lang, structured_context, speaker_confidence, listen_reliability, say_now_loop_count) },
             { role: "user", content: userMessage },
           ],
         },
@@ -1188,7 +1211,7 @@ Reduce la certeza causal en juicios de control conversacional. Califica observac
     }
   }
 
-  const schema = `{"verdict":"string","what_worked":["string"],"what_failed":["string"],"failure_owner":["vendedor|timing|sistema|técnico|setup|sin fallo real — descripción"],"missed_closes":["string"],"rules_violated":["string"],"priority_changes":["string","string","string"],"prompt_patch":null,"prompt_for_replit":null,"what_i_would_have_done":"string","suspected_claim_risk":"yes|no","suspected_unresolved_technical_objection":"yes|no","suspected_false_confidence":"yes|no","suspected_soft_next_step":"yes|no"}`;
+  const schema = `{"verdict":"string","what_worked":["string"],"what_failed":["string"],"failure_owner":["vendedor|timing|sistema|técnico|setup|sin fallo real — descripción"],"missed_closes":["string"],"rules_violated":["string"],"priority_changes":["string","string","string"],"prompt_patch":null,"prompt_for_replit":null,"what_i_would_have_done":"string","perfect_conversation":"string — describe the ideal version of this conversation: what the seller should have said at each key decision point, and how the call would have concluded","suspected_claim_risk":"yes|no","suspected_unresolved_technical_objection":"yes|no","suspected_false_confidence":"yes|no","suspected_soft_next_step":"yes|no"}`;
 
   const systemPrompt = isEn
     ? `You are a sales call auditor with very high standards. You receive the tactical memory of a real conversation and return a brutal, specific, actionable post-session audit. No filler, no empty praise.
@@ -1211,6 +1234,7 @@ CORE RULES:
 — rules_violated: tactical anti-patterns that appear clearly in the memory.
 — priority_changes: 2-4 concrete, actionable changes for next call — not generic advice.
 — what_i_would_have_done: a concrete alternative tactic or phrase for the key moment. Not vague.
+— perfect_conversation: describe the ideal version of this exact call — what should have been said at each key decision point (objection handling, close attempt, next step), and how it would have concluded. Be concrete and specific. 3-6 sentences max.
 — prompt_patch / prompt_for_replit: only if there is a clear system or setup issue. Otherwise null.
 RISK FLAGS:
 — suspected_claim_risk: "yes" if seller used assurance language without concrete evidence. "no" otherwise.
@@ -1245,6 +1269,7 @@ REGLAS NÚCLEO:
 — rules_violated: antipatrones tácticos que aparecen claramente en la memoria.
 — priority_changes: 2-4 cambios concretos y accionables para la próxima llamada — no consejos genéricos.
 — what_i_would_have_done: alternativa táctica concreta para el momento clave. No vaga.
+— perfect_conversation: describe la versión ideal de esta llamada exacta — qué debería haberse dicho en cada punto de decisión clave (manejo de objeción, intento de cierre, siguiente paso), y cómo habría concluido. Sé concreto y específico. Máximo 3-6 frases.
 — prompt_patch / prompt_for_replit: solo si hay un problema claro de sistema o setup. Si no, null.
 FLAGS DE RIESGO:
 — suspected_claim_risk: "yes" si el vendedor usó lenguaje de aseguramiento sin evidencia concreta. "no" en caso contrario.
@@ -1316,6 +1341,172 @@ ${schema}`;
     res.json(parsed);
   } catch {
     res.status(500).json({ error: "Audit generation failed" });
+  }
+});
+
+// ── POST /api/copilot/audit-report-vela ──────────────────────────────────────
+// Self-audit: assesses VELA's own performance as a coaching system, not the seller.
+router.post("/copilot/audit-report-vela", async (req, res) => {
+  const {
+    lang,
+    session_metrics,
+    auto_transcript,
+    imported_transcript,
+    vela_suggestions,
+    call_memory,
+    outcome,
+  } = req.body as {
+    lang?: string;
+    session_metrics?: {
+      analyze_error_count?: number;
+      speaker_unknown_rate?: number;
+      say_now_loop_count?: number;
+      total_turns?: number;
+      listen_reliability?: "high" | "medium" | "low";
+    };
+    auto_transcript?: string[];
+    imported_transcript?: string;
+    vela_suggestions?: string[];
+    call_memory?: string;
+    outcome?: string;
+  };
+
+  const isEn = lang === "en";
+  const metrics = session_metrics ?? {};
+  const errorCount = metrics.analyze_error_count ?? 0;
+  const unknownRate = metrics.speaker_unknown_rate ?? 0;
+  const loopCount = metrics.say_now_loop_count ?? 0;
+  const totalTurns = metrics.total_turns ?? 0;
+  const reliability = metrics.listen_reliability ?? "high";
+
+  // ── Programmatic metrics block ────────────────────────────────────────────
+  const metricsLines: string[] = [];
+  if (totalTurns > 0) metricsLines.push(isEn ? `Total turns analyzed: ${totalTurns}` : `Turnos totales analizados: ${totalTurns}`);
+  if (errorCount > 0) metricsLines.push(isEn ? `Analysis failures: ${errorCount} (${((errorCount / Math.max(totalTurns, 1)) * 100).toFixed(0)}% of turns)` : `Fallos de análisis: ${errorCount} (${((errorCount / Math.max(totalTurns, 1)) * 100).toFixed(0)}% de los turnos)`);
+  if (unknownRate > 0) metricsLines.push(isEn ? `Unknown speaker rate: ${(unknownRate * 100).toFixed(0)}%` : `Tasa de hablante desconocido: ${(unknownRate * 100).toFixed(0)}%`);
+  if (loopCount > 0) metricsLines.push(isEn ? `Max consecutive say_now repetitions detected: ${loopCount}` : `Máx. repeticiones consecutivas de say_now detectadas: ${loopCount}`);
+  metricsLines.push(isEn ? `Session listen reliability: ${reliability.toUpperCase()}` : `Fiabilidad de escucha de sesión: ${reliability.toUpperCase()}`);
+
+  const evidenceParts: string[] = [];
+  evidenceParts.push((isEn ? "SESSION METRICS:\n" : "MÉTRICAS DE SESIÓN:\n") + metricsLines.join("\n"));
+
+  if (vela_suggestions && vela_suggestions.length > 0) {
+    const unique = [...new Set(vela_suggestions)];
+    const repeatedCounts = vela_suggestions.reduce<Record<string, number>>((acc, s) => { acc[s] = (acc[s] ?? 0) + 1; return acc; }, {});
+    const repeated = Object.entries(repeatedCounts).filter(([, c]) => c > 1).map(([s, c]) => `"${s}" ×${c}`);
+    const suggestionBlock = [
+      isEn ? `Total suggestions: ${vela_suggestions.length} (${unique.length} unique)` : `Total sugerencias: ${vela_suggestions.length} (${unique.length} únicas)`,
+      ...(repeated.length > 0 ? [isEn ? `Repeated suggestions: ${repeated.join(", ")}` : `Sugerencias repetidas: ${repeated.join(", ")}`] : []),
+      isEn ? `Sample (last 10): ${vela_suggestions.slice(-10).map(s => `"${s}"`).join(" | ")}` : `Muestra (últimas 10): ${vela_suggestions.slice(-10).map(s => `"${s}"`).join(" | ")}`,
+    ].join("\n");
+    evidenceParts.push((isEn ? "VELA COACHING SUGGESTIONS:\n" : "SUGERENCIAS DE COACHING DE VELA:\n") + suggestionBlock);
+  }
+
+  if (call_memory?.trim()) {
+    evidenceParts.push((isEn ? "FINAL CALL MEMORY (compressed):\n" : "MEMORIA FINAL DE LLAMADA (comprimida):\n") + call_memory.trim());
+  }
+
+  if (auto_transcript && auto_transcript.length > 0) {
+    evidenceParts.push((isEn ? "AUTO-CAPTURED TRANSCRIPT (last 20 turns):\n" : "TRANSCRIPCIÓN AUTO-CAPTURADA (últimos 20 turnos):\n") + auto_transcript.slice(-20).join("\n"));
+  }
+
+  if (imported_transcript?.trim()) {
+    evidenceParts.push((isEn ? "MANUALLY IMPORTED TRANSCRIPT (seller-verified):\n" : "TRANSCRIPCIÓN IMPORTADA MANUALMENTE (verificada por vendedor):\n") + imported_transcript.trim());
+  }
+
+  if (outcome) {
+    evidenceParts.push((isEn ? "REPORTED OUTCOME: " : "RESULTADO DECLARADO: ") + outcome);
+  }
+
+  const hasImportedTranscript = !!imported_transcript?.trim();
+  const hasAutoTranscript = !!(auto_transcript && auto_transcript.length > 0);
+
+  const velaSchema = `{"verdict":"string","reliability_level":"high|medium|low","reliability_explanation":"string","speaker_attribution_quality":"string","say_now_quality":"string","loops_detected":true|false,"loop_explanation":"string or null","transcript_comparison":"string or null","audit_confidence":"high|medium|low","technical_failures":["string"],"system_recommendations":["string"]}`;
+
+  const systemPrompt = isEn
+    ? `You are VELA performing a self-audit of its own performance as a real-time sales coaching system. You are NOT auditing the seller. You are auditing whether VELA's coaching was timely, varied, precise, and technically reliable during this session.
+
+WHAT TO ASSESS:
+1. SUGGESTION QUALITY: Were the say_now suggestions varied and relevant? Did they adapt to different conversational moments, or were they repetitive and generic?
+2. LOOP DETECTION: Were there repetitive suggestion patterns? If say_now repeated 3+ times consecutively, that is a coaching failure.
+3. SPEAKER ATTRIBUTION: Was speaker data reliable enough for precision coaching? High unknown rate = systemic limitation.
+4. TECHNICAL RELIABILITY: How many analyze failures occurred? What percentage of turns had no coaching?
+5. TRANSCRIPT COMPARISON: If both auto and imported transcripts are provided, note any significant gaps between what VELA captured vs what actually happened — and how those gaps might have degraded coaching quality.
+6. OVERALL AUDIT CONFIDENCE: Given data quality, how confident can we be in this session's coaching quality?
+
+SELF-AUDIT RULES:
+— Be honest about systemic failures: loops, high error rates, poor speaker attribution are VELA failures, not seller failures.
+— Do NOT deflect failures onto the seller or call difficulty.
+— technical_failures: list specific measurable failures (e.g. "12% of turns had no coaching due to API errors", "say_now repeated 5 consecutive turns").
+— system_recommendations: concrete changes that would improve VELA's coaching quality in a session like this.
+— audit_confidence: "high" if error rate < 10% and reliability = high; "medium" if error rate 10-30% or reliability = medium; "low" if error rate > 30% or reliability = low.
+
+Return EXACTLY this JSON, no markdown, no extra text:
+${velaSchema}`
+    : `Eres VELA realizando una auto-auditoría de su propio rendimiento como sistema de coaching de ventas en tiempo real. NO estás auditando al vendedor. Estás auditando si el coaching de VELA fue oportuno, variado, preciso y técnicamente fiable durante esta sesión.
+
+QUÉ EVALUAR:
+1. CALIDAD DE SUGERENCIAS: ¿Fueron las sugerencias say_now variadas y relevantes? ¿Se adaptaron a los distintos momentos de la conversación, o fueron repetitivas y genéricas?
+2. DETECCIÓN DE LOOPS: ¿Hubo patrones de sugerencia repetitivos? Si say_now se repitió 3+ veces consecutivas, eso es un fallo de coaching.
+3. ATRIBUCIÓN DE HABLANTE: ¿Fueron los datos de hablante suficientemente fiables para un coaching preciso? Alta tasa de desconocidos = limitación sistémica.
+4. FIABILIDAD TÉCNICA: ¿Cuántos fallos de análisis ocurrieron? ¿Qué porcentaje de turnos no tuvo coaching?
+5. COMPARACIÓN DE TRANSCRIPCIONES: Si se proporcionan transcripción automática e importada, señala diferencias significativas entre lo que VELA capturó y lo que realmente ocurrió — y cómo esas diferencias pudieron degradar la calidad del coaching.
+6. CONFIANZA DE LA AUDITORÍA: Dada la calidad de los datos, ¿con qué confianza podemos evaluar la calidad del coaching de esta sesión?
+
+REGLAS DE AUTO-AUDITORÍA:
+— Sé honesto sobre los fallos sistémicos: loops, altas tasas de error y mala atribución de hablante son fallos de VELA, no del vendedor.
+— NO deflectes los fallos hacia el vendedor o la dificultad de la llamada.
+— technical_failures: lista fallos específicos y medibles (p.ej. "12% de los turnos sin coaching por errores de API", "say_now repetido 5 turnos consecutivos").
+— system_recommendations: cambios concretos que mejorarían la calidad del coaching de VELA en una sesión de este tipo.
+— audit_confidence: "high" si tasa de error < 10% y fiabilidad = high; "medium" si tasa 10-30% o fiabilidad = medium; "low" si tasa > 30% o fiabilidad = low.
+
+Devuelve EXACTAMENTE este JSON, sin markdown, sin texto extra:
+${velaSchema}`;
+
+  const hasTranscriptComparison = hasAutoTranscript && hasImportedTranscript;
+  if (!hasTranscriptComparison) {
+    // patch schema to clarify null is expected
+    const userMessage = [
+      evidenceParts.join("\n\n"),
+      hasTranscriptComparison ? "" : (isEn ? "\nNote: Only one transcript source available — set transcript_comparison to null." : "\nNota: Solo una fuente de transcripción disponible — pon transcript_comparison en null."),
+    ].join("");
+
+    try {
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        max_tokens: 800,
+        temperature: 0.3,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userMessage },
+        ],
+      });
+      const raw = completion.choices[0]?.message?.content ?? "{}";
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(raw);
+      res.json(parsed);
+    } catch {
+      res.status(500).json({ error: "VELA audit generation failed" });
+    }
+    return;
+  }
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_tokens: 900,
+      temperature: 0.3,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: evidenceParts.join("\n\n") },
+      ],
+    });
+    const raw = completion.choices[0]?.message?.content ?? "{}";
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(raw);
+    res.json(parsed);
+  } catch {
+    res.status(500).json({ error: "VELA audit generation failed" });
   }
 });
 

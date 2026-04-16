@@ -1,0 +1,286 @@
+Objetivo
+
+Quiero un patch serio para Copiloto listen y para la capa post-call de auditoría. El objetivo no es añadir más ruido ni más bloques visuales, sino que VELA:
+
+deje de fingir precisión cuando listen mode va mal,
+pueda auditar una llamada de verdad con transcript automático o transcript importado,
+separe claramente “lo que hizo mal el vendedor” de “lo que hizo mal VELA”,
+y entregue una Auditoría Brutal realmente útil, más parecida al assessment bueno que ya hemos probado fuera de la app.
+
+Contexto del problema
+
+He auditado una llamada real larga en Copiloto listen. El caso no falló solo por ejecución humana; también falló el sistema.
+
+Problemas observados:
+
+speaker attribution muy mala (unknown_rate altísimo, avg_confidence bajísimo)
+2 parse errors y 2 API errors
+guidance contaminada
+34 turnos seguidos con el mismo say_now
+debrief final ya mejoró algo, pero sigue siendo corto y demasiado genérico
+transcript automático útil como borrador, pero insuficiente para auditoría seria
+transcript limpio/manual permite una lectura mucho mejor
+ahora mismo hay demasiado ruido en outputs post-call: resumen, reporte completo, auditoría brutal, score, etc.
+quiero menos ruido y más utilidad
+
+Además:
+
+quiero mantener descarga de audit log
+quiero mantener transcript visible
+no quiero meter base de datos ni auth todavía
+no quiero rehacer toda la app
+no quiero más pantallas bonitas; quiero mejores decisiones de producto
+
+Decisiones de producto que SÍ quiero implementar
+
+Copiloto listen debe tener “modo de fiabilidad”
+Añadir una evaluación explícita de fiabilidad de sesión/turno para listen mode:
+high
+medium
+low
+
+Esta fiabilidad debe depender de:
+
+unknown speaker rate
+average speaker confidence
+parse errors
+API errors
+repetición de say_now
+ambigüedad/fragmentación del transcript
+
+Comportamiento:
+
+high → guidance táctica normal
+medium → guidance táctica más prudente, menos micro
+low → guidance macro, no fingir precisión quirúrgica
+
+Cuando la fiabilidad sea baja:
+
+no dar instrucciones hiperprecisas de turno
+no seguir actuando como si supiera quién ha hablado
+señalar claramente que la guía es de baja fiabilidad
+priorizar orientación de alto nivel y no detalle fino
+Cortafuegos anti-loop de say_now
+Si el mismo say_now se repite demasiadas veces seguidas:
+romper el loop
+regenerar guidance
+o caer a modo de fiabilidad más bajo
+o fallback macro
+
+No puede volver a pasar un caso de 34 turnos con el mismo say_now.
+
+Transcript importable / pegable para postmortem
+Quiero que al terminar una llamada el sistema permita elegir fuente de auditoría:
+
+Fuente A:
+
+transcript automático actual de VELA
+
+Fuente B:
+
+transcript importado/manual
+pegar texto
+o subir transcript limpio
+o reemplazar transcript automático por uno mejor
+
+Regla:
+
+si existe transcript importado/manual, debe poder usarse como fuente prioritaria de la auditoría
+no hace falta rehacer la llamada; solo auditar mejor
+Dos auditorías separadas
+Quiero separar claramente dos salidas:
+
+A. AUDITORÍA BRUTAL — VENDEDOR
+Objetivo:
+
+entender qué hizo mal el vendedor humano
+qué hizo bien
+qué oportunidades perdió
+qué objeción real no cerró
+qué marco dejó escapar
+qué tendría que haber pasado
+qué frase o movimiento habría sido mejor
+
+Esta auditoría debe incluir, cuando sea útil:
+
+“Conversación perfecta” o “versión ideal de la conversación”
+y/o “Frase real / por qué perjudicó / frase alternativa / efecto esperado”
+
+B. AUDITORÍA BRUTAL — VELA
+Objetivo:
+
+entender qué hizo mal el sistema
+transcript
+speaker attribution
+calidad del signal
+calidad del say_now
+loops
+fallos de analyze
+debrief fiable o no
+si leyó bien la conversación o no
+
+Esta auditoría debe incluir:
+
+diagnóstico técnico y táctico del sistema
+comparación entre transcript automático vs transcript importado si existe
+porcentaje de acierto útil o al menos contraste cualitativo:
+qué partes del automático estaban bien
+qué partes estaban mal
+cuánto contaminó eso el guidance y la auditoría
+Menos ruido post-call
+No quiero más bloques redundantes.
+
+La pantalla post-call debe simplificarse.
+Quiero priorizar esta estructura:
+
+Transcript
+Descargar log
+Auditoría Brutal — Vendedor
+Auditoría Brutal — VELA
+opcional: Conversación perfecta
+opcional: Reporte corto si realmente aporta algo distinto
+
+Si el reporte completo actual no añade valor real frente a las dos auditorías, simplificarlo o integrarlo.
+No quiero tres salidas diciendo lo mismo con palabras distintas.
+
+La auditoría de VELA debe separar tipos de fallo
+La auditoría de sistema debe distinguir explícitamente:
+fallo comercial del vendedor
+fallo técnico del sistema
+fallo de transcript/señal/diarización
+fallo mixto
+
+No quiero que todo se mezcle en una sola nota plana.
+
+La Auditoría Brutal — Vendedor debe parecerse más al assessment bueno
+No quiero una auditoría superficial del estilo:
+faltó compromiso
+faltó siguiente paso
+faltó claridad
+
+Quiero algo más fuerte y más útil:
+
+qué marco estaba jugando el cliente
+cuál era la objeción aparente
+cuál era la objeción real
+dónde se perdió el control
+qué había que aislar
+cómo habría sido una secuencia mejor
+cómo habría sido la conversación perfecta
+Mantener lo que ya funciona
+No romper:
+transcript visible
+export del log
+debrief_reliable / no fiable
+recuperación de sesión por localStorage
+flujo de terminar llamada
+
+Cambios requeridos
+
+Implementar listen_reliability_mode con thresholds razonables
+Añadir breaker anti-loop de say_now
+Añadir soporte de transcript importado / paste manual para auditoría post-call
+Separar post-call en:
+Auditoría Brutal — Vendedor
+Auditoría Brutal — VELA
+Añadir comparación transcript automático vs transcript importado/manual cuando existan ambos
+Añadir salida opcional “Conversación perfecta” dentro de Auditoría Brutal — Vendedor
+Simplificar la UX post-call para reducir ruido y bloques redundantes
+Mantener compatibilidad con logs actuales y con sesiones antiguas si es posible
+
+Cómo debe ser cada auditoría
+
+AUDITORÍA BRUTAL — VENDEDOR
+Debe incluir como mínimo:
+
+Veredicto brutal
+Qué sí funcionó
+Qué falló
+Responsable de cada fallo
+Oportunidades de cierre perdidas
+Reglas violadas o flojas
+Cambios prioritarios
+Lo que yo habría hecho
+Conversación perfecta (opcional, pero disponible cuando el caso lo merezca)
+
+AUDITORÍA BRUTAL — VELA
+Debe incluir como mínimo:
+
+Veredicto del sistema
+Calidad del transcript automático
+Calidad de speaker attribution
+Calidad del signal
+Calidad del say_now
+Loops / errores / fiabilidad
+Comparación con transcript importado si existe
+Si la auditoría final fue confiable o no
+Qué parte del fallo fue técnico
+Qué parte del fallo fue de lógica táctica del sistema
+Cambios prioritarios del producto
+
+Restricciones
+
+No rehacer toda la app
+No meter base de datos
+No meter auth
+No tocar Arena vendedor ni Arena cliente en este patch
+No complicar la UI con más ruido
+No romper transcripts, logs, recuperación de sesión ni flujo actual de resultado
+Si se crea comparación transcript automático vs manual, que sea útil y legible, no una herramienta de laboratorio llena de métricas vacías
+
+Entregables
+
+listen_reliability_mode
+breaker anti-loop de say_now
+soporte para transcript importado / pegado
+nueva capa post-call con dos auditorías separadas
+opción “Conversación perfecta” dentro de Auditoría Brutal — Vendedor
+comparación transcript automático vs transcript importado/manual
+simplificación del output post-call
+nota técnica breve explicando:
+cómo se decide la fiabilidad
+cómo se compara transcript automático vs importado
+cuándo aparece la conversación perfecta
+qué se eliminó o simplificó del flujo anterior
+
+Tests
+
+Caso real listen con transcript automático malo
+la auditoría de VELA debe detectar mala fiabilidad
+no debe fingir precisión táctica
+debe marcar correctamente que la auditoría está contaminada por señal
+Caso real listen con transcript importado limpio
+la auditoría debe poder rehacerse con el transcript importado
+la calidad del análisis debe mejorar
+la auditoría de VELA debe reflejar esa mejora
+Auditoría doble
+debe quedar claro qué hizo mal el vendedor
+y qué hizo mal el sistema
+sin mezclar culpas
+Conversación perfecta
+debe poder generarse dentro de la auditoría del vendedor
+no como ruido adicional desconectado
+sino como salida opcional y útil
+UX
+la pantalla post-call debe quedar más clara, no más cargada
+transcript y log exportable deben seguir accesibles
+
+Criterios de aceptación
+
+Copiloto listen deja de fingir precisión cuando la señal es mala
+desaparecen loops largos de say_now
+se puede auditar con transcript automático o importado
+la auditoría de vendedor sirve para mejorar como comercial
+la auditoría de VELA sirve para mejorar el producto
+la salida final post-call tiene menos ruido y más valor real
+la opción de conversación perfecta aporta aprendizaje práctico y no postureo
+
+Importante
+
+No quiero un parche cosmético.
+Quiero que esta parte del producto sirva de verdad para:
+
+auditar bien una llamada real
+entender si fallé yo o falló VELA
+aprender más de una llamada mala
+y mejorar el sistema con señales útiles, no con métricas de adorno.

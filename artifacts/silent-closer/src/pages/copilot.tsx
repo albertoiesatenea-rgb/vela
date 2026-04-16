@@ -162,6 +162,21 @@ interface BrutalAudit {
   prompt_patch: string | null;
   prompt_for_replit: string | null;
   what_i_would_have_done: string;
+  perfect_conversation?: string | null;
+}
+
+interface VelaAudit {
+  verdict: string;
+  reliability_level: "high" | "medium" | "low";
+  reliability_explanation: string;
+  speaker_attribution_quality: string;
+  say_now_quality: string;
+  loops_detected: boolean;
+  loop_explanation: string | null;
+  transcript_comparison: string | null;
+  audit_confidence: "high" | "medium" | "low";
+  technical_failures: string[];
+  system_recommendations: string[];
 }
 
 function AuditList({ label, items, bullet, color }: { label: string; items: string[]; bullet: string; color: string }) {
@@ -502,6 +517,14 @@ export default function CopilotPage() {
   const [brutalAuditOpen, setBrutalAuditOpen] = useState(false);
   const [brutalAuditError, setBrutalAuditError] = useState(false);
   const [humanNotes, setHumanNotes] = useState("");
+  const [importedTranscript, setImportedTranscript] = useState("");
+  const [importTranscriptOpen, setImportTranscriptOpen] = useState(false);
+  const [velaAudit, setVelaAudit] = useState<VelaAudit | null>(null);
+  const [velaAuditLoading, setVelaAuditLoading] = useState(false);
+  const [velaAuditOpen, setVelaAuditOpen] = useState(false);
+  const [velaAuditError, setVelaAuditError] = useState(false);
+  const lastSayNowsRef = useRef<string[]>([]);
+  const maxSayNowLoopRef = useRef(0);
   const [analyzeErrorCount, setAnalyzeErrorCount] = useState(0);
   const analyzeErrorCountRef = useRef(0);
   const [transcriptOpen, setTranscriptOpen] = useState(false);
@@ -611,6 +634,31 @@ export default function CopilotPage() {
         ? memLines.map(l => `- ${l}`).join("\n")
         : undefined;
 
+      // ── say_now loop detection — count consecutive identical say_nows ────────
+      const recentSayNows = lastSayNowsRef.current;
+      let sayNowLoopCount = 0;
+      if (recentSayNows.length >= 2) {
+        const last = recentSayNows[recentSayNows.length - 1].toLowerCase().trim();
+        for (let i = recentSayNows.length - 2; i >= 0; i--) {
+          if (recentSayNows[i].toLowerCase().trim() === last) sayNowLoopCount++;
+          else break;
+        }
+        sayNowLoopCount++; // include the "last" itself as first in the run
+      }
+
+      // ── listen reliability — computed from error rate + speaker quality ───────
+      const totalTurnsSoFar = Math.max(turnCountRef.current, 1);
+      const errorRate = analyzeErrorCountRef.current / totalTurnsSoFar;
+      const qualLevel = speakerModeRef.current === "auto" ? speakerSessionRef.current.getQualityLevel() : "normal";
+      const unknownMetrics = speakerModeRef.current === "auto" ? speakerSessionRef.current.getMetrics() : null;
+      const unknownRate = unknownMetrics?.unknown_rate ?? 0;
+      const listenReliability: "high" | "medium" | "low" =
+        (unknownRate > 0.5 || errorRate > 0.3 || sayNowLoopCount >= 5 || qualLevel === "low")
+          ? "low"
+          : (unknownRate > 0.25 || errorRate > 0.1 || sayNowLoopCount >= 3 || qualLevel === "watch")
+            ? "medium"
+            : "high";
+
       analyze(
         {
           data: {
@@ -623,6 +671,8 @@ export default function CopilotPage() {
             ...(capturedSpeakerMode === "auto" && speakerConfidence < 1.0
               ? { speaker_confidence: speakerConfidence }
               : {}),
+            ...(sayNowLoopCount >= 3 ? { say_now_loop_count: sayNowLoopCount } : {}),
+            ...(listenReliability !== "high" ? { listen_reliability: listenReliability } : {}),
           },
         },
         {
@@ -656,6 +706,19 @@ export default function CopilotPage() {
             }
             // ── Normal success path ──────────────────────────────────────────────
             const memoryAfter = res.call_memory?.summary_lines ?? [];
+            // ── Track say_now for loop detection ──────────────────────────────
+            if (res.say_now) {
+              const updated = [...lastSayNowsRef.current, res.say_now].slice(-10);
+              lastSayNowsRef.current = updated;
+              // Recompute max loop count for this session
+              let runLen = 1;
+              const last = updated[updated.length - 1].toLowerCase().trim();
+              for (let i = updated.length - 2; i >= 0; i--) {
+                if (updated[i].toLowerCase().trim() === last) runLen++;
+                else break;
+              }
+              if (runLen > maxSayNowLoopRef.current) maxSayNowLoopRef.current = runLen;
+            }
             setTacticalState({
               sayNow: res.say_now,
               avoid: res.avoid || undefined,
@@ -888,8 +951,15 @@ export default function CopilotPage() {
     setBrutalAudit(null);
     setBrutalAuditOpen(false);
     setBrutalAuditError(false);
+    setVelaAudit(null);
+    setVelaAuditOpen(false);
+    setVelaAuditError(false);
+    setImportedTranscript("");
+    setImportTranscriptOpen(false);
     setAnalyzeErrorCount(0);
     analyzeErrorCountRef.current = 0;
+    lastSayNowsRef.current = [];
+    maxSayNowLoopRef.current = 0;
     setTranscriptOpen(false);
     speakerSessionRef.current.reset();
     setSpeakerQualityLevel("normal");
@@ -1088,6 +1158,57 @@ export default function CopilotPage() {
       setBrutalAuditError(true);
     } finally {
       setBrutalAuditLoading(false);
+    }
+  };
+
+  const handleLoadVelaAudit = async () => {
+    if (velaAudit || velaAuditLoading) return;
+    setVelaAuditLoading(true);
+    setVelaAuditError(false);
+    const speakerMetrics = speakerMode === "auto" ? speakerSessionRef.current.getMetrics() : null;
+    const unknownRate = speakerMetrics?.unknown_rate ?? 0;
+    const totalTurns = turnLog.length;
+    const errorRate = analyzeErrorCount / Math.max(totalTurns, 1);
+    const listenReliability: "high" | "medium" | "low" =
+      (unknownRate > 0.5 || errorRate > 0.3 || maxSayNowLoopRef.current >= 5)
+        ? "low"
+        : (unknownRate > 0.25 || errorRate > 0.1 || maxSayNowLoopRef.current >= 3)
+          ? "medium"
+          : "high";
+    const velaSuggestions = turnLog
+      .filter(t => t.system_output?.say_now)
+      .map(t => t.system_output!.say_now);
+    const finalMemory = turnLog.length > 0
+      ? turnLog[turnLog.length - 1].memory_after
+      : tacticalState.callMemory;
+    const memoryStr = finalMemory.length > 0 ? finalMemory.map(l => `- ${l}`).join("\n") : undefined;
+    try {
+      const res = await fetch("/api/copilot/audit-report-vela", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lang,
+          session_metrics: {
+            analyze_error_count: analyzeErrorCount,
+            speaker_unknown_rate: unknownRate || undefined,
+            say_now_loop_count: maxSayNowLoopRef.current || undefined,
+            total_turns: totalTurns || undefined,
+            listen_reliability: listenReliability,
+          },
+          auto_transcript: conversationLog.length > 0 ? conversationLog : undefined,
+          imported_transcript: importedTranscript.trim() || undefined,
+          vela_suggestions: velaSuggestions.length > 0 ? velaSuggestions : undefined,
+          call_memory: memoryStr,
+          outcome: callOutcome ?? undefined,
+        }),
+      });
+      if (!res.ok) throw new Error("vela audit failed");
+      const data = await res.json() as VelaAudit;
+      setVelaAudit(data);
+    } catch {
+      setVelaAuditError(true);
+    } finally {
+      setVelaAuditLoading(false);
     }
   };
 
@@ -1437,19 +1558,14 @@ export default function CopilotPage() {
 
                         {/* ── Human notes — optional, feeds the brutal audit ── */}
                         <div className="border border-zinc-800/60 rounded-xl overflow-hidden">
-                          <button
-                            onClick={() => setBrutalAuditOpen(o => { if (!o && !brutalAudit) return o; return o; })}
-                            className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-white/3 transition-colors"
-                            type="button"
-                            aria-label={lang === "en" ? "Post-call notes" : "Notas post-llamada"}
-                          >
+                          <div className="w-full flex items-center justify-between px-4 py-2.5">
                             <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-600">
                               {lang === "en" ? "Post-call notes (optional)" : "Notas post-llamada (opcional)"}
                             </p>
                             <span className="text-[9px] font-mono text-zinc-700 italic">
                               {lang === "en" ? "feeds audit" : "alimenta la auditoría"}
                             </span>
-                          </button>
+                          </div>
                           <div className="px-4 pb-3">
                             <textarea
                               value={humanNotes}
@@ -1463,7 +1579,42 @@ export default function CopilotPage() {
                           </div>
                         </div>
 
-                        {/* ── Brutal audit — expandable, lazy-loaded ── */}
+                        {/* ── Import transcript — paste real call transcript for richer audit ── */}
+                        <div className="border border-zinc-800/60 rounded-xl overflow-hidden">
+                          <button
+                            onClick={() => setImportTranscriptOpen(o => !o)}
+                            className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-white/3 transition-colors"
+                            type="button"
+                          >
+                            <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-600">
+                              {lang === "en" ? "Import transcript (optional)" : "Importar transcripción (opcional)"}
+                            </p>
+                            <div className="flex items-center gap-2">
+                              {importedTranscript.trim() && <span className="w-1.5 h-1.5 rounded-full bg-teal-500 shrink-0" />}
+                              <span className={cn("text-zinc-600 text-xs font-mono transition-transform duration-200", importTranscriptOpen ? "rotate-180" : "")}>▾</span>
+                            </div>
+                          </button>
+                          {importTranscriptOpen && (
+                            <div className="border-t border-zinc-800/60 px-4 pb-3 pt-2">
+                              <p className="text-[9px] font-mono text-zinc-600 mb-2 leading-relaxed">
+                                {lang === "en"
+                                  ? "Paste the real call transcript here — improves VELA audit accuracy and enables auto vs manual comparison."
+                                  : "Pega aquí la transcripción real de la llamada — mejora la precisión de la auditoría VELA y permite comparar con la auto-captura."}
+                              </p>
+                              <textarea
+                                value={importedTranscript}
+                                onChange={e => { setImportedTranscript(e.target.value); setVelaAudit(null); setVelaAuditError(false); }}
+                                placeholder={lang === "en"
+                                  ? "Paste full transcript here..."
+                                  : "Pega la transcripción completa aquí..."}
+                                rows={5}
+                                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-[11px] font-mono text-zinc-300 placeholder:text-zinc-700 resize-none outline-none leading-relaxed"
+                              />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* ── Auditoría Brutal — VENDEDOR ── */}
                         <div className="border border-zinc-800 rounded-xl overflow-hidden">
                           <button
                             onClick={() => {
@@ -1477,7 +1628,7 @@ export default function CopilotPage() {
                           >
                             <div className="flex items-center gap-2">
                               <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">
-                                {lang === "en" ? "Brutal audit" : "Auditoría brutal"}
+                                {lang === "en" ? "Brutal audit — Seller" : "Auditoría brutal — Vendedor"}
                               </p>
                               {brutalAuditLoading && <Loader2 className="w-3 h-3 text-zinc-500 animate-spin" />}
                             </div>
@@ -1494,7 +1645,7 @@ export default function CopilotPage() {
                               {brutalAuditError && !brutalAudit && (
                                 <div className="flex items-center gap-3">
                                   <p className="text-[10px] font-mono text-zinc-500">{lang === "en" ? "Error generating audit." : "Error al generar la auditoría."}</p>
-                                  <button onClick={() => void handleLoadBrutalAudit()} className="text-[10px] font-mono text-zinc-400 hover:text-white underline">{lang === "en" ? "Retry" : "Reintentar"}</button>
+                                  <button onClick={() => { setBrutalAuditError(false); void handleLoadBrutalAudit(); }} className="text-[10px] font-mono text-zinc-400 hover:text-white underline">{lang === "en" ? "Retry" : "Reintentar"}</button>
                                 </div>
                               )}
                               {brutalAudit && (
@@ -1513,6 +1664,12 @@ export default function CopilotPage() {
                                     <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-600">{lang === "en" ? "What I would have done" : "Lo que yo habría hecho"}</p>
                                     <p className="text-[11px] font-mono text-zinc-300 leading-relaxed italic">{brutalAudit.what_i_would_have_done}</p>
                                   </div>
+                                  {brutalAudit.perfect_conversation && (
+                                    <div className="flex flex-col gap-1 border-t border-zinc-800 pt-2">
+                                      <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-600">{lang === "en" ? "Perfect conversation" : "Conversación perfecta"}</p>
+                                      <p className="text-[11px] font-mono text-zinc-400 leading-relaxed">{brutalAudit.perfect_conversation}</p>
+                                    </div>
+                                  )}
                                   {brutalAudit.prompt_patch && (
                                     <div className="flex flex-col gap-1 border-t border-zinc-800 pt-2">
                                       <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-600">{lang === "en" ? "Prompt patch" : "Patch de prompt"}</p>
@@ -1525,6 +1682,97 @@ export default function CopilotPage() {
                                       <p className="text-[10px] font-mono text-zinc-400 leading-relaxed">{brutalAudit.prompt_for_replit}</p>
                                     </div>
                                   )}
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* ── Auditoría Brutal — VELA (self-audit) ── */}
+                        <div className="border border-zinc-700/60 rounded-xl overflow-hidden">
+                          <button
+                            onClick={() => {
+                              if (!velaAuditOpen && !velaAudit && !velaAuditLoading) {
+                                void handleLoadVelaAudit();
+                              }
+                              setVelaAuditOpen(o => !o);
+                            }}
+                            onMouseDown={e => e.preventDefault()}
+                            className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-white/3 transition-colors"
+                          >
+                            <div className="flex items-center gap-2">
+                              <VelaIcon className="w-2.5 h-2.5 text-zinc-500 shrink-0" />
+                              <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-500">
+                                {lang === "en" ? "Brutal audit — VELA" : "Auditoría brutal — VELA"}
+                              </p>
+                              {velaAuditLoading && <Loader2 className="w-3 h-3 text-zinc-500 animate-spin" />}
+                            </div>
+                            <span className={cn("text-zinc-600 text-xs font-mono transition-transform duration-200", velaAuditOpen ? "rotate-180" : "")}>▾</span>
+                          </button>
+                          {velaAuditOpen && (
+                            <div className="border-t border-zinc-800/60 px-4 pb-4 pt-3 flex flex-col gap-3">
+                              {velaAuditLoading && (
+                                <div className="flex items-center gap-2 py-1">
+                                  <Loader2 className="w-3.5 h-3.5 text-zinc-500 animate-spin" />
+                                  <p className="text-[10px] font-mono text-zinc-500">{lang === "en" ? "VELA self-analysis..." : "Auto-análisis VELA..."}</p>
+                                </div>
+                              )}
+                              {velaAuditError && !velaAudit && (
+                                <div className="flex items-center gap-3">
+                                  <p className="text-[10px] font-mono text-zinc-500">{lang === "en" ? "Error generating VELA audit." : "Error al generar la auditoría VELA."}</p>
+                                  <button onClick={() => { setVelaAuditError(false); void handleLoadVelaAudit(); }} className="text-[10px] font-mono text-zinc-400 hover:text-white underline">{lang === "en" ? "Retry" : "Reintentar"}</button>
+                                </div>
+                              )}
+                              {velaAudit && (
+                                <>
+                                  <div className="flex items-center gap-2">
+                                    <span className={cn(
+                                      "text-[8px] font-mono tracking-widest uppercase px-1.5 py-0.5 rounded border",
+                                      velaAudit.audit_confidence === "high" ? "border-teal-800 text-teal-500 bg-teal-950/30" :
+                                      velaAudit.audit_confidence === "medium" ? "border-amber-800 text-amber-500 bg-amber-950/30" :
+                                      "border-red-900 text-red-500 bg-red-950/30"
+                                    )}>
+                                      {lang === "en" ? `Confidence: ${velaAudit.audit_confidence}` : `Confianza: ${velaAudit.audit_confidence}`}
+                                    </span>
+                                    <span className={cn(
+                                      "text-[8px] font-mono tracking-widest uppercase px-1.5 py-0.5 rounded border",
+                                      velaAudit.reliability_level === "high" ? "border-teal-800 text-teal-500 bg-teal-950/30" :
+                                      velaAudit.reliability_level === "medium" ? "border-amber-800 text-amber-500 bg-amber-950/30" :
+                                      "border-red-900 text-red-500 bg-red-950/30"
+                                    )}>
+                                      {lang === "en" ? `Signal: ${velaAudit.reliability_level}` : `Señal: ${velaAudit.reliability_level}`}
+                                    </span>
+                                  </div>
+                                  <div className="flex flex-col gap-1">
+                                    <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-600">{lang === "en" ? "Verdict" : "Veredicto"}</p>
+                                    <p className="text-xs font-mono text-zinc-200 leading-relaxed">{velaAudit.verdict}</p>
+                                  </div>
+                                  <div className="flex flex-col gap-1">
+                                    <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-600">{lang === "en" ? "Reliability explanation" : "Explicación de fiabilidad"}</p>
+                                    <p className="text-[11px] font-mono text-zinc-400 leading-relaxed">{velaAudit.reliability_explanation}</p>
+                                  </div>
+                                  <div className="flex flex-col gap-1">
+                                    <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-600">{lang === "en" ? "Say-now quality" : "Calidad de say-now"}</p>
+                                    <p className="text-[11px] font-mono text-zinc-400 leading-relaxed">{velaAudit.say_now_quality}</p>
+                                  </div>
+                                  {velaAudit.loops_detected && velaAudit.loop_explanation && (
+                                    <div className="flex flex-col gap-1">
+                                      <p className="text-[9px] font-mono tracking-widest uppercase text-amber-700">{lang === "en" ? "Loop detected" : "Loop detectado"}</p>
+                                      <p className="text-[11px] font-mono text-amber-500 leading-relaxed">{velaAudit.loop_explanation}</p>
+                                    </div>
+                                  )}
+                                  <div className="flex flex-col gap-1">
+                                    <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-600">{lang === "en" ? "Speaker attribution" : "Atribución de hablante"}</p>
+                                    <p className="text-[11px] font-mono text-zinc-400 leading-relaxed">{velaAudit.speaker_attribution_quality}</p>
+                                  </div>
+                                  {velaAudit.transcript_comparison && (
+                                    <div className="flex flex-col gap-1 border-t border-zinc-800 pt-2">
+                                      <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-600">{lang === "en" ? "Transcript comparison" : "Comparación de transcripciones"}</p>
+                                      <p className="text-[11px] font-mono text-zinc-400 leading-relaxed">{velaAudit.transcript_comparison}</p>
+                                    </div>
+                                  )}
+                                  <AuditList label={lang === "en" ? "Technical failures" : "Fallos técnicos"} items={velaAudit.technical_failures} bullet="✗" color="text-amber-500" />
+                                  <AuditList label={lang === "en" ? "System recommendations" : "Recomendaciones de sistema"} items={velaAudit.system_recommendations} bullet="→" color="text-zinc-400" />
                                 </>
                               )}
                             </div>
@@ -1547,17 +1795,7 @@ export default function CopilotPage() {
                           >
                             {T[lang].CLOSE_SESSION}
                           </button>
-                          {/* 3. Generate full report — secondary, truly optional */}
-                          <button
-                            onClick={() => void handleGenerateReport()}
-                            disabled={isGeneratingReport}
-                            className="w-full flex items-center justify-center gap-1.5 text-[10px] font-mono text-zinc-500 hover:text-zinc-300 py-2 transition-colors disabled:opacity-40"
-                          >
-                            {isGeneratingReport
-                              ? <><Loader2 className="w-3 h-3 animate-spin" />{T[lang].ANALYZING_CALL}</>
-                              : T[lang].GEN_REPORT}
-                          </button>
-                          {/* 4. Download session audit log — tertiary, for GPT auditor */}
+                          {/* 3. Download session audit log — tertiary, for GPT auditor */}
                           <button
                             onClick={handleDownloadAuditLog}
                             className="w-full text-center text-[10px] font-mono text-zinc-500 hover:text-zinc-300 py-1 transition-colors"

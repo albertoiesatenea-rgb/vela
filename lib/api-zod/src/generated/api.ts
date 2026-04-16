@@ -54,6 +54,16 @@ export const AnalyzeConversationBody = zod.object({
     .array(zod.string())
     .optional()
     .describe("Accumulated real conversation history — full turns in order, including current fragment as last entry"),
+  say_now_loop_count: zod
+    .number()
+    .int()
+    .min(0)
+    .optional()
+    .describe("Number of consecutive turns where say_now was identical or near-identical — triggers anti-loop override when >= 3"),
+  listen_reliability: zod
+    .enum(["high", "medium", "low"])
+    .optional()
+    .describe("Session listen quality level — affects coaching precision in the prompt"),
 });
 
 // Helper: accept string | null | undefined from AI and normalise to string | undefined

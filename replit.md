@@ -25,11 +25,16 @@ A single-screen, ultraminimalist sales call assistant for use on a second screen
 ### Features
 - **ESCUCHAR mode**: Uses Web Speech API (SpeechRecognition) for live transcription. Sends buffered text to analysis API every 8 seconds. Works in Chrome/Edge.
 - **SIMULAR mode**: Paste conversation text manually, click Analizar to get tactical advice.
-- **Tactical engine**: POST /api/copilot/analyze → { signal, say_now, avoid }
+- **Tactical engine**: POST /api/copilot/analyze → { signal, say_now, avoid, detail, journey, call_memory, momentum }
+- **Listen reliability mode**: Each analyze call computes `listen_reliability` ("high" | "medium" | "low") from speaker unknown rate, error rate, and say_now loop count. Injected into system prompt to adjust coaching precision.
+- **say_now anti-loop**: `lastSayNowsRef` tracks last 10 say_nows. If same value repeats ≥3 consecutive turns, sends `say_now_loop_count` to backend. Backend injects ANTI-LOOP OVERRIDE instruction forcing a completely different tactical axis.
 - **UI**: Pure black background, large centered text, SEÑAL / DI AHORA / EVITA layout, smooth Framer Motion transitions.
 - **Arena mode**: Separate chat-based conversation simulator. User picks "Yo soy vendedor" or "Yo soy cliente", AI plays the opposite role. Routes: POST /api/arena/start, /api/arena/turn, /api/arena/finish. In-memory sessions. Exportable unified audit log (.md). Completely separate UX from Copilot mode.
 - **Arena profiles**: Client personality profiles (analítico, emocional, inseguro, arrogante, indeciso, duro) when user is seller. Seller profiles (comunicativo, autoritario, técnico, pasivo, agresivo, consultivo) when user is client. Difficulty levels (fácil, normal, difícil, brutal) for seller role. Random context generator (shuffle button). ArenaAdvancedForm with role-specific step questions. Profiles/difficulty injected into system prompts on the backend.
 - **Unified Audit Log**: `artifacts/silent-closer/src/lib/audit-log.ts` — shared module for both Copiloto and Arena. Types: AuditLog, SessionMeta, SessionContext, SessionConfig, AuditTurn, CopilotTurnData, ArenaTurnData, SessionSummary, AuditHints. Functions: buildCopilotAuditLog(), buildArenaAuditLog(), renderAuditLogMarkdown(), triggerAuditLogDownload(). Output: forensic markdown (.md) compatible with the VELA Auditor GPT.
+- **Dual post-call audit**: Two separate audits in post-call screen. (1) Auditoría Brutal — Vendedor: LLM audit of seller performance with `perfect_conversation` field (ideal call description). (2) Auditoría Brutal — VELA: self-audit of VELA coaching quality — say_now variety, loops, speaker attribution, technical failures. Endpoint: POST /api/copilot/audit-report-vela.
+- **Imported transcript**: Post-call screen has collapsible "Import transcript" textarea. Pasting real transcript enables VELA auto vs. imported comparison. Resets VELA audit on change.
+- **perfect_conversation**: New field in seller BrutalAudit — ideal version of the call, 3-6 sentences, concrete key decisions at each point.
 
 ### Codebase notes
 - `src/components/ui/` only contains the 4 components actually used: `card.tsx`, `toast.tsx`, `toaster.tsx`, `tooltip.tsx`. All other shadcn/ui scaffolding was removed.
