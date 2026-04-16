@@ -608,7 +608,9 @@ export default function CopilotPage() {
         }
       }
 
-      const fullText = speakerPrefix + text;
+      // Strip any existing speaker prefix the user may have typed (prevents [YO]: [YO]: duplication)
+      const cleanedText = text.replace(/^\s*\[(YO|CLIENTE|ME|CLIENT)\]:\s*/i, "").trimStart();
+      const fullText = speakerPrefix + cleanedText;
       // Build full history BEFORE state update (conversationLog still has previous turns)
       const historyRaw = [...conversationLog, fullText];
       const HISTORY_MAX = 16;
@@ -706,7 +708,9 @@ export default function CopilotPage() {
             // ── Normal success path ──────────────────────────────────────────────
             const memoryAfter = res.call_memory?.summary_lines ?? [];
             // ── Track say_now for loop detection ──────────────────────────────
-            if (res.say_now) {
+            // Skip fallback responses — they are not real AI guidance and must not poison the loop counter.
+            const isFallbackResponse = res.signal === "análisis recuperándose" || res.signal === "analysis recovering";
+            if (res.say_now && !isFallbackResponse) {
               const updated = [...lastSayNowsRef.current, res.say_now].slice(-10);
               lastSayNowsRef.current = updated;
               // Recompute max loop count for this session

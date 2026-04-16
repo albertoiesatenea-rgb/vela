@@ -465,17 +465,36 @@ router.post("/copilot/analyze", async (req, res) => {
   const isEn = lang === "en";
 
   // ── Safe Zod fallback — guaranteed to pass schema validation ──────────────────
-  const buildSafeFallback = () => AnalyzeConversationResponse.parse({
-    signal: isEn ? "analysis recovering" : "análisis recuperándose",
-    say_now: isEn
-      ? "Address the client's last concern specifically"
-      : "Responde la duda concreta del cliente",
-    avoid: null,
-    detail: null,
-    journey: null,
-    call_memory: null,
-    momentum: "amber",
-  });
+  // Rotates say_now from a pool so the fallback itself never causes a say_now loop.
+  const FALLBACK_SAY_NOWS_ES = [
+    "Reformula la pregunta clave sin presionar",
+    "Concreta el siguiente micro-paso concreto",
+    "Verifica si el cliente tiene la información que necesita",
+    "Identifica el criterio real que frena la decisión",
+    "Resume el punto más importante acordado hasta ahora",
+    "Pregunta qué necesitaría para dar el siguiente paso",
+  ];
+  const FALLBACK_SAY_NOWS_EN = [
+    "Clarify the key question without pressure",
+    "Identify the next concrete micro-step",
+    "Check if the client has the information they need",
+    "Find out the real criterion blocking the decision",
+    "Summarize the most important point agreed so far",
+    "Ask what they would need to take the next step",
+  ];
+  const buildSafeFallback = () => {
+    const pool = isEn ? FALLBACK_SAY_NOWS_EN : FALLBACK_SAY_NOWS_ES;
+    const say_now = pool[Math.floor(Math.random() * pool.length)];
+    return AnalyzeConversationResponse.parse({
+      signal: isEn ? "analysis recovering" : "análisis recuperándose",
+      say_now,
+      avoid: null,
+      detail: null,
+      journey: null,
+      call_memory: null,
+      momentum: "amber",
+    });
+  };
 
   try {
     const controller = new AbortController();

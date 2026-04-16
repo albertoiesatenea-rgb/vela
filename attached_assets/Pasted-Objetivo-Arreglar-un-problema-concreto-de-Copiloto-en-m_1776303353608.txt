@@ -1,0 +1,126 @@
+Objetivo
+Arreglar un problema concreto de Copiloto en modo escribir/simular sin tocar el resto del producto: el análisis se degrada demasiado pronto a análisis recuperándose, entra en loop de say_now, y deja de devolver campos útiles como reading, mission, next_move, support y journey, incluso en conversaciones muy simples.
+
+Contexto del problema
+He hecho una prueba muy corta en Copiloto modo escribir/simular. En los primeros turnos el sistema sí devuelve análisis rico:
+
+reading
+mission
+next_move
+support
+journey_past
+journey_now
+journey_next
+
+Pero a partir de un turno muy temprano entra en este patrón:
+
+signal: análisis recuperándose
+say_now: Responde la duda concreta del cliente
+resto de campos en null
+loop repetido durante varios turnos
+
+Además, el audit log marca repetición de say_now, así que el problema no es solo visual. No quiero rehacer UX ni volver a tocar toda la pantalla post-call. Quiero un patch pequeño y directo para estabilizar el análisis en vivo de Copiloto escribir.
+
+Cambios requeridos
+
+Reducir la caída prematura a análisis recuperándose
+Revisar la lógica que dispara ese estado. No debe activarse tan pronto en conversaciones simples y limpias de modo escribir/simular.
+
+Quiero que:
+
+si el input es razonablemente interpretable
+y no hay errores de backend
+y el speaker está claro
+entonces Copiloto mantenga análisis rico y no caiga a un estado pobre por defecto.
+Recuperar y mantener campos analíticos útiles
+Cuando el análisis sea válido, quiero que Copiloto siga devolviendo:
+reading
+mission
+next_move
+support
+journey_past
+journey_now
+journey_next
+
+No quiero que, por una degradación ligera, todo se convierta en null salvo say_now.
+
+Mejorar el anti-loop de say_now
+Si el sistema detecta repetición de say_now, no basta con etiquetarla en el log. Tiene que romper el patrón antes.
+
+Quiero que:
+
+si se repite el mismo say_now varias veces seguidas
+fuerce una reformulación útil
+o cambie de nivel de guidance
+o regenere la lectura
+pero no se quede clavado repitiendo exactamente la misma instrucción.
+Mantener coherencia entre signal y contenido real
+Si el sistema dice análisis recuperándose, entonces tiene que ser porque realmente está en modo degradado.
+No quiero falsos “recovering states” por defecto cuando el análisis en realidad podría ser normal.
+
+Y al revés:
+si el análisis es suficientemente bueno, no quiero ver ese label.
+
+Arreglar el transcript render duplicado
+Ahora mismo en transcript visible aparecen cosas como:
+[YO]: [YO]: ...
+[CLIENTE]: [CLIENTE]: ...
+
+Corregir el render para que el speaker no se duplique.
+
+No tocar lo que ya va mejor
+No quiero en este patch:
+rediseño visual grande
+cambios en la pantalla post-call
+más features nuevas
+cambios en Arena vendedor o Arena cliente
+cambios de arquitectura
+base de datos
+auth
+
+Esto es solo para estabilizar Copiloto escribir/simular.
+
+Restricciones
+
+Patch corto y quirúrgico
+No rehacer el sistema
+No tocar UX grande salvo el bug del transcript duplicado
+Mantener compatibilidad con logs y flujo actual
+No convertir esto en una refactorización general
+
+Entregables
+
+Copiloto escribir/simular menos propenso a caer en análisis recuperándose
+reading/mission/next_move/support/journey preservados cuando el análisis sea válido
+anti-loop de say_now más efectivo
+signal más coherente con el estado real del análisis
+transcript visible sin duplicación de speaker
+
+Tests
+
+Conversación simple de 6 turnos en modo escribir/simular
+el análisis no debe colapsar al tercer turno
+deben seguir apareciendo campos ricos
+Test de repetición
+si el mismo say_now aparece varias veces seguidas, el sistema debe romper el loop antes
+Transcript render
+no deben aparecer prefijos duplicados tipo [YO]: [YO]:
+No regresión
+score final
+auditorías
+transcript visible
+import transcript
+post-call actual
+deben seguir funcionando
+
+Criterios de aceptación
+
+Copiloto escribir deja de degradarse tan pronto
+el análisis útil dura más de 2 turnos en una conversación simple
+el loop de say_now se corta de verdad
+el transcript visible queda limpio
+no se rompe nada de la capa post-call que ya se ha mejorado
+
+Importante
+No quiero más teoría ni más capas.
+Quiero que Copiloto escribir vuelva a sentirse inteligente y útil durante la conversación, no que a los dos turnos se convierta en un cartel diciendo siempre lo mismo.

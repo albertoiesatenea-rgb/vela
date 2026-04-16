@@ -94,16 +94,17 @@ export const AnalyzeConversationResponse = zod.object({
     .transform((v) => v ?? undefined),
   journey: zod
     .object({
-      past: zod.string().describe("Last completed phase (2-4 words)"),
-      now: zod.string().describe("Current processual moment (3-6 words) — different from signal and reading"),
-      next: zod.string().describe("Next concrete step (2-4 words)"),
+      past: nullableStr.describe("Last completed phase (2-4 words)"),
+      now: nullableStr.describe("Current processual moment (3-6 words) — different from signal and reading"),
+      next: nullableStr.describe("Next concrete step (2-4 words)"),
     })
     .nullish()
     .transform((v) => v ?? undefined),
   call_memory: zod
     .object({
       summary_lines: zod
-        .array(zod.string())
+        .array(zod.string().nullable())
+        .transform((arr) => arr.filter((s): s is string => s !== null))
         .describe("4-6 tactical summary lines, rewritten each turn"),
     })
     .nullish()
