@@ -1,0 +1,100 @@
+Objetivo
+Revisar y mejorar la UX de acciones finales en Copiloto post-call para que los botones importantes queden siempre accesibles sin depender del scroll. Quiero algo parecido a lo que ya funciona mejor en Arena si allí ya existe una solución similar.
+
+Contexto del problema
+Ahora mismo, en la pantalla final de Copiloto, acciones clave como:
+
+Copiar resumen
+Cerrar sesión
+Descargar audit log
+
+quedan demasiado abajo y el scroll las vuelve incómodas. Eso empeora la experiencia justo al final de la llamada, cuando esas acciones deberían estar siempre a mano. En Arena creo que ya hay algo parecido a una zona fija o más accesible al final. Quiero revisar si existe esa lógica/patrón allí y reutilizarla o adaptarla.
+
+Cambios requeridos
+
+Revisar cómo está resuelto en Arena
+comprobar si Arena ya tiene una zona fija / sticky / freeze para acciones finales
+si existe un patrón bueno, reutilizarlo o adaptarlo en Copiloto
+no inventar una solución distinta si ya hay una buena dentro del producto
+Hacer sticky/fixed la zona de acciones finales en Copiloto post-call
+Quiero que las acciones principales estén siempre accesibles aunque haga scroll por:
+transcript
+notas
+usar transcript mejor
+auditoría brutal vendedor
+auditoría brutal VELA
+
+Las acciones mínimas a fijar son:
+
+Copiar resumen
+Cerrar sesión
+Descargar audit log
+Mantener buena UX y no tapar contenido
+La barra fija no debe:
+tapar el contenido inferior
+romper mobile
+superponerse mal a acordeones
+parecer un pegote visual
+
+Si hace falta:
+
+añadir espacio inferior/padding al contenido
+ajustar z-index
+adaptar altura y layout para desktop/mobile
+Mantener consistencia visual con VELA
+Quiero que se sienta parte natural del diseño actual:
+misma estética
+misma lógica de botones
+misma jerarquía visual
+sin parecer un componente de otra app
+No tocar el flujo funcional
+Este patch es solo de accesibilidad/UX para acciones finales.
+No quiero tocar:
+lógica de score
+auditorías
+transcript importado
+reliability
+backend
+Arena cliente/vendedor salvo para mirar referencia de diseño
+
+Restricciones
+
+Patch pequeño y quirúrgico
+No rediseñar toda la pantalla final
+No rehacer la navegación
+No romper responsive
+No tocar backend
+Si Arena ya tiene patrón válido, priorizar consistencia sobre inventar algo nuevo
+
+Entregables
+
+Revisión de cómo está resuelto en Arena
+Implementación de barra/zona sticky para acciones finales en Copiloto post-call
+Ajustes de layout para que no tape contenido
+Comportamiento correcto en desktop y mobile
+Nota breve explicando:
+si se reutilizó patrón de Arena o no
+qué se hizo exactamente
+
+Tests
+
+Abrir una sesión post-call larga con mucho scroll
+los botones finales deben seguir visibles o accesibles sin bajar hasta el final del todo
+Expandir transcript y auditorías
+la barra fija no debe tapar contenido ni romper scroll
+Mobile
+la barra debe seguir siendo usable y no comerse media pantalla
+Desktop
+debe sentirse integrada y no molesta
+
+Criterios de aceptación
+
+Copiar resumen / Cerrar sesión / Descargar audit log quedan accesibles sin depender del scroll
+la solución se siente coherente con VELA
+no se rompe la pantalla final
+no hay regresión funcional
+la experiencia final se vuelve mucho más cómoda sin cambiar el mundo
+
+Importante
+No quiero más florituras.
+Solo quiero que las acciones finales de Copiloto dejen de ser un coñazo por culpa del scroll.

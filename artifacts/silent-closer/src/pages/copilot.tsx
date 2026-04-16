@@ -1466,7 +1466,7 @@ export default function CopilotPage() {
       {/* ── End-of-call overlay ─────────────────────────── */}
       {endStep !== "none" && (
         <div className="fixed inset-0 bg-black z-50 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-y-auto flex flex-col items-center px-6 py-8">
+          <div className="flex-1 overflow-y-auto flex flex-col items-center px-6 py-8 pb-28">
 
             {/* ── Outcome picker ── */}
             {endStep === "outcome" && (
@@ -1831,30 +1831,6 @@ export default function CopilotPage() {
                           )}
                         </div>
 
-                        {/* ── Summary action hierarchy ── */}
-                        <div className="flex flex-col gap-2 border-t border-white/5 pt-4">
-                          {/* 1. Copy summary — primary quick action */}
-                          <button
-                            onClick={() => handleCopyText(buildSummaryText())}
-                            className="w-full flex items-center justify-center gap-2 bg-white text-black text-xs font-mono font-bold py-3 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all"
-                          >
-                            {copied ? T[lang].COPIED : T[lang].COPY_SUMMARY}
-                          </button>
-                          {/* 2. Close session — easy, natural, comfortable */}
-                          <button
-                            onClick={handleActuallyClearSession}
-                            className="w-full flex items-center justify-center gap-2 bg-zinc-900 border border-zinc-700 text-white text-xs font-mono font-semibold py-3 rounded-xl hover:bg-zinc-800 hover:border-zinc-500 active:scale-[0.98] transition-all"
-                          >
-                            {T[lang].CLOSE_SESSION}
-                          </button>
-                          {/* 3. Download session audit log — tertiary, for GPT auditor */}
-                          <button
-                            onClick={handleDownloadAuditLog}
-                            className="w-full text-center text-[10px] font-mono text-zinc-500 hover:text-zinc-300 py-1 transition-colors"
-                          >
-                            {T[lang].DOWNLOAD_AUDIT}
-                          </button>
-                        </div>
                       </>
                     )}
 
@@ -1887,37 +1863,13 @@ export default function CopilotPage() {
                           </div>
                         </div>
 
-                        {/* ── Report action hierarchy ── */}
-                        <div className="flex flex-col gap-2 border-t border-white/5 pt-4">
-                          {/* 1. Copy report — primary */}
-                          <button
-                            onClick={() => handleCopyText(buildFullReportText())}
-                            className="w-full flex items-center justify-center gap-2 bg-white text-black text-xs font-mono font-bold py-3 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all"
-                          >
-                            {copied ? T[lang].COPIED : T[lang].COPY_REPORT}
-                          </button>
-                          {/* 2. Close session — clear and comfortable */}
-                          <button
-                            onClick={handleActuallyClearSession}
-                            className="w-full flex items-center justify-center gap-2 bg-zinc-900 border border-zinc-700 text-white text-xs font-mono font-semibold py-3 rounded-xl hover:bg-zinc-800 hover:border-zinc-500 active:scale-[0.98] transition-all"
-                          >
-                            {T[lang].CLOSE_SESSION}
-                          </button>
-                          {/* 3. Back to summary — secondary text link */}
-                          <button
-                            onClick={() => setEndStep("summary")}
-                            className="w-full text-center text-[10px] font-mono text-zinc-500 hover:text-zinc-200 py-1.5 transition-colors"
-                          >
-                            {T[lang].BACK_SUMMARY}
-                          </button>
-                          {/* 4. Download session audit log */}
-                          <button
-                            onClick={handleDownloadAuditLog}
-                            className="w-full text-center text-[10px] font-mono text-zinc-500 hover:text-zinc-300 py-1 transition-colors"
-                          >
-                            {T[lang].DOWNLOAD_AUDIT}
-                          </button>
-                        </div>
+                        {/* Back to summary — kept in scrollable area */}
+                        <button
+                          onClick={() => setEndStep("summary")}
+                          className="w-full text-center text-[10px] font-mono text-zinc-500 hover:text-zinc-200 py-1 transition-colors"
+                        >
+                          {T[lang].BACK_SUMMARY}
+                        </button>
                       </>
                     )}
                   </>
@@ -1925,6 +1877,34 @@ export default function CopilotPage() {
               </div>
             )}
           </div>
+
+          {/* ── Sticky action bar — always visible without scroll ── */}
+          {(endStep === "summary" || endStep === "report") && callSummary && !isSummarizing && (
+            <div className="shrink-0 border-t border-white/8 bg-black px-5 pt-3 pb-4">
+              <div className="w-full max-w-sm mx-auto flex flex-col gap-1.5">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleCopyText(endStep === "report" ? buildFullReportText() : buildSummaryText())}
+                    className="flex-1 flex items-center justify-center gap-1.5 bg-white text-black text-[11px] font-mono font-bold py-2.5 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all"
+                  >
+                    {copied ? T[lang].COPIED : (endStep === "report" ? T[lang].COPY_REPORT : T[lang].COPY_SUMMARY)}
+                  </button>
+                  <button
+                    onClick={handleActuallyClearSession}
+                    className="flex-1 flex items-center justify-center bg-zinc-900 border border-zinc-700 text-white text-[11px] font-mono font-semibold py-2.5 rounded-xl hover:bg-zinc-800 hover:border-zinc-500 active:scale-[0.98] transition-all"
+                  >
+                    {T[lang].CLOSE_SESSION}
+                  </button>
+                </div>
+                <button
+                  onClick={handleDownloadAuditLog}
+                  className="w-full text-center text-[10px] font-mono text-zinc-600 hover:text-zinc-300 py-0.5 transition-colors"
+                >
+                  {T[lang].DOWNLOAD_AUDIT}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
