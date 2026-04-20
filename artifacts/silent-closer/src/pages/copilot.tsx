@@ -327,6 +327,7 @@ interface CallSummary {
   improvements: string[];
   fullReport?: string;
   debriefReliable?: boolean;
+  speakerLowConf?: boolean;
 }
 
 interface BrutalAudit {
@@ -399,6 +400,7 @@ interface TurnLogEntry {
   speaker_source?: "rule" | "carryover" | "manual" | "unknown";
   auto_repaired: boolean;
   repair_count: number;
+  aiReclassified?: boolean;
 }
 
 interface TacticalState {
@@ -984,7 +986,11 @@ export default function CopilotPage() {
               return;
             }
             // ── Normal success path ──────────────────────────────────────────────
-            const memoryAfter = res.call_memory?.summary_lines ?? [];
+            // Fix A: if the response has no memory lines (parse fallback), preserve the
+            // previous turn's memory instead of overwriting with [].  This prevents
+            // call_memory from disappearing when the model returns a safe fallback.
+            const rawLines = res.call_memory?.summary_lines ?? [];
+            const memoryAfter = rawLines.length > 0 ? rawLines : callMemoryRef.current.slice();
             // ── Track say_now for loop detection ──────────────────────────────
             // Skip fallback responses — they are not real AI guidance and must not poison the loop counter.
             const isFallbackResponse = res.signal === "análisis recuperándose" || res.signal === "analysis recovering";
@@ -1377,16 +1383,92 @@ export default function CopilotPage() {
     }
   }, [turnLog.length, speakerMode, applyRetroRepairs]);
 
+  /**
+   * Fix C — AI-powered semantic retropass (post-call only).
+   *
+   * Sends UNKNOWN / low-confidence turns to gpt-4o-mini with the session context
+   * and asks it to classify each as VENDOR or CLIENT by content, not just heuristics.
+   * This is the last-resort layer that runs AFTER the heuristic retropass.
+   *
+   * Returns the updated TurnLogEntry array. Never throws — silently returns the
+   * input log unchanged if the API call fails.
+   *
+   * Call only post-call (never during live session).
+   */
+  const aiSpeakerRetropass = useCallback(async (log: TurnLogEntry[]): Promise<TurnLogEntry[]> => {
+    if (speakerMode !== "auto") return log;
+    const candidateTurns = log.filter(
+      t => t.inferred_speaker === "UNKNOWN" || (t.speaker_confidence ?? 1) < 0.5,
+    );
+    if (candidateTurns.length === 0) return log;
+
+    const { vendor, client } = speakerSessionRef.current.getDetectedNames();
+    try {
+      const res = await fetch("/api/copilot/speaker-retropass", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          turns: candidateTurns.map(t => ({ index: t.turn_index, text: t.raw_fragment })),
+          setup_context: sessionContext ?? undefined,
+          vendor_name: vendor,
+          client_name: client,
+          lang,
+        }),
+      });
+      if (!res.ok) return log;
+      const data = await res.json() as { classifications: Record<string, string> };
+      const classMap = data.classifications ?? {};
+      if (Object.keys(classMap).length === 0) return log;
+
+      let reclassifiedCount = 0;
+      const updated = log.map(entry => {
+        const cls = classMap[String(entry.turn_index)];
+        if (!cls || cls === "UNKNOWN") return entry;
+        const newSpeaker = cls === "VENDOR" ? "YO" as const : "CLIENTE" as const;
+        if (entry.inferred_speaker === newSpeaker) return entry;
+
+        reclassifiedCount++;
+        const prefix = lang === "es"
+          ? (newSpeaker === "YO" ? "[YO]: " : "[CLIENTE]: ")
+          : (newSpeaker === "YO" ? "[ME]: " : "[CLIENT]: ");
+        const cleanRaw = entry.raw_fragment
+          .replace(/^\s*\[(YO|CLIENTE|ME|CLIENT)\]:\s*/i, "")
+          .trimStart();
+        return {
+          ...entry,
+          inferred_speaker: newSpeaker,
+          normalized_fragment: prefix + cleanRaw,
+          aiReclassified: true,
+          auto_repaired: true,
+          repair_count: (entry.repair_count ?? 0) + 1,
+        };
+      });
+
+      if (reclassifiedCount > 0) {
+        console.debug(`[vela:speaker] aiSpeakerRetropass reclassified ${reclassifiedCount} turn(s)`);
+        setTurnLog(updated);
+      }
+      return updated;
+    } catch {
+      return log;
+    }
+  }, [speakerMode, sessionContext, lang]);
+
   const handleSelectOutcome = async (outcome: CallOutcome) => {
     setCallOutcome(outcome);
     setEndStep("summary");
     setIsSummarizing(true);
     const memory = tacticalState.callMemory;
     const speakerUncertainty = computeSpeakerUncertainty();
-    // Run retroactive repair pass FIRST — returns the repaired log synchronously
-    // AND queues a setTurnLog update so the UI shows corrected speaker badges.
-    const repairedLog = applyRetroRepairs();
-    const convExcerpt = repairedLog.map(t => t.normalized_fragment).slice(-12);
+    // Run heuristic retropass FIRST (synchronous), then AI semantic retropass (async).
+    const heuristicLog = applyRetroRepairs();
+    const finalLog = await aiSpeakerRetropass(heuristicLog);
+    const convExcerpt = finalLog.map(t => t.normalized_fragment).slice(-12);
+    // Recompute uncertainty after AI repairs — unknown_rate may have dropped
+    const postRepairUnknownRate = speakerMode === "auto"
+      ? finalLog.filter(t => t.inferred_speaker === "UNKNOWN").length / Math.max(finalLog.length, 1)
+      : 0;
+    const speakerLowConf = speakerMode === "auto" && postRepairUnknownRate > 0.35;
     try {
       const res = await fetch("/api/copilot/summarize", {
         method: "POST",
@@ -1413,6 +1495,7 @@ export default function CopilotPage() {
         strengths: data.strengths ?? [],
         improvements: data.improvements ?? [],
         debriefReliable: data.debrief_reliable,
+        speakerLowConf,
       });
     } catch {
       setCallSummary({
@@ -1428,6 +1511,7 @@ export default function CopilotPage() {
               : `⚠ Debrief no fiable — ${analyzeErrorCountRef.current} fallo(s) de análisis`]
           : [],
         debriefReliable: analyzeErrorCountRef.current === 0,
+        speakerLowConf,
       });
     } finally {
       setIsSummarizing(false);
@@ -1512,8 +1596,9 @@ export default function CopilotPage() {
     if (!force && (velaAudit || velaAuditLoading)) return;
     setVelaAuditLoading(true);
     setVelaAuditError(false);
-    // Run retroactive repair before computing metrics — unknown_rate will reflect repairs
-    const repairedLog = applyRetroRepairs();
+    // Heuristic retropass first, then AI semantic retropass
+    const heuristicLog = applyRetroRepairs();
+    const repairedLog = await aiSpeakerRetropass(heuristicLog);
     const speakerMetrics = speakerMode === "auto" ? speakerSessionRef.current.getMetrics() : null;
     const unknownRate = speakerMetrics?.unknown_rate ?? 0;
     const totalTurns = repairedLog.length;
@@ -1774,13 +1859,18 @@ export default function CopilotPage() {
     return header + callSummary.fullReport;
   };
 
-  const handleDownloadAuditLog = () => {
-    // Apply retroactive repairs before building the audit log — ensures the
-    // downloaded .md file reflects the best possible speaker attribution.
-    const repairedLog = applyRetroRepairs();
-    const finalMemory = repairedLog.length > 0
-      ? repairedLog[repairedLog.length - 1].memory_after
+  const handleDownloadAuditLog = async () => {
+    // Fix C: heuristic retropass → AI semantic retropass before building the .md
+    const heuristicLog = applyRetroRepairs();
+    const finalLog = await aiSpeakerRetropass(heuristicLog);
+    const finalMemory = finalLog.length > 0
+      ? finalLog[finalLog.length - 1].memory_after
       : tacticalState.callMemory;
+    const aiReclassifiedCount = finalLog.filter(t => t.aiReclassified).length;
+    const baseMetrics = speakerMode === "auto" ? speakerSessionRef.current.getMetrics() : undefined;
+    const speakerSessionMetrics = baseMetrics
+      ? { ...baseMetrics, ai_retropass_reclassified_count: aiReclassifiedCount }
+      : undefined;
     const log = buildCopilotAuditLog({
       sessionId: sessionId || null,
       lang,
@@ -1790,12 +1880,10 @@ export default function CopilotPage() {
       inputModeUsed: "auto",
       callOutcome,
       callSummary: callSummary ?? null,
-      turnLog: repairedLog,
+      turnLog: finalLog,
       finalMemory,
       structuredContext,
-      speakerSessionMetrics: speakerMode === "auto"
-        ? speakerSessionRef.current.getMetrics()
-        : undefined,
+      speakerSessionMetrics,
     });
     triggerAuditLogDownload(log, sessionId || null);
   };
@@ -1870,9 +1958,14 @@ export default function CopilotPage() {
                         <div className="flex items-center gap-4 border-t border-white/5 pt-3">
                           <div className="flex flex-col">
                             <p className="text-[10px] font-mono tracking-widest uppercase text-zinc-400">{T[lang].CALL_SCORE}</p>
-                            <p className="text-3xl font-mono font-bold text-white leading-none mt-0.5">
-                              {callSummary.score.toFixed(1)}<span className="text-zinc-500 text-lg"> / 10</span>
+                            <p className={cn("text-3xl font-mono font-bold leading-none mt-0.5", callSummary.speakerLowConf ? "text-amber-400" : "text-white")}>
+                              {callSummary.score.toFixed(1)}<span className={cn("text-lg", callSummary.speakerLowConf ? "text-amber-600" : "text-zinc-500")}> / 10{callSummary.speakerLowConf ? "*" : ""}</span>
                             </p>
+                            {callSummary.speakerLowConf && (
+                              <p className="text-[9px] font-mono text-amber-600 mt-0.5">
+                                {lang === "en" ? "* uncertain attribution — indicative" : "* atribución incierta — orientativo"}
+                              </p>
+                            )}
                           </div>
                           <div className="h-8 w-px bg-white/8 shrink-0" />
                           <div className="flex flex-col">
@@ -2194,8 +2287,8 @@ export default function CopilotPage() {
                           </div>
                           <div className="shrink-0 text-center">
                             <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-400">{T[lang].CALL_SCORE}</p>
-                            <p className="text-xl font-mono font-bold text-white leading-none">
-                              {callSummary.score.toFixed(1)}<span className="text-zinc-500 text-xs"> /10</span>
+                            <p className={cn("text-xl font-mono font-bold leading-none", callSummary.speakerLowConf ? "text-amber-400" : "text-white")}>
+                              {callSummary.score.toFixed(1)}<span className={cn("text-xs", callSummary.speakerLowConf ? "text-amber-600" : "text-zinc-500")}> /10{callSummary.speakerLowConf ? "*" : ""}</span>
                             </p>
                           </div>
                           <div className="shrink-0 text-right">

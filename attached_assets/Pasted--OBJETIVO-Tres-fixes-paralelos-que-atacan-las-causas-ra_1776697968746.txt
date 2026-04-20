@@ -1,0 +1,140 @@
+## OBJETIVO
+Tres fixes paralelos que atacan las causas raíz del fallo de esta sesión:
+(A) proteger call_memory cuando un turno no parsea, 
+(B) penalizar el score cuando la atribución de speakers es pobre,
+(C) añadir retropass con IA que reclasifique speakers por semántica antes de exportar.
+
+─────────────────────────────────────────
+FIX A — Protección de call_memory ante fallos de parse
+─────────────────────────────────────────
+
+## CONTEXTO
+Cuando el modelo devuelve un JSON malformado (parse error o fallback), 
+call_memory se pierde y queda como null en todos los turnos siguientes.
+La memory_after de esos turnos es null, lo que rompe el contexto acumulado.
+
+## CAMBIO REQUERIDO
+En la lógica que actualiza call_memory tras un turno (en el handler de analyze 
+en el frontend, donde se actualiza el estado de callMemory tras recibir la respuesta):
+- Si el parse del turno falla O si call_memory en la respuesta está vacío/null,
+  mantener la call_memory del turno anterior en lugar de sobrescribir con null.
+- Esto aplica tanto al estado React como al campo memory_after del turn log.
+
+## CRITERIO DE ACEPTACIÓN
+- [ ] Si un turno devuelve parse error, la call_memory visible en UI no desaparece
+- [ ] El campo memory_after en el audit log del turno fallido muestra la memoria
+      del turno anterior, no null
+- [ ] La call_memory del turno siguiente parte de la última válida, no de vacío
+
+─────────────────────────────────────────
+FIX B — Score condicional por calidad de atribución
+─────────────────────────────────────────
+
+## CONTEXTO
+Cuando unknown_rate supera el 35%, el score generado por summarize no tiene base 
+real — el modelo puntúa sin saber quién habló. Un 7.4 sobre datos rotos da falsa 
+seguridad al vendedor.
+
+## CAMBIO REQUERIDO
+En el componente que muestra el score final al usuario (en la pantalla de resumen 
+post-llamada):
+- Si speaker_attribution_quality.unknown_rate > 0.35, mostrar el score con un 
+  indicador visual de baja confianza (por ejemplo, el score en color amber con un 
+  asterisco o tooltip: "Atribución de speakers incierta — score orientativo")
+- No cambiar el número, solo marcarlo visualmente como no fiable
+
+En el sistema prompt del endpoint de summarize:
+- Si se detecta unknown_rate alto (pasar el dato como campo en el request si no 
+  está ya), añadir al prompt: "NOTA: La atribución de speakers de esta sesión fue 
+  incierta (N% desconocidos). El score debe reflejar esta limitación — no inflés 
+  la nota si el transcript es ambiguo."
+
+## CRITERIO DE ACEPTACIÓN
+- [ ] Con unknown_rate > 35%, el score en UI muestra indicador de baja confianza
+- [ ] El prompt de summarize incluye la nota de incertidumbre cuando corresponde
+- [ ] Con unknown_rate <= 35%, el comportamiento es idéntico al actual
+
+─────────────────────────────────────────
+FIX C — Retropass semántico con IA
+─────────────────────────────────────────
+
+## CONTEXTO
+El retropass actual es heurístico: busca nombres y keywords. En esta sesión produjo
+auto_reassigned_count: 0 — no corrigió ningún turno. 
+
+La solución real es enviar el transcript acumulado a gpt-4o-mini con el contexto 
+del setup y pedir que clasifique cada bloque como VENDOR o CLIENT por contenido 
+semántico — exactamente lo que haría un humano leyendo el transcript.
+
+## CAMBIO REQUERIDO
+
+Crear una nueva función (en el archivo de utilidades de speaker o en uno nuevo —
+el agente decide la ubicación correcta [VERIFICAR]) llamada aiSpeakerRetropass:
+
+INPUTS:
+- turnLog: array de turnos de la sesión
+- setupContext: string con el contexto del setup (quién vende, quién es el cliente, qué se vende)
+- vendorName: string | null (nombre del vendedor si se conoce)
+- clientName: string | null (nombre del cliente si se conoce)  
+- lang: "es" | "en"
+
+LÓGICA:
+1. Construir un prompt para gpt-4o-mini con:
+   - System: "Eres un analizador de transcripts de ventas. Clasifica cada bloque 
+     de texto como VENDOR (quien vende), CLIENT (quien compra) o UNKNOWN (imposible saberlo).
+     Contexto: [setupContext]. Vendedor: [vendorName o 'desconocido']. 
+     Cliente: [clientName o 'desconocido']."
+   - User: bloques numerados del transcript:
+     "[0] texto del turno 0\n[1] texto del turno 1\n..."
+   - Instrucción: "Devuelve SOLO un JSON: { '0': 'VENDOR', '1': 'CLIENT', ... }
+     Sin explicaciones. Solo el JSON."
+   - max_tokens: 200, temperature: 0
+
+2. Parsear la respuesta JSON
+3. Para cada turno donde inferred_speaker era UNKNOWN o confianza < 0.5:
+   - Si la IA devuelve VENDOR → cambiar inferred_speaker a YO (o al nombre del vendedor)
+   - Si la IA devuelve CLIENT → cambiar inferred_speaker a CLIENTE
+   - Marcar el turno con un flag: aiReclassified: true
+4. Devolver el turnLog actualizado
+
+TRIGGERS — ejecutar aiSpeakerRetropass:
+- Justo antes de generar el resumen post-llamada (handleSelectOutcome o equivalente [VERIFICAR])
+- Justo antes de descargar el audit log en .md
+- Justo antes de generar el audit report de VELA
+- NO durante la conversación activa (solo post-llamada)
+
+Si la llamada a gpt-4o-mini falla → silenciosamente usar el turnLog sin modificar.
+
+TRACKING:
+- Registrar la llamada en el AI tracker con route: "copilot/speaker-retropass", 
+  endpoint: "retropass"
+- Añadir al audit log el campo: ai_retropass_reclassified_count (número de turnos
+  reclasificados por IA)
+
+VISIBILIDAD:
+- En la sección speaker_attribution_quality del audit log, añadir:
+  ai_retropass_reclassified_count: N
+
+## RESTRICCIONES
+- No tocar el sistema de clasificación en tiempo real
+- No instalar dependencias nuevas
+- Si aiSpeakerRetropass falla, el sistema sigue funcionando igual que hoy
+- El retropass IA se ejecuta DESPUÉS del retropass heurístico actual, como capa adicional
+- No cambiar el schema de AuditTurn existente — el flag aiReclassified puede ser
+  un campo nuevo adicional
+
+## ENTREGABLES
+- [ ] Fix A: call_memory se preserva ante fallos de parse
+- [ ] Fix B: score marcado como orientativo cuando unknown_rate > 35%
+- [ ] Fix C: función aiSpeakerRetropass implementada e integrada en los 3 triggers
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] En una sesión nueva donde el sistema no detecta nombres, el retropass IA
+      reclasifica los turnos UNKNOWN usando el contenido semántico
+- [ ] El transcript exportado en .md muestra [YO] y [CLIENTE] en lugar de UNKNOWN
+      en los turnos reclasificados
+- [ ] audit log incluye ai_retropass_reclassified_count > 0 en sesiones con UNKNOWN alto
+- [ ] Si gpt-4o-mini no responde, el export funciona igual que antes
+- [ ] call_memory no se pierde entre turnos aunque alguno falle el parse
+- [ ] Score muestra indicador visual de baja confianza cuando unknown_rate > 35%
+- [ ] La app compila sin errores y el flujo de fin de llamada funciona correctamente

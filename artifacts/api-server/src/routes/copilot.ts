@@ -659,6 +659,13 @@ Esto NO es crítica al vendedor — significa que VELA tuvo datos insuficientes 
         : `\nALTA INCERTIDUMBRE DE HABLANTE: ${speaker_uncertainty.unknown_turns ?? "?"} de ${speaker_uncertainty.total_turns ?? "?"} turnos (${Math.round((speaker_uncertainty.rate ?? 0) * 100)}%) fueron UNKNOWN en modo automático. Las lecturas tácticas pueden estar contaminadas. NO saques conclusiones causales fuertes sobre control conversacional o comportamiento del vendedor salvo que haya evidencia explícita en la memoria. Señala cualquier debilidad de control con confianza reducida.`)
     : "";
 
+  // Fix B: lighter score-reliability note when unknown_rate is >35% but not yet at the "high" threshold (>40%)
+  const speakerScoreNote = (speaker_uncertainty?.rate ?? 0) > 0.35 && !speaker_uncertainty?.high
+    ? (isEn
+        ? `\nSCORE RELIABILITY NOTE: Speaker attribution was moderately uncertain for this session (${Math.round((speaker_uncertainty!.rate ?? 0) * 100)}% unknown turns). Do not inflate the score if the transcript is ambiguous about who said what — the score should reflect this attribution uncertainty.`
+        : `\nNOTA DE FIABILIDAD DEL SCORE: La atribución de hablantes de esta sesión fue moderadamente incierta (${Math.round((speaker_uncertainty!.rate ?? 0) * 100)}% de turnos desconocidos). No inflés la nota si el transcript es ambiguo sobre quién habló qué — el score debe reflejar esta incertidumbre de atribución.`)
+    : "";
+
   // ── Compact bilingual summarize prompt (shared structure, lang-switched values)
   const fullReportInstructions = wantsFullReport
     ? (isEn
@@ -766,7 +773,7 @@ PUNTOS A MEJORAR: 2-3 observaciones tácticas específicas y honestas.
 
 ${fullReportInstructions}`;
 
-  const userMessage = `${isEn ? "TACTICAL CALL MEMORY" : "MEMORIA TÁCTICA"}:\n${memoryText}${excerptBlock}\n\n${isEn ? "REPORTED OUTCOME" : "RESULTADO DECLARADO"}: ${outcomeText}${speakerUncertaintyBlock}\n\n${isEn ? "Analyze and return JSON:" : "Analiza y devuelve el JSON:"}`;
+  const userMessage = `${isEn ? "TACTICAL CALL MEMORY" : "MEMORIA TÁCTICA"}:\n${memoryText}${excerptBlock}\n\n${isEn ? "REPORTED OUTCOME" : "RESULTADO DECLARADO"}: ${outcomeText}${speakerUncertaintyBlock}${speakerScoreNote}\n\n${isEn ? "Analyze and return JSON:" : "Analiza y devuelve el JSON:"}`;
 
   const t0 = Date.now();
   try {
@@ -1557,6 +1564,95 @@ router.post("/copilot/context-label", async (req, res) => {
     res.json({ label });
   } catch {
     res.json({ label: "" });
+  }
+});
+
+// ── Fix C: AI semantic speaker retropass ─────────────────────────────────────
+// Post-call endpoint that reclassifies UNKNOWN / low-confidence turns
+// using gpt-4o-mini semantic analysis.  Called by the frontend after the
+// heuristic retropass to cover cases that rule-based attribution cannot resolve.
+router.post("/copilot/speaker-retropass", async (req, res) => {
+  const {
+    turns,
+    setup_context,
+    vendor_name,
+    client_name,
+    lang,
+  } = req.body as {
+    turns?: Array<{ index: number; text: string }>;
+    setup_context?: string;
+    vendor_name?: string | null;
+    client_name?: string | null;
+    lang?: string;
+  };
+
+  if (!turns || turns.length === 0) {
+    res.json({ classifications: {} });
+    return;
+  }
+
+  const isEn = lang !== "es";
+  const sessionId = req.header("x-session-id");
+  const vendorLabel = vendor_name || (isEn ? "unknown" : "desconocido");
+  const clientLabel = client_name || (isEn ? "unknown" : "desconocido");
+  const contextText = setup_context?.trim() || (isEn ? "No context provided." : "Sin contexto.");
+
+  const turnsText = turns.map(t => `[${t.index}] ${t.text}`).join("\n");
+
+  const systemPrompt = isEn
+    ? `You are a sales transcript analyzer. Classify each conversation turn as VENDOR (the person selling), CLIENT (the person buying/prospect), or UNKNOWN (impossible to determine from content alone).
+
+Session context: ${contextText}
+Vendor name (if known): ${vendorLabel}
+Client name (if known): ${clientLabel}
+
+Return ONLY a JSON object mapping each turn index to its classification. No explanation. No markdown. Just the JSON.
+Example: {"0":"VENDOR","1":"CLIENT","2":"UNKNOWN"}`
+    : `Eres un analizador de transcripts de ventas. Clasifica cada turno como VENDOR (quien vende), CLIENT (quien compra/prospecto) o UNKNOWN (imposible saberlo por el contenido).
+
+Contexto de la sesión: ${contextText}
+Nombre del vendedor (si se conoce): ${vendorLabel}
+Nombre del cliente (si se conoce): ${clientLabel}
+
+Devuelve SOLO un objeto JSON con el índice del turno como clave y la clasificación como valor. Sin explicaciones. Sin markdown. Solo el JSON.
+Ejemplo: {"0":"VENDOR","1":"CLIENT","2":"UNKNOWN"}`;
+
+  const t0 = Date.now();
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_tokens: 300,
+      temperature: 0,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: turnsText },
+      ],
+    });
+
+    const latencyMs = Date.now() - t0;
+    const rawUsage = completion.usage;
+    if (rawUsage) {
+      logAICall({
+        route: "copilot/speaker-retropass",
+        endpoint: "speaker-retropass",
+        sessionId,
+        mode: "copilot",
+        model: "gpt-4o-mini",
+        maxTokensConfigured: 300,
+        promptTokens: rawUsage.prompt_tokens,
+        completionTokens: rawUsage.completion_tokens,
+        totalTokens: rawUsage.total_tokens,
+        latencyMs,
+        status: "ok",
+      });
+    }
+
+    const raw = completion.choices[0]?.message?.content ?? "{}";
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    const parsed: Record<string, string> = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
+    res.json({ classifications: parsed });
+  } catch {
+    res.json({ classifications: {} });
   }
 });
 

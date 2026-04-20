@@ -134,6 +134,7 @@ export interface SpeakerSessionMetricsForLog {
   low_conf_rate: number;
   carryover_rate: number;
   auto_reassigned_count: number;
+  ai_retropass_reclassified_count?: number;
 }
 
 export interface SessionSummary {
@@ -1043,6 +1044,9 @@ export function renderAuditLogMarkdown(log: AuditLog): string {
     sections.push(`  low_conf_rate: ${(m.low_conf_rate * 100).toFixed(0)}%`);
     sections.push(`  carryover_rate: ${(m.carryover_rate * 100).toFixed(0)}%`);
     sections.push(`  auto_reassigned_count: ${m.auto_reassigned_count}`);
+    if (m.ai_retropass_reclassified_count !== undefined) {
+      sections.push(`  ai_retropass_reclassified_count: ${m.ai_retropass_reclassified_count}`);
+    }
   }
   if (s.full_report) {
     sections.push("");
