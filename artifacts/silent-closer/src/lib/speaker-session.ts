@@ -77,6 +77,26 @@ export class SpeakerAttributionSession {
    * Always call recordTurn() after to persist the result.
    */
   classify(text: string): SpeakerResult {
+    // ── Blob-size guard (MUST run first) ─────────────────────────────────
+    // A fragment this long almost certainly contains MULTIPLE speaker turns
+    // that the speech recognition engine collapsed into one blob.
+    // Classifying it with high confidence would mean being "confident and wrong."
+    //
+    //  > 350 chars → definitely contaminated → force UNKNOWN immediately
+    //  > 180 chars → probably contaminated   → hard-cap confidence at 0.40
+    //
+    // The backend still receives the text and can extract tactical insights;
+    // it just won't make false speaker attributions.
+    const HUGE_BLOB  = 350;
+    const LARGE_BLOB = 180;
+    const LARGE_CAP  = 0.40;
+
+    if (text.length > HUGE_BLOB) {
+      console.debug(`[vela:speaker] blob too large (${text.length} chars) → forced UNKNOWN`);
+      return { speaker: "unknown", confidence: 0, source: "unknown", label: "" };
+    }
+    const isLargeBlob = text.length > LARGE_BLOB;
+
     const { cs, vs } = this.ruleScore(text);
     const total = cs + vs;
 
@@ -86,20 +106,27 @@ export class SpeakerAttributionSession {
       : 0;
 
     // High-confidence rule classification
-    if (rawConf >= 0.55 && total >= 4) {
+    // Large blobs are excluded from this path — they must not reach high conf.
+    if (!isLargeBlob && rawConf >= 0.55 && total >= 4) {
       const speaker: SpeakerLabel = cs > vs ? "client" : "me";
       return { speaker, confidence: Math.min(0.92, rawConf), source: "rule", label: this.lbl(speaker) };
     }
 
     // Try carryover (streak of high-conf turns)
+    // For large blobs: allow carryover but hard-cap at LARGE_CAP so a
+    // contaminated blob never reaches high-confidence via streak alone.
     const co = this.attemptCarryover(cs, vs, rawConf);
-    if (co) return co;
+    if (co) {
+      const conf = isLargeBlob ? Math.min(LARGE_CAP, co.confidence) : co.confidence;
+      return { ...co, confidence: conf };
+    }
 
     // Medium rule signal with clear direction — low-confidence classification.
     // Threshold raised to 0.38 to reduce false positives on ambiguous speech.
     if (total >= 2 && rawConf >= 0.38) {
       const speaker: SpeakerLabel = cs > vs ? "client" : "me";
-      return { speaker, confidence: rawConf * 0.62, source: "rule", label: this.lbl(speaker) };
+      const conf = Math.min(isLargeBlob ? LARGE_CAP : 1, rawConf * 0.62);
+      return { speaker, confidence: conf, source: "rule", label: this.lbl(speaker) };
     }
 
     // ── Session turn-length calibration ──────────────────────────────────

@@ -16,18 +16,17 @@ interface UseSpeechProps {
 // ── Batching thresholds ──────────────────────────────────────────────────────
 // If this many ms pass between two consecutive final results, the next one is
 // treated as a probable new speaker turn: the existing buffer is flushed first.
-const INTER_TURN_GAP_MS     = 1500;
+const INTER_TURN_GAP_MS     = 900;
 // If the accumulated buffer exceeds this, force a flush regardless of timing.
-const MAX_BATCH_CHARS       = 380;
+const MAX_BATCH_CHARS       = 320;
 // Minimum meaningful content before we bother sending a batch to analyze.
 const MIN_FLUSH_CHARS       = 12;
 // A single final fragment this long or more is a "complete thought" — flush
-// immediately so it gets its own analysis turn rather than accumulating with
+// immediately so it gets its own analysis batch instead of merging with
 // the next speaker's words.
-const IMMEDIATE_FLUSH_CHARS = 50;
-// In continuous mode, if no final result has arrived in this many ms, the
-// recognition may have silently zombied — force a restart.
-const ZOMBIE_DETECT_MS      = 10_000;
+const IMMEDIATE_FLUSH_CHARS = 40;
+
+type FlushReason = "interval" | "inter_turn_gap" | "max_chars" | "stop" | "immediate";
 
 export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 8000, lang = "es" }: UseSpeechProps) {
   const [isListening, setIsListening] = useState(false);
@@ -57,9 +56,7 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 8000, lang = "e
   const watchdogRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── Flush — defined as a ref so recognition callbacks always see latest ─
-  const flushBufferRef = useRef<(reason: "interval" | "inter_turn_gap" | "max_chars" | "stop") => void>(
-    () => {},
-  );
+  const flushBufferRef = useRef<(reason: FlushReason) => void>(() => {});
   flushBufferRef.current = (reason) => {
     const text = transcriptBuffer.current.trim();
     if (text.length < MIN_FLUSH_CHARS) return;
@@ -80,11 +77,6 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 8000, lang = "e
     intervalRef.current = setInterval(() => {
       const buf = transcriptBuffer.current.trim();
       if (buf.length >= MIN_FLUSH_CHARS) {
-        // Force-flush oversized buffers immediately (likely contaminated)
-        if (buf.length >= MAX_BATCH_CHARS) {
-          flushBufferRef.current("max_chars");
-          return;
-        }
         flushBufferRef.current("interval");
       }
     }, analysisIntervalMs);
@@ -111,26 +103,8 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 8000, lang = "e
   const startWatchdog = useCallback(() => {
     if (watchdogRef.current) return;
     watchdogRef.current = setInterval(() => {
-      if (!shouldListenRef.current) return;
-
-      // Case 1: recognition stopped without user intent — restart immediately.
-      if (!isActiveRef.current) {
+      if (shouldListenRef.current && !isActiveRef.current) {
         tryStartRef.current();
-        return;
-      }
-
-      // Case 2: continuous mode zombie detection — recognition is "active" but
-      // has silently stopped returning results. Detect via stale lastFinalAtRef.
-      // Only check after at least one final has been received (> 0) so we don't
-      // restart prematurely right after the session starts (before first speech).
-      if (lastFinalAtRef.current > 0) {
-        const silenceMs = Date.now() - lastFinalAtRef.current;
-        if (silenceMs > ZOMBIE_DETECT_MS) {
-          console.debug(`[vela:speech] zombie detected (${silenceMs}ms since last final) — forcing restart`);
-          isActiveRef.current = false;
-          try { recognitionRef.current?.stop(); } catch { /* ignore */ }
-          // onend will fire shortly → tryStartRef.current() will re-initialize
-        }
       }
     }, 2500);
   }, []);
@@ -146,11 +120,12 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 8000, lang = "e
     setIsSupported(true);
 
     const recognition = new SpeechRecognition();
-    // continuous = true: browser fires one isFinal per natural sentence (30-80 chars),
-    // giving clean per-utterance batches that map to real speaker turns.
-    // In non-continuous mode, the browser accumulates many sentences before declaring
-    // a single giant final (400-700 chars), which contaminates multi-speaker analysis.
-    recognition.continuous      = true;
+    // continuous = false: the browser fires onend cleanly after each natural pause,
+    // and we restart immediately. Each restart gives us one utterance as isFinal —
+    // these utterances map naturally to individual speaker turns.
+    // continuous = true was tested and found to produce ONE giant isFinal blob
+    // (2000+ chars) in this Chromium environment, destroying attribution.
+    recognition.continuous      = false;
     recognition.interimResults  = true;
     recognition.lang            = "es-ES";
     recognition.maxAlternatives = 1;
@@ -181,7 +156,6 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 8000, lang = "e
               `[vela:speech] inter_turn_gap=${now - lastFinalAtRef.current}ms — ` +
               `flushing buffer (${transcriptBuffer.current.trim().length} chars) before new fragment`,
             );
-            // Call directly (not via flushBufferRef to avoid setState mid-event)
             onAnalyzeReadyRef.current(transcriptBuffer.current.trim());
             transcriptBuffer.current = "";
           }
@@ -196,12 +170,12 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 8000, lang = "e
           );
 
           // ── Immediate flush for complete thoughts ──────────────────────
-          // If the fragment itself is a substantial utterance (full sentence
-          // or meaningful phrase), flush now so it gets its own analysis
-          // batch instead of merging with the next speaker's words.
+          // If the fragment itself is a substantial utterance, flush now so
+          // it gets its own analysis batch instead of merging with the next
+          // speaker's words.
           if (fragment.length >= IMMEDIATE_FLUSH_CHARS) {
-            flushBufferRef.current("interval"); // "interval" reason = normal flush
-            return; // skip max-chars check — already flushed
+            flushBufferRef.current("immediate");
+            return;
           }
 
           // ── Max chars guard ────────────────────────────────────────────

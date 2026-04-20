@@ -1,0 +1,66 @@
+OBJETIVO
+
+Corregir una regresión grave en Copilot listen: la llamada completa se está colapsando en un único bloque, se atribuye falsamente al vendedor con altísima confianza y eso destruye la utilidad del coaching en tiempo real.
+
+CONTEXTO DEL PROBLEMA
+
+Tras los últimos cambios, una prueba real ha empeorado de forma clara:
+
+la sesión entera ha quedado en 1 único turno
+todo el contenido se ha atribuido a [YO]
+la confianza de speaker ha salido artificialmente alta
+el transcript legible sigue mostrando basura como [YO]: [YO]:
+el sistema ya no funciona como copiloto en directo, sino como pseudo-resumen tardío de una llamada mal interpretada
+
+Esto es peor que tener UNKNOWN. Aquí el sistema está seguro y equivocado.
+
+El objetivo no es maquillar métricas. El objetivo es que Copilot vuelva a procesar una conversación en vivo como conversación real:
+
+múltiples turnos
+mejor separación de speakers
+menos falsa confianza
+mejor base para say_now
+LO QUE NECESITO QUE CAMBIE
+
+Quiero que revises y corrijas el flujo completo de escucha en tiempo real para que:
+
+la llamada no se consolide en un único bloque gigante
+el sistema no atribuya con alta confianza un bloque claramente multi-speaker
+la conversación vuelva a producir turnos utilizables para coaching en vivo
+la atribución de speaker sea más honesta cuando el input es ambiguo
+el sistema deje de generar una falsa sensación de precisión
+el transcript resultante sea más fiel y útil para copiloto, no solo para resumen
+RESTRICCIONES
+No quiero parches cosméticos.
+No quiero bajar métricas de UNKNOWN a costa de mentir más.
+No quiero una solución que haga parecer mejor el sistema mientras empeora la realidad.
+Puedes rehacer enfoque, flujo o estructura si hace falta.
+La prioridad es recuperar utilidad real en directo.
+ENTREGABLES
+Una corrección real de la regresión
+Mejor comportamiento en sesiones de escucha reales
+Mejor separación por turnos
+Menos atribución falsa con alta confianza
+Una breve explicación de la causa raíz encontrada y de por qué la solución evita este colapso
+TESTS
+
+Valida repitiendo una prueba real corta de diálogo alternado y comprueba:
+
+que la sesión ya no acaba en 1 único turno
+que el sistema genera varios turnos creíbles
+que ya no atribuye toda la conversación a [YO]
+que la confianza no sale artificialmente alta sobre input ambiguo
+que el coaching vuelve a ocurrir sobre la marcha
+que desaparece [YO]: [YO]:
+CRITERIOS DE ACEPTACIÓN
+ La llamada corta ya no colapsa en un solo bloque
+ La conversación produce múltiples turnos útiles
+ Baja la atribución falsa a [YO]
+ La confianza de speaker se vuelve más creíble
+ El transcript legible mejora de forma visible
+ Copilot vuelve a comportarse más como asistente en vivo y menos como resumen tardío
+LO QUE YO HABRÍA HECHO
+
+Habría frenado cualquier atribución de alta confianza sobre un bloque de 2000+ caracteres.
+Habría tratado ese caso como fallo del pipeline, no como éxito del clasificador.
+Habría puesto el foco en recuperar turnos reales antes de tocar nada más.
