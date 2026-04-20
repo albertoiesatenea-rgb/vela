@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { Mic, Keyboard, Loader2, AlertCircle, ExternalLink, ChevronDown, Info, List } from "lucide-react";
-import { useAnalyzeConversation } from "@workspace/api-client-react";
+import { analyzeConversation } from "@workspace/api-client-react";
 import { useSpeech } from "@/hooks/use-speech";
 import { TacticalDisplay } from "@/components/tactical-display";
 import { ContextSetup, SessionBar, VelaIcon } from "@/components/context-panel";
@@ -764,7 +764,7 @@ export default function CopilotPage() {
   const speakerModeRef = useRef(speakerMode);
   speakerModeRef.current = speakerMode;
 
-  const { mutate: analyze, isPending } = useAnalyzeConversation();
+  const isPending = useMemo(() => turnLog.some(t => t.response_status === "pending"), [turnLog]);
 
   const callMemoryRef = useRef(tacticalState.callMemory);
   callMemoryRef.current = tacticalState.callMemory;
@@ -973,144 +973,139 @@ export default function CopilotPage() {
       };
       setTurnLog(prev => [...prev, pendingBase]);
 
-      analyze(
-        {
-          data: {
-            text: fullText,
-            ...(apiContext ? { context: apiContext } : {}),
-            ...(memoryStr ? { call_memory: memoryStr } : {}),
-            conversation_history: conversationHistoryPayload,
-            ...(structuredContext ? { structured_context: structuredContext } : {}),
-            lang: langRef.current,
-            ...(capturedSpeakerMode === "auto" && speakerConfidence < 1.0
-              ? { speaker_confidence: speakerConfidence }
-              : {}),
-            ...(sayNowLoopCount >= 3 ? { say_now_loop_count: sayNowLoopCount } : {}),
-            ...(listenReliability !== "high" ? { listen_reliability: listenReliability } : {}),
-          },
-        },
-        {
-          onSuccess: (res) => {
-            // ── Runtime error path: API returned 200 but flagged a backend failure ──
-            if (res._runtime_error) {
-              setAnalyzeErrorCount(c => { analyzeErrorCountRef.current = c + 1; return c + 1; });
-              const fallbackSayNow = computeLocalFallback(fullText, langRef.current);
-              setTacticalState(prev => ({ ...prev, sayNow: fallbackSayNow }));
-              setTurnLog(prev => prev.map(t => t.turn_index !== turnIndex ? t : {
-                ...t,
-                response_status: "error" as const,
-                parse_error: "API runtime error — local fallback applied",
-                notes: `local_fallback: ${fallbackSayNow}`,
-              }));
-              return;
-            }
-            // ── Normal success path ──────────────────────────────────────────────
-            const rawLines = res.call_memory?.summary_lines ?? [];
-            const memoryAfter = rawLines.length > 0 ? rawLines : callMemoryRef.current.slice();
-            // ── Track say_now for loop detection ──────────────────────────────
-            const isFallbackResponse = res.signal === "análisis recuperándose" || res.signal === "analysis recovering";
-            if (res.say_now && !isFallbackResponse) {
-              const updated = [...lastSayNowsRef.current, res.say_now].slice(-10);
-              lastSayNowsRef.current = updated;
-              let runLen = 1;
-              const last = updated[updated.length - 1].toLowerCase().trim();
-              for (let i = updated.length - 2; i >= 0; i--) {
-                if (updated[i].toLowerCase().trim() === last) runLen++;
-                else break;
-              }
-              if (runLen > maxSayNowLoopRef.current) maxSayNowLoopRef.current = runLen;
-            }
-            setTacticalState({
-              sayNow: res.say_now,
-              avoid: res.avoid || undefined,
-              detail: res.detail ?? null,
-              journey: res.journey ?? null,
-              callMemory: memoryAfter,
-              momentum: res.momentum as Momentum,
-            });
-            setTurnLog(prev => {
-              // Update the existing pending entry in-place by turn_index
-              const withUpdate = prev.map(t => {
-                if (t.turn_index !== turnIndex) return t;
-                return {
-                  ...t,
-                  system_output: {
-                    signal: res.signal ?? "",
-                    say_now: res.say_now,
-                    avoid: res.avoid ?? null,
-                    detail: {
-                      reading: res.detail?.reading ?? "",
-                      mission: res.detail?.mission ?? "",
-                      next_move: res.detail?.next_move ?? "",
-                      support: res.detail?.support ?? "",
-                    },
-                    journey: {
-                      past: res.journey?.past ?? "",
-                      now: res.journey?.now ?? "",
-                      next: res.journey?.next ?? "",
-                    },
-                    call_memory: memoryAfter,
-                    momentum: res.momentum ?? "amber",
-                  },
-                  memory_after: memoryAfter,
-                  response_status: "ok" as const,
-                  parse_error: null,
-                };
-              });
-              // Retrospective speaker repair in AUTO mode
-              if (capturedSpeakerMode === "auto") {
-                const currentResult: SpeakerResult = {
-                  speaker: inferredSpeaker === "CLIENTE" ? "client" : inferredSpeaker === "YO" ? "me" : "unknown",
-                  confidence: speakerConfidence,
-                  source: speakerSource,
-                  label: "",
-                };
-                const repairs = speakerSessionRef.current.retrospectiveRepair(currentResult);
-                if (repairs.size > 0) {
-                  return withUpdate.map(entry => {
-                    const repair = repairs.get(entry.turn_index);
-                    if (!repair) return entry;
-                    const newSpeakerLabel = repair.speaker === "client" ? "CLIENTE" : "YO";
-                    const newPrefix = repair.speaker === "client" ? "[CLIENTE]: " : "[YO]: ";
-                    const cleanRaw = entry.raw_fragment.replace(/^\s*\[(YO|CLIENTE|ME|CLIENT)\]:\s*/i, "").trimStart();
-                    return {
-                      ...entry,
-                      inferred_speaker: newSpeakerLabel as "CLIENTE" | "YO" | "UNKNOWN",
-                      normalized_fragment: newPrefix + cleanRaw,
-                      speaker_confidence: repair.confidence,
-                      auto_repaired: true,
-                      repair_count: (entry.repair_count ?? 0) + 1,
-                    };
-                  });
-                }
-              }
-              return withUpdate;
-            });
-            // ── Mid-session AI retropass every 7 confirmed turns in AUTO mode ──
-            // Runs asynchronously so it never blocks listening or rendering.
-            if (capturedSpeakerMode === "auto") {
-              turnsSinceRetropassRef.current++;
-              if (turnsSinceRetropassRef.current >= 7) {
-                turnsSinceRetropassRef.current = 0;
-                const currentLog = turnLogRef.current;
-                aiSpeakerRetropassRef.current(currentLog).then(updated => {
-                  if (updated !== currentLog) setTurnLog(updated);
-                }).catch(() => { /* silent fail — next retropass will retry */ });
-              }
-            }
-          },
-          onError: () => {
+      // Direct fetch — each turn gets its own independent promise.
+      // Using useMutation's mutate() caused per-call callbacks to be silently
+      // dropped when multiple concurrent calls overlapped (API takes 5-8s,
+      // interval is 3s). A plain promise guarantees onSuccess/onError always fire.
+      analyzeConversation({
+        text: fullText,
+        ...(apiContext ? { context: apiContext } : {}),
+        ...(memoryStr ? { call_memory: memoryStr } : {}),
+        conversation_history: conversationHistoryPayload,
+        ...(structuredContext ? { structured_context: structuredContext } : {}),
+        lang: langRef.current,
+        ...(capturedSpeakerMode === "auto" && speakerConfidence < 1.0
+          ? { speaker_confidence: speakerConfidence }
+          : {}),
+        ...(sayNowLoopCount >= 3 ? { say_now_loop_count: sayNowLoopCount } : {}),
+        ...(listenReliability !== "high" ? { listen_reliability: listenReliability } : {}),
+      } as any)
+        .then((res: any) => {
+          // ── Runtime error path ──────────────────────────────────────────────
+          if (res._runtime_error) {
             setAnalyzeErrorCount(c => { analyzeErrorCountRef.current = c + 1; return c + 1; });
+            const fallbackSayNow = computeLocalFallback(fullText, langRef.current);
+            setTacticalState(prev => ({ ...prev, sayNow: fallbackSayNow }));
             setTurnLog(prev => prev.map(t => t.turn_index !== turnIndex ? t : {
               ...t,
               response_status: "error" as const,
-              parse_error: "API call failed",
+              parse_error: "API runtime error — local fallback applied",
+              notes: `local_fallback: ${fallbackSayNow}`,
             }));
-          },
-        }
-      );
+            return;
+          }
+          // ── Normal success path ──────────────────────────────────────────────
+          const rawLines = res.call_memory?.summary_lines ?? [];
+          const memoryAfter = rawLines.length > 0 ? rawLines : callMemoryRef.current.slice();
+          // ── Track say_now for loop detection ──────────────────────────────
+          const isFallbackResponse = res.signal === "análisis recuperándose" || res.signal === "analysis recovering";
+          if (res.say_now && !isFallbackResponse) {
+            const updated = [...lastSayNowsRef.current, res.say_now].slice(-10);
+            lastSayNowsRef.current = updated;
+            let runLen = 1;
+            const last = updated[updated.length - 1].toLowerCase().trim();
+            for (let i = updated.length - 2; i >= 0; i--) {
+              if (updated[i].toLowerCase().trim() === last) runLen++;
+              else break;
+            }
+            if (runLen > maxSayNowLoopRef.current) maxSayNowLoopRef.current = runLen;
+          }
+          setTacticalState({
+            sayNow: res.say_now,
+            avoid: res.avoid || undefined,
+            detail: res.detail ?? null,
+            journey: res.journey ?? null,
+            callMemory: memoryAfter,
+            momentum: res.momentum as Momentum,
+          });
+          setTurnLog(prev => {
+            const withUpdate = prev.map(t => {
+              if (t.turn_index !== turnIndex) return t;
+              return {
+                ...t,
+                system_output: {
+                  signal: res.signal ?? "",
+                  say_now: res.say_now,
+                  avoid: res.avoid ?? null,
+                  detail: {
+                    reading: res.detail?.reading ?? "",
+                    mission: res.detail?.mission ?? "",
+                    next_move: res.detail?.next_move ?? "",
+                    support: res.detail?.support ?? "",
+                  },
+                  journey: {
+                    past: res.journey?.past ?? "",
+                    now: res.journey?.now ?? "",
+                    next: res.journey?.next ?? "",
+                  },
+                  call_memory: memoryAfter,
+                  momentum: res.momentum ?? "amber",
+                },
+                memory_after: memoryAfter,
+                response_status: "ok" as const,
+                parse_error: null,
+              };
+            });
+            if (capturedSpeakerMode === "auto") {
+              const currentResult: SpeakerResult = {
+                speaker: inferredSpeaker === "CLIENTE" ? "client" : inferredSpeaker === "YO" ? "me" : "unknown",
+                confidence: speakerConfidence,
+                source: speakerSource,
+                label: "",
+              };
+              const repairs = speakerSessionRef.current.retrospectiveRepair(currentResult);
+              if (repairs.size > 0) {
+                return withUpdate.map(entry => {
+                  const repair = repairs.get(entry.turn_index);
+                  if (!repair) return entry;
+                  const newSpeakerLabel = repair.speaker === "client" ? "CLIENTE" : "YO";
+                  const newPrefix = repair.speaker === "client" ? "[CLIENTE]: " : "[YO]: ";
+                  const cleanRaw = entry.raw_fragment.replace(/^\s*\[(YO|CLIENTE|ME|CLIENT)\]:\s*/i, "").trimStart();
+                  return {
+                    ...entry,
+                    inferred_speaker: newSpeakerLabel as "CLIENTE" | "YO" | "UNKNOWN",
+                    normalized_fragment: newPrefix + cleanRaw,
+                    speaker_confidence: repair.confidence,
+                    auto_repaired: true,
+                    repair_count: (entry.repair_count ?? 0) + 1,
+                  };
+                });
+              }
+            }
+            return withUpdate;
+          });
+          // ── Mid-session AI retropass every 7 confirmed turns in AUTO mode ──
+          if (capturedSpeakerMode === "auto") {
+            turnsSinceRetropassRef.current++;
+            if (turnsSinceRetropassRef.current >= 7) {
+              turnsSinceRetropassRef.current = 0;
+              const currentLog = turnLogRef.current;
+              aiSpeakerRetropassRef.current(currentLog).then(updated => {
+                if (updated !== currentLog) setTurnLog(updated);
+              }).catch(() => { /* silent fail */ });
+            }
+          }
+        })
+        .catch(() => {
+          setAnalyzeErrorCount(c => { analyzeErrorCountRef.current = c + 1; return c + 1; });
+          setTurnLog(prev => prev.map(t => t.turn_index !== turnIndex ? t : {
+            ...t,
+            response_status: "error" as const,
+            parse_error: "API call failed",
+          }));
+        });
     },
-    [analyze, sessionContext]
+    [sessionContext]
   );
 
   const { isSupported, isListening, error: speechError, interimText, startListening, stopListening } =
