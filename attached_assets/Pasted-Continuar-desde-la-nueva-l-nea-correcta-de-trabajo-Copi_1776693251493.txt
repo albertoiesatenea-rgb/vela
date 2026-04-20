@@ -1,0 +1,121 @@
+Continuar desde la nueva línea correcta de trabajo: Copilot ya ha empezado a tratar esto como un problema de reconstrucción conversacional y no solo de speaker labeling. Ahora quiero consolidar ese enfoque, mejorar su calidad real y añadir una vista visible del transcript reconstruido dentro de la UI de Copilot para poder ver en tiempo real cómo VELA interpreta la conversación y cómo la corrige cuando hace revisiones retrospectivas.
+
+CONTEXTO DEL PROBLEMA
+
+Ya no estamos en el punto inicial. Según el último trabajo hecho, el sistema ha empezado a:
+
+dividir blobs grandes en mini-turnos probables
+clasificar secuencias en vez de tratar todo un bloque como un único speaker
+usar mejor nombres del contexto
+construir un transcript estructurado más cercano a [YO] / [CLIENTE]
+
+Eso va mucho más en la dirección correcta.
+
+Pero todavía faltan dos cosas críticas:
+
+Calidad real de la reconstrucción
+hay que comprobar y mejorar que la reconstrucción conversacional resulte realmente útil, no solo técnicamente más elegante
+hay que seguir reduciendo mezcla de intervenciones dentro de un mismo bloque
+hay que hacer que el transcript que usa el copiloto se parezca más a una conversación real y menos a una masa de texto medio separada
+Visibilidad en producto
+ahora mismo el usuario no ve bien cómo VELA está reconstruyendo la conversación
+no puede inspeccionar en tiempo real el histórico interpretado
+no puede ver cuándo una revisión retrospectiva ha cambiado speakers, bloques o estructura
+
+Quiero que Copilot sea más útil y más transparente.
+
+LO QUE NECESITO QUE CAMBIE
+1. Consolidar la capa de reconstrucción conversacional
+
+Quiero que desarrolles y remates el enfoque nuevo de reconstrucción conversacional.
+
+Eso implica:
+
+seguir mejorando la separación de mini-turnos cuando un bloque venga mezclado
+usar el contexto acumulado de la llamada para reconstruir mejor quién dijo qué
+mejorar la calidad general del transcript estructurado que termina usando el copiloto
+evitar tanto la falsa confianza como la inutilidad total
+
+No quiero volver atrás. La dirección correcta es reconstrucción conversacional incremental.
+
+2. Añadir revisión retrospectiva visible
+
+Quiero que haya una lógica clara de revisión retrospectiva del transcript durante la sesión.
+
+Es decir:
+
+Copilot sigue interpretando en vivo
+pero cada cierto tiempo o volumen de conversación acumulada, VELA vuelve a revisar lo ya escuchado
+si encuentra una mejor separación de speakers o una mejor estructura de mini-turnos, actualiza el transcript interpretado
+el usuario debe poder ver que eso ha ocurrido
+
+No quiero que esto se quede solo en una mejora interna invisible.
+
+3. Mostrar la conversación en la UI de Copilot
+
+Quiero una vista visible del histórico de conversación dentro de Copilot.
+
+Puede ser:
+
+un panel lateral derecho
+un drawer
+un botón claro de abrir/cerrar conversación
+o una solución equivalente
+
+Lo importante no es la forma exacta. Lo importante es que:
+
+yo pueda ver la conversación mientras ocurre
+vea cómo VELA la está interpretando
+vea los speakers asignados
+vea cuándo algo cambia tras una revisión retrospectiva
+la vista sirva tanto para uso real como para debug
+4. Diferenciar transcript provisional vs transcript interpretado
+
+No hace falta volver la UI complicada, pero sí quiero que el sistema deje clara una diferencia útil entre:
+
+lo recién capturado
+lo ya reinterpretado o consolidado por VELA
+
+No quiero opacidad. Quiero poder entender cómo está pensando el producto sobre la conversación.
+
+5. Mejorar la base del coaching
+
+Quiero que say_now, reading, mission, next_move y el resto del coaching dependan cada vez más del transcript reconstruido y menos del fragmento crudo aislado.
+
+El objetivo es que el copiloto se vuelva más útil en directo porque entiende mejor la conversación acumulada.
+
+RESTRICCIONES
+No quiero volver a la estrategia antigua de parches simples de speaker labeling.
+No quiero una UI pesada o recargada.
+No quiero una solución cosmética que solo muestre más texto sin mejorar la interpretación.
+No quiero hardcodear este caso concreto.
+No quiero regresar a falsa confianza alta.
+Puedes cambiar la estructura o el flujo si hace falta.
+La prioridad es producto útil en directo + visibilidad clara de cómo interpreta VELA la conversación.
+ENTREGABLES
+mejora real de la capa de reconstrucción conversacional
+revisión retrospectiva del transcript integrada en el flujo de Copilot
+vista visible de la conversación/histórico dentro de la UI
+refrescos visibles cuando el transcript sea reinterpretado
+mejor base para el coaching táctico
+explicación breve de qué se cambió y por qué ahora Copilot es más útil y más transparente
+TESTS
+
+Valida la mejora con pruebas reales de lectura en voz alta y comprueba:
+
+que la conversación se ve en pantalla durante la sesión
+que el transcript reconstruido se actualiza cuando VELA reinterpreta lo ya escuchado
+que mejora la separación vendedor/cliente respecto al estado actual
+que disminuye la mezcla de varios actos conversacionales dentro de cada bloque
+que el coaching se apoya mejor en el histórico acumulado
+que la UI sigue siendo usable durante la llamada
+que no reaparecen regresiones graves de falsa confianza o colapso del transcript
+CRITERIOS DE ACEPTACIÓN
+ Copilot muestra una conversación/histórico visible durante la sesión
+ El usuario puede ver cómo VELA interpreta la conversación en tiempo real
+ Se ven los cambios cuando ocurre una revisión retrospectiva del transcript
+ Mejora la reconstrucción de diálogo respecto al estado actual
+ Mejora la separación entre vendedor y cliente
+ say_now y el coaching táctico resultan más útiles porque usan mejor el contexto acumulado
+ La UI sigue siendo clara y usable
+ No hay regresión hacia falsa confianza alta ni hacia colapso total del transcript

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { Mic, Keyboard, Loader2, AlertCircle, ExternalLink, ChevronDown, Info } from "lucide-react";
+import { Mic, Keyboard, Loader2, AlertCircle, ExternalLink, ChevronDown, Info, List } from "lucide-react";
 import { useAnalyzeConversation } from "@workspace/api-client-react";
 import { useSpeech } from "@/hooks/use-speech";
 import { TacticalDisplay } from "@/components/tactical-display";
@@ -20,6 +20,184 @@ function WizardOverlayHeader() {
       <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-zinc-400">
         VELA
       </span>
+    </div>
+  );
+}
+
+// ── Live Transcript Drawer ────────────────────────────────────────────────────
+// Slide-in right panel showing the reconstructed conversation in real-time.
+// Each turn shows: speaker badge (YO/CLI/?), confidence dot, ↺ repair indicator.
+// Multi-segment turns (normalized_fragment with \n) rendered as sub-lines.
+function LiveTranscriptDrawer({
+  isOpen,
+  onClose,
+  turnLog,
+  lang,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  turnLog: TurnLogEntry[];
+  lang: Lang;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isOpen && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [isOpen, turnLog.length]);
+
+  const repairedCount = turnLog.filter(t => t.auto_repaired).length;
+
+  return (
+    <div
+      className={cn(
+        "fixed top-0 right-0 h-full w-[280px] bg-zinc-950 border-l border-zinc-800/70 z-40 flex flex-col",
+        "transition-transform duration-200 ease-out",
+        isOpen ? "translate-x-0" : "translate-x-full",
+      )}
+      aria-hidden={!isOpen}
+    >
+      {/* Header */}
+      <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-zinc-800/60">
+        <div className="flex items-center gap-2">
+          <VelaIcon className="w-3 h-3 text-zinc-600 shrink-0" />
+          <span className="text-[9px] font-mono tracking-[0.18em] uppercase text-zinc-500">
+            {lang === "es" ? "Conversación" : "Conversation"}
+          </span>
+          {turnLog.length > 0 && (
+            <span className="text-[9px] font-mono text-zinc-700">({turnLog.length})</span>
+          )}
+        </div>
+        <button
+          onClick={onClose}
+          className="text-zinc-700 hover:text-zinc-300 text-xs font-mono transition-colors leading-none px-1 py-0.5"
+          type="button"
+          aria-label="Cerrar"
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* Legend bar */}
+      {turnLog.length > 0 && (
+        <div className="shrink-0 flex items-center gap-3 px-4 py-1.5 border-b border-zinc-800/30">
+          <div className="flex items-center gap-1">
+            <span className="text-[7px] font-mono border border-teal-800/60 text-teal-400 bg-teal-950/40 px-1 py-[1px] rounded leading-none">YO</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-[7px] font-mono border border-sky-800/60 text-sky-400 bg-sky-950/40 px-1 py-[1px] rounded leading-none">CLI</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-[7px] font-mono border border-zinc-700/60 text-zinc-500 bg-zinc-900/40 px-1 py-[1px] rounded leading-none">?</span>
+            <span className="text-[7px] font-mono text-zinc-700">{lang === "es" ? "desconocido" : "unknown"}</span>
+          </div>
+          {repairedCount > 0 && (
+            <div className="ml-auto flex items-center gap-1">
+              <span className="text-[7px] font-mono text-amber-500">↺</span>
+              <span className="text-[7px] font-mono text-zinc-700">{repairedCount}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Turns */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto py-1">
+        {turnLog.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 mt-10 px-4">
+            <p className="text-[10px] font-mono text-zinc-700 text-center leading-relaxed">
+              {lang === "es"
+                ? "La conversación aparecerá aquí mientras VELA escucha."
+                : "The conversation will appear here as VELA listens."}
+            </p>
+          </div>
+        ) : (
+          turnLog.map((entry, idx) => {
+            const isMe = entry.inferred_speaker === "YO";
+            const isClient = entry.inferred_speaker === "CLIENTE";
+            const badgeClass = isMe
+              ? "border-teal-800/60 text-teal-400 bg-teal-950/40"
+              : isClient
+              ? "border-sky-800/60 text-sky-400 bg-sky-950/40"
+              : "border-zinc-700/60 text-zinc-500 bg-zinc-900/40";
+            const badgeLabel = isMe
+              ? (lang === "es" ? "YO" : "ME")
+              : isClient ? "CLI" : "?";
+
+            const conf = entry.speaker_confidence ?? 0;
+            const dotClass =
+              entry.speaker_mode !== "auto" ? "bg-zinc-600"
+              : conf >= 0.65 ? "bg-teal-500"
+              : conf >= 0.35 ? "bg-amber-500"
+              : "bg-zinc-600";
+
+            const rawLines = entry.normalized_fragment.split("\n").map(l => l.trim()).filter(Boolean);
+            const displayLines = rawLines.length > 0 ? rawLines : [entry.raw_fragment.slice(0, 140)];
+
+            return (
+              <div
+                key={entry.turn_index}
+                className={cn(
+                  "flex flex-col px-3 py-2 border-b last:border-0 border-zinc-800/20",
+                  entry.auto_repaired && "bg-amber-950/8",
+                )}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className={cn("text-[8px] font-mono tracking-wider px-1.5 py-[2px] rounded border leading-none", badgeClass)}>
+                      {badgeLabel}
+                    </span>
+                    {entry.speaker_mode === "auto" && (
+                      <div
+                        className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotClass)}
+                        title={`conf ${Math.round((entry.speaker_confidence ?? 0) * 100)}%`}
+                      />
+                    )}
+                    {entry.auto_repaired && (
+                      <span
+                        className="text-[8px] font-mono text-amber-500/80 leading-none"
+                        title={lang === "es" ? "Revisado por VELA" : "Revised by VELA"}
+                      >
+                        ↺{(entry.repair_count ?? 0) > 1 ? entry.repair_count : ""}
+                      </span>
+                    )}
+                    {entry.response_status === "error" && (
+                      <span className="text-[7px] font-mono text-red-600 leading-none" title="analysis error">✗</span>
+                    )}
+                  </div>
+                  <span className="text-[8px] font-mono text-zinc-700">{idx + 1}</span>
+                </div>
+
+                <div className="flex flex-col gap-0.5">
+                  {displayLines.map((line, j) => {
+                    const lineIsMe = line.startsWith("[YO]") || line.startsWith("[ME]");
+                    const lineIsClient = line.startsWith("[CLIENTE]") || line.startsWith("[CLIENT]");
+                    const lineColor = lineIsMe
+                      ? "text-teal-300/70"
+                      : lineIsClient
+                      ? "text-sky-300/70"
+                      : isMe ? "text-teal-300/50"
+                      : isClient ? "text-sky-300/50"
+                      : "text-zinc-500";
+                    return (
+                      <p key={j} className={cn("text-[10px] font-mono leading-relaxed break-words", lineColor)}>
+                        {line}
+                      </p>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="shrink-0 border-t border-zinc-800/60 px-4 py-2">
+        <p className="text-[8px] font-mono text-zinc-700 tracking-widest uppercase">
+          {lang === "es" ? "VELA · interpreta en tiempo real" : "VELA · real-time interpretation"}
+        </p>
+      </div>
     </div>
   );
 }
@@ -217,6 +395,10 @@ interface TurnLogEntry {
   response_status: "ok" | "error" | "partial";
   parse_error: string | null;
   notes: string | null;
+  speaker_confidence?: number;
+  speaker_source?: "rule" | "carryover" | "manual" | "unknown";
+  auto_repaired: boolean;
+  repair_count: number;
 }
 
 interface TacticalState {
@@ -527,6 +709,7 @@ export default function CopilotPage() {
   const [analyzeErrorCount, setAnalyzeErrorCount] = useState(0);
   const analyzeErrorCountRef = useRef(0);
   const [transcriptOpen, setTranscriptOpen] = useState(false);
+  const [liveTranscriptOpen, setLiveTranscriptOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [conversationLog, setConversationLog] = useState<string[]>([]);
   const [turnLog, setTurnLog] = useState<TurnLogEntry[]>([]);
@@ -568,6 +751,9 @@ export default function CopilotPage() {
 
   const callMemoryRef = useRef(tacticalState.callMemory);
   callMemoryRef.current = tacticalState.callMemory;
+
+  const turnLogRef = useRef<TurnLogEntry[]>([]);
+  turnLogRef.current = turnLog;
 
   const inputModeRef = useRef<"listen" | "simulate">(inputMode === "listen" ? "listen" : "simulate");
   inputModeRef.current = inputMode === "listen" ? "listen" : "simulate";
@@ -658,17 +844,30 @@ export default function CopilotPage() {
           }).join("\n");
         }
       }
-      // Build full history BEFORE state update (conversationLog still has previous turns)
-      const historyRaw = [...conversationLog, fullText];
-      const HISTORY_MAX = 16;
-      const HISTORY_TRIGGER = 20;
+      // Build enriched conversation history: dialogue + VELA coaching interleaved.
+      // This lets the API see both what was said AND what VELA already recommended,
+      // which dramatically reduces say_now loops and improves contextual coaching.
+      const HISTORY_MAX_TURNS = 10;
+      const HISTORY_TRIGGER_TURNS = 14;
+      const prevTurns = turnLogRef.current;
+      const recentTurns = prevTurns.slice(-HISTORY_MAX_TURNS);
+      const enrichedHistory: string[] = [];
+      for (const t of recentTurns) {
+        enrichedHistory.push(t.normalized_fragment);
+        if (t.system_output?.say_now) {
+          enrichedHistory.push(`[VELA→]: ${t.system_output.say_now}`);
+        }
+      }
+      enrichedHistory.push(fullText);
       let conversationHistoryPayload: string[];
-      if (historyRaw.length > HISTORY_TRIGGER) {
-        const olderCount = historyRaw.length - HISTORY_MAX;
-        const summary = `[Resumen: ${olderCount} intercambio${olderCount !== 1 ? "s" : ""} anteriores]`;
-        conversationHistoryPayload = [summary, ...historyRaw.slice(-HISTORY_MAX)];
+      if (prevTurns.length > HISTORY_TRIGGER_TURNS) {
+        const olderCount = prevTurns.length - HISTORY_MAX_TURNS;
+        const summaryLine = langRef.current === "es"
+          ? `[Resumen: ${olderCount} intercambio${olderCount !== 1 ? "s" : ""} anteriores]`
+          : `[Summary: ${olderCount} earlier exchange${olderCount !== 1 ? "s" : ""}]`;
+        conversationHistoryPayload = [summaryLine, ...enrichedHistory];
       } else {
-        conversationHistoryPayload = historyRaw;
+        conversationHistoryPayload = enrichedHistory;
       }
 
       setConversationLog(prev => [...prev, fullText]);
@@ -775,6 +974,7 @@ export default function CopilotPage() {
                 speaker_confidence: capturedSpeakerMode === "auto" ? speakerConfidence : undefined,
                 speaker_source: capturedSpeakerMode === "auto" ? (speakerSource as "rule" | "carryover" | "manual" | "unknown") : undefined,
                 auto_repaired: false,
+                repair_count: 0,
               }]);
               return;
             }
@@ -838,6 +1038,7 @@ export default function CopilotPage() {
                 speaker_confidence: capturedSpeakerMode === "auto" ? speakerConfidence : undefined,
                 speaker_source: capturedSpeakerMode === "auto" ? (speakerSource as "rule" | "carryover" | "manual" | "unknown") : undefined,
                 auto_repaired: false,
+                repair_count: 0,
               };
               const updated = [...prev, newEntry];
               // Retrospective speaker repair in AUTO mode
@@ -864,6 +1065,7 @@ export default function CopilotPage() {
                       normalized_fragment: newPrefix + cleanRaw,
                       speaker_confidence: repair.confidence,
                       auto_repaired: true,
+                      repair_count: (entry.repair_count ?? 0) + 1,
                     };
                   });
                 }
@@ -890,6 +1092,7 @@ export default function CopilotPage() {
               speaker_confidence: capturedSpeakerMode === "auto" ? speakerConfidence : undefined,
               speaker_source: capturedSpeakerMode === "auto" ? (speakerSource as "rule" | "carryover" | "manual" | "unknown") : undefined,
               auto_repaired: false,
+              repair_count: 0,
             }]);
           },
         }
@@ -1017,6 +1220,7 @@ export default function CopilotPage() {
     setContextLabel("");
     saveLabel("");
     setDetailOpen(false);
+    setLiveTranscriptOpen(false);
     stopListening();
     setIsSessionListening(false);
     setInputMode("listen");
@@ -2217,6 +2421,24 @@ export default function CopilotPage() {
             </button>
           </div>
 
+          {/* Transcript toggle — always visible once session is active */}
+          <button
+            onClick={() => setLiveTranscriptOpen(o => !o)}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-mono font-medium tracking-widest uppercase transition-all border",
+              liveTranscriptOpen
+                ? "bg-zinc-800 text-white border-zinc-600"
+                : "bg-white/5 text-zinc-400 border-white/8 hover:text-zinc-200 hover:bg-white/8",
+            )}
+            type="button"
+          >
+            <List className="w-3 h-3" />
+            {lang === "es" ? "Conv" : "Conv"}
+            {turnLog.some(t => t.auto_repaired) && (
+              <span className="text-amber-500 text-[8px] leading-none">↺</span>
+            )}
+          </button>
+
           {/* End call — visible once real conversation starts */}
           {hasRealConversation && (
             <button
@@ -2286,6 +2508,14 @@ export default function CopilotPage() {
           </p>
         )}
       </div>
+
+      {/* ── Live Transcript Drawer — slide in from right during active session ── */}
+      <LiveTranscriptDrawer
+        isOpen={liveTranscriptOpen}
+        onClose={() => setLiveTranscriptOpen(false)}
+        turnLog={turnLog}
+        lang={lang}
+      />
 
       <DebugPanel sessionId={sessionId || null} />
     </div>
