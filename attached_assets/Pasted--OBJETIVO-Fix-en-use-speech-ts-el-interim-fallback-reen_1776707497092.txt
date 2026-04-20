@@ -1,0 +1,56 @@
+## OBJETIVO
+Fix en use-speech.ts — el interim fallback reenvía texto repetido.
+
+## PROBLEMA
+Con continuous=false y audio de altavoz, Chrome reinicia el reconocimiento
+cada vez que hay una pausa. Cada nuevo ciclo de reconocimiento empieza
+a transcribir desde el principio del audio disponible, así que el interim
+text de cada ciclo es un prefijo del anterior más texto nuevo.
+
+Cuando el timer de 5s hace flush por interim_fallback, envía el texto
+acumulado. Pero en el siguiente ciclo de 5s, el nuevo interim empieza
+donde estaba antes y añade más — enviando texto ya enviado + texto nuevo.
+
+Resultado: turnos 4, 5 y 6 son el mismo texto creciendo:
+- "nosotros ayudamos a personas"
+- "nosotros ayudamos a personas a invertir en inmuebles..."
+- "nosotros ayudamos a personas a invertir en inmuebles... visita"
+
+## CAMBIO REQUERIDO en use-speech.ts
+
+Añadir un ref que guarda el último texto enviado por interim_fallback:
+  const lastInterimFlushedRef = useRef<string>("");
+
+En el flush de interim_fallback, antes de enviar, calcular solo
+el texto NUEVO que no se ha enviado antes:
+
+  const interim = latestInterimRef.current.trim();
+  if (interim.length >= MIN_FLUSH_CHARS) {
+    const lastSent = lastInterimFlushedRef.current;
+    // Si el interim empieza con lo que ya enviamos, extraer solo la parte nueva
+    let newText = interim;
+    if (lastSent.length > 0 && interim.startsWith(lastSent)) {
+      newText = interim.slice(lastSent.length).trim();
+    }
+    if (newText.length >= MIN_FLUSH_CHARS) {
+      lastInterimFlushedRef.current = interim; // guardar el estado actual
+      latestInterimRef.current = "";
+      onAnalyzeReadyRef.current(newText);
+      return;
+    }
+    return; // el texto nuevo es demasiado corto
+  }
+
+Resetear lastInterimFlushedRef en:
+- startListening: lastInterimFlushedRef.current = ""
+- stopListening: lastInterimFlushedRef.current = ""
+- Cuando llega un isFinal real: lastInterimFlushedRef.current = ""
+
+## RESTRICCIONES
+- Solo tocar use-speech.ts
+- No cambiar ningún otro archivo
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] Cada turno en el transcript contiene texto único, no repetido
+- [ ] Los turnos no son prefijos del anterior
+- [ ] Compila sin errores

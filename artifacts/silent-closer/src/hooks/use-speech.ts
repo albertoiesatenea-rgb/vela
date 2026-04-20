@@ -39,6 +39,10 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 5000, lang = "e
   // Tracks the most recent interim transcript so the interval can promote it
   // to "final" when Chrome never generates isFinal (speaker audio scenario).
   const latestInterimRef = useRef<string>("");
+  // Tracks the last interim text that was flushed, so we can diff against it
+  // and send only the new portion — prevents repeated prefixes when Chrome
+  // restarts recognition mid-utterance and re-transcribes from the beginning.
+  const lastInterimFlushedRef = useRef<string>("");
 
   // ── Analysis interval ──────────────────────────────────────────────────
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -55,14 +59,23 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 5000, lang = "e
     if (text.length < MIN_FLUSH_CHARS) {
       const interim = latestInterimRef.current.trim();
       if (interim.length >= MIN_FLUSH_CHARS) {
-        text = interim;
+        // Chrome re-transcribes from the start of each recognition cycle, so
+        // each new interim is a growing prefix of all previous interims.
+        // Extract only the truly new suffix to avoid sending repeated text.
+        const lastSent = lastInterimFlushedRef.current;
+        let newText = interim;
+        if (lastSent.length > 0 && interim.startsWith(lastSent)) {
+          newText = interim.slice(lastSent.length).trim();
+        }
+        if (newText.length < MIN_FLUSH_CHARS) return; // no new content yet
+        lastInterimFlushedRef.current = interim;
         latestInterimRef.current = "";
         setInterimText("");
         console.debug(
-          `[vela:speech] flush reason=interim_fallback chars=${text.length} ` +
-          `preview="${text.slice(0, 60).replace(/\n/g, " ")}..."`,
+          `[vela:speech] flush reason=interim_fallback chars=${newText.length} ` +
+          `preview="${newText.slice(0, 60).replace(/\n/g, " ")}..."`,
         );
-        onAnalyzeReadyRef.current(text);
+        onAnalyzeReadyRef.current(newText);
         return;
       }
       return; // nothing to flush
@@ -75,6 +88,7 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 5000, lang = "e
     onAnalyzeReadyRef.current(text);
     transcriptBuffer.current = "";
     latestInterimRef.current = "";
+    lastInterimFlushedRef.current = "";
     setInterimText("");
   };
 
@@ -150,8 +164,10 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 5000, lang = "e
         if (event.results[i].isFinal) {
           const fragment: string = event.results[i][0].transcript;
           transcriptBuffer.current += fragment + " ";
-          // Clear interim once we have a confirmed final
+          // A real isFinal means the prefix-growth cycle resets — clear
+          // both interim tracking refs so the next fallback diff is clean.
           latestInterimRef.current = "";
+          lastInterimFlushedRef.current = "";
         } else {
           interim += event.results[i][0].transcript;
         }
@@ -208,6 +224,7 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 5000, lang = "e
     setError(null);
     transcriptBuffer.current = "";
     latestInterimRef.current = "";
+    lastInterimFlushedRef.current = "";
     shouldListenRef.current = true;
     startInterval();
     startWatchdog();
@@ -224,6 +241,7 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 5000, lang = "e
     // Flush any remaining content — isFinal buffer first, interim fallback second
     flushBufferRef.current("stop");
     latestInterimRef.current = "";
+    lastInterimFlushedRef.current = "";
     try { recognitionRef.current?.stop(); } catch { /* ignore */ }
   }, [stopInterval, stopWatchdog]);
 
