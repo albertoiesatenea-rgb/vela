@@ -1608,14 +1608,26 @@ Client name (if known): ${clientLabel}
 
 Return ONLY a JSON object mapping each turn index to its classification. No explanation. No markdown. Just the JSON.
 Example: {"0":"VENDOR","1":"CLIENT","2":"UNKNOWN"}`
-    : `Eres un analizador de transcripts de ventas. Clasifica cada turno como VENDOR (quien vende), CLIENT (quien compra/prospecto) o UNKNOWN (imposible saberlo por el contenido).
+    : `Eres un experto analizador de transcripts de conversaciones de ventas.
+Recibirás fragmentos numerados de una conversación entre un vendedor y un cliente potencial, capturados por micrófono sin separación de audio.
 
 Contexto de la sesión: ${contextText}
-Nombre del vendedor (si se conoce): ${vendorLabel}
-Nombre del cliente (si se conoce): ${clientLabel}
+Vendedor: ${vendorLabel}
+Cliente: ${clientLabel}
 
-Devuelve SOLO un objeto JSON con el índice del turno como clave y la clasificación como valor. Sin explicaciones. Sin markdown. Solo el JSON.
-Ejemplo: {"0":"VENDOR","1":"CLIENT","2":"UNKNOWN"}`;
+Para cada fragmento, razona quién lo dijo basándote en:
+- El contenido semántico (quien explica servicios = vendedor, quien da datos personales = cliente)
+- El flujo conversacional (preguntas de calificación = vendedor, respuestas con datos propios = cliente)
+- Los nombres mencionados (saludar a alguien por nombre = el otro es quien habla)
+- El contexto acumulado de los fragmentos anteriores
+
+Clasifica cada fragmento como:
+- VENDOR: lo dice el vendedor
+- CLIENT: lo dice el cliente
+- UNKNOWN: imposible determinarlo
+
+Devuelve SOLO un JSON: {"0":"VENDOR","1":"CLIENT",...}
+Sin explicaciones. Solo el JSON.`;
 
   const t0 = Date.now();
   try {

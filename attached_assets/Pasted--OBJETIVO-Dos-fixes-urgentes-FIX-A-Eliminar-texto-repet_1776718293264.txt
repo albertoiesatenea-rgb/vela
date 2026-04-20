@@ -1,0 +1,77 @@
+## OBJETIVO
+Dos fixes urgentes:
+
+FIX A — Eliminar texto repetido entre turnos en use-speech.ts
+
+El bug: Chrome con continuous=false devuelve echo-back del audio anterior
+al reiniciar. El buffer acumula el mismo texto y lo envía varias veces.
+
+En use-speech.ts, añadir deduplicación en flushBufferRef:
+
+  const lastFlushedTextRef = useRef<string>("");
+
+En flushBufferRef, antes de llamar onAnalyzeReadyRef.current(text):
+
+  const normalized = text.trim().toLowerCase();
+  const lastNormalized = lastFlushedTextRef.current.toLowerCase();
+  
+  // Skip si es idéntico al anterior
+  if (normalized === lastNormalized) return;
+  
+  // Si el texto actual contiene al anterior como prefijo, enviar solo lo nuevo
+  if (normalized.startsWith(lastNormalized) && lastNormalized.length > 20) {
+    const newPart = text.trim().slice(lastFlushedTextRef.current.trim().length).trim();
+    if (newPart.length < MIN_FLUSH_CHARS) return;
+    lastFlushedTextRef.current = text.trim();
+    onAnalyzeReadyRef.current(newPart);
+    transcriptBuffer.current = "";
+    setInterimText("");
+    return;
+  }
+  
+  lastFlushedTextRef.current = text.trim();
+  // ... resto del flush normal
+
+Resetear lastFlushedTextRef.current = "" en startListening y stopListening.
+
+FIX B — Mejorar prompt del retropass IA en copilot.ts
+
+El prompt actual es demasiado básico. Reemplazar el systemPrompt
+en español por uno que razone mejor:
+
+  `Eres un experto analizador de transcripts de conversaciones de ventas.
+  Recibirás fragmentos numerados de una conversación entre un vendedor
+  y un cliente potencial, capturados por micrófono sin separación de audio.
+
+  Contexto de la sesión: ${contextText}
+  Vendedor: ${vendorLabel}
+  Cliente: ${clientLabel}
+
+  Para cada fragmento, razona quién lo dijo basándote en:
+  - El contenido semántico (quien explica servicios = vendedor, 
+    quien da datos personales = cliente)
+  - El flujo conversacional (preguntas de calificación = vendedor,
+    respuestas con datos propios = cliente)
+  - Los nombres mencionados (saludar a alguien por nombre = 
+    el otro es quien habla)
+  - El contexto acumulado de los fragmentos anteriores
+
+  Clasifica cada fragmento como:
+  - VENDOR: lo dice el vendedor
+  - CLIENT: lo dice el cliente
+  - UNKNOWN: imposible determinarlo
+
+  Devuelve SOLO un JSON: {"0":"VENDOR","1":"CLIENT",...}
+  Sin explicaciones. Solo el JSON.`
+
+## RESTRICCIONES
+- Fix A: solo use-speech.ts
+- Fix B: solo el systemPrompt español en copilot.ts, no el inglés
+- Rebuild del backend después del Fix B
+- No tocar nada más
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] No hay turnos consecutivos con el mismo texto creciendo
+- [ ] "hola Wendy qué tal" se clasifica como VENDOR por el retropass
+- [ ] "soy alemana, tengo contrato" se clasifica como CLIENT
+- [ ] Compila sin errores
