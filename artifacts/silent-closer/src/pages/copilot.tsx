@@ -1393,7 +1393,7 @@ export default function CopilotPage() {
    *
    * Call only post-call (never during live session).
    */
-  const aiSpeakerRetropass = useCallback(async (log: TurnLogEntry[]): Promise<TurnLogEntry[]> => {
+  const aiSpeakerRetropass = useCallback(async (log: TurnLogEntry[], forceAll = false): Promise<TurnLogEntry[]> => {
     if (speakerMode !== "auto") return log;
     if (log.length === 0) return log;
 
@@ -1401,17 +1401,17 @@ export default function CopilotPage() {
     const confirmedLog = log.filter(t => t.response_status !== "pending");
     if (confirmedLog.length === 0) return log;
 
-    // Fix A: treat undefined confidence as 0 (candidate), not 1 (high-confidence skip).
-    // Collect candidate indices — turns that are UNKNOWN or genuinely low-confidence.
+    // Collect candidate indices. forceAll=true (used at end-of-call) includes every
+    // turn so the final audit gets the best possible speaker attribution.
     const candidateIndices = new Set(
       confirmedLog
-        .filter(t => t.inferred_speaker === "UNKNOWN" || (t.speaker_confidence ?? 0) < 0.65)
+        .filter(t => forceAll || t.inferred_speaker === "UNKNOWN" || (t.speaker_confidence ?? 0) < 0.85)
         .map(t => t.turn_index),
     );
 
     // Skip only when every turn is high-confidence — medium-conf turns still benefit
     // from the model seeing the full transcript context even if they aren't candidates.
-    const hasLowConfTurns = confirmedLog.some(t => (t.speaker_confidence ?? 0) < 0.65);
+    const hasLowConfTurns = forceAll || confirmedLog.some(t => (t.speaker_confidence ?? 0) < 0.85);
     if (!hasLowConfTurns) return log;
 
     const { vendor, client } = speakerSessionRef.current.getDetectedNames();
@@ -1484,7 +1484,7 @@ export default function CopilotPage() {
     const speakerUncertainty = computeSpeakerUncertainty();
     // Run heuristic retropass FIRST (synchronous), then AI semantic retropass (async).
     const heuristicLog = applyRetroRepairs();
-    const finalLog = await aiSpeakerRetropass(heuristicLog);
+    const finalLog = await aiSpeakerRetropass(heuristicLog, true);
     const convExcerpt = finalLog.map(t => t.normalized_fragment).slice(-12);
     // Recompute uncertainty after AI repairs — unknown_rate may have dropped
     const postRepairUnknownRate = speakerMode === "auto"
