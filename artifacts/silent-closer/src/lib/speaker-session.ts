@@ -264,16 +264,26 @@ export class SpeakerAttributionSession {
     // A name signal contributes ≥ 8 points. If present, we have strong ground-truth.
     const hasNameSignal = (cs >= 8 || vs >= 8);
 
+    // True when the session ALREADY knows at least one speaker name — even if that
+    // name does not appear in this particular blob. This lets us unlock classification
+    // for long turns by a speaker who doesn't repeat their name every time they talk.
+    const hasSessionNames = !!(this.vendorName || this.clientName);
+
     // ── Blob-size guard (name-aware) ──────────────────────────────────────
-    // Without a name signal: a large blob almost certainly mixes multiple speakers.
-    // Attributing it with confidence would mean being "confident and wrong."
-    // With a name signal: proceed — a blob with "soy Alberto" IS clearly the vendor.
-    if (text.length > HUGE_BLOB && !hasNameSignal) {
+    // Without a name signal AND without any session name knowledge: a large blob
+    // almost certainly mixes multiple speakers. Block it conservatively.
+    // If the session knows names, we relax to a capped-confidence classification
+    // instead of returning UNKNOWN — the vocabulary signal is still meaningful.
+    if (text.length > HUGE_BLOB && !hasNameSignal && !hasSessionNames) {
       console.debug(`[vela:speaker] blob too large (${text.length} chars), no name signal → UNKNOWN`);
       return { speaker: "unknown", confidence: 0, source: "unknown", label: "" };
     }
-    // Large blobs without name signals are capped; with name signals, proceed normally.
+    // Large blobs without in-blob name signals are capped.
+    // When session names ARE known we use a slightly higher cap (0.45 vs 0.40)
+    // to reward the extra context — but still prevent overconfident attribution.
     const isLargeBlob = text.length > LARGE_BLOB && !hasNameSignal;
+    const LARGE_CAP_WITH_NAMES = 0.45;
+    const effectiveLargeCap = isLargeBlob && hasSessionNames ? LARGE_CAP_WITH_NAMES : LARGE_CAP;
 
     // Confidence = spread relative to total mass, capped at 0.95
     const rawConf = total > 0
@@ -293,14 +303,14 @@ export class SpeakerAttributionSession {
     // ── Carryover ─────────────────────────────────────────────────────────
     const co = this.attemptCarryover(cs, vs, rawConf);
     if (co) {
-      const conf = isLargeBlob ? Math.min(LARGE_CAP, co.confidence) : co.confidence;
+      const conf = isLargeBlob ? Math.min(effectiveLargeCap, co.confidence) : co.confidence;
       return { ...co, confidence: conf };
     }
 
     // ── Medium rule signal ────────────────────────────────────────────────
     if (total >= 2 && rawConf >= 0.38) {
       const speaker: SpeakerLabel = cs > vs ? "client" : "me";
-      const conf = Math.min(isLargeBlob ? LARGE_CAP : 1, rawConf * 0.62);
+      const conf = Math.min(isLargeBlob ? effectiveLargeCap : 1, rawConf * 0.62);
       return { speaker, confidence: conf, source: "rule", label: this.lbl(speaker) };
     }
 
@@ -541,6 +551,38 @@ export class SpeakerAttributionSession {
         const role = m[2]!.toLowerCase();
         if (!vendor && VENDOR_WORDS.some(w => role.includes(w))) vendor = name;
         if (!client && CLIENT_WORDS.some(w => role.includes(w))) client = name;
+      }
+    }
+
+    // Pattern 4: "role es/son NAME" — e.g. "El vendedor es Alberto Espejo"
+    // Handles: "el vendedor es Alberto", "la clienta es Wendy Hernández", etc.
+    if (!vendor || !client) {
+      const allRoles4 = [...VENDOR_WORDS, ...CLIENT_WORDS].join("|");
+      const esPattern = new RegExp(
+        `\\b(${allRoles4})\\b\\s+(?:es|son|será)\\s+${NAME_PAT}`,
+        "g",
+      );
+      for (const m of ctx.matchAll(esPattern)) {
+        const role = m[1]!.toLowerCase();
+        const name = m[2]!.trim().split(" ")[0]!;
+        if (!vendor && VENDOR_WORDS.includes(role)) vendor = name;
+        if (!client && CLIENT_WORDS.includes(role)) client = name;
+      }
+    }
+
+    // Pattern 5: "NAME es el/la role" — inverse order
+    // e.g. "Wendy Hernández es la clienta", "Alberto es el vendedor"
+    if (!vendor || !client) {
+      const allRoles5 = [...VENDOR_WORDS, ...CLIENT_WORDS].join("|");
+      const nameFirstPattern = new RegExp(
+        `${NAME_PAT}\\s+es\\s+(?:el|la|los|las|un|una)?\\s*\\b(${allRoles5})\\b`,
+        "g",
+      );
+      for (const m of ctx.matchAll(nameFirstPattern)) {
+        const name = m[1]!.trim().split(" ")[0]!;
+        const role = m[2]!.toLowerCase();
+        if (!vendor && VENDOR_WORDS.includes(role)) vendor = name;
+        if (!client && CLIENT_WORDS.includes(role)) client = name;
       }
     }
 

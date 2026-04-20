@@ -1,0 +1,136 @@
+## OBJETIVO
+Corregir la atribución de speakers en AUTO mode. El sistema bloquea todos los 
+bloques grandes como UNKNOWN aunque ya conoce el nombre del vendedor desde 
+turnos anteriores. Hay dos bugs independientes a corregir.
+
+## CONTEXTO DEL PROBLEMA
+
+BUG 1 — El guard de blob grande ignora el conocimiento previo de nombres.
+
+En speaker-session.ts [VERIFICAR ruta], la función classify() tiene esta lógica:
+
+  const hasNameSignal = (cs >= 8 || vs >= 8);
+  if (text.length > HUGE_BLOB && !hasNameSignal) → UNKNOWN
+
+hasNameSignal solo es true si el NOMBRE APARECE EN EL BLOB ACTUAL. Pero si 
+el sistema ya aprendió vendorName="Alberto" en el turno 1 ("soy Alberto"), 
+los bloques siguientes donde Alberto habla sin mencionar su nombre son 
+bloqueados como UNKNOWN aunque vocabulario vendedor claro está presente.
+
+El sistema sabe quién es el vendedor pero no usa ese conocimiento para 
+clasificar bloques grandes que no repiten el nombre.
+
+BUG 2 — parseNames() no detecta el patrón "El vendedor es [Nombre]".
+
+El contexto de VELA usa frases como:
+  "El vendedor es Alberto Espejo"
+  "Wendy Hernández es la clienta"
+
+parseNames() busca:
+  - "Alberto = vendedor"
+  - "vendedor: Alberto"  
+  - "Alberto (vendedor)"
+
+Pero NO detecta "vendedor es Alberto" porque el regex Pattern 2 usa 
+[:\s=]+ como separador — que matchea espacio pero no la palabra "es".
+
+Resultado: vendorName y clientName quedan null desde el inicio, lo que 
+empeora todo lo que viene después.
+
+## CAMBIOS REQUERIDOS
+
+CAMBIO 1 — Añadir un segundo guard más permisivo cuando los nombres ya 
+están en sesión (aunque no aparezcan en el blob actual).
+
+En la función classify(), después de la línea que define hasNameSignal,
+añadir una nueva variable:
+
+  // True si el sistema YA CONOCE al menos un nombre de la sesión,
+  // aunque ese nombre no aparezca en este blob concreto.
+  const hasSessionNames = !!(this.vendorName || this.clientName);
+
+Luego modificar el guard de HUGE_BLOB:
+
+  ANTES:
+  if (text.length > HUGE_BLOB && !hasNameSignal) {
+    return { speaker: "unknown", confidence: 0, source: "unknown", label: "" };
+  }
+
+  DESPUÉS:
+  if (text.length > HUGE_BLOB && !hasNameSignal && !hasSessionNames) {
+    return { speaker: "unknown", confidence: 0, source: "unknown", label: "" };
+  }
+
+Y modificar isLargeBlob para que cuando hay nombres de sesión, los blobs
+grandes sean clasificados con confianza máxima 0.45 (en vez de bloquearse):
+
+  ANTES:
+  const isLargeBlob = text.length > LARGE_BLOB && !hasNameSignal;
+
+  DESPUÉS:
+  const isLargeBlob = text.length > LARGE_BLOB && !hasNameSignal;
+  const LARGE_CAP_WITH_NAMES = 0.45; // cap para blobs grandes con nombres de sesión
+  const effectiveLargeCap = hasSessionNames ? LARGE_CAP_WITH_NAMES : LARGE_CAP;
+
+Usar effectiveLargeCap en lugar de LARGE_CAP en todos los sitios donde 
+se aplica ese límite dentro de classify().
+
+CAMBIO 2 — Añadir Pattern 4 en parseNames() para detectar "vendedor es [Nombre]".
+
+En la función parseNames(), después del Pattern 3 existente, añadir:
+
+  // Pattern 4: "role es/son NAME" — e.g. "El vendedor es Alberto Espejo"
+  // También detecta: "la clienta es Wendy", "el prospecto es María"
+  if (!vendor || !client) {
+    const allRoles = [...VENDOR_WORDS, ...CLIENT_WORDS].join("|");
+    const esPattern = new RegExp(
+      `\\b(${allRoles})\\b\\s+(?:es|son|será|será)\\s+${NAME_PAT}`,
+      "g"
+    );
+    for (const m of ctx.matchAll(esPattern)) {
+      const role = m[1]!.toLowerCase();
+      const name = m[2]!.trim().split(" ")[0]!;
+      if (!vendor && VENDOR_WORDS.includes(role)) vendor = name;
+      if (!client && CLIENT_WORDS.includes(role)) client = name;
+    }
+  }
+
+  // Pattern 5: "NAME es el/la vendedor/cliente" — orden inverso
+  // e.g. "Wendy Hernández es la clienta", "Alberto es el vendedor"
+  if (!vendor || !client) {
+    const allRoles = [...VENDOR_WORDS, ...CLIENT_WORDS].join("|");
+    const nameFirstPattern = new RegExp(
+      `${NAME_PAT}\\s+es\\s+(?:el|la|los|las|un|una)?\\s*\\b(${allRoles})\\b`,
+      "g"
+    );
+    for (const m of ctx.matchAll(nameFirstPattern)) {
+      const name = m[1]!.trim().split(" ")[0]!;
+      const role = m[2]!.toLowerCase();
+      if (!vendor && VENDOR_WORDS.includes(role)) vendor = name;
+      if (!client && CLIENT_WORDS.includes(role)) client = name;
+    }
+  }
+
+## RESTRICCIONES
+- No cambiar la lógica de ruleScore(), splitIntoMiniTurns(), ni 
+  retrospectiveRepair()
+- No cambiar la interfaz pública de la clase (mismos métodos públicos)
+- Si hasSessionNames es true pero hasNameSignal es false, la confianza 
+  máxima debe ser <= 0.45 — nunca sobrepasar ese límite para blobs grandes
+- No tocar nada del frontend ni del backend API
+
+## ENTREGABLES
+- [ ] speaker-session.ts modificado con los 2 cambios
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] Con contexto "El vendedor es Alberto Espejo. Wendy Hernández es la clienta",
+      vendorName="Alberto" y clientName="Wendy" quedan seteados al llamar setContext()
+- [ ] Con contexto genérico ("quiero vender un piso...") y turno 1 = "soy Alberto",
+      vendorName="Alberto" queda seteado tras el primer classify()
+- [ ] Un blob de 500 chars con vocabulario claramente vendedor (nosotros, 
+      te explicamos, la inversión es...) recibe speaker "me" con confidence <= 0.45
+      en lugar de UNKNOWN — cuando vendorName ya está seteado en sesión
+- [ ] Un blob de 500 chars SIN vocabulario claro Y sin nombres de sesión 
+      sigue devolviendo UNKNOWN (el comportamiento conservador se preserva)
+- [ ] El app compila sin errores TypeScript
+- [ ] La lógica de carryover y alternation no cambia
