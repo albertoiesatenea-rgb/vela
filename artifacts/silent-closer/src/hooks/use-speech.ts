@@ -43,6 +43,11 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 5000, lang = "e
   // and send only the new portion — prevents repeated prefixes when Chrome
   // restarts recognition mid-utterance and re-transcribes from the beginning.
   const lastInterimFlushedRef = useRef<string>("");
+  // Tracks the last text that was actually sent to onAnalyzeReady (covers the
+  // isFinal path). Chrome with continuous=false sometimes echo-backs part of
+  // the previous session's transcript on restart — this ref lets us detect and
+  // skip identical or near-identical repeated sends.
+  const lastFlushedTextRef = useRef<string>("");
 
   // ── Analysis interval ──────────────────────────────────────────────────
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -81,11 +86,43 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 5000, lang = "e
       return; // nothing to flush
     }
 
+    // ── Echo-back deduplication (isFinal path) ──────────────────────────
+    // Chrome with continuous=false sometimes re-emits part of the previous
+    // session's transcript on restart. Detect and suppress identical or
+    // near-identical sends before forwarding to the analysis pipeline.
+    const lastFlushed = lastFlushedTextRef.current.toLowerCase().trim();
+    const current = text.toLowerCase().trim();
+
+    // Identical or only marginally longer (≤14 new chars) — skip entirely
+    if (current === lastFlushed || (current.startsWith(lastFlushed) && current.length < lastFlushed.length + 15)) {
+      transcriptBuffer.current = "";
+      latestInterimRef.current = "";
+      lastInterimFlushedRef.current = "";
+      setInterimText("");
+      return;
+    }
+
+    // Text starts with what we already sent — strip the known prefix and send
+    // only the genuinely new suffix.
+    let textToSend = text;
+    if (lastFlushed.length > 20 && current.startsWith(lastFlushed)) {
+      textToSend = text.slice(lastFlushedTextRef.current.length).trim();
+      if (textToSend.length < MIN_FLUSH_CHARS) {
+        transcriptBuffer.current = "";
+        latestInterimRef.current = "";
+        lastInterimFlushedRef.current = "";
+        setInterimText("");
+        return;
+      }
+    }
+
+    lastFlushedTextRef.current = text;
+
     console.debug(
-      `[vela:speech] flush reason=${reason} chars=${text.length} ` +
-      `preview="${text.slice(0, 60).replace(/\n/g, " ")}..."`,
+      `[vela:speech] flush reason=${reason} chars=${textToSend.length} ` +
+      `preview="${textToSend.slice(0, 60).replace(/\n/g, " ")}..."`,
     );
-    onAnalyzeReadyRef.current(text);
+    onAnalyzeReadyRef.current(textToSend);
     transcriptBuffer.current = "";
     latestInterimRef.current = "";
     lastInterimFlushedRef.current = "";
@@ -225,6 +262,7 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 5000, lang = "e
     transcriptBuffer.current = "";
     latestInterimRef.current = "";
     lastInterimFlushedRef.current = "";
+    lastFlushedTextRef.current = "";
     shouldListenRef.current = true;
     startInterval();
     startWatchdog();
@@ -242,6 +280,7 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 5000, lang = "e
     flushBufferRef.current("stop");
     latestInterimRef.current = "";
     lastInterimFlushedRef.current = "";
+    lastFlushedTextRef.current = "";
     try { recognitionRef.current?.stop(); } catch { /* ignore */ }
   }, [stopInterval, stopWatchdog]);
 
