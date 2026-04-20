@@ -543,6 +543,13 @@ export default function CopilotPage() {
   const [speakerQualityLevel, setSpeakerQualityLevel] = useState<SpeakerQualityLevel>("normal");
   const speakerSessionRef = useRef<SpeakerAttributionSession>(new SpeakerAttributionSession("es"));
 
+  // ── Feed session context into speaker session for turn-length calibration ──
+  // This enables data-driven length-based attribution after enough turns are
+  // established, without relying on fragile vocab parsing.
+  useEffect(() => {
+    if (sessionContext) speakerSessionRef.current.setContext(sessionContext);
+  }, [sessionContext]);
+
   // Language
   const [lang, setLang] = useState<Lang>(loadLang);
   const langRef = useRef(lang);

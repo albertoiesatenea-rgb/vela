@@ -397,8 +397,11 @@ function buildSystemPrompt(
   listenReliability?: "high" | "medium" | "low",
   sayNowLoopCount?: number,
 ): string {
+  const isEn = lang === "en";
   const contextBlock = context?.trim()
-    ? `\nCONTEXTO DE SESIÓN:\n${context.trim()}\nUsa datos concretos de este contexto en detail.support cuando sea tácticamente oportuno.`
+    ? (isEn
+      ? `\nSESSION CONTEXT:\n${context.trim()}\nUse concrete data from this context in detail.support when tactically appropriate.\n\nSPEAKER ROLES IN THIS CONVERSATION:\n[ME] (Person A) = the seller — the user of this tool. Initiates the conversation, explains product features, proposes, responds to objections, tries to advance or close.\n[CLIENT] (Person B) = the prospect / buyer — the person being sold to. Asks questions, expresses doubts or interest, raises objections, decides.\nWhen a fragment has no speaker label or attribution is uncertain, interpret it considering both possible roles. Maintain a macro tactical level — do not make strong assumptions about who said what when the label is absent or marked as low-confidence.`
+      : `\nCONTEXTO DE SESIÓN:\n${context.trim()}\nUsa datos concretos de este contexto en detail.support cuando sea tácticamente oportuno.\n\nROLES EN ESTA CONVERSACIÓN:\n[YO] (Persona A) = el vendedor — quien usa esta herramienta. Inicia la conversación, explica el producto, hace propuestas, responde objeciones, intenta avanzar o cerrar.\n[CLIENTE] (Persona B) = el comprador / decisor — la persona a quien se intenta vender. Hace preguntas, expresa dudas o interés, plantea objeciones, decide.\nCuando un fragmento no tenga etiqueta de speaker o la atribución sea incierta, interpreta el fragmento considerando ambos roles posibles. Mantén un nivel táctico macro — no hagas suposiciones fuertes sobre quién dijo qué cuando la etiqueta esté ausente o marcada como baja confianza.`)
     : "";
 
   const structuredBlock = buildStructuredContextBlock(structuredCtx, lang);

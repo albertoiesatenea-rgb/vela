@@ -1,0 +1,75 @@
+OBJETIVO
+
+Arreglar la fiabilidad real de la transcripción en Copilot para que VELA vuelva a ser útil como copiloto de ventas en directo.
+
+CONTEXTO DEL PROBLEMA
+
+Estoy probando Copilot en llamadas simuladas leídas en voz alta y la base del sistema está fallando demasiado pronto, antes incluso de que la parte de coaching pueda aportar valor.
+
+El problema no es solo “transcribir mejor”. El problema es que, al fallar la capa de audio a texto, todo lo demás se contamina:
+
+el texto capturado no recoge bien toda la conversación
+partes importantes se pierden o se agrupan mal
+no se separa bien quién habla
+a veces se atribuye mal vendedor vs cliente
+no se está aprovechando bien el contexto de la llamada para interpretar quién es quién
+como consecuencia, say_now, reading, mission y demás salen sobre una base defectuosa
+
+En otras palabras: hoy Copilot no está leyendo una conversación de ventas real con suficiente fiabilidad como para guiar bien sobre la marcha.
+
+LO QUE NECESITO QUE CAMBIE
+
+Quiero que refuerces toda la funcionalidad de escucha/transcripción para que Copilot funcione bien en vivo, no como una simple herramienta de transcripción y no como un parche basado en reglas frágiles.
+
+Necesito una mejora clara en estos puntos:
+
+Captura del texto
+que recoja mucho mejor todo lo que se dice
+que no se coma partes relevantes
+que no convierta la conversación en bloques mal montados
+Separación de hablantes
+que distinga mucho mejor vendedor y cliente
+que no etiquete mal por defecto
+que reduzca los casos ambiguos sin inventarse la atribución
+Uso del contexto
+que tenga en cuenta el contexto de la sesión para entender quién habla y qué papel tiene cada uno
+que use esa información para mejorar la atribución de speaker y la interpretación del texto
+que entienda mejor la lógica comercial de la conversación mientras ocurre
+Utilidad en tiempo real
+que el sistema siga funcionando sobre la marcha
+que el texto y la separación de speakers sean lo bastante buenos como para que say_now y el coaching táctico sean fiables en directo
+que no dependa demasiado de atajos frágiles que funcionen en unas pruebas sí y en otras no
+Robustez general
+que el sistema sea mucho más sólido ante conversaciones rápidas, encadenadas o con poca pausa
+que no se rompa cuando el intercambio es natural y vivo
+que mejore la calidad real del input que recibe el copiloto
+RESTRICCIONES
+No quiero una solución superficial ni cosmética.
+No quiero simplemente maquillar logs o cambiar etiquetas.
+No quiero una mejora pensada solo para una prueba concreta.
+No quiero que la solución se apoye principalmente en hardcodes frágiles.
+La prioridad es mejorar la utilidad real del copiloto en directo.
+Puedes cambiar estructura, flujo o enfoque si hace falta, siempre que el resultado final sea más robusto.
+No rompas el comportamiento existente que ya funciona en el resto del producto si no es necesario.
+ENTREGABLES
+Una mejora real de la funcionalidad de escucha/transcripción de Copilot
+Mejor separación entre vendedor y cliente durante la sesión
+Mejor uso del contexto para interpretar y etiquetar la conversación
+Mejor base de entrada para el coaching en tiempo real
+Una explicación breve de qué se cambió y por qué eso mejora la fiabilidad real
+TESTS
+
+Valida la mejora repitiendo pruebas reales de lectura en voz alta y comprueba al menos esto:
+
+que se captura más texto útil
+que se pierde menos información importante
+que la conversación queda mejor separada entre hablantes
+que el sistema usa mejor el contexto de la llamada
+que el coaching en vivo sale sobre una base más limpia y más fiable
+CRITERIOS DE ACEPTACIÓN
+ Copilot captura la conversación de forma claramente más completa
+ La atribución vendedor/cliente mejora de forma visible
+ El contexto de la sesión ayuda realmente a interpretar la conversación
+ say_now y el análisis táctico dejan de apoyarse en una transcripción claramente defectuosa
+ La herramienta se siente más útil en vivo, no solo en exportes o logs
+ No hay regresiones claras en el funcionamiento general de Copilot

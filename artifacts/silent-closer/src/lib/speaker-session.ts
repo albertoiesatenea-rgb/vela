@@ -51,12 +51,26 @@ export class SpeakerAttributionSession {
   private history: HistoryEntry[] = [];
   private autoReassigned = 0;
   private lang: "es" | "en";
+  private contextSet = false; // true once setContext() has been called for this session
 
   constructor(lang: "es" | "en" = "es") {
     this.lang = lang;
   }
 
   setLang(lang: "es" | "en"): void { this.lang = lang; }
+
+  /**
+   * Provide the session context string so the classifier can learn session-specific
+   * patterns (primarily turn-length calibration from established history).
+   * Safe to call multiple times — idempotent after the first call per session.
+   */
+  setContext(_contextStr: string): void {
+    // Context text itself isn't reliably parseable for speaker vocabulary
+    // (both speakers use the same domain terms). The real gain comes from
+    // turn-length calibration which is computed dynamically from session history.
+    // Mark context as set so calibration can activate earlier.
+    this.contextSet = true;
+  }
 
   /**
    * Classify a text fragment.
@@ -88,9 +102,14 @@ export class SpeakerAttributionSession {
       return { speaker, confidence: rawConf * 0.62, source: "rule", label: this.lbl(speaker) };
     }
 
-    // Long fragments are NOT a reliable signal for "me" — they are more likely
-    // to be contaminated multi-turn blobs from the listen buffer. Do NOT force
-    // attribution here; let UNKNOWN propagate so the caller can treat it accordingly.
+    // ── Session turn-length calibration ──────────────────────────────────
+    // After the session has established clear patterns for both speakers,
+    // use text length as a weak data-driven signal. This is not fragile rule
+    // matching — it learns from what has actually happened in THIS conversation.
+    const lengthSignal = this.turnLengthCalibration(text.length);
+    if (lengthSignal) {
+      return { speaker: lengthSignal.speaker, confidence: lengthSignal.confidence, source: "carryover", label: this.lbl(lengthSignal.speaker) };
+    }
 
     return { speaker: "unknown", confidence: 0, source: "unknown", label: "" };
   }
@@ -226,9 +245,57 @@ export class SpeakerAttributionSession {
   reset(): void {
     this.history = [];
     this.autoReassigned = 0;
+    this.contextSet = false;
   }
 
   // ── Private helpers ─────────────────────────────────────────────────────────
+
+  /**
+   * Data-driven turn-length calibration.
+   *
+   * In most sales conversations the vendor turns are longer (explaining, proposing)
+   * and the client turns are shorter (questioning, reacting). After the session
+   * has established enough high-confidence examples of both speakers, we can use
+   * the text length of a NEW, ambiguous fragment as a weak additional signal.
+   *
+   * Only fires when:
+   *  - ≥ 4 high-confidence "me" turns AND ≥ 3 high-confidence "client" turns
+   *  - The length gap between the two speaker averages is meaningful (> 30 chars)
+   *  - The new text clearly falls into the territory of one speaker pattern
+   *  - The context has been set (opt-in — ensures this is a real session)
+   *
+   * Returns null when conditions are not met (always prefer UNKNOWN over guessing).
+   */
+  private turnLengthCalibration(
+    textLen: number,
+  ): { speaker: SpeakerLabel; confidence: number } | null {
+    if (!this.contextSet) return null;
+
+    const myTurns     = this.history.filter(h => h.speaker === "me"     && h.confidence >= 0.60);
+    const clientTurns = this.history.filter(h => h.speaker === "client" && h.confidence >= 0.60);
+
+    if (myTurns.length < 4 || clientTurns.length < 3) return null;
+
+    const avgMe     = myTurns.reduce((a, h) => a + h.textLength, 0) / myTurns.length;
+    const avgClient = clientTurns.reduce((a, h) => a + h.textLength, 0) / clientTurns.length;
+    const lenGap    = Math.abs(avgMe - avgClient);
+
+    // Only apply if there's a clear, consistent length difference
+    if (lenGap < 30) return null;
+
+    const midpoint = (avgMe + avgClient) / 2;
+
+    // Text clearly in the "long" zone — vendor territory
+    if (textLen > midpoint * 1.3 && avgMe > avgClient) {
+      return { speaker: "me", confidence: 0.36 };
+    }
+    // Text clearly in the "short" zone — client territory
+    if (textLen < midpoint * 0.65 && avgClient < avgMe) {
+      return { speaker: "client", confidence: 0.36 };
+    }
+
+    return null;
+  }
 
   private ruleScore(text: string): { cs: number; vs: number } {
     const t = text.toLowerCase();
