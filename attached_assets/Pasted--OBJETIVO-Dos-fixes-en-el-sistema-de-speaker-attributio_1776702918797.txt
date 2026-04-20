@@ -1,0 +1,96 @@
+## OBJETIVO
+Dos fixes en el sistema de speaker attribution:
+(A) hacer que splitIntoMiniTurns sea más agresivo separando bloques grandes,
+(B) hacer que aiReclassifiedCount se actualice correctamente en el audit log.
+
+─────────────────────────────────────────
+FIX A — Splitter más agresivo
+─────────────────────────────────────────
+
+## CONTEXTO
+En speaker-session.ts, la función splitIntoMiniTurns tiene estos parámetros:
+  MIN_SEG = 22
+  MAX_SEGS = 5
+
+El problema: bloques de 400-800 chars llegan sin separar porque los marcadores
+de Tier 2 requieren MIN_SEG*2 = 44 chars de contexto previo, y muchos
+cambios de speaker ocurren en posiciones donde no hay marcadores claros.
+
+Los marcadores más frecuentes en español conversacional de ventas que faltan:
+- "claro" solo al inicio de respuesta
+- "entendido" — casi siempre vendedor respondiendo
+- "perfecto" — casi siempre vendedor
+- "vale" solo como respuesta corta (cliente)
+- "y" al inicio de frase tras pausa
+- preguntas directas: "¿tienes...?", "¿puedes...?", "¿cuánto...?"
+
+## CAMBIOS REQUERIDOS
+
+En splitIntoMiniTurns, en la sección Tier 2, añadir estos marcadores
+adicionales con offset T2 (MIN_SEG * 2):
+
+  mark(/\bperfecto\b/g, T2);        // vendedor confirmando
+  mark(/\bentendido\b/g, T2);       // vendedor procesando
+  mark(/\bde acuerdo\b/g, T2);      // acuerdo/confirmación
+  mark(/\baproximadamente\b/g, T2); // vendedor preguntando datos
+  mark(/\bcuánto\b/g, T2);         // pregunta — casi siempre vendedor
+  mark(/\btienes\b/g, T2);         // pregunta directa — vendedor
+  mark(/\bpodrías\b/g, T2);        // pregunta — vendedor
+  mark(/\bel primer\b/g, T2);      // vendedor estructurando
+  mark(/\bel segundo\b/g, T2);
+  mark(/\bel tercer\b/g, T2);
+  mark(/\bpor cierto\b/g, T2);
+
+Además, en la sección de punctuation-based splits, ampliar la lista de
+response starters que disparan split tras [.?!]:
+
+  ANTES:
+  if (/^(sí|no|claro|pues|mira|bueno|hola|oye|vale|a ver|exacto|perfecto|...)/.test(next))
+
+  DESPUÉS — añadir al inicio del regex:
+  "entendido|de acuerdo|aproximadamente|cuánto|podrías|tienes|el primer|
+   el segundo|el tercer|nosotros|nuestro"
+
+También aumentar MAX_SEGS de 5 a 8 para permitir más splits en bloques largos.
+
+─────────────────────────────────────────
+FIX B — aiReclassifiedCount no se actualiza
+─────────────────────────────────────────
+
+## CONTEXTO
+En copilot.tsx, la función aiSpeakerRetropass tiene una variable local
+`reclassifiedCount` que se usa internamente pero nunca actualiza el estado
+que aparece en el audit log.
+
+El audit log siempre muestra ai_retropass_reclassified_count: 0 aunque
+el retropass haya reclasificado turnos.
+
+## CAMBIO REQUERIDO
+Buscar en copilot.tsx dónde se define el estado o variable
+`aiReclassifiedCount` que se usa al construir las métricas del audit log
+(cerca de la línea que dice `ai_retropass_reclassified_count: aiReclassifiedCount`).
+
+Hacer que ese valor se actualice cuando aiSpeakerRetropass reclasifica turnos.
+La forma más limpia: añadir un useRef o useState para acumular el count,
+y dentro de aiSpeakerRetropass, después de contar `reclassifiedCount`,
+actualizar ese ref/state con el nuevo valor acumulado.
+
+## RESTRICCIONES
+- No cambiar la interfaz pública de SpeakerAttributionSession
+- No tocar el backend (copilot.ts en api-server)
+- No cambiar los thresholds de confianza ni el guard de HUGE_BLOB
+- Si algún marcador nuevo causa over-splitting en bloques cortos,
+  el MIN_SEG guard (22 chars) lo filtrará — no hace falta ajuste adicional
+
+## ENTREGABLES
+- [ ] speaker-session.ts: splitIntoMiniTurns con marcadores adicionales
+      y MAX_SEGS=8
+- [ ] copilot.tsx: aiReclassifiedCount correctamente actualizado
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] Un blob de 500+ chars con "perfecto... entendido... cuánto te entra"
+      se divide en al menos 2-3 segmentos en lugar de 1
+- [ ] Después de una sesión con turnos UNKNOWN, el audit log muestra
+      ai_retropass_reclassified_count > 0 cuando el retropass reclasifica
+- [ ] No hay errores TypeScript en los archivos modificados
+- [ ] La app compila y funciona igual que antes en sesiones cortas

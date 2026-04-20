@@ -143,7 +143,7 @@ export class SpeakerAttributionSession {
    */
   private splitIntoMiniTurns(text: string): string[] {
     const MIN_SEG  = 22; // minimum viable segment (chars) — filters whisper noise
-    const MAX_SEGS = 5;  // cap — never produce more than 5 segments per blob
+    const MAX_SEGS = 8;  // cap — allow up to 8 segments for long multi-speaker blobs
 
     if (text.length < MIN_SEG * 2) return [text]; // too short to split meaningfully
 
@@ -191,6 +191,18 @@ export class SpeakerAttributionSession {
     mark(/\bpues claro[,\s]/g, T2);
     mark(/\bes que[,\s]/g, T2);       // client hesitation opener
     mark(/\bla verdad[,\s]/g, T2);    // "la verdad es que"
+    // Additional high-frequency markers in Spanish sales conversations
+    mark(/\bperfecto\b/g, T2);        // vendor confirming — almost always new vendor turn
+    mark(/\bentendido\b/g, T2);       // vendor acknowledging
+    mark(/\bde acuerdo\b/g, T2);      // agreement — starts a new turn
+    mark(/\baproximadamente\b/g, T2); // vendor asking for quantities/data
+    mark(/\bcuánto\b/g, T2);          // direct question — nearly always vendor
+    mark(/\btienes\b/g, T2);          // direct question — vendor addressing client
+    mark(/\bpodrías\b/g, T2);         // polite request — vendor
+    mark(/\bel primer\b/g, T2);       // vendor structuring a list
+    mark(/\bel segundo\b/g, T2);
+    mark(/\bel tercer\b/g, T2);
+    mark(/\bpor cierto\b/g, T2);      // digression opener — usually vendor
 
     // ── Punctuation-based splits (when ASR outputs punctuation) ─────────────
     // Split at sentence-final punctuation only when followed by a known response starter.
@@ -199,8 +211,8 @@ export class SpeakerAttributionSession {
     while ((sm = sentEnd.exec(lower)) !== null) {
       const after = sm.index + sm[0].length;
       if (after >= MIN_SEG) {
-        const next = lower.slice(after, after + 15);
-        if (/^(sí|no|claro|pues|mira|bueno|hola|oye|vale|a ver|exacto|perfecto|encantad|soy|me llamo)/.test(next)) {
+        const next = lower.slice(after, after + 20);
+        if (/^(entendido|de acuerdo|aproximadamente|cu[aá]nto|podrías|tienes|el primer|el segundo|el tercer|nosotros|nuestro|sí|no|claro|pues|mira|bueno|hola|oye|vale|a ver|exacto|perfecto|encantad|soy|me llamo)/.test(next)) {
           candidates.push(after);
         }
       }

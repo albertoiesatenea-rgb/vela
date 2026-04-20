@@ -710,6 +710,11 @@ export default function CopilotPage() {
   const maxSayNowLoopRef = useRef(0);
   const [analyzeErrorCount, setAnalyzeErrorCount] = useState(0);
   const analyzeErrorCountRef = useRef(0);
+  // Persists the total number of turns reclassified by the AI retropass across all
+  // trigger points in this session (handleSelectOutcome, handleLoadVelaAudit,
+  // handleDownloadAuditLog). Used so the audit log shows the correct count even
+  // when the download runs after the retropass has already fixed all UNKNOWN turns.
+  const aiRetropassReclassifiedRef = useRef(0);
   const [transcriptOpen, setTranscriptOpen] = useState(false);
   const [liveTranscriptOpen, setLiveTranscriptOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -1250,6 +1255,7 @@ export default function CopilotPage() {
     setImportTranscriptOpen(false);
     setAnalyzeErrorCount(0);
     analyzeErrorCountRef.current = 0;
+    aiRetropassReclassifiedRef.current = 0;
     lastSayNowsRef.current = [];
     maxSayNowLoopRef.current = 0;
     setTranscriptOpen(false);
@@ -1445,7 +1451,8 @@ export default function CopilotPage() {
       });
 
       if (reclassifiedCount > 0) {
-        console.debug(`[vela:speaker] aiSpeakerRetropass reclassified ${reclassifiedCount} turn(s)`);
+        aiRetropassReclassifiedRef.current += reclassifiedCount;
+        console.debug(`[vela:speaker] aiSpeakerRetropass reclassified ${reclassifiedCount} turn(s) (session total: ${aiRetropassReclassifiedRef.current})`);
         setTurnLog(updated);
       }
       return updated;
@@ -1866,7 +1873,9 @@ export default function CopilotPage() {
     const finalMemory = finalLog.length > 0
       ? finalLog[finalLog.length - 1].memory_after
       : tacticalState.callMemory;
-    const aiReclassifiedCount = finalLog.filter(t => t.aiReclassified).length;
+    // Use the session-accumulated ref — not a recount from finalLog — so the
+    // count reflects ALL retropass calls this session, not just this download call.
+    const aiReclassifiedCount = aiRetropassReclassifiedRef.current;
     const baseMetrics = speakerMode === "auto" ? speakerSessionRef.current.getMetrics() : undefined;
     const speakerSessionMetrics = baseMetrics
       ? { ...baseMetrics, ai_retropass_reclassified_count: aiReclassifiedCount }
@@ -2620,6 +2629,7 @@ export default function CopilotPage() {
                   setSpeakerMode(s);
                   if (s !== "auto") {
                     setInferredAutoLabel("");
+                    aiRetropassReclassifiedRef.current = 0;
                     speakerSessionRef.current.reset();
                     setSpeakerQualityLevel("normal");
                   }
