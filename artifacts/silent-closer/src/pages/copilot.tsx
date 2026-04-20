@@ -702,6 +702,8 @@ export default function CopilotPage() {
   const [brutalAuditLoading, setBrutalAuditLoading] = useState(false);
   const [brutalAuditOpen, setBrutalAuditOpen] = useState(false);
   const [brutalAuditError, setBrutalAuditError] = useState(false);
+  const [retropassDone, setRetropassDone] = useState(false);
+  const [retropassRunning, setRetropassRunning] = useState(false);
   const [humanNotes, setHumanNotes] = useState("");
   const [importedTranscript, setImportedTranscript] = useState("");
   const [importTranscriptOpen, setImportTranscriptOpen] = useState(false);
@@ -1482,13 +1484,12 @@ export default function CopilotPage() {
     setIsSummarizing(true);
     const memory = tacticalState.callMemory;
     const speakerUncertainty = computeSpeakerUncertainty();
-    // Run heuristic retropass FIRST (synchronous), then AI semantic retropass (async).
+    // Run heuristic retropass (synchronous). AI retropass is user-triggered via button in results.
     const heuristicLog = applyRetroRepairs();
-    const finalLog = await aiSpeakerRetropass(heuristicLog, true);
-    const convExcerpt = finalLog.map(t => t.normalized_fragment).slice(-12);
-    // Recompute uncertainty after AI repairs — unknown_rate may have dropped
+    setRetropassDone(false);
+    const convExcerpt = heuristicLog.map(t => t.normalized_fragment).slice(-12);
     const postRepairUnknownRate = speakerMode === "auto"
-      ? finalLog.filter(t => t.inferred_speaker === "UNKNOWN").length / Math.max(finalLog.length, 1)
+      ? heuristicLog.filter(t => t.inferred_speaker === "UNKNOWN").length / Math.max(heuristicLog.length, 1)
       : 0;
     const speakerLowConf = speakerMode === "auto" && postRepairUnknownRate > 0.35;
     try {
@@ -2069,6 +2070,40 @@ export default function CopilotPage() {
                               </div>
                             )}
                           </div>
+                        )}
+
+                        {/* ── AI attribution correction — optional, only in AUTO mode ── */}
+                        {speakerMode === "auto" && (
+                          <button
+                            type="button"
+                            disabled={retropassDone || retropassRunning}
+                            onClick={async () => {
+                              setRetropassRunning(true);
+                              try {
+                                const corrected = await aiSpeakerRetropass(turnLog, true);
+                                if (corrected !== turnLog) setTurnLog(corrected);
+                                setRetropassDone(true);
+                              } finally {
+                                setRetropassRunning(false);
+                              }
+                            }}
+                            className={cn(
+                              "w-full flex items-center justify-center gap-2 border rounded-lg py-2.5 text-[11px] font-mono font-semibold transition-all",
+                              retropassDone
+                                ? "border-teal-900/50 text-teal-600 bg-teal-950/20 cursor-default"
+                                : retropassRunning
+                                  ? "border-zinc-700 text-zinc-400 bg-zinc-900/40 cursor-wait"
+                                  : "border-zinc-700 text-zinc-300 bg-zinc-900 hover:bg-zinc-800 hover:border-zinc-500 active:scale-[0.98]",
+                            )}
+                          >
+                            {retropassRunning ? (
+                              <><Loader2 className="w-3 h-3 animate-spin" />{lang === "en" ? "Correcting attribution..." : "Corrigiendo atribución..."}</>
+                            ) : retropassDone ? (
+                              <>{lang === "en" ? "✦ Attribution corrected" : "✦ Atribución corregida"}</>
+                            ) : (
+                              <>{lang === "en" ? "✦ Correct attribution with AI" : "✦ Corregir atribución con IA"}</>
+                            )}
+                          </button>
                         )}
 
                         {/* ── Human notes — optional, feeds the brutal audit ── */}
