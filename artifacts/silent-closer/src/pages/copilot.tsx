@@ -583,41 +583,81 @@ export default function CopilotPage() {
       const timestamp = new Date().toISOString();
       const turnIndex = turnCountRef.current++;
 
-      let speakerPrefix = "";
       let inferredSpeaker: "CLIENTE" | "YO" | "UNKNOWN" = "UNKNOWN";
       let speakerConfidence = 1.0;
       let speakerSource: SpeakerResult["source"] = "manual";
+      let fullText = "";
 
       if (speaker === "client") {
-        speakerPrefix = "[CLIENTE]: ";
         inferredSpeaker = "CLIENTE";
+        const cleaned = text.replace(/^\s*\[(YO|CLIENTE|ME|CLIENT)\]:\s*/i, "").trimStart();
+        fullText = "[CLIENTE]: " + cleaned;
       } else if (speaker === "me") {
-        speakerPrefix = "[YO]: ";
         inferredSpeaker = "YO";
+        const cleaned = text.replace(/^\s*\[(YO|CLIENTE|ME|CLIENT)\]:\s*/i, "").trimStart();
+        fullText = "[YO]: " + cleaned;
       } else {
-        // AUTO mode — SpeakerAttributionSession pipeline
+        // AUTO mode — conversational reconstruction pipeline.
+        // classifySequence() splits the blob into mini-turns at probable speaker-switch
+        // boundaries, attributes each segment independently with history-based alternation
+        // bias flowing naturally between them, and records all to session history.
         speakerSessionRef.current.setLang(langRef.current);
-        const attrResult = speakerSessionRef.current.classify(text);
-        speakerConfidence = attrResult.confidence;
-        speakerSource = attrResult.source;
-        speakerSessionRef.current.recordTurn(attrResult, turnIndex, text.length);
-        setSpeakerQualityLevel(speakerSessionRef.current.getQualityLevel());
-        if (attrResult.speaker === "client") {
-          speakerPrefix = "[CLIENTE]: ";
-          setInferredAutoLabel(attrResult.label);
+        const sequence = speakerSessionRef.current.classifySequence(text, turnIndex);
+
+        // Advance turnCountRef for any extra segments beyond the first.
+        // (turnIndex already consumed the first slot via turnCountRef.current++)
+        if (sequence.length > 1) turnCountRef.current += sequence.length - 1;
+
+        // Per-segment debug log (AUTO mode only)
+        if (capturedInputMode === "listen") {
+          for (const { text: seg, result, turnIdx: tidx } of sequence) {
+            const sp = result.speaker === "client" ? "CLIENTE"
+              : result.speaker === "me" ? "YO" : "UNKNOWN";
+            console.debug(
+              `[vela:analyze] turn=${tidx} mode=listen ` +
+              `speaker=${sp} source=${result.source} conf=${result.confidence.toFixed(2)} ` +
+              `chars=${seg.length}` +
+              (sequence.length > 1 ? " [mini-turn]" : "") +
+              (seg.length > 300 ? " [WARN: still long]" : ""),
+            );
+          }
+        }
+
+        // Dominant speaker for UI state: last confident segment wins, or last overall
+        const lastConf = [...sequence].reverse()
+          .find(s => s.result.speaker !== "unknown" && s.result.confidence >= 0.45);
+        const dominant = lastConf?.result ?? sequence[sequence.length - 1]!.result;
+        speakerConfidence = sequence.reduce((sum, s) => sum + s.result.confidence, 0) / sequence.length;
+        speakerSource = dominant.source;
+
+        if (dominant.speaker === "client") {
+          setInferredAutoLabel(dominant.label);
           inferredSpeaker = "CLIENTE";
-        } else if (attrResult.speaker === "me") {
-          speakerPrefix = "[YO]: ";
-          setInferredAutoLabel(attrResult.label);
+        } else if (dominant.speaker === "me") {
+          setInferredAutoLabel(dominant.label);
           inferredSpeaker = "YO";
         } else {
           setInferredAutoLabel("");
         }
-      }
+        setSpeakerQualityLevel(speakerSessionRef.current.getQualityLevel());
 
-      // Strip any existing speaker prefix the user may have typed (prevents [YO]: [YO]: duplication)
-      const cleanedText = text.replace(/^\s*\[(YO|CLIENTE|ME|CLIENT)\]:\s*/i, "").trimStart();
-      const fullText = speakerPrefix + cleanedText;
+        // Build structured transcript — each mini-turn gets its own speaker prefix.
+        // Single-segment blobs (no split found) use the compact single-prefix format.
+        if (sequence.length === 1) {
+          const seg = sequence[0]!;
+          const prefix = seg.result.speaker === "client" ? "[CLIENTE]: "
+            : seg.result.speaker === "me" ? "[YO]: " : "";
+          const cleaned = seg.text.replace(/^\s*\[(YO|CLIENTE|ME|CLIENT)\]:\s*/i, "").trimStart();
+          fullText = prefix + cleaned;
+        } else {
+          fullText = sequence.map(({ text: seg, result }) => {
+            const prefix = result.speaker === "client" ? "[CLIENTE]: "
+              : result.speaker === "me" ? "[YO]: " : "";
+            const cleaned = seg.replace(/^\s*\[(YO|CLIENTE|ME|CLIENT)\]:\s*/i, "").trimStart();
+            return prefix + cleaned;
+          }).join("\n");
+        }
+      }
       // Build full history BEFORE state update (conversationLog still has previous turns)
       const historyRaw = [...conversationLog, fullText];
       const HISTORY_MAX = 16;
@@ -667,13 +707,13 @@ export default function CopilotPage() {
             ? "medium"
             : "high";
 
-      // ── Listen-mode debug log ─────────────────────────────────────────────
-      if (capturedInputMode === "listen") {
+      // ── Listen-mode debug log (manual speaker modes only) ────────────────
+      // AUTO mode emits per-segment logs inside the classifySequence block above.
+      if (capturedInputMode === "listen" && capturedSpeakerMode !== "auto") {
         console.debug(
           `[vela:analyze] turn=${turnIndex} mode=listen ` +
           `speaker=${inferredSpeaker} source=${speakerSource} conf=${speakerConfidence.toFixed(2)} ` +
-          `chars=${fullText.length}` +
-          (fullText.length > 300 ? " [WARN: long batch — possible multi-turn contamination]" : ""),
+          `chars=${fullText.length}`,
         );
       }
 

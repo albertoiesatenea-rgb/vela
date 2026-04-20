@@ -1,0 +1,91 @@
+Dar un salto real en Copilot listen: ya no basta con evitar la falsa confianza o con meter nombres en contexto. Hay que conseguir que VELA convierta mejor una llamada viva en una secuencia mucho más cercana a diálogo real entre vendedor y cliente, porque ahora mismo sigue agrupando demasiadas intervenciones dentro de pocos bloques grandes.
+
+CONTEXTO DEL PROBLEMA
+
+Estoy probando una llamada muy concreta entre Alberto (vendedor de Immvest) y Wendy (clienta/prospecto).
+Lo que VELA debería aproximar es algo parecido a esto:
+
+Alberto abre
+Wendy responde
+Alberto explica
+Wendy objeta
+Alberto aclara
+Wendy responde
+Alberto filtra residencia / laboral / capital
+Wendy contesta cada punto
+Alberto propone siguiente paso
+Wendy acepta y se despiden
+
+Pero en la práctica el sistema sigue haciendo esto:
+
+mezcla varias intervenciones reales en 3 bloques grandes
+solo detecta bien el primer YO
+deja el resto en UNKNOWN
+colapsa el análisis táctico en los turnos 2 y 3
+sigue habiendo errores de limpieza y atribución
+
+El problema ya no es solo “audio to text”.
+El problema es que Copilot no está reconstruyendo bien la estructura conversacional que necesita para ser útil en vivo.
+
+EJEMPLO CONCRETO
+
+En esta prueba:
+
+Alberto = vendedor
+Wendy = clienta
+
+La conversación esperada es una alternancia razonable entre ambos, pero el sistema la está devolviendo como:
+
+un bloque grande con saludo + lead + pitch + objeción
+un bloque enorme con objeción + respuesta + residencia + laboral + ingresos + capital
+un bloque con capital + timing + siguiente paso + despedida
+
+Eso sigue siendo demasiado malo para un copiloto de ventas.
+
+LO QUE NECESITO QUE CAMBIE
+
+Quiero que mejores el sistema para que:
+
+reconstruya mejor la conversación como diálogo real
+separe mejor actos conversacionales dentro de la sesión
+use mejor el contexto de Alberto/Wendy para ayudar a esa separación
+reduzca los UNKNOWN cuando haya evidencia suficiente
+no vuelva a inventar confianza donde no la hay
+evite mandar a análisis bloques tan mezclados que luego destruyen say_now
+haga que el coaching vuelva a ser útil sobre la marcha
+RESTRICCIONES
+No quiero volver a la falsa confianza.
+No quiero un parche cosmético.
+No quiero hardcodear este caso exacto.
+No quiero que el sistema parezca mejor en métricas pero siga leyendo mal la conversación.
+Puedes cambiar enfoque, flujo o estructura si hace falta.
+La prioridad es recuperar utilidad real en vivo.
+ENTREGABLES
+Mejor reconstrucción de diálogo en Copilot listen
+Mejor separación vendedor/cliente
+Menos mezcla de múltiples intervenciones dentro del mismo bloque
+Mejor base para say_now, reading, mission y next_move
+Explicación breve y clara de qué se cambió y por qué mejora de verdad el producto
+TESTS
+
+Valida repitiendo la prueba de Alberto/Wendy y comprueba:
+
+que la llamada ya no se concentra en solo 3 bloques grandes
+que la alternancia vendedor/cliente mejora visiblemente
+que baja el UNKNOWN sin volver a inventar speakers
+que ya no aparecen “análisis recuperándose” en la mayor parte de la llamada
+que no reaparece [YO]: [YO]:
+que el coaching táctico sale más limpio y más útil
+CRITERIOS DE ACEPTACIÓN
+ La conversación queda mucho más cerca de un diálogo real
+ Mejora la separación Alberto/Wendy
+ Disminuye la mezcla de intervenciones dentro de cada bloque
+ El análisis deja de colapsar en la mayor parte de la sesión
+ say_now resulta más creíble y más útil
+ No hay regresión hacia falsa confianza alta
+ No hay regresión hacia colapso total o blobs monstruosos
+LO QUE YO HABRÍA HECHO
+
+Habría dejado de pensar esto como “speaker label” y lo habría tratado ya como problema de reconstrucción conversacional.
+Habría forzado al sistema a reconocer que cada blob puede contener varios mini-turnos internos.
+Y solo después habría vuelto a pedirle coaching fino.

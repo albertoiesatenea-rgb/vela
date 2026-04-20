@@ -88,6 +88,141 @@ export class SpeakerAttributionSession {
   }
 
   /**
+   * Classify a blob that may contain multiple speaker turns.
+   *
+   * Splits the blob into mini-turns at probable speaker-switch boundaries,
+   * attributes each segment independently, and records them into session
+   * history in order so that history-based alternation bias flows naturally
+   * from segment to segment.
+   *
+   * This is the main entry point for listen-mode classification (AUTO mode).
+   * It replaces the classify() + recordTurn() pair at the call site.
+   *
+   * @param text         - Raw transcribed blob (may be multi-turn)
+   * @param firstTurnIdx - Turn index for the first segment (subsequent segments increment)
+   * @returns Array of { text, result, turnIdx } — always at least 1 element.
+   */
+  classifySequence(text: string, firstTurnIdx: number): Array<{ text: string; result: SpeakerResult; turnIdx: number }> {
+    const segments = this.splitIntoMiniTurns(text);
+    const out: Array<{ text: string; result: SpeakerResult; turnIdx: number }> = [];
+
+    for (let i = 0; i < segments.length; i++) {
+      const seg = segments[i]!;
+      const tidx = firstTurnIdx + i;
+      const result = this.classify(seg);
+      // Record immediately — next segment's classify() will see this turn in history,
+      // which activates the history-based alternation signal naturally.
+      this.recordTurn(result, tidx, seg.length);
+      out.push({ text: seg, result, turnIdx: tidx });
+    }
+
+    return out;
+  }
+
+  /**
+   * Split a potentially multi-speaker blob into individual conversational acts.
+   *
+   * Uses a tiered set of linguistic markers to find probable speaker-switch
+   * boundaries. Never over-splits — a minimum segment size and a hard cap on
+   * the number of segments prevent noise from becoming spurious turns.
+   */
+  private splitIntoMiniTurns(text: string): string[] {
+    const MIN_SEG  = 22; // minimum viable segment (chars) — filters whisper noise
+    const MAX_SEGS = 5;  // cap — never produce more than 5 segments per blob
+
+    if (text.length < MIN_SEG * 2) return [text]; // too short to split meaningfully
+
+    const lower = text.toLowerCase();
+    const candidates: number[] = [];
+
+    // Mark candidate split positions. minOffset prevents splitting at blob start.
+    const mark = (re: RegExp, minOffset = MIN_SEG): void => {
+      re.lastIndex = 0;
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(lower)) !== null) {
+        if (m.index >= minOffset) candidates.push(m.index);
+      }
+    };
+
+    // ── Tier 1: Strongest signals — almost always start a new speaker turn ──
+    mark(/\bhola\b/g);                              // greeting
+    mark(/\bbuenos días\b/g);
+    mark(/\bbuenas tardes\b/g);
+    mark(/\bmucho gusto\b/g);
+    mark(/\bencantad[oa]\b/g);                      // "encantado/a" — intro
+    mark(/\bsoy [a-záéíóúñ]{2,}/g);                // "soy Alberto" — self-id
+    mark(/\bme llamo [a-záéíóúñ]{2,}/g);
+    mark(/\bmi nombre es [a-záéíóúñ]{2,}/g);
+
+    // Known speaker names from session context — direct address or start of a turn
+    if (this.vendorName) {
+      const vn = this.vendorName.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      mark(new RegExp(`\\b${vn}\\b`, "g"), MIN_SEG);
+    }
+    if (this.clientName) {
+      const cn = this.clientName.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      mark(new RegExp(`\\b${cn}\\b`, "g"), MIN_SEG);
+    }
+
+    // ── Tier 2: Moderate signals — require more preceding content ────────────
+    // These are common conversational openers but can appear mid-sentence,
+    // so we demand ≥ 2× MIN_SEG chars of context before them.
+    const T2 = MIN_SEG * 2;
+    mark(/\bno no\b/g, T2);           // emphatic denial — nearly always starts a response
+    mark(/\bclaro claro\b/g, T2);     // emphatic agreement — starts a response
+    mark(/\bsí sí\b/g, T2);           // emphatic agreement
+    mark(/\ba ver[,\s]/g, T2);        // "a ver" — client response opener
+    mark(/\bpues mira[,\s]/g, T2);    // vendor elaboration opener
+    mark(/\bpues claro[,\s]/g, T2);
+    mark(/\bes que[,\s]/g, T2);       // client hesitation opener
+    mark(/\bla verdad[,\s]/g, T2);    // "la verdad es que"
+
+    // ── Punctuation-based splits (when ASR outputs punctuation) ─────────────
+    // Split at sentence-final punctuation only when followed by a known response starter.
+    const sentEnd = /[.?!]\s+/g;
+    let sm: RegExpExecArray | null;
+    while ((sm = sentEnd.exec(lower)) !== null) {
+      const after = sm.index + sm[0].length;
+      if (after >= MIN_SEG) {
+        const next = lower.slice(after, after + 15);
+        if (/^(sí|no|claro|pues|mira|bueno|hola|oye|vale|a ver|exacto|perfecto|encantad|soy|me llamo)/.test(next)) {
+          candidates.push(after);
+        }
+      }
+    }
+
+    if (candidates.length === 0) return [text];
+
+    // Sort and remove near-duplicates (must be at least MIN_SEG apart)
+    const sorted = [...new Set(candidates)].sort((a, b) => a - b);
+    const merged: number[] = [];
+    for (const c of sorted) {
+      if (merged.length === 0 || c - merged[merged.length - 1]! >= MIN_SEG) {
+        merged.push(c);
+      }
+    }
+
+    // Build segments from position boundaries
+    const boundaries = [0, ...merged, text.length];
+    const segments: string[] = [];
+    for (let i = 0; i < boundaries.length - 1; i++) {
+      const seg = text.slice(boundaries[i]!, boundaries[i + 1]!).trim();
+      if (seg.length < MIN_SEG) continue; // skip whisper-length fragments
+      if (segments.length < MAX_SEGS) {
+        segments.push(seg);
+      } else {
+        // Merge remaining into last segment (respect MAX_SEGS cap)
+        segments[segments.length - 1] += " " + seg;
+      }
+    }
+
+    if (segments.length >= 2) {
+      console.debug(`[vela:speaker] split blob (${text.length} chars) → ${segments.length} mini-turns`);
+    }
+    return segments.length >= 2 ? segments : [text];
+  }
+
+  /**
    * Classify a text fragment.
    * Always call recordTurn() after to persist the result.
    *
@@ -310,42 +445,44 @@ export class SpeakerAttributionSession {
    *  "seller: John, client: Mary"
    */
   private parseNames(ctx: string): { vendor: string | null; client: string | null } {
-    // Role keywords that identify who is who
     const VENDOR_WORDS = ["vendedor", "vendor", "comercial", "asesor", "seller", "sales", "closer", "representante"];
     const CLIENT_WORDS = ["cliente", "clienta", "prospecto", "prospect", "buyer", "comprador", "compradora", "lead", "decisor", "decisora"];
 
-    // Regex to match a capitalized name (1-2 words, first letter uppercase)
-    // Supports accented chars (Latin-1 supplement + Latin Extended-A range)
-    const NAME_PAT = "([A-ZÀ-ÖØ-ÝÀ-ÖØ-Ý][a-záéíóúàèìòùäëïöüñç]+(?:\\s+[A-ZÀ-ÖØ-ÝÀ-ÖØ-Ý][a-záéíóúàèìòùäëïöüñç]+)?)";
+    // NAME_PAT: Capitalized name — first letter MUST be uppercase (no 'i' flag on regex).
+    // Supports common accented capital letters. Matches 1 or 2 words.
+    // BUG-FIXED: using 'g' flag only (not 'gi') — with 'gi' every two-letter word
+    // like "es" or "de" would satisfy the pattern since case is ignored.
+    const NAME_PAT = "([A-ZÁÉÍÓÚÀÈÌÒÙÄËÏÖÜÑÇÃÕÂÊÎÔÛ][a-záéíóúàèìòùäëïöüñçãõâêîôû]+(?:\\s+[A-ZÁÉÍÓÚÀÈÌÒÙÄËÏÖÜÑÇÃÕÂÊÎÔÛ][a-záéíóúàèìòùäëïöüñçãõâêîôû]+)?)";
 
     let vendor: string | null = null;
     let client: string | null = null;
 
-    // Pattern 1: "NAME = role" (most common)
-    // e.g. "Alberto = vendedor" / "Wendy = clienta/prospecto"
-    const eqPattern = new RegExp(`${NAME_PAT}\\s*=\\s*([\\w/áéíóúñ,\\s]+)`, "gi");
+    // Pattern 1: "NAME = role_keyword" — e.g. "Alberto = vendedor", "Wendy = clienta"
+    // Role capture uses [\\w/áéíóúñ]+ WITHOUT spaces so it stops after the first role word
+    // and does NOT consume the rest of the string (greedy \s bug fixed).
+    const eqPattern = new RegExp(`${NAME_PAT}\\s*=\\s*([\\w/áéíóúñ]+)`, "g");
     for (const m of ctx.matchAll(eqPattern)) {
-      const name = m[1]!.trim();
+      const name = m[1]!.trim().split(" ")[0]!;
       const role = m[2]!.toLowerCase();
-      if (!vendor && VENDOR_WORDS.some(w => role.startsWith(w))) vendor = name.split(" ")[0]!;
-      if (!client && CLIENT_WORDS.some(w => role.startsWith(w))) client = name.split(" ")[0]!;
+      if (!vendor && VENDOR_WORDS.some(w => role.startsWith(w))) vendor = name;
+      if (!client && CLIENT_WORDS.some(w => role.startsWith(w))) client = name;
     }
 
-    // Pattern 2: "role: NAME" or "role = NAME"
-    // e.g. "vendedor: Alberto" / "cliente: Wendy"
+    // Pattern 2: "role: NAME" or "role = NAME" — e.g. "vendedor: Alberto"
     if (!vendor || !client) {
-      const rolePattern = new RegExp(`(${VENDOR_WORDS.join("|")}|${CLIENT_WORDS.join("|")})[:\\s=]+${NAME_PAT}`, "gi");
+      const allRoles = [...VENDOR_WORDS, ...CLIENT_WORDS].join("|");
+      const rolePattern = new RegExp(`\\b(${allRoles})\\b[:\\s=]+${NAME_PAT}`, "g");
       for (const m of ctx.matchAll(rolePattern)) {
         const role = m[1]!.toLowerCase();
-        const name = (m[2]! as string).trim().split(" ")[0]!;
-        if (!vendor && VENDOR_WORDS.some(w => role === w)) vendor = name;
-        if (!client && CLIENT_WORDS.some(w => role === w)) client = name;
+        const name = m[2]!.trim().split(" ")[0]!;
+        if (!vendor && VENDOR_WORDS.includes(role)) vendor = name;
+        if (!client && CLIENT_WORDS.includes(role)) client = name;
       }
     }
 
-    // Pattern 3: "NAME (role)" — e.g. "Alberto (vendedor)"
+    // Pattern 3: "NAME (role)" — e.g. "Alberto (vendedor de Inmvest)"
     if (!vendor || !client) {
-      const parenPattern = new RegExp(`${NAME_PAT}\\s*\\(([^)]+)\\)`, "gi");
+      const parenPattern = new RegExp(`${NAME_PAT}\\s*\\(([^)]+)\\)`, "g");
       for (const m of ctx.matchAll(parenPattern)) {
         const name = m[1]!.trim().split(" ")[0]!;
         const role = m[2]!.toLowerCase();
@@ -358,7 +495,7 @@ export class SpeakerAttributionSession {
       console.debug(`[vela:speaker] names detected — vendor="${vendor}", client="${client}"`);
     }
 
-    // Sanity: don't use the same name for both roles
+    // Sanity: don't assign the same name to both roles
     if (vendor && client && vendor.toLowerCase() === client.toLowerCase()) {
       client = null;
     }
