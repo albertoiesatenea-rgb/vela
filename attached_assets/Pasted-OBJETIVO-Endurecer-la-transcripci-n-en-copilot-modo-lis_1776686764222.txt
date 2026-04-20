@@ -1,0 +1,56 @@
+OBJETIVO
+
+Endurecer la transcripción en copilot modo listen para que preserve turnos conversacionales reales, reduzca mezcla de speakers y no envíe a /api/copilot/analyze bloques largos contaminados que destruyen el coaching.
+
+CONTEXTO
+Frontend principal: artifacts/silent-closer/src/pages/copilot.tsx
+Hook de voz: artifacts/silent-closer/src/hooks/use-speech.ts
+Speaker attribution: artifacts/silent-closer/src/lib/speaker-session.ts
+Copilot usa Web Speech API en modo escucha y luego envía text, call_memory, conversation_history[] y speaker_confidence a POST /api/copilot/analyze.
+En una sesión real auditada, el sistema:
+mezcló varias intervenciones reales dentro de un solo turno
+atribuyó casi todo a [YO]
+dejó unknown_rate: 40% y avg_confidence: 0.43
+generó bloques de 551 y 854 caracteres
+produjo análisis degradados con “análisis recuperándose” y campos nulos
+renderizó transcript con duplicación [YO]: [YO]:
+No quiero rediseñar todo el producto. Quiero un cambio focalizado y seguro sobre listen/transcripción.
+CAMBIOS REQUERIDOS
+Revisar en use-speech.ts y/o en la lógica de Copilot cómo se consolidan fragmentos parciales y finales del navegador.
+Implementar una regla de batching más estricta para modo listen:
+no acumular indefinidamente varios intercambios en un único bloque
+cerrar batch y crear nuevo turno cuando haya pausa suficiente o cambio probable de speaker
+evitar que una misma entrada termine conteniendo pregunta del vendedor + respuesta del cliente + siguiente explicación del vendedor
+Revisar la lógica de speaker attribution en modo auto para que:
+no convierta por defecto casi todo en [YO]
+use UNKNOWN cuando no haya señal suficiente en vez de asignar mal
+permita reasignación prudente solo con evidencia mínima
+Añadir una limpieza de normalización antes de enviar texto a analyze:
+eliminar duplicaciones de prefijo como [YO]: [YO]:
+colapsar espacios extra
+preservar números y símbolos útiles (€, miles, rangos)
+no “corregir” agresivamente el contenido si eso puede inventar texto
+Añadir guardas previas a POST /api/copilot/analyze:
+si el batch supera cierto umbral de longitud y parece contener múltiples turnos pegados, no enviarlo tal cual
+partirlo o marcarlo como baja confianza
+si speaker confidence cae por debajo de umbral razonable, reflejarlo de forma consistente
+Añadir logging de depuración en modo listen, sin romper producción:
+longitud del batch
+si el batch viene de parcial o final
+speaker asignado y confidence
+razón de cierre del batch (pause, manual, probable_speaker_change, timeout)
+Mantener el comportamiento existente del resto de Copilot intacto salvo donde sea necesario para corregir listen.
+RESTRICCIONES
+No tocar rutas API ni contratos Zod salvo que sea estrictamente necesario.
+No instalar dependencias nuevas.
+No rediseñar la UI.
+No tocar Arena.
+No romper modo simulate.
+No cambiar prompts de IA en esta tarea; el objetivo es mejorar la calidad del texto de entrada y su segmentación.
+Conservar conversation_history[] como mecanismo principal de contexto hacia analyze.
+ENTREGABLES
+ artifacts/silent-closer/src/hooks/use-speech.ts ajustado para batching y segmentación más fiable
+ artifacts/silent-closer/src/pages/copilot.tsx ajustado donde haga falta para integrar la nueva lógica sin regresión
+ artifacts/silent-closer/src/lib/speaker-session.ts ajustado si es necesario para reducir falsas asignaciones a YO
+ limpieza de normalización para evitar prefijos duplicados y batches basura
+ logs de depuración suficientes para auditar el origen de cada turno en modo listen

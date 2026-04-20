@@ -13,6 +13,15 @@ interface UseSpeechProps {
   lang?: "es" | "en";
 }
 
+// ── Batching thresholds ──────────────────────────────────────────────────────
+// If this many ms pass between two consecutive final results, the next one is
+// treated as a probable new speaker turn: the existing buffer is flushed first.
+const INTER_TURN_GAP_MS = 1800;
+// If the accumulated buffer exceeds this, force a flush regardless of timing.
+const MAX_BATCH_CHARS   = 380;
+// Minimum meaningful content before we bother sending a batch to analyze.
+const MIN_FLUSH_CHARS   = 12;
+
 export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 8000, lang = "es" }: UseSpeechProps) {
   const [isListening, setIsListening] = useState(false);
   const [isSupported, setIsSupported] = useState(false);
@@ -31,9 +40,29 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 8000, lang = "e
   const onAnalyzeReadyRef = useRef(onAnalyzeReady);
   onAnalyzeReadyRef.current = onAnalyzeReady;
 
+  // ── Batch timing ────────────────────────────────────────────────────────
+  // Timestamp (ms) of the last `isFinal` result received from the browser.
+  // 0 = no finals yet in this session. Used to detect inter-turn pauses.
+  const lastFinalAtRef = useRef<number>(0);
+
   // ── Analysis interval ──────────────────────────────────────────────────
-  const intervalRef  = useRef<ReturnType<typeof setInterval> | null>(null);
-  const watchdogRef  = useRef<ReturnType<typeof setInterval> | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const watchdogRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ── Flush — defined as a ref so recognition callbacks always see latest ─
+  const flushBufferRef = useRef<(reason: "interval" | "inter_turn_gap" | "max_chars" | "stop") => void>(
+    () => {},
+  );
+  flushBufferRef.current = (reason) => {
+    const text = transcriptBuffer.current.trim();
+    if (text.length < MIN_FLUSH_CHARS) return;
+    console.debug(
+      `[vela:speech] flush reason=${reason} chars=${text.length} preview="${text.slice(0, 60).replace(/\n/g, " ")}..."`,
+    );
+    onAnalyzeReadyRef.current(text);
+    transcriptBuffer.current = "";
+    setInterimText("");
+  };
 
   const stopInterval = useCallback(() => {
     if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
@@ -42,26 +71,27 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 8000, lang = "e
   const startInterval = useCallback(() => {
     if (intervalRef.current) return;
     intervalRef.current = setInterval(() => {
-      const text = transcriptBuffer.current.trim();
-      if (text.length > 10) {
-        onAnalyzeReadyRef.current(text);
-        transcriptBuffer.current = "";
-        setInterimText("");
+      const buf = transcriptBuffer.current.trim();
+      if (buf.length >= MIN_FLUSH_CHARS) {
+        // Force-flush oversized buffers immediately (likely contaminated)
+        if (buf.length >= MAX_BATCH_CHARS) {
+          flushBufferRef.current("max_chars");
+          return;
+        }
+        flushBufferRef.current("interval");
       }
     }, analysisIntervalMs);
   }, [analysisIntervalMs]);
 
-  // ── tryStart — starts recognition, throttled so it doesn't call twice ──
-  // Defined as a ref so it can be called inside onend without stale closure
+  // ── tryStart — throttled, safe to call inside onend ────────────────────
   const tryStartRef = useRef<() => void>(() => {});
   tryStartRef.current = () => {
     if (!recognitionRef.current) return;
     if (!shouldListenRef.current) return;
     if (isActiveRef.current) return;
     const now = Date.now();
-    if (now - lastStartRef.current < 300) return; // 300ms throttle
+    if (now - lastStartRef.current < 300) return;
     lastStartRef.current = now;
-    // Set lang dynamically before each start — no need to recreate recognition
     recognitionRef.current.lang = langRef.current === "en" ? "en-US" : "es-ES";
     try {
       recognitionRef.current.start();
@@ -91,8 +121,6 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 8000, lang = "e
     setIsSupported(true);
 
     const recognition = new SpeechRecognition();
-    // ⚠️ non-continuous is MORE reliable than continuous in Chrome:
-    // continuous=true can silently zombie after ~5-10s of speech pauses.
     // non-continuous fires onend cleanly after each utterance; we restart immediately.
     recognition.continuous      = false;
     recognition.interimResults  = true;
@@ -109,7 +137,39 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 8000, lang = "e
       let interim = "";
       for (let i = event.resultIndex; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
-          transcriptBuffer.current += event.results[i][0].transcript + " ";
+          const fragment: string = event.results[i][0].transcript;
+          const now = Date.now();
+
+          // ── Inter-turn gap detection ───────────────────────────────────
+          // If enough time passed since the last final, this fragment likely
+          // belongs to a new speaker turn — flush the existing buffer first,
+          // so they don't get merged into one analysis blob.
+          if (
+            lastFinalAtRef.current > 0 &&
+            now - lastFinalAtRef.current > INTER_TURN_GAP_MS &&
+            transcriptBuffer.current.trim().length >= MIN_FLUSH_CHARS
+          ) {
+            console.debug(
+              `[vela:speech] inter_turn_gap=${now - lastFinalAtRef.current}ms — ` +
+              `flushing buffer (${transcriptBuffer.current.trim().length} chars) before new fragment`,
+            );
+            // Call directly (not via flushBufferRef to avoid setState mid-event)
+            onAnalyzeReadyRef.current(transcriptBuffer.current.trim());
+            transcriptBuffer.current = "";
+          }
+
+          lastFinalAtRef.current = now;
+          transcriptBuffer.current += fragment + " ";
+
+          console.debug(
+            `[vela:speech] final_fragment chars=${fragment.length} ` +
+            `buffer_total=${transcriptBuffer.current.trim().length}`,
+          );
+
+          // ── Max chars guard ────────────────────────────────────────────
+          if (transcriptBuffer.current.trim().length >= MAX_BATCH_CHARS) {
+            flushBufferRef.current("max_chars");
+          }
         } else {
           interim += event.results[i][0].transcript;
         }
@@ -159,6 +219,7 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 8000, lang = "e
     if (!recognitionRef.current) return;
     setError(null);
     transcriptBuffer.current = "";
+    lastFinalAtRef.current = 0;
     shouldListenRef.current = true;
     startInterval();
     startWatchdog();
@@ -172,12 +233,8 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 8000, lang = "e
     stopWatchdog();
     setIsListening(false);
     setInterimText("");
-    // Flush any remaining transcript as a final analysis
-    const remaining = transcriptBuffer.current.trim();
-    if (remaining.length > 10) {
-      onAnalyzeReadyRef.current(remaining);
-      transcriptBuffer.current = "";
-    }
+    // Flush any remaining content as a final turn
+    flushBufferRef.current("stop");
     try { recognitionRef.current?.stop(); } catch { /* ignore */ }
   }, [stopInterval, stopWatchdog]);
 

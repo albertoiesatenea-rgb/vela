@@ -660,6 +660,16 @@ export default function CopilotPage() {
             ? "medium"
             : "high";
 
+      // ── Listen-mode debug log ─────────────────────────────────────────────
+      if (capturedInputMode === "listen") {
+        console.debug(
+          `[vela:analyze] turn=${turnIndex} mode=listen ` +
+          `speaker=${inferredSpeaker} source=${speakerSource} conf=${speakerConfidence.toFixed(2)} ` +
+          `chars=${fullText.length}` +
+          (fullText.length > 300 ? " [WARN: long batch — possible multi-turn contamination]" : ""),
+        );
+      }
+
       analyze(
         {
           data: {
@@ -782,10 +792,13 @@ export default function CopilotPage() {
                     if (!repair) return entry;
                     const newSpeakerLabel = repair.speaker === "client" ? "CLIENTE" : "YO";
                     const newPrefix = repair.speaker === "client" ? "[CLIENTE]: " : "[YO]: ";
+                    // Strip any existing speaker prefix from raw_fragment before prepending
+                    // the new one — prevents [YO]: [YO]: duplication in simulate mode entries.
+                    const cleanRaw = entry.raw_fragment.replace(/^\s*\[(YO|CLIENTE|ME|CLIENT)\]:\s*/i, "").trimStart();
                     return {
                       ...entry,
                       inferred_speaker: newSpeakerLabel as "CLIENTE" | "YO" | "UNKNOWN",
-                      normalized_fragment: newPrefix + entry.raw_fragment,
+                      normalized_fragment: newPrefix + cleanRaw,
                       speaker_confidence: repair.confidence,
                       auto_repaired: true,
                     };

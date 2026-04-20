@@ -81,19 +81,16 @@ export class SpeakerAttributionSession {
     const co = this.attemptCarryover(cs, vs, rawConf);
     if (co) return co;
 
-    // Medium rule signal with clear direction — low-confidence classification
-    if (total >= 2 && rawConf >= 0.28) {
+    // Medium rule signal with clear direction — low-confidence classification.
+    // Threshold raised to 0.38 to reduce false positives on ambiguous speech.
+    if (total >= 2 && rawConf >= 0.38) {
       const speaker: SpeakerLabel = cs > vs ? "client" : "me";
       return { speaker, confidence: rawConf * 0.62, source: "rule", label: this.lbl(speaker) };
     }
 
-    // Long fragment heuristic: vendor monologues (>200 chars) rarely UNKNOWN
-    if (text.length > 200) {
-      const streakMe = this.getStreakSpeaker("me", 1);
-      if (streakMe) {
-        return { speaker: "me", confidence: 0.48, source: "carryover", label: this.lbl("me") };
-      }
-    }
+    // Long fragments are NOT a reliable signal for "me" — they are more likely
+    // to be contaminated multi-turn blobs from the listen buffer. Do NOT force
+    // attribution here; let UNKNOWN propagate so the caller can treat it accordingly.
 
     return { speaker: "unknown", confidence: 0, source: "unknown", label: "" };
   }
@@ -361,8 +358,10 @@ export class SpeakerAttributionSession {
   }
 
   private attemptCarryover(cs: number, vs: number, rawConf: number): SpeakerResult | null {
+    // "me" requires a longer streak (3) to activate carryover — the main source
+    // of systematic vendor-bias in AUTO mode. Client needs only 2.
     const streakSpeaker =
-      this.getStreakSpeaker("me", 2) ?? this.getStreakSpeaker("client", 2);
+      this.getStreakSpeaker("me", 3) ?? this.getStreakSpeaker("client", 2);
     if (!streakSpeaker) return null;
 
     const oppositeScore = streakSpeaker === "me" ? cs : vs;
