@@ -1433,6 +1433,8 @@ export default function CopilotPage() {
       if (!res.ok) return log;
       const data = await res.json() as { classifications: Record<string, string> };
       const classMap = data.classifications ?? {};
+      console.log('[vela:retropass] classifications received:', JSON.stringify(classMap));
+      console.log('[vela:retropass] candidates:', JSON.stringify([...candidateIndices]));
       if (Object.keys(classMap).length === 0) return log;
 
       let reclassifiedCount = 0;
