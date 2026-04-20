@@ -74,6 +74,10 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 5000, lang = "e
         }
         if (newText.length < MIN_FLUSH_CHARS) return; // no new content yet
         lastInterimFlushedRef.current = interim;
+        // Share state with the isFinal path so it knows what was already sent.
+        // Without this, the isFinal path may re-send the same text the interim
+        // path just forwarded (different refs, same content = duplicate turn).
+        lastFlushedTextRef.current = interim;
         latestInterimRef.current = "";
         setInterimText("");
         console.debug(
