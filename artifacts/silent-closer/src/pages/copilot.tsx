@@ -1856,7 +1856,7 @@ export default function CopilotPage() {
       BRAND_NAME,
       "",
       `${isEs ? "Resultado" : "Result"}: ${callSummary.resultLabel}`,
-      `Score: ${callSummary.score.toFixed(1)} / 10`,
+      `Score: ${(callSummary.score ?? 0).toFixed(1)} / 10`,
       `${isEs ? "Estado" : "State"}: ${callSummary.globalState.toUpperCase()}`,
       "",
       `${isEs ? "Puntos fuertes" : "Strengths"}:`,
@@ -1876,7 +1876,7 @@ export default function CopilotPage() {
       BRAND_NAME,
       "",
       `${isEs ? "Resultado" : "Result"}: ${callSummary.resultLabel}`,
-      `Score: ${callSummary.score.toFixed(1)} / 10`,
+      `Score: ${(callSummary.score ?? 0).toFixed(1)} / 10`,
       `${isEs ? "Estado" : "State"}: ${callSummary.globalState.toUpperCase()}`,
       "",
       "──────────────",
@@ -1987,7 +1987,7 @@ export default function CopilotPage() {
                           <div className="flex flex-col">
                             <p className="text-[10px] font-mono tracking-widest uppercase text-zinc-400">{T[lang].CALL_SCORE}</p>
                             <p className={cn("text-3xl font-mono font-bold leading-none mt-0.5", callSummary.speakerLowConf ? "text-amber-400" : "text-white")}>
-                              {callSummary.score.toFixed(1)}<span className={cn("text-lg", callSummary.speakerLowConf ? "text-amber-600" : "text-zinc-500")}> / 10{callSummary.speakerLowConf ? "*" : ""}</span>
+                              {(callSummary.score ?? 0).toFixed(1)}<span className={cn("text-lg", callSummary.speakerLowConf ? "text-amber-600" : "text-zinc-500")}> / 10{callSummary.speakerLowConf ? "*" : ""}</span>
                             </p>
                             {callSummary.speakerLowConf && (
                               <p className="text-[9px] font-mono text-amber-600 mt-0.5">
@@ -2316,7 +2316,7 @@ export default function CopilotPage() {
                           <div className="shrink-0 text-center">
                             <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-400">{T[lang].CALL_SCORE}</p>
                             <p className={cn("text-xl font-mono font-bold leading-none", callSummary.speakerLowConf ? "text-amber-400" : "text-white")}>
-                              {callSummary.score.toFixed(1)}<span className={cn("text-xs", callSummary.speakerLowConf ? "text-amber-600" : "text-zinc-500")}> /10{callSummary.speakerLowConf ? "*" : ""}</span>
+                              {(callSummary.score ?? 0).toFixed(1)}<span className={cn("text-xs", callSummary.speakerLowConf ? "text-amber-600" : "text-zinc-500")}> /10{callSummary.speakerLowConf ? "*" : ""}</span>
                             </p>
                           </div>
                           <div className="shrink-0 text-right">
