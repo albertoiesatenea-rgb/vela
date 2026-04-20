@@ -16,7 +16,7 @@ interface UseSpeechProps {
 // Minimum meaningful content before we bother sending a batch to analyze.
 const MIN_FLUSH_CHARS = 12;
 
-type FlushReason = "interval" | "stop";
+type FlushReason = "interval" | "stop" | "interim_fallback";
 
 export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 5000, lang = "es" }: UseSpeechProps) {
   const [isListening, setIsListening] = useState(false);
@@ -25,31 +25,56 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 5000, lang = "e
   const [interimText, setInterimText] = useState("");
 
   // ── Refs — all mutable state that must be synchronous ──────────────────
-  const recognitionRef   = useRef<any>(null);
-  const transcriptBuffer = useRef<string>("");
-  const shouldListenRef  = useRef(false);   // user intent
-  const isActiveRef      = useRef(false);   // recognition actually running right now
-  const lastStartRef     = useRef(0);       // throttle rapid restarts
-  const langRef          = useRef(lang);    // always current lang without re-creating recognition
+  const recognitionRef      = useRef<any>(null);
+  const transcriptBuffer    = useRef<string>("");
+  const shouldListenRef     = useRef(false);   // user intent
+  const isActiveRef         = useRef(false);   // recognition actually running right now
+  const lastStartRef        = useRef(0);       // throttle rapid restarts
+  const langRef             = useRef(lang);    // always current lang without re-creating recognition
   langRef.current = lang;
 
-  const onAnalyzeReadyRef = useRef(onAnalyzeReady);
+  const onAnalyzeReadyRef   = useRef(onAnalyzeReady);
   onAnalyzeReadyRef.current = onAnalyzeReady;
+
+  // Tracks the most recent interim transcript so the interval can promote it
+  // to "final" when Chrome never generates isFinal (speaker audio scenario).
+  const latestInterimRef = useRef<string>("");
 
   // ── Analysis interval ──────────────────────────────────────────────────
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const watchdogRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // ── Flush — defined as a ref so recognition callbacks always see latest ─
+  // ── Flush — picks up isFinal buffer, falls back to interim if empty ───
   const flushBufferRef = useRef<(reason: FlushReason) => void>(() => {});
   flushBufferRef.current = (reason) => {
-    const text = transcriptBuffer.current.trim();
-    if (text.length < MIN_FLUSH_CHARS) return;
+    // Primary: committed isFinal fragments
+    let text = transcriptBuffer.current.trim();
+
+    // Fallback: if Chrome never fired isFinal (speaker-audio quirk), use
+    // the latest interim text so the session keeps flowing.
+    if (text.length < MIN_FLUSH_CHARS) {
+      const interim = latestInterimRef.current.trim();
+      if (interim.length >= MIN_FLUSH_CHARS) {
+        text = interim;
+        latestInterimRef.current = "";
+        setInterimText("");
+        console.debug(
+          `[vela:speech] flush reason=interim_fallback chars=${text.length} ` +
+          `preview="${text.slice(0, 60).replace(/\n/g, " ")}..."`,
+        );
+        onAnalyzeReadyRef.current(text);
+        return;
+      }
+      return; // nothing to flush
+    }
+
     console.debug(
-      `[vela:speech] flush reason=${reason} chars=${text.length} preview="${text.slice(0, 60).replace(/\n/g, " ")}..."`,
+      `[vela:speech] flush reason=${reason} chars=${text.length} ` +
+      `preview="${text.slice(0, 60).replace(/\n/g, " ")}..."`,
     );
     onAnalyzeReadyRef.current(text);
     transcriptBuffer.current = "";
+    latestInterimRef.current = "";
     setInterimText("");
   };
 
@@ -60,10 +85,7 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 5000, lang = "e
   const startInterval = useCallback(() => {
     if (intervalRef.current) return;
     intervalRef.current = setInterval(() => {
-      const buf = transcriptBuffer.current.trim();
-      if (buf.length >= MIN_FLUSH_CHARS) {
-        flushBufferRef.current("interval");
-      }
+      flushBufferRef.current("interval");
     }, analysisIntervalMs);
   }, [analysisIntervalMs]);
 
@@ -106,10 +128,11 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 5000, lang = "e
 
     const recognition = new SpeechRecognition();
     // continuous=false: Chrome does not generate isFinal events when audio
-    // comes from a speaker/playback source with continuous=true — it only
-    // accumulates interim text indefinitely. With continuous=false the browser
-    // fires onend cleanly after each utterance and we restart in 50ms,
-    // keeping the gap too short to lose meaningful audio.
+    // comes from a speaker/playback source with continuous=true.
+    // With continuous=false the browser fires onend after each utterance
+    // and we restart in 50ms. For the speaker-audio case where isFinal
+    // never arrives, latestInterimRef carries the interim text into the
+    // 5-second interval flush as a fallback.
     recognition.continuous      = false;
     recognition.interimResults  = true;
     recognition.lang            = "es-ES";
@@ -121,16 +144,22 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 5000, lang = "e
       setError(null);
     };
 
-    // ── Simple accumulator — timer is the only flush trigger ─────────────
     recognition.onresult = (event: any) => {
       let interim = "";
       for (let i = event.resultIndex; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
           const fragment: string = event.results[i][0].transcript;
           transcriptBuffer.current += fragment + " ";
+          // Clear interim once we have a confirmed final
+          latestInterimRef.current = "";
         } else {
           interim += event.results[i][0].transcript;
         }
+      }
+      if (interim) {
+        // Keep the latest interim snapshot so the interval can fall back to it
+        // if isFinal never arrives (speaker-audio scenario).
+        latestInterimRef.current = interim;
       }
       setInterimText(interim);
     };
@@ -178,6 +207,7 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 5000, lang = "e
     if (!recognitionRef.current) return;
     setError(null);
     transcriptBuffer.current = "";
+    latestInterimRef.current = "";
     shouldListenRef.current = true;
     startInterval();
     startWatchdog();
@@ -191,8 +221,9 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 5000, lang = "e
     stopWatchdog();
     setIsListening(false);
     setInterimText("");
-    // Flush any remaining content as a final turn
+    // Flush any remaining content — isFinal buffer first, interim fallback second
     flushBufferRef.current("stop");
+    latestInterimRef.current = "";
     try { recognitionRef.current?.stop(); } catch { /* ignore */ }
   }, [stopInterval, stopWatchdog]);
 

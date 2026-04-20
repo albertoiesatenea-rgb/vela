@@ -1,0 +1,45 @@
+## PROBLEMA
+El Copiloto en modo ESCUCHA está roto. Necesito que lo arregles.
+
+## LO QUE TIENE QUE HACER (comportamiento esperado)
+1. Escuchar continuamente durante toda la llamada sin parar nunca
+2. Cada 5-8 segundos, tomar lo que ha escuchado y analizarlo
+3. Mostrar el say now actualizado durante la llamada, no solo al final
+4. Ir construyendo el transcript en tiempo real mientras escucha
+5. Al finalizar la llamada, tener un transcript completo de toda la conversación
+
+## LO QUE ESTÁ PASANDO AHORA
+- Escucha pero no analiza nada durante la llamada
+- El say now solo aparece cuando el usuario pausa manualmente
+- El transcript sale incompleto — captura solo fragmentos pequeños
+- A veces no genera ningún isFinal aunque sí muestra interim text
+
+## CONTEXTO TÉCNICO
+- use-speech.ts gestiona la captura de audio con Web Speech API
+- El audio viene de un altavoz externo (Google Nest) — no voz directa al micro
+- Con continuous=true Chrome no genera isFinal con audio de altavoz
+- Con continuous=false se pierden chunks durante el restart de 50-120ms
+- Hoy hemos probado ambas configuraciones y ninguna funciona bien
+- El timer de 5 segundos existe pero no dispara porque el buffer está vacío
+  (no llegan isFinal cuando el audio viene del altavoz)
+
+## LO QUE NECESITO
+Que encuentres la forma de que VELA capture audio de forma continua
+y lo procese cada 5-8 segundos independientemente de si Chrome genera
+isFinal o no. 
+
+Una posible solución es usar el interim text como fuente cuando no hay
+isFinal — si después de 5 segundos no ha llegado ningún isFinal pero
+sí hay interim text acumulado, usar ese interim text como si fuera final.
+
+Otra posible solución es usar MediaRecorder API en paralelo como fallback
+cuando Web Speech API no genera finals.
+
+Tú decides la mejor aproximación — conoces el código mejor que yo.
+Lo importante es que funcione con audio de altavoz sin pausas naturales.
+
+## RESTRICCIONES
+- No romper el modo ESCRIBIR
+- No romper Arena
+- El transcript tiene que seguir construyéndose en tiempo real
+- El say now tiene que actualizarse durante la llamada, no solo al final
