@@ -1400,7 +1400,9 @@ export default function CopilotPage() {
     if (log.length === 0) return log;
 
     // Only retropass confirmed turns — pending ones haven't finished their own API call yet.
-    const confirmedLog = log.filter(t => t.response_status !== "pending");
+    const confirmedLog = forceAll
+      ? log
+      : log.filter(t => t.response_status !== "pending");
     if (confirmedLog.length === 0) return log;
 
     // Collect candidate indices. forceAll=true (used at end-of-call) includes every
@@ -2083,7 +2085,7 @@ export default function CopilotPage() {
                               setRetropassRunning(true);
                               try {
                                 const corrected = await aiSpeakerRetropass(turnLog, true);
-                                if (corrected !== turnLog) setTurnLog(corrected);
+                                setTurnLog(corrected);
                                 setRetropassDone(true);
                               } finally {
                                 setRetropassRunning(false);
