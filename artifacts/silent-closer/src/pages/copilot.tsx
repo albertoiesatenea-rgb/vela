@@ -161,6 +161,9 @@ function LiveTranscriptDrawer({
                         ↺{(entry.repair_count ?? 0) > 1 ? entry.repair_count : ""}
                       </span>
                     )}
+                    {entry.response_status === "pending" && (
+                      <span className="text-[7px] font-mono text-zinc-500 leading-none animate-pulse" title="analyzing...">·</span>
+                    )}
                     {entry.response_status === "error" && (
                       <span className="text-[7px] font-mono text-red-600 leading-none" title="analysis error">✗</span>
                     )}
@@ -393,7 +396,7 @@ interface TurnLogEntry {
     momentum: string;
   } | null;
   memory_after: string[];
-  response_status: "ok" | "error" | "partial";
+  response_status: "ok" | "error" | "partial" | "pending";
   parse_error: string | null;
   notes: string | null;
   speaker_confidence?: number;
@@ -773,6 +776,8 @@ export default function CopilotPage() {
   inputModeRef.current = inputMode === "listen" ? "listen" : "simulate";
 
   const turnCountRef = useRef(0);
+  const turnsSinceRetropassRef = useRef(0);
+  const aiSpeakerRetropassRef = useRef<(log: TurnLogEntry[]) => Promise<TurnLogEntry[]>>(async log => log);
 
   const handleAnalysis = useCallback(
     (text: string) => {
@@ -944,6 +949,30 @@ export default function CopilotPage() {
         }
       }
 
+      // ── ADD TURN TO TRANSCRIPT IMMEDIATELY (pending status) ─────────────────
+      // Text appears the instant audio is captured — NOT after the API responds.
+      // onSuccess / onError update this entry in-place by turn_index.
+      const pendingBase = {
+        turn_index: turnIndex,
+        timestamp,
+        source_mode: capturedInputMode,
+        speaker_mode: capturedSpeakerMode,
+        raw_fragment: text,
+        normalized_fragment: fullText,
+        inferred_speaker: inferredSpeaker,
+        memory_before: memoryBefore,
+        system_output: null,
+        memory_after: memoryBefore,
+        response_status: "pending" as const,
+        parse_error: null,
+        notes: null,
+        speaker_confidence: capturedSpeakerMode === "auto" ? speakerConfidence : undefined,
+        speaker_source: capturedSpeakerMode === "auto" ? (speakerSource as "rule" | "carryover" | "manual" | "unknown") : undefined,
+        auto_repaired: false,
+        repair_count: 0,
+      };
+      setTurnLog(prev => [...prev, pendingBase]);
+
       analyze(
         {
           data: {
@@ -963,46 +992,26 @@ export default function CopilotPage() {
         {
           onSuccess: (res) => {
             // ── Runtime error path: API returned 200 but flagged a backend failure ──
-            // Apply a lightweight local fallback so the seller is never left completely blind.
-            // Only sayNow is overwritten — memory, journey, and momentum stay from previous state.
             if (res._runtime_error) {
               setAnalyzeErrorCount(c => { analyzeErrorCountRef.current = c + 1; return c + 1; });
               const fallbackSayNow = computeLocalFallback(fullText, langRef.current);
               setTacticalState(prev => ({ ...prev, sayNow: fallbackSayNow }));
-              setTurnLog(prev => [...prev, {
-                turn_index: turnIndex,
-                timestamp,
-                source_mode: capturedInputMode,
-                speaker_mode: capturedSpeakerMode,
-                raw_fragment: text,
-                normalized_fragment: fullText,
-                inferred_speaker: inferredSpeaker,
-                memory_before: memoryBefore,
-                system_output: null,
-                memory_after: memoryBefore,
+              setTurnLog(prev => prev.map(t => t.turn_index !== turnIndex ? t : {
+                ...t,
                 response_status: "error" as const,
                 parse_error: "API runtime error — local fallback applied",
                 notes: `local_fallback: ${fallbackSayNow}`,
-                speaker_confidence: capturedSpeakerMode === "auto" ? speakerConfidence : undefined,
-                speaker_source: capturedSpeakerMode === "auto" ? (speakerSource as "rule" | "carryover" | "manual" | "unknown") : undefined,
-                auto_repaired: false,
-                repair_count: 0,
-              }]);
+              }));
               return;
             }
             // ── Normal success path ──────────────────────────────────────────────
-            // Fix A: if the response has no memory lines (parse fallback), preserve the
-            // previous turn's memory instead of overwriting with [].  This prevents
-            // call_memory from disappearing when the model returns a safe fallback.
             const rawLines = res.call_memory?.summary_lines ?? [];
             const memoryAfter = rawLines.length > 0 ? rawLines : callMemoryRef.current.slice();
             // ── Track say_now for loop detection ──────────────────────────────
-            // Skip fallback responses — they are not real AI guidance and must not poison the loop counter.
             const isFallbackResponse = res.signal === "análisis recuperándose" || res.signal === "analysis recovering";
             if (res.say_now && !isFallbackResponse) {
               const updated = [...lastSayNowsRef.current, res.say_now].slice(-10);
               lastSayNowsRef.current = updated;
-              // Recompute max loop count for this session
               let runLen = 1;
               const last = updated[updated.length - 1].toLowerCase().trim();
               for (let i = updated.length - 2; i >= 0; i--) {
@@ -1020,43 +1029,34 @@ export default function CopilotPage() {
               momentum: res.momentum as Momentum,
             });
             setTurnLog(prev => {
-              const newEntry = {
-                turn_index: turnIndex,
-                timestamp,
-                source_mode: capturedInputMode,
-                speaker_mode: capturedSpeakerMode,
-                raw_fragment: text,
-                normalized_fragment: fullText,
-                inferred_speaker: inferredSpeaker,
-                memory_before: memoryBefore,
-                system_output: {
-                  signal: res.signal ?? "",
-                  say_now: res.say_now,
-                  avoid: res.avoid ?? null,
-                  detail: {
-                    reading: res.detail?.reading ?? "",
-                    mission: res.detail?.mission ?? "",
-                    next_move: res.detail?.next_move ?? "",
-                    support: res.detail?.support ?? "",
+              // Update the existing pending entry in-place by turn_index
+              const withUpdate = prev.map(t => {
+                if (t.turn_index !== turnIndex) return t;
+                return {
+                  ...t,
+                  system_output: {
+                    signal: res.signal ?? "",
+                    say_now: res.say_now,
+                    avoid: res.avoid ?? null,
+                    detail: {
+                      reading: res.detail?.reading ?? "",
+                      mission: res.detail?.mission ?? "",
+                      next_move: res.detail?.next_move ?? "",
+                      support: res.detail?.support ?? "",
+                    },
+                    journey: {
+                      past: res.journey?.past ?? "",
+                      now: res.journey?.now ?? "",
+                      next: res.journey?.next ?? "",
+                    },
+                    call_memory: memoryAfter,
+                    momentum: res.momentum ?? "amber",
                   },
-                  journey: {
-                    past: res.journey?.past ?? "",
-                    now: res.journey?.now ?? "",
-                    next: res.journey?.next ?? "",
-                  },
-                  call_memory: memoryAfter,
-                  momentum: res.momentum ?? "amber",
-                },
-                memory_after: memoryAfter,
-                response_status: "ok" as const,
-                parse_error: null,
-                notes: null,
-                speaker_confidence: capturedSpeakerMode === "auto" ? speakerConfidence : undefined,
-                speaker_source: capturedSpeakerMode === "auto" ? (speakerSource as "rule" | "carryover" | "manual" | "unknown") : undefined,
-                auto_repaired: false,
-                repair_count: 0,
-              };
-              const updated = [...prev, newEntry];
+                  memory_after: memoryAfter,
+                  response_status: "ok" as const,
+                  parse_error: null,
+                };
+              });
               // Retrospective speaker repair in AUTO mode
               if (capturedSpeakerMode === "auto") {
                 const currentResult: SpeakerResult = {
@@ -1067,13 +1067,11 @@ export default function CopilotPage() {
                 };
                 const repairs = speakerSessionRef.current.retrospectiveRepair(currentResult);
                 if (repairs.size > 0) {
-                  return updated.map(entry => {
+                  return withUpdate.map(entry => {
                     const repair = repairs.get(entry.turn_index);
                     if (!repair) return entry;
                     const newSpeakerLabel = repair.speaker === "client" ? "CLIENTE" : "YO";
                     const newPrefix = repair.speaker === "client" ? "[CLIENTE]: " : "[YO]: ";
-                    // Strip any existing speaker prefix from raw_fragment before prepending
-                    // the new one — prevents [YO]: [YO]: duplication in simulate mode entries.
                     const cleanRaw = entry.raw_fragment.replace(/^\s*\[(YO|CLIENTE|ME|CLIENT)\]:\s*/i, "").trimStart();
                     return {
                       ...entry,
@@ -1086,30 +1084,28 @@ export default function CopilotPage() {
                   });
                 }
               }
-              return updated;
+              return withUpdate;
             });
+            // ── Mid-session AI retropass every 7 confirmed turns in AUTO mode ──
+            // Runs asynchronously so it never blocks listening or rendering.
+            if (capturedSpeakerMode === "auto") {
+              turnsSinceRetropassRef.current++;
+              if (turnsSinceRetropassRef.current >= 7) {
+                turnsSinceRetropassRef.current = 0;
+                const currentLog = turnLogRef.current;
+                aiSpeakerRetropassRef.current(currentLog).then(updated => {
+                  if (updated !== currentLog) setTurnLog(updated);
+                }).catch(() => { /* silent fail — next retropass will retry */ });
+              }
+            }
           },
           onError: () => {
             setAnalyzeErrorCount(c => { analyzeErrorCountRef.current = c + 1; return c + 1; });
-            setTurnLog(prev => [...prev, {
-              turn_index: turnIndex,
-              timestamp,
-              source_mode: capturedInputMode,
-              speaker_mode: capturedSpeakerMode,
-              raw_fragment: text,
-              normalized_fragment: fullText,
-              inferred_speaker: inferredSpeaker,
-              memory_before: memoryBefore,
-              system_output: null,
-              memory_after: memoryBefore,
-              response_status: "error",
+            setTurnLog(prev => prev.map(t => t.turn_index !== turnIndex ? t : {
+              ...t,
+              response_status: "error" as const,
               parse_error: "API call failed",
-              notes: null,
-              speaker_confidence: capturedSpeakerMode === "auto" ? speakerConfidence : undefined,
-              speaker_source: capturedSpeakerMode === "auto" ? (speakerSource as "rule" | "carryover" | "manual" | "unknown") : undefined,
-              auto_repaired: false,
-              repair_count: 0,
-            }]);
+            }));
           },
         }
       );
@@ -1118,7 +1114,7 @@ export default function CopilotPage() {
   );
 
   const { isSupported, isListening, error: speechError, interimText, startListening, stopListening } =
-    useSpeech({ onAnalyzeReady: handleAnalysis, analysisIntervalMs: 5000, lang });
+    useSpeech({ onAnalyzeReady: handleAnalysis, analysisIntervalMs: 3000, lang });
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -1256,6 +1252,7 @@ export default function CopilotPage() {
     setAnalyzeErrorCount(0);
     analyzeErrorCountRef.current = 0;
     aiRetropassReclassifiedRef.current = 0;
+    turnsSinceRetropassRef.current = 0;
     lastSayNowsRef.current = [];
     maxSayNowLoopRef.current = 0;
     setTranscriptOpen(false);
@@ -1405,17 +1402,21 @@ export default function CopilotPage() {
     if (speakerMode !== "auto") return log;
     if (log.length === 0) return log;
 
+    // Only retropass confirmed turns — pending ones haven't finished their own API call yet.
+    const confirmedLog = log.filter(t => t.response_status !== "pending");
+    if (confirmedLog.length === 0) return log;
+
     // Fix A: treat undefined confidence as 0 (candidate), not 1 (high-confidence skip).
     // Collect candidate indices — turns that are UNKNOWN or genuinely low-confidence.
     const candidateIndices = new Set(
-      log
+      confirmedLog
         .filter(t => t.inferred_speaker === "UNKNOWN" || (t.speaker_confidence ?? 0) < 0.5)
         .map(t => t.turn_index),
     );
 
     // Skip only when every turn is high-confidence — medium-conf turns still benefit
     // from the model seeing the full transcript context even if they aren't candidates.
-    const hasLowConfTurns = log.some(t => (t.speaker_confidence ?? 0) < 0.65);
+    const hasLowConfTurns = confirmedLog.some(t => (t.speaker_confidence ?? 0) < 0.65);
     if (!hasLowConfTurns) return log;
 
     const { vendor, client } = speakerSessionRef.current.getDetectedNames();
@@ -1424,9 +1425,8 @@ export default function CopilotPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          // Fix B: send ALL turns so the model has full conversational context,
-          // not only the uncertain ones.
-          turns: log.map(t => ({ index: t.turn_index, text: t.raw_fragment })),
+          // Send confirmed turns only — pending entries don't have final text yet.
+          turns: confirmedLog.map(t => ({ index: t.turn_index, text: t.raw_fragment })),
           setup_context: sessionContext ?? undefined,
           vendor_name: vendor,
           client_name: client,
@@ -1479,6 +1479,7 @@ export default function CopilotPage() {
       return log;
     }
   }, [speakerMode, sessionContext, lang]);
+  aiSpeakerRetropassRef.current = aiSpeakerRetropass;
 
   const handleSelectOutcome = async (outcome: CallOutcome) => {
     setCallOutcome(outcome);

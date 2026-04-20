@@ -17,7 +17,7 @@ export const BRAND_NAME = "VELA" as const;
 
 export type AppMode = "copilot" | "arena";
 export type AuditLang = "es" | "en";
-export type ResponseStatus = "ok" | "error" | "partial";
+export type ResponseStatus = "ok" | "error" | "partial" | "pending";
 
 // ── Typed audit log structure ────────────────────────────────────────────────
 
