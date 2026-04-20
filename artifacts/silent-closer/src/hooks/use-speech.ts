@@ -16,19 +16,19 @@ interface UseSpeechProps {
 // ── Batching thresholds ──────────────────────────────────────────────────────
 // If this many ms pass between two consecutive final results, the next one is
 // treated as a probable new speaker turn: the existing buffer is flushed first.
-const INTER_TURN_GAP_MS     = 900;
+const INTER_TURN_GAP_MS     = 1500; // longer gap = more reliable turn-change detection
 // If the accumulated buffer exceeds this, force a flush regardless of timing.
-const MAX_BATCH_CHARS       = 320;
+const MAX_BATCH_CHARS       = 280;  // smaller cap keeps blobs manageable for attribution
 // Minimum meaningful content before we bother sending a batch to analyze.
 const MIN_FLUSH_CHARS       = 12;
 // A single final fragment this long or more is a "complete thought" — flush
 // immediately so it gets its own analysis batch instead of merging with
 // the next speaker's words.
-const IMMEDIATE_FLUSH_CHARS = 40;
+const IMMEDIATE_FLUSH_CHARS = 60;   // raised — short fragments can afford to batch
 
 type FlushReason = "interval" | "inter_turn_gap" | "max_chars" | "stop" | "immediate";
 
-export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 8000, lang = "es" }: UseSpeechProps) {
+export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 5000, lang = "es" }: UseSpeechProps) {
   const [isListening, setIsListening] = useState(false);
   const [isSupported, setIsSupported] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -120,12 +120,12 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 8000, lang = "e
     setIsSupported(true);
 
     const recognition = new SpeechRecognition();
-    // continuous = false: the browser fires onend cleanly after each natural pause,
-    // and we restart immediately. Each restart gives us one utterance as isFinal —
-    // these utterances map naturally to individual speaker turns.
-    // continuous = true was tested and found to produce ONE giant isFinal blob
-    // (2000+ chars) in this Chromium environment, destroying attribution.
-    recognition.continuous      = false;
+    // continuous = true: recognition never auto-stops between pauses, so we
+    // never lose audio during the restart gap (was 120ms, caused 50-80% loss
+    // in fast conversations). The old continuous=false note about 2000+ char
+    // blobs was a batching problem — now solved by MAX_BATCH_CHARS=280,
+    // IMMEDIATE_FLUSH_CHARS=60, and a 5s interval flush safety net.
+    recognition.continuous      = true;
     recognition.interimResults  = true;
     recognition.lang            = "es-ES";
     recognition.maxAlternatives = 1;
@@ -211,9 +211,11 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 8000, lang = "e
       isActiveRef.current = false;
       setIsListening(false);
       setInterimText("");
-      // Immediately restart if user intent is still to listen
+      // With continuous=true, onend only fires when the user explicitly stops
+      // or on a browser error — not after every natural pause.
+      // Restart with 300ms delay; watchdog covers any case we miss.
       if (shouldListenRef.current) {
-        setTimeout(() => tryStartRef.current(), 120);
+        setTimeout(() => tryStartRef.current(), 300);
       }
     };
 

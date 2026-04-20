@@ -1,0 +1,68 @@
+## OBJETIVO
+Arreglar la pérdida de audio en use-speech.ts. El problema raíz es que
+continuous=false para el reconocimiento después de cada pausa, y durante
+el restart de 120ms se pierde audio. En conversaciones fluidas esto elimina
+el 50-80% del contenido.
+
+## CONTEXTO
+El comentario en el código dice que continuous=true producía blobs de 2000+
+chars. Ese problema era de batching — los blobs eran demasiado grandes porque
+el sistema esperaba demasiado para hacer flush. La solución es activar
+continuous=true y hacer flush más agresivo basado en tiempo y tamaño,
+no esperar a que el browser decida cuándo termina una utterance.
+
+## CAMBIO REQUERIDO en use-speech.ts
+
+1. Cambiar continuous a true:
+   recognition.continuous = true;
+
+2. Reducir los thresholds de batching para compensar:
+
+   ANTES:
+   const INTER_TURN_GAP_MS     = 900;
+   const MAX_BATCH_CHARS       = 320;
+   const MIN_FLUSH_CHARS       = 12;
+   const IMMEDIATE_FLUSH_CHARS = 40;
+
+   DESPUÉS:
+   const INTER_TURN_GAP_MS     = 1500;  // más tiempo para detectar cambio real de turno
+   const MAX_BATCH_CHARS       = 280;   // flush antes de que el blob crezca demasiado
+   const MIN_FLUSH_CHARS       = 12;    // sin cambio
+   const IMMEDIATE_FLUSH_CHARS = 60;    // fragmentos más largos antes de flush inmediato
+
+3. Reducir el intervalo de análisis de 8000ms a 5000ms:
+   En UseSpeechProps: analysisIntervalMs = 5000
+
+   Esto garantiza que aunque no haya pausa natural, el buffer
+   se envía a analizar cada 5 segundos máximo.
+
+4. En el onend handler, NO reiniciar si continuous=true porque onend
+   solo debería dispararse cuando el usuario para explícitamente:
+
+   recognition.onend = () => {
+     isActiveRef.current = false;
+     setIsListening(false);
+     setInterimText("");
+     // Con continuous=true, onend solo dispara cuando el usuario para.
+     // No reiniciar automáticamente — el watchdog lo hace si hace falta.
+     if (shouldListenRef.current) {
+       setTimeout(() => tryStartRef.current(), 300);
+     }
+   };
+
+## RESTRICCIONES
+- No cambiar la interfaz pública del hook (mismos parámetros y retorno)
+- No tocar copilot.tsx ni speaker-session.ts
+- El watchdog cada 2500ms se mantiene como está — es la red de seguridad
+- Si continuous=true causa problemas en algún browser, el onerror handler
+  existente ya maneja los casos de error
+
+## ENTREGABLES
+- [ ] use-speech.ts modificado
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] En una conversación de 16 intercambios, el transcript captura al menos
+      12-14 de ellos (antes capturaba 3-5)
+- [ ] No hay gaps de silencio donde se pierda audio entre turnos
+- [ ] Los blobs no superan los 280 chars antes del flush
+- [ ] La app compila sin errores TypeScript
