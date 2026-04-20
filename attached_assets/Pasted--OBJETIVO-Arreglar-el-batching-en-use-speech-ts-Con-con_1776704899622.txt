@@ -1,0 +1,84 @@
+## OBJETIVO
+Arreglar el batching en use-speech.ts. Con continuous=true el browser
+entrega fragments muy largos (400-2000 chars) como un único isFinal.
+El sistema actual hace flush del fragment completo sin cortarlo,
+produciendo blobs gigantes imposibles de separar por speakers.
+
+## CAMBIO REQUERIDO en use-speech.ts
+
+Dentro del handler de isFinal en onresult, después de añadir el fragment
+al buffer, añadir un splitter que corte el fragment en trozos de máximo
+250 chars antes de enviarlo a analizar:
+
+REEMPLAZAR esta sección del onresult handler:
+
+  lastFinalAtRef.current = now;
+  transcriptBuffer.current += fragment + " ";
+  const bufLen = transcriptBuffer.current.trim().length;
+  console.debug(
+    `[vela:speech] final_fragment chars=${fragment.length} ` +
+    `buffer_total=${bufLen}`,
+  );
+  if (fragment.length >= IMMEDIATE_FLUSH_CHARS) {
+    flushBufferRef.current("immediate");
+    return;
+  }
+  if (bufLen >= MAX_BATCH_CHARS) {
+    flushBufferRef.current("max_chars");
+  }
+
+POR ESTA:
+
+  lastFinalAtRef.current = now;
+
+  // Con continuous=true el browser puede entregar fragments muy largos.
+  // Los cortamos en trozos de MAX_BATCH_CHARS antes de acumular,
+  // enviando cada trozo a analizar por separado.
+  const MAX_CHUNK = 250;
+  if (fragment.length > MAX_CHUNK) {
+    // Cortar en frases completas cuando sea posible
+    const words = fragment.split(" ");
+    let chunk = "";
+    for (const word of words) {
+      if ((chunk + " " + word).trim().length > MAX_CHUNK && chunk.length >= MIN_FLUSH_CHARS) {
+        onAnalyzeReadyRef.current(chunk.trim());
+        chunk = word;
+      } else {
+        chunk = chunk ? chunk + " " + word : word;
+      }
+    }
+    // Enviar el resto al buffer normal
+    if (chunk.trim().length >= MIN_FLUSH_CHARS) {
+      transcriptBuffer.current += chunk + " ";
+    }
+  } else {
+    transcriptBuffer.current += fragment + " ";
+  }
+
+  const bufLen = transcriptBuffer.current.trim().length;
+  console.debug(
+    `[vela:speech] final_fragment chars=${fragment.length} ` +
+    `buffer_total=${bufLen}`,
+  );
+
+  // Flush inmediato si el buffer acumulado supera el máximo
+  if (bufLen >= MAX_BATCH_CHARS) {
+    flushBufferRef.current("max_chars");
+  }
+
+También cambiar en copilot.tsx línea donde se llama useSpeech:
+  analysisIntervalMs: 8000 → analysisIntervalMs: 5000
+
+## RESTRICCIONES
+- No cambiar continuous — mantener true
+- No cambiar la interfaz pública del hook
+- No tocar speaker-session.ts ni el backend
+
+## ENTREGABLES
+- [ ] use-speech.ts con el splitter de fragments largos
+- [ ] copilot.tsx con analysisIntervalMs: 5000
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] Una conversación de 2 minutos produce 6-12 turnos en lugar de 1
+- [ ] Ningún turno supera los 300 chars de raw_input
+- [ ] La app compila sin errores TypeScript

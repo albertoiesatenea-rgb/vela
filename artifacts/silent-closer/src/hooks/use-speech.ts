@@ -161,22 +161,39 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 5000, lang = "e
           }
 
           lastFinalAtRef.current = now;
-          transcriptBuffer.current += fragment + " ";
+
+          // ── Long-fragment splitter ────────────────────────────────────
+          // With continuous=true the browser can deliver a single isFinal
+          // that covers 400–2000 chars of speech. Accumulating that whole
+          // chunk would produce one massive blob that attribution can't
+          // separate. Split at word boundaries into ≤MAX_CHUNK segments,
+          // flushing each one directly, and put only the tail in the buffer.
+          const MAX_CHUNK = 250;
+          if (fragment.length > MAX_CHUNK) {
+            const words = fragment.split(" ");
+            let chunk = "";
+            for (const word of words) {
+              const candidate = chunk ? chunk + " " + word : word;
+              if (candidate.length > MAX_CHUNK && chunk.length >= MIN_FLUSH_CHARS) {
+                onAnalyzeReadyRef.current(chunk.trim());
+                chunk = word;
+              } else {
+                chunk = candidate;
+              }
+            }
+            // Remaining tail goes into the normal buffer
+            if (chunk.trim().length >= MIN_FLUSH_CHARS) {
+              transcriptBuffer.current += chunk + " ";
+            }
+          } else {
+            transcriptBuffer.current += fragment + " ";
+          }
 
           const bufLen = transcriptBuffer.current.trim().length;
           console.debug(
             `[vela:speech] final_fragment chars=${fragment.length} ` +
             `buffer_total=${bufLen}`,
           );
-
-          // ── Immediate flush for complete thoughts ──────────────────────
-          // If the fragment itself is a substantial utterance, flush now so
-          // it gets its own analysis batch instead of merging with the next
-          // speaker's words.
-          if (fragment.length >= IMMEDIATE_FLUSH_CHARS) {
-            flushBufferRef.current("immediate");
-            return;
-          }
 
           // ── Max chars guard ────────────────────────────────────────────
           if (bufLen >= MAX_BATCH_CHARS) {
