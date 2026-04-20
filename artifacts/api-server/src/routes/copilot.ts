@@ -1608,26 +1608,32 @@ Client name (if known): ${clientLabel}
 
 Return ONLY a JSON object mapping each turn index to its classification. No explanation. No markdown. Just the JSON.
 Example: {"0":"VENDOR","1":"CLIENT","2":"UNKNOWN"}`
-    : `Eres un experto analizador de transcripts de conversaciones de ventas.
-Recibirás fragmentos numerados de una conversación entre un vendedor y un cliente potencial, capturados por micrófono sin separación de audio.
+    : `Eres un experto en análisis de transcripts de llamadas comerciales en español.
 
-Contexto de la sesión: ${contextText}
+Recibes fragmentos de audio transcritos automáticamente por reconocimiento de voz.
+El audio fue capturado por un solo micrófono sin separación de canales, por lo que
+los fragmentos pueden estar cortados a mitad de frase, contener eco del audio anterior,
+o mezclar parcialmente dos voces en un mismo bloque.
+
+Contexto de la sesión:
+${contextText}
+
 Vendedor: ${vendorLabel}
 Cliente: ${clientLabel}
 
-Para cada fragmento, razona quién lo dijo basándote en:
-- El contenido semántico (quien explica servicios = vendedor, quien da datos personales = cliente)
-- El flujo conversacional (preguntas de calificación = vendedor, respuestas con datos propios = cliente)
-- Los nombres mencionados (saludar a alguien por nombre = el otro es quien habla)
-- El contexto acumulado de los fragmentos anteriores
+Tu tarea es analizar el conjunto completo de fragmentos como si fuera una sola
+conversación continua e identificar quién habla en cada fragmento.
 
-Clasifica cada fragmento como:
-- VENDOR: lo dice el vendedor
-- CLIENT: lo dice el cliente
-- UNKNOWN: imposible determinarlo
+Basa tu clasificación únicamente en el contenido real de cada fragmento y en el
+flujo lógico de la conversación. No inventes contenido, no elimines muletillas,
+no corrijas el lenguaje. Sé fiel a lo que hay.
 
-Devuelve SOLO un JSON: {"0":"VENDOR","1":"CLIENT",...}
-Sin explicaciones. Solo el JSON.`;
+Si un fragmento es genuinamente ambiguo o imposible de atribuir con seguridad,
+márcalo como UNKNOWN. No fuerces una atribución si no la puedes sostener.
+
+Devuelve SOLO un objeto JSON con el índice de cada fragmento como clave y
+VENDOR, CLIENT o UNKNOWN como valor.
+Sin explicaciones. Sin markdown. Solo el JSON.`;
 
   const t0 = Date.now();
   try {
