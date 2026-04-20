@@ -13,20 +13,10 @@ interface UseSpeechProps {
   lang?: "es" | "en";
 }
 
-// ── Batching thresholds ──────────────────────────────────────────────────────
-// If this many ms pass between two consecutive final results, the next one is
-// treated as a probable new speaker turn: the existing buffer is flushed first.
-const INTER_TURN_GAP_MS     = 1500; // longer gap = more reliable turn-change detection
-// If the accumulated buffer exceeds this, force a flush regardless of timing.
-const MAX_BATCH_CHARS       = 280;  // smaller cap keeps blobs manageable for attribution
 // Minimum meaningful content before we bother sending a batch to analyze.
-const MIN_FLUSH_CHARS       = 12;
-// A single final fragment this long or more is a "complete thought" — flush
-// immediately so it gets its own analysis batch instead of merging with
-// the next speaker's words.
-const IMMEDIATE_FLUSH_CHARS = 60;   // raised — short fragments can afford to batch
+const MIN_FLUSH_CHARS = 12;
 
-type FlushReason = "interval" | "inter_turn_gap" | "max_chars" | "stop" | "immediate";
+type FlushReason = "interval" | "stop";
 
 export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 5000, lang = "es" }: UseSpeechProps) {
   const [isListening, setIsListening] = useState(false);
@@ -45,11 +35,6 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 5000, lang = "e
 
   const onAnalyzeReadyRef = useRef(onAnalyzeReady);
   onAnalyzeReadyRef.current = onAnalyzeReady;
-
-  // ── Batch timing ────────────────────────────────────────────────────────
-  // Timestamp (ms) of the last `isFinal` result received from the browser.
-  // 0 = no finals yet in this session. Used to detect inter-turn pauses.
-  const lastFinalAtRef = useRef<number>(0);
 
   // ── Analysis interval ──────────────────────────────────────────────────
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -120,11 +105,9 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 5000, lang = "e
     setIsSupported(true);
 
     const recognition = new SpeechRecognition();
-    // continuous = true: recognition never auto-stops between pauses, so we
-    // never lose audio during the restart gap (was 120ms, caused 50-80% loss
-    // in fast conversations). The old continuous=false note about 2000+ char
-    // blobs was a batching problem — now solved by MAX_BATCH_CHARS=280,
-    // IMMEDIATE_FLUSH_CHARS=60, and a 5s interval flush safety net.
+    // continuous=true: recognition stays open across pauses — no restart gap,
+    // no lost audio. The 5-second timer is the sole flush trigger, delivering
+    // uniform ~5s chunks regardless of speech rhythm.
     recognition.continuous      = true;
     recognition.interimResults  = true;
     recognition.lang            = "es-ES";
@@ -136,69 +119,13 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 5000, lang = "e
       setError(null);
     };
 
+    // ── Simple accumulator — timer is the only flush trigger ─────────────
     recognition.onresult = (event: any) => {
       let interim = "";
       for (let i = event.resultIndex; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
           const fragment: string = event.results[i][0].transcript;
-          const now = Date.now();
-
-          // ── Inter-turn gap detection ───────────────────────────────────
-          // If enough time passed since the last final, this fragment likely
-          // belongs to a new speaker turn — flush the existing buffer first,
-          // so they don't get merged into one analysis blob.
-          if (
-            lastFinalAtRef.current > 0 &&
-            now - lastFinalAtRef.current > INTER_TURN_GAP_MS &&
-            transcriptBuffer.current.trim().length >= MIN_FLUSH_CHARS
-          ) {
-            console.debug(
-              `[vela:speech] inter_turn_gap=${now - lastFinalAtRef.current}ms — ` +
-              `flushing buffer (${transcriptBuffer.current.trim().length} chars) before new fragment`,
-            );
-            onAnalyzeReadyRef.current(transcriptBuffer.current.trim());
-            transcriptBuffer.current = "";
-          }
-
-          lastFinalAtRef.current = now;
-
-          // ── Long-fragment splitter ────────────────────────────────────
-          // With continuous=true the browser can deliver a single isFinal
-          // that covers 400–2000 chars of speech. Accumulating that whole
-          // chunk would produce one massive blob that attribution can't
-          // separate. Split at word boundaries into ≤MAX_CHUNK segments,
-          // flushing each one directly, and put only the tail in the buffer.
-          const MAX_CHUNK = 250;
-          if (fragment.length > MAX_CHUNK) {
-            const words = fragment.split(" ");
-            let chunk = "";
-            for (const word of words) {
-              const candidate = chunk ? chunk + " " + word : word;
-              if (candidate.length > MAX_CHUNK && chunk.length >= MIN_FLUSH_CHARS) {
-                onAnalyzeReadyRef.current(chunk.trim());
-                chunk = word;
-              } else {
-                chunk = candidate;
-              }
-            }
-            // Remaining tail goes into the normal buffer
-            if (chunk.trim().length >= MIN_FLUSH_CHARS) {
-              transcriptBuffer.current += chunk + " ";
-            }
-          } else {
-            transcriptBuffer.current += fragment + " ";
-          }
-
-          const bufLen = transcriptBuffer.current.trim().length;
-          console.debug(
-            `[vela:speech] final_fragment chars=${fragment.length} ` +
-            `buffer_total=${bufLen}`,
-          );
-
-          // ── Max chars guard ────────────────────────────────────────────
-          if (bufLen >= MAX_BATCH_CHARS) {
-            flushBufferRef.current("max_chars");
-          }
+          transcriptBuffer.current += fragment + " ";
         } else {
           interim += event.results[i][0].transcript;
         }
@@ -250,7 +177,6 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 5000, lang = "e
     if (!recognitionRef.current) return;
     setError(null);
     transcriptBuffer.current = "";
-    lastFinalAtRef.current = 0;
     shouldListenRef.current = true;
     startInterval();
     startWatchdog();
