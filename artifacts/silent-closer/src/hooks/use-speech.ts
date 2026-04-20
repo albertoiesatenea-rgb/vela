@@ -105,10 +105,12 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 5000, lang = "e
     setIsSupported(true);
 
     const recognition = new SpeechRecognition();
-    // continuous=true: recognition stays open across pauses — no restart gap,
-    // no lost audio. The 5-second timer is the sole flush trigger, delivering
-    // uniform ~5s chunks regardless of speech rhythm.
-    recognition.continuous      = true;
+    // continuous=false: Chrome does not generate isFinal events when audio
+    // comes from a speaker/playback source with continuous=true — it only
+    // accumulates interim text indefinitely. With continuous=false the browser
+    // fires onend cleanly after each utterance and we restart in 50ms,
+    // keeping the gap too short to lose meaningful audio.
+    recognition.continuous      = false;
     recognition.interimResults  = true;
     recognition.lang            = "es-ES";
     recognition.maxAlternatives = 1;
@@ -155,11 +157,10 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 5000, lang = "e
       isActiveRef.current = false;
       setIsListening(false);
       setInterimText("");
-      // With continuous=true, onend only fires when the user explicitly stops
-      // or on a browser error — not after every natural pause.
-      // Restart with 300ms delay; watchdog covers any case we miss.
+      // Restart immediately — 50ms keeps the gap too short to lose audio
+      // between utterances. Watchdog covers any edge case we miss.
       if (shouldListenRef.current) {
-        setTimeout(() => tryStartRef.current(), 300);
+        setTimeout(() => tryStartRef.current(), 50);
       }
     };
 
