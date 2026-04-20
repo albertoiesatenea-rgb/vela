@@ -1,0 +1,60 @@
+OBJETIVO
+
+Hacer que la retrospectiva del transcript en Copilot sea real, visible y útil. Ahora mismo parece que existe la UI para ver la conversación, pero no hay evidencia de que VELA esté releyendo lo ya capturado, corrigiendo speakers de forma efectiva y usando esa versión corregida como fuente de verdad para el coaching, la UI y el audit log.
+
+CONTEXTO DEL PROBLEMA
+
+La última prueba deja una señal muy clara:
+
+hay panel visible de conversación, eso está bien
+pero el transcript final sigue saliendo con todos los turnos en UNKNOWN
+no hay señales de reparación real aplicadas en el resultado exportado
+el audit log marca auto_reassigned_count: 0
+el debrief sigue saliendo relativamente optimista aunque la atribución de speakers fue 100% incierta
+
+Esto sugiere que la retrospectiva:
+
+no se está ejecutando de verdad
+o se ejecuta pero no corrige el transcript canónico
+o corrige algo localmente en UI pero no en la fuente de verdad que luego usa el sistema
+
+Quiero cerrar ese hueco.
+
+LO QUE NECESITO QUE CAMBIE
+
+Quiero que la retrospectiva se convierta en una funcionalidad real de producto:
+
+Relectura real del histórico
+VELA debe revisar periódicamente la conversación acumulada
+debe intentar mejorar separación de speakers y estructura de mini-turnos
+esa revisión debe poder cambiar turnos anteriores si había baja confianza
+Fuente de verdad única
+la versión corregida del transcript debe ser la que alimente:
+la UI visible
+el contexto del coaching
+el audit log
+cualquier análisis posterior
+no quiero una UI mostrando una cosa y el export mostrando otra
+Evidencia visible de retrospectiva
+quiero ver claramente cuándo una revisión retrospectiva ocurrió
+quiero ver si un turno fue corregido, cuántas veces y en qué sentido
+si no hubo cambios, que también quede claro
+Mejor coherencia de producto
+si la atribución de speakers sigue siendo muy incierta, el sistema debe reflejarlo de forma más dura
+no quiero debriefs demasiado optimistas cuando la base fue 100% UNKNOWN
+Utilidad real
+la retrospectiva tiene que mejorar de verdad la calidad del transcript y del coaching
+no quiero una capa decorativa o invisible que no cambie el resultado real
+RESTRICCIONES
+No quiero una solución cosmética.
+No quiero solo badges o marcadores visuales sin efecto real.
+No quiero que la retrospectiva exista solo en memoria temporal y no en el transcript final.
+No quiero volver a falsa confianza alta.
+Puedes cambiar estructura o flujo si hace falta.
+La prioridad es que el sistema corrija de verdad y que eso se vea reflejado en toda la cadena.
+ENTREGABLES
+retrospectiva funcional y no solo teórica
+transcript canónico corregible y coherente entre UI, coaching y export
+indicadores claros de cuándo se aplicó una corrección retrospectiva
+mejor coherencia entre incertidumbre de speakers y debrief final
+explicación breve de qué se cambió y por qué ahora la retrospectiva sí es real
