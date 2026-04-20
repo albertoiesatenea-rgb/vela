@@ -1403,10 +1403,20 @@ export default function CopilotPage() {
    */
   const aiSpeakerRetropass = useCallback(async (log: TurnLogEntry[]): Promise<TurnLogEntry[]> => {
     if (speakerMode !== "auto") return log;
-    const candidateTurns = log.filter(
-      t => t.inferred_speaker === "UNKNOWN" || (t.speaker_confidence ?? 1) < 0.5,
+    if (log.length === 0) return log;
+
+    // Fix A: treat undefined confidence as 0 (candidate), not 1 (high-confidence skip).
+    // Collect candidate indices — turns that are UNKNOWN or genuinely low-confidence.
+    const candidateIndices = new Set(
+      log
+        .filter(t => t.inferred_speaker === "UNKNOWN" || (t.speaker_confidence ?? 0) < 0.5)
+        .map(t => t.turn_index),
     );
-    if (candidateTurns.length === 0) return log;
+
+    // Skip only when every turn is high-confidence — medium-conf turns still benefit
+    // from the model seeing the full transcript context even if they aren't candidates.
+    const hasLowConfTurns = log.some(t => (t.speaker_confidence ?? 0) < 0.65);
+    if (!hasLowConfTurns) return log;
 
     const { vendor, client } = speakerSessionRef.current.getDetectedNames();
     try {
@@ -1414,7 +1424,9 @@ export default function CopilotPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          turns: candidateTurns.map(t => ({ index: t.turn_index, text: t.raw_fragment })),
+          // Fix B: send ALL turns so the model has full conversational context,
+          // not only the uncertain ones.
+          turns: log.map(t => ({ index: t.turn_index, text: t.raw_fragment })),
           setup_context: sessionContext ?? undefined,
           vendor_name: vendor,
           client_name: client,
@@ -1430,6 +1442,13 @@ export default function CopilotPage() {
       const updated = log.map(entry => {
         const cls = classMap[String(entry.turn_index)];
         if (!cls || cls === "UNKNOWN") return entry;
+
+        // Fix B: only apply corrections to candidate turns.
+        // High-confidence turns (>= 0.65, not in candidateIndices) are respected
+        // even when the model disagrees.
+        const isCandidate = candidateIndices.has(entry.turn_index);
+        if (!isCandidate) return entry;
+
         const newSpeaker = cls === "VENDOR" ? "YO" as const : "CLIENTE" as const;
         if (entry.inferred_speaker === newSpeaker) return entry;
 

@@ -1,0 +1,92 @@
+## OBJETIVO
+Dos fixes en copilot.tsx que hacen que el retropass IA funcione de verdad.
+
+─────────────────────────────────────────
+FIX A — Corregir bug en el filtro de candidatos del retropass IA
+─────────────────────────────────────────
+
+En copilot.tsx, línea donde está:
+  t => t.inferred_speaker === "UNKNOWN" || (t.speaker_confidence ?? 1) < 0.5
+
+Cambiar ?? 1 por ?? 0:
+  t => t.inferred_speaker === "UNKNOWN" || (t.speaker_confidence ?? 0) < 0.5
+
+─────────────────────────────────────────
+FIX B — El retropass IA manda TODOS los turnos al modelo
+─────────────────────────────────────────
+
+## CONTEXTO
+El retropass IA actual solo manda turnos UNKNOWN o baja confianza al modelo.
+El problema es que turnos MAL clasificados (ej: Alberto hablando sale como
+CLIENTE con confianza 0.4) no son candidatos y nunca se corrigen.
+
+El modelo necesita ver el transcript completo para razonar correctamente
+quién habla en cada turno — sin contexto de los turnos vecinos no puede
+inferir el rol.
+
+## CAMBIO REQUERIDO
+
+En la función aiSpeakerRetropass en copilot.tsx:
+
+ANTES — solo manda candidatos:
+  const candidateTurns = log.filter(
+    t => t.inferred_speaker === "UNKNOWN" || (t.speaker_confidence ?? 1) < 0.5,
+  );
+  if (candidateTurns.length === 0) return log;
+  ...
+  turns: candidateTurns.map(t => ({ index: t.turn_index, text: t.raw_fragment })),
+
+DESPUÉS — manda TODOS los turnos al modelo pero solo aplica correcciones
+en los que tienen baja confianza o son UNKNOWN:
+
+  // Siempre mandar todos los turnos para que el modelo tenga contexto completo
+  if (log.length === 0) return log;
+  
+  // Identificar cuáles son candidatos a corrección (baja confianza o UNKNOWN)
+  const candidateIndices = new Set(
+    log
+      .filter(t => t.inferred_speaker === "UNKNOWN" || (t.speaker_confidence ?? 0) < 0.5)
+      .map(t => t.turn_index)
+  );
+  
+  // Si no hay candidatos, no hay nada que corregir — pero igual vale la pena
+  // enviar si hay algún turno con confianza media-baja
+  const hasLowConfTurns = log.some(t => (t.speaker_confidence ?? 0) < 0.65);
+  if (!hasLowConfTurns) return log;
+
+  // Mandar TODOS los turnos al modelo para dar contexto completo
+  turns: log.map(t => ({ index: t.turn_index, text: t.raw_fragment })),
+
+  // Al aplicar las correcciones, solo modificar los turnos candidatos
+  // (los de alta confianza y clasificación correcta no se tocan)
+  const updated = log.map(entry => {
+    const cls = classMap[String(entry.turn_index)];
+    if (!cls || cls === "UNKNOWN") return entry;
+    
+    // Solo aplicar corrección si es candidato (baja confianza o UNKNOWN)
+    // Los turnos de alta confianza se respetan aunque el modelo difiera
+    const isCandidate = candidateIndices.has(entry.turn_index);
+    if (!isCandidate) return entry;
+    
+    // ... resto de la lógica de corrección igual que ahora
+  });
+
+## RESTRICCIONES
+- No cambiar el backend (copilot.ts en api-server)
+- No cambiar el prompt del sistema que se manda al modelo
+- Los turnos con speaker_confidence >= 0.65 NO se modifican aunque el
+  modelo diga otra cosa — se respeta la clasificación de alta confianza
+- Si log.length === 0, devolver log sin llamar al API
+
+## ENTREGABLES
+- [ ] copilot.tsx con los dos fixes aplicados
+
+## CRITERIOS DE ACEPTACIÓN
+- [ ] Después de una sesión, ai_retropass_reclassified_count > 0 en el
+      audit log cuando hay turnos mal clasificados o UNKNOWN
+- [ ] Turnos con speaker_confidence undefined son tratados como confianza 0
+      (candidatos al retropass)
+- [ ] Turnos con speaker_confidence >= 0.65 no se modifican
+- [ ] El transcript descargado en .md muestra correcciones del retropass IA
+- [ ] No hay errores TypeScript
+- [ ] La app compila y funciona igual que antes
