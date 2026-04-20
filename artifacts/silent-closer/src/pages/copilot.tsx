@@ -1405,7 +1405,7 @@ export default function CopilotPage() {
     // Collect candidate indices — turns that are UNKNOWN or genuinely low-confidence.
     const candidateIndices = new Set(
       confirmedLog
-        .filter(t => t.inferred_speaker === "UNKNOWN" || (t.speaker_confidence ?? 0) < 0.5)
+        .filter(t => t.inferred_speaker === "UNKNOWN" || (t.speaker_confidence ?? 0) < 0.65)
         .map(t => t.turn_index),
     );
 
