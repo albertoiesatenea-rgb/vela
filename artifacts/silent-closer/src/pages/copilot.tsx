@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { Mic, Keyboard, Loader2, AlertCircle, ExternalLink, ChevronDown, Info, List } from "lucide-react";
 import { useAnalyzeConversation } from "@workspace/api-client-react";
 import { useSpeech } from "@/hooks/use-speech";
@@ -9,7 +9,7 @@ import { Arena } from "@/pages/arena";
 import type { ArenaRole } from "@/pages/arena";
 import { cn } from "@/lib/utils";
 import { buildCopilotAuditLog, triggerAuditLogDownload, BRAND_NAME } from "@/lib/audit-log";
-import { SpeakerAttributionSession, type SpeakerResult, type SpeakerQualityLevel } from "@/lib/speaker-session";
+import { SpeakerAttributionSession, type SpeakerResult, type SpeakerQualityLevel, type SpeakerLabel } from "@/lib/speaker-session";
 import { DebugPanel } from "@/components/debug-panel";
 
 // ── Overlay brand header used in end-of-call screens ────────────────────────
@@ -711,8 +711,15 @@ export default function CopilotPage() {
   const [transcriptOpen, setTranscriptOpen] = useState(false);
   const [liveTranscriptOpen, setLiveTranscriptOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [conversationLog, setConversationLog] = useState<string[]>([]);
   const [turnLog, setTurnLog] = useState<TurnLogEntry[]>([]);
+  // conversationLog is DERIVED from turnLog — single source of truth.
+  // Any repair to turnLog.normalized_fragment instantly propagates to
+  // coaching context, debrief, VELA audit, and transcript display.
+  // DO NOT add a separate useState here — that was the root cause of stale exports.
+  const conversationLog = useMemo(
+    () => turnLog.map(t => t.normalized_fragment),
+    [turnLog],
+  );
   const [sessionId, setSessionId] = useState<string>("");
   const [recoveredSession, setRecoveredSession] = useState<PersistedSession | null>(() => loadSavedSession());
 
@@ -869,8 +876,6 @@ export default function CopilotPage() {
       } else {
         conversationHistoryPayload = enrichedHistory;
       }
-
-      setConversationLog(prev => [...prev, fullText]);
 
       // Snapshot memory before this turn
       const memoryBefore = callMemoryRef.current.slice();
@@ -1176,12 +1181,11 @@ export default function CopilotPage() {
       analyzeErrorCount,
     };
     try { localStorage.setItem(SESSION_PERSIST_KEY, JSON.stringify(toSave)); } catch { /* ignore */ }
-  }, [turnLog.length, conversationLog.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [turnLog.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Restore core state from a persisted session ──────────────────────────
   const applyRecoveredSession = (s: PersistedSession) => {
-    setConversationLog(s.conversationLog);
-    setTurnLog(s.turnLog);
+    setTurnLog(s.turnLog); // conversationLog is derived from turnLog — no separate restore needed
     setTacticalState(s.tacticalState);
     setSessionContext(s.sessionContext);
     setContextLabel(s.contextLabel);
@@ -1225,7 +1229,6 @@ export default function CopilotPage() {
     setIsSessionListening(false);
     setInputMode("listen");
     setSpeakerMode("auto");
-    setConversationLog([]);
     setTurnLog([]);
     setSessionId("");
     turnCountRef.current = 0;
@@ -1319,13 +1322,71 @@ export default function CopilotPage() {
     };
   };
 
+  /**
+   * Apply a full retroactive speaker repair pass using the current session state.
+   *
+   * Returns the REPAIRED TurnLogEntry array synchronously — safe to use immediately
+   * in the same handler tick without waiting for React state to update.
+   * Also queues a setTurnLog() call so the UI reflects the repairs.
+   *
+   * Call this before any post-call export: summarize, VELA audit, brutal audit, download.
+   * No-op (returns current log) when speakerMode is not "auto" or no repairs apply.
+   */
+  const applyRetroRepairs = useCallback((): TurnLogEntry[] => {
+    const current = turnLogRef.current;
+    if (speakerMode !== "auto") return current;
+    const entries = current.map(t => ({
+      turnIndex: t.turn_index,
+      text: t.raw_fragment,
+      currentSpeaker: (t.inferred_speaker === "CLIENTE" ? "client" : t.inferred_speaker === "YO" ? "me" : "unknown") as SpeakerLabel,
+      currentConf: t.speaker_confidence ?? 0,
+    }));
+    const repairs = speakerSessionRef.current.fullRetroPass(entries);
+    if (repairs.size === 0) return current;
+    const repaired = current.map(entry => {
+      const repair = repairs.get(entry.turn_index);
+      if (!repair) return entry;
+      const newSpeakerLabel = repair.speaker === "client" ? "CLIENTE" : "YO";
+      const newPrefix = repair.speaker === "client" ? "[CLIENTE]: " : "[YO]: ";
+      const cleanRaw = entry.raw_fragment
+        .replace(/^\s*\[(YO|CLIENTE|ME|CLIENT)\]:\s*/i, "")
+        .trimStart();
+      return {
+        ...entry,
+        inferred_speaker: newSpeakerLabel as "CLIENTE" | "YO" | "UNKNOWN",
+        normalized_fragment: newPrefix + cleanRaw,
+        speaker_confidence: repair.confidence,
+        auto_repaired: true,
+        repair_count: (entry.repair_count ?? 0) + 1,
+      };
+    });
+    setTurnLog(repaired);  // queue UI update
+    return repaired;
+  }, [speakerMode]);
+
+  // ── In-session retroactive repair when speaker names are newly learned ───────
+  // Each time a turn is added, check whether learnNamesFromSpeech() discovered
+  // a new speaker name inside that turn. If yes, re-classify ALL previous turns
+  // that were low-confidence or UNKNOWN using the newly available name signal.
+  // This is what makes "soy Alberto" in turn 1 retroactively fix turns 0-N.
+  useEffect(() => {
+    if (speakerMode !== "auto" || turnLog.length === 0) return;
+    const learned = speakerSessionRef.current.getAndResetLearnCount();
+    if (learned > 0) {
+      applyRetroRepairs();
+    }
+  }, [turnLog.length, speakerMode, applyRetroRepairs]);
+
   const handleSelectOutcome = async (outcome: CallOutcome) => {
     setCallOutcome(outcome);
     setEndStep("summary");
     setIsSummarizing(true);
     const memory = tacticalState.callMemory;
     const speakerUncertainty = computeSpeakerUncertainty();
-    const convExcerpt = conversationLog.slice(-12);
+    // Run retroactive repair pass FIRST — returns the repaired log synchronously
+    // AND queues a setTurnLog update so the UI shows corrected speaker badges.
+    const repairedLog = applyRetroRepairs();
+    const convExcerpt = repairedLog.map(t => t.normalized_fragment).slice(-12);
     try {
       const res = await fetch("/api/copilot/summarize", {
         method: "POST",
@@ -1376,7 +1437,8 @@ export default function CopilotPage() {
   const handleGenerateReport = async () => {
     setIsGeneratingReport(true);
     const speakerUncertainty = computeSpeakerUncertainty();
-    const convExcerpt = conversationLog.slice(-12);
+    const repairedLog = applyRetroRepairs();
+    const convExcerpt = repairedLog.map(t => t.normalized_fragment).slice(-12);
     try {
       const res = await fetch("/api/copilot/summarize", {
         method: "POST",
@@ -1450,9 +1512,11 @@ export default function CopilotPage() {
     if (!force && (velaAudit || velaAuditLoading)) return;
     setVelaAuditLoading(true);
     setVelaAuditError(false);
+    // Run retroactive repair before computing metrics — unknown_rate will reflect repairs
+    const repairedLog = applyRetroRepairs();
     const speakerMetrics = speakerMode === "auto" ? speakerSessionRef.current.getMetrics() : null;
     const unknownRate = speakerMetrics?.unknown_rate ?? 0;
-    const totalTurns = turnLog.length;
+    const totalTurns = repairedLog.length;
     const errorRate = analyzeErrorCount / Math.max(totalTurns, 1);
     const listenReliability: "high" | "medium" | "low" =
       (unknownRate > 0.5 || errorRate > 0.3 || maxSayNowLoopRef.current >= 5)
@@ -1460,13 +1524,14 @@ export default function CopilotPage() {
         : (unknownRate > 0.25 || errorRate > 0.1 || maxSayNowLoopRef.current >= 3)
           ? "medium"
           : "high";
-    const velaSuggestions = turnLog
+    const velaSuggestions = repairedLog
       .filter(t => t.system_output?.say_now)
       .map(t => t.system_output!.say_now);
-    const finalMemory = turnLog.length > 0
-      ? turnLog[turnLog.length - 1].memory_after
+    const finalMemory = repairedLog.length > 0
+      ? repairedLog[repairedLog.length - 1].memory_after
       : tacticalState.callMemory;
     const memoryStr = finalMemory.length > 0 ? finalMemory.map(l => `- ${l}`).join("\n") : undefined;
+    const repairedConvLog = repairedLog.map(t => t.normalized_fragment);
     try {
       const res = await fetch("/api/copilot/audit-report-vela", {
         method: "POST",
@@ -1480,7 +1545,7 @@ export default function CopilotPage() {
             total_turns: totalTurns || undefined,
             listen_reliability: listenReliability,
           },
-          auto_transcript: conversationLog.length > 0 ? conversationLog : undefined,
+          auto_transcript: repairedConvLog.length > 0 ? repairedConvLog : undefined,
           imported_transcript: importedTranscript.trim() || undefined,
           vela_suggestions: velaSuggestions.length > 0 ? velaSuggestions : undefined,
           call_memory: memoryStr,
@@ -1506,10 +1571,11 @@ export default function CopilotPage() {
     setVelaAudit(null);
     setVelaAuditError(false);
     setVelaAuditOpen(false);
-    // Re-run summarize with current transcript source
+    // Re-run summarize with current transcript source (apply retro repairs first)
     setIsSummarizing(true);
     const speakerUncertainty = computeSpeakerUncertainty();
-    const convExcerpt = conversationLog.slice(-12);
+    const repairedLog = applyRetroRepairs();
+    const convExcerpt = repairedLog.map(t => t.normalized_fragment).slice(-12);
     try {
       const res = await fetch("/api/copilot/summarize", {
         method: "POST",
@@ -1709,8 +1775,11 @@ export default function CopilotPage() {
   };
 
   const handleDownloadAuditLog = () => {
-    const finalMemory = turnLog.length > 0
-      ? turnLog[turnLog.length - 1].memory_after
+    // Apply retroactive repairs before building the audit log — ensures the
+    // downloaded .md file reflects the best possible speaker attribution.
+    const repairedLog = applyRetroRepairs();
+    const finalMemory = repairedLog.length > 0
+      ? repairedLog[repairedLog.length - 1].memory_after
       : tacticalState.callMemory;
     const log = buildCopilotAuditLog({
       sessionId: sessionId || null,
@@ -1721,7 +1790,7 @@ export default function CopilotPage() {
       inputModeUsed: "auto",
       callOutcome,
       callSummary: callSummary ?? null,
-      turnLog,
+      turnLog: repairedLog,
       finalMemory,
       structuredContext,
       speakerSessionMetrics: speakerMode === "auto"

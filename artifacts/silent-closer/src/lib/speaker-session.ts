@@ -53,10 +53,14 @@ export class SpeakerAttributionSession {
   private lang: "es" | "en";
   private contextSet = false;
 
-  // Names extracted from session context — the strongest attribution signal available.
+  // Names extracted from session context or learned from live speech.
   // Null when not detected (no regression: falls back to vocabulary-only classification).
   private vendorName: string | null = null;
   private clientName: string | null = null;
+
+  // Counter incremented each time a name is newly learned from live speech.
+  // Lets the caller decide whether to run a retroactive re-pass.
+  private namesLearnedCount = 0;
 
   constructor(lang: "es" | "en" = "es") {
     this.lang = lang;
@@ -80,11 +84,22 @@ export class SpeakerAttributionSession {
   }
 
   /**
-   * Returns the speaker names detected from session context, or null if not found.
+   * Returns the speaker names detected from session context or learned live, or null.
    * Use this in the calling layer to enrich backend API payloads.
    */
   getDetectedNames(): { vendor: string | null; client: string | null } {
     return { vendor: this.vendorName, client: this.clientName };
+  }
+
+  /**
+   * Returns how many names have been newly learned from live speech since the
+   * last call to this method (consuming the count). Use this to decide whether
+   * to run a retroactive re-pass of earlier turns.
+   */
+  getAndResetLearnCount(): number {
+    const n = this.namesLearnedCount;
+    this.namesLearnedCount = 0;
+    return n;
   }
 
   /**
@@ -236,6 +251,11 @@ export class SpeakerAttributionSession {
     const LARGE_BLOB = 180;
     const LARGE_CAP  = 0.40;
 
+    // ── In-speech name learning ────────────────────────────────────────────
+    // Must run BEFORE nameScore() is called so that a turn saying "soy Alberto"
+    // immediately benefits from the name signal in the same classification cycle.
+    this.learnNamesFromSpeech(text);
+
     // ── Rule score FIRST (name signals are included here) ─────────────────
     // Must run before the blob-size guard so name presence can override it.
     const { cs, vs } = this.ruleScore(text);
@@ -324,7 +344,7 @@ export class SpeakerAttributionSession {
   ): Map<number, { speaker: SpeakerLabel; confidence: number }> {
     const repairs = new Map<number, { speaker: SpeakerLabel; confidence: number }>();
 
-    if (latestResult.confidence < 0.65 || latestResult.speaker === "unknown") return repairs;
+    if (latestResult.confidence < 0.50 || latestResult.speaker === "unknown") return repairs;
 
     // Need at least 2 recent high-conf turns (excluding the very last one we just recorded)
     const recentHighConf = this.history
@@ -430,6 +450,39 @@ export class SpeakerAttributionSession {
     this.contextSet = false;
     this.vendorName = null;
     this.clientName = null;
+    this.namesLearnedCount = 0;
+  }
+
+  /**
+   * Re-classify a set of historical turns using the CURRENT session state
+   * (names learned, history patterns). Returns a repair map for all entries
+   * that were UNKNOWN or low-confidence that can now be attributed.
+   *
+   * This is the canonical "make retrospective real" pass — call it:
+   *  1. After names are newly learned from live speech (in-session fix)
+   *  2. Before any post-call export / debrief (end-of-session fix)
+   *
+   * The caller applies the returned Map to turnLog state.
+   * classify() is pure (it reads but does NOT mutate this.history), so
+   * calling it here for old entries is safe and side-effect-free.
+   */
+  fullRetroPass(
+    entries: Array<{ turnIndex: number; text: string; currentSpeaker: SpeakerLabel; currentConf: number }>,
+  ): Map<number, { speaker: SpeakerLabel; confidence: number }> {
+    const repairs = new Map<number, { speaker: SpeakerLabel; confidence: number }>();
+    for (const entry of entries) {
+      // Only revisit low-confidence or unknown turns — skip already-confident ones
+      if (entry.currentConf >= 0.52 && entry.currentSpeaker !== "unknown") continue;
+      const result = this.classify(entry.text);
+      if (result.speaker !== "unknown" && result.speaker !== entry.currentSpeaker) {
+        repairs.set(entry.turnIndex, { speaker: result.speaker, confidence: result.confidence });
+        this.autoReassigned++;
+      }
+    }
+    if (repairs.size > 0) {
+      console.debug(`[vela:speaker] fullRetroPass repaired ${repairs.size} turn(s)`);
+    }
+    return repairs;
   }
 
   // ── Private helpers ─────────────────────────────────────────────────────────
@@ -501,6 +554,61 @@ export class SpeakerAttributionSession {
     }
 
     return { vendor, client };
+  }
+
+  /**
+   * Attempt to extract speaker names from LIVE SPEECH.
+   *
+   * When the vendor says "soy Alberto" or "me llamo Wendy" in the transcript,
+   * we can infer their name in real-time — even when the session context didn't
+   * provide explicit name declarations. This is the key to unblocking the
+   * HUGE_BLOB guard in sessions where context was generic.
+   *
+   * Called at the START of classify() so that the name is available for
+   * nameScore() WITHIN THE SAME TURN that introduced it.
+   *
+   * Updates vendorName / clientName in-place; increments namesLearnedCount.
+   */
+  private learnNamesFromSpeech(text: string): void {
+    const SELF_ID = ["soy ", "me llamo ", "i'm ", "i am ", "my name is "];
+    const CAPITAL_NAME = /([A-ZÁÉÍÓÚÀÈÌÒÙÄËÏÖÜÑÇÃÕÂÊÎÔÛ][a-záéíóúàèìòùäëïöüñçãõâêîôû]{2,})/;
+
+    const t = text.toLowerCase();
+
+    if (!this.vendorName) {
+      for (const prefix of SELF_ID) {
+        const idx = t.indexOf(prefix);
+        if (idx === -1) continue;
+        // Grab the raw text at the same position (preserving case for extraction)
+        const after = text.slice(idx + prefix.length).trimStart();
+        const m = CAPITAL_NAME.exec(after);
+        if (m) {
+          this.vendorName = m[1]!;
+          this.namesLearnedCount++;
+          console.debug(`[vela:speaker] in-speech vendor name learned: "${this.vendorName}"`);
+          break;
+        }
+      }
+    }
+
+    // Detect client self-identification in the same turn (less common but possible)
+    if (!this.clientName && this.vendorName) {
+      // Only look for a second name if we already know the vendor.
+      // Pattern: "yo soy [VendorName]... la cliente es [ClientName]" or "habla [ClientName]"
+      const clientHints = ["la cliente es ", "el cliente es ", "habla con ", "con mi cliente "];
+      for (const prefix of clientHints) {
+        const idx = t.indexOf(prefix);
+        if (idx === -1) continue;
+        const after = text.slice(idx + prefix.length).trimStart();
+        const m = CAPITAL_NAME.exec(after);
+        if (m && m[1]!.toLowerCase() !== this.vendorName.toLowerCase()) {
+          this.clientName = m[1]!;
+          this.namesLearnedCount++;
+          console.debug(`[vela:speaker] in-speech client name learned: "${this.clientName}"`);
+          break;
+        }
+      }
+    }
   }
 
   /**
