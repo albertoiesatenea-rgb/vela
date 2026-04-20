@@ -51,7 +51,12 @@ export class SpeakerAttributionSession {
   private history: HistoryEntry[] = [];
   private autoReassigned = 0;
   private lang: "es" | "en";
-  private contextSet = false; // true once setContext() has been called for this session
+  private contextSet = false;
+
+  // Names extracted from session context — the strongest attribution signal available.
+  // Null when not detected (no regression: falls back to vocabulary-only classification).
+  private vendorName: string | null = null;
+  private clientName: string | null = null;
 
   constructor(lang: "es" | "en" = "es") {
     this.lang = lang;
@@ -60,69 +65,84 @@ export class SpeakerAttributionSession {
   setLang(lang: "es" | "en"): void { this.lang = lang; }
 
   /**
-   * Provide the session context string so the classifier can learn session-specific
-   * patterns (primarily turn-length calibration from established history).
-   * Safe to call multiple times — idempotent after the first call per session.
+   * Provide the session context string.
+   * Parses speaker names (e.g. "Alberto = vendedor") and uses them as the
+   * strongest attribution signal — far more reliable than vocabulary patterns alone.
+   * Safe to call multiple times; idempotent after the first successful name parse.
    */
-  setContext(_contextStr: string): void {
-    // Context text itself isn't reliably parseable for speaker vocabulary
-    // (both speakers use the same domain terms). The real gain comes from
-    // turn-length calibration which is computed dynamically from session history.
-    // Mark context as set so calibration can activate earlier.
+  setContext(contextStr: string): void {
     this.contextSet = true;
+    if (!this.vendorName && !this.clientName) {
+      const { vendor, client } = this.parseNames(contextStr);
+      this.vendorName = vendor;
+      this.clientName = client;
+    }
+  }
+
+  /**
+   * Returns the speaker names detected from session context, or null if not found.
+   * Use this in the calling layer to enrich backend API payloads.
+   */
+  getDetectedNames(): { vendor: string | null; client: string | null } {
+    return { vendor: this.vendorName, client: this.clientName };
   }
 
   /**
    * Classify a text fragment.
    * Always call recordTurn() after to persist the result.
+   *
+   * The blob-size guard is NAME-AWARE:
+   *  - Without name signals: large blobs → UNKNOWN (they mix multiple speakers)
+   *  - With name signals:    even large blobs can be confidently attributed because
+   *                          a name mention is unambiguous regardless of blob size
    */
   classify(text: string): SpeakerResult {
-    // ── Blob-size guard (MUST run first) ─────────────────────────────────
-    // A fragment this long almost certainly contains MULTIPLE speaker turns
-    // that the speech recognition engine collapsed into one blob.
-    // Classifying it with high confidence would mean being "confident and wrong."
-    //
-    //  > 350 chars → definitely contaminated → force UNKNOWN immediately
-    //  > 180 chars → probably contaminated   → hard-cap confidence at 0.40
-    //
-    // The backend still receives the text and can extract tactical insights;
-    // it just won't make false speaker attributions.
     const HUGE_BLOB  = 350;
     const LARGE_BLOB = 180;
     const LARGE_CAP  = 0.40;
 
-    if (text.length > HUGE_BLOB) {
-      console.debug(`[vela:speaker] blob too large (${text.length} chars) → forced UNKNOWN`);
-      return { speaker: "unknown", confidence: 0, source: "unknown", label: "" };
-    }
-    const isLargeBlob = text.length > LARGE_BLOB;
-
+    // ── Rule score FIRST (name signals are included here) ─────────────────
+    // Must run before the blob-size guard so name presence can override it.
     const { cs, vs } = this.ruleScore(text);
     const total = cs + vs;
+
+    // A name signal contributes ≥ 8 points. If present, we have strong ground-truth.
+    const hasNameSignal = (cs >= 8 || vs >= 8);
+
+    // ── Blob-size guard (name-aware) ──────────────────────────────────────
+    // Without a name signal: a large blob almost certainly mixes multiple speakers.
+    // Attributing it with confidence would mean being "confident and wrong."
+    // With a name signal: proceed — a blob with "soy Alberto" IS clearly the vendor.
+    if (text.length > HUGE_BLOB && !hasNameSignal) {
+      console.debug(`[vela:speaker] blob too large (${text.length} chars), no name signal → UNKNOWN`);
+      return { speaker: "unknown", confidence: 0, source: "unknown", label: "" };
+    }
+    // Large blobs without name signals are capped; with name signals, proceed normally.
+    const isLargeBlob = text.length > LARGE_BLOB && !hasNameSignal;
 
     // Confidence = spread relative to total mass, capped at 0.95
     const rawConf = total > 0
       ? Math.min(0.95, Math.abs(cs - vs) / Math.max(total * 0.45, 4))
       : 0;
 
-    // High-confidence rule classification
-    // Large blobs are excluded from this path — they must not reach high conf.
+    // ── High-confidence rule classification ───────────────────────────────
+    // Large blobs without name signals are excluded from high-conf path.
+    // Large blobs WITH name signals: allow up to 0.88 (slightly lower than 0.92
+    // to acknowledge that even name-matched blobs may have some mixed content).
+    const highConfCap = hasNameSignal ? 0.88 : 0.92;
     if (!isLargeBlob && rawConf >= 0.55 && total >= 4) {
       const speaker: SpeakerLabel = cs > vs ? "client" : "me";
-      return { speaker, confidence: Math.min(0.92, rawConf), source: "rule", label: this.lbl(speaker) };
+      return { speaker, confidence: Math.min(highConfCap, rawConf), source: "rule", label: this.lbl(speaker) };
     }
 
-    // Try carryover (streak of high-conf turns)
-    // For large blobs: allow carryover but hard-cap at LARGE_CAP so a
-    // contaminated blob never reaches high-confidence via streak alone.
+    // ── Carryover ─────────────────────────────────────────────────────────
     const co = this.attemptCarryover(cs, vs, rawConf);
     if (co) {
       const conf = isLargeBlob ? Math.min(LARGE_CAP, co.confidence) : co.confidence;
       return { ...co, confidence: conf };
     }
 
-    // Medium rule signal with clear direction — low-confidence classification.
-    // Threshold raised to 0.38 to reduce false positives on ambiguous speech.
+    // ── Medium rule signal ────────────────────────────────────────────────
     if (total >= 2 && rawConf >= 0.38) {
       const speaker: SpeakerLabel = cs > vs ? "client" : "me";
       const conf = Math.min(isLargeBlob ? LARGE_CAP : 1, rawConf * 0.62);
@@ -273,9 +293,121 @@ export class SpeakerAttributionSession {
     this.history = [];
     this.autoReassigned = 0;
     this.contextSet = false;
+    this.vendorName = null;
+    this.clientName = null;
   }
 
   // ── Private helpers ─────────────────────────────────────────────────────────
+
+  /**
+   * Extract speaker names from a free-text context string.
+   * Handles the most common Spanish patterns users actually type.
+   *
+   * Examples matched:
+   *  "Alberto = vendedor de Immvest, Wendy = clienta"
+   *  "vendedor: Alberto, cliente: Wendy"
+   *  "yo soy Alberto, la clienta es Carmen"
+   *  "seller: John, client: Mary"
+   */
+  private parseNames(ctx: string): { vendor: string | null; client: string | null } {
+    // Role keywords that identify who is who
+    const VENDOR_WORDS = ["vendedor", "vendor", "comercial", "asesor", "seller", "sales", "closer", "representante"];
+    const CLIENT_WORDS = ["cliente", "clienta", "prospecto", "prospect", "buyer", "comprador", "compradora", "lead", "decisor", "decisora"];
+
+    // Regex to match a capitalized name (1-2 words, first letter uppercase)
+    // Supports accented chars (Latin-1 supplement + Latin Extended-A range)
+    const NAME_PAT = "([A-ZÀ-ÖØ-ÝÀ-ÖØ-Ý][a-záéíóúàèìòùäëïöüñç]+(?:\\s+[A-ZÀ-ÖØ-ÝÀ-ÖØ-Ý][a-záéíóúàèìòùäëïöüñç]+)?)";
+
+    let vendor: string | null = null;
+    let client: string | null = null;
+
+    // Pattern 1: "NAME = role" (most common)
+    // e.g. "Alberto = vendedor" / "Wendy = clienta/prospecto"
+    const eqPattern = new RegExp(`${NAME_PAT}\\s*=\\s*([\\w/áéíóúñ,\\s]+)`, "gi");
+    for (const m of ctx.matchAll(eqPattern)) {
+      const name = m[1]!.trim();
+      const role = m[2]!.toLowerCase();
+      if (!vendor && VENDOR_WORDS.some(w => role.startsWith(w))) vendor = name.split(" ")[0]!;
+      if (!client && CLIENT_WORDS.some(w => role.startsWith(w))) client = name.split(" ")[0]!;
+    }
+
+    // Pattern 2: "role: NAME" or "role = NAME"
+    // e.g. "vendedor: Alberto" / "cliente: Wendy"
+    if (!vendor || !client) {
+      const rolePattern = new RegExp(`(${VENDOR_WORDS.join("|")}|${CLIENT_WORDS.join("|")})[:\\s=]+${NAME_PAT}`, "gi");
+      for (const m of ctx.matchAll(rolePattern)) {
+        const role = m[1]!.toLowerCase();
+        const name = (m[2]! as string).trim().split(" ")[0]!;
+        if (!vendor && VENDOR_WORDS.some(w => role === w)) vendor = name;
+        if (!client && CLIENT_WORDS.some(w => role === w)) client = name;
+      }
+    }
+
+    // Pattern 3: "NAME (role)" — e.g. "Alberto (vendedor)"
+    if (!vendor || !client) {
+      const parenPattern = new RegExp(`${NAME_PAT}\\s*\\(([^)]+)\\)`, "gi");
+      for (const m of ctx.matchAll(parenPattern)) {
+        const name = m[1]!.trim().split(" ")[0]!;
+        const role = m[2]!.toLowerCase();
+        if (!vendor && VENDOR_WORDS.some(w => role.includes(w))) vendor = name;
+        if (!client && CLIENT_WORDS.some(w => role.includes(w))) client = name;
+      }
+    }
+
+    if (vendor || client) {
+      console.debug(`[vela:speaker] names detected — vendor="${vendor}", client="${client}"`);
+    }
+
+    // Sanity: don't use the same name for both roles
+    if (vendor && client && vendor.toLowerCase() === client.toLowerCase()) {
+      client = null;
+    }
+
+    return { vendor, client };
+  }
+
+  /**
+   * Name-based scoring: the strongest attribution signal available.
+   * When speaker names are known from context, a mention of that name in
+   * the transcript is near-unambiguous ground-truth.
+   *
+   * Returns bonus scores to add to cs/vs in ruleScore().
+   * Score = 10: self-identification (e.g. "soy Alberto")
+   * Score = 8: name mention without self-id prefix
+   */
+  private nameScore(text: string): { csBonus: number; vsBonus: number } {
+    if (!this.vendorName && !this.clientName) return { csBonus: 0, vsBonus: 0 };
+
+    const t = text.toLowerCase();
+    let csBonus = 0;
+    let vsBonus = 0;
+
+    if (this.vendorName) {
+      const vn = this.vendorName.toLowerCase();
+      // Use word-boundary style: check that name is surrounded by non-alpha chars
+      const vnRe = new RegExp(`(?:^|[^a-záéíóúñ])${vn}(?:$|[^a-záéíóúñ])`);
+      if (vnRe.test(t)) {
+        vsBonus += 8;
+        // Extra for explicit self-identification
+        if (t.includes(`soy ${vn}`) || t.includes(`me llamo ${vn}`) || t.includes(`i'm ${vn}`) || t.includes(`i am ${vn}`)) {
+          vsBonus += 2;
+        }
+      }
+    }
+
+    if (this.clientName) {
+      const cn = this.clientName.toLowerCase();
+      const cnRe = new RegExp(`(?:^|[^a-záéíóúñ])${cn}(?:$|[^a-záéíóúñ])`);
+      if (cnRe.test(t)) {
+        csBonus += 8;
+        if (t.includes(`soy ${cn}`) || t.includes(`me llamo ${cn}`) || t.includes(`i'm ${cn}`) || t.includes(`i am ${cn}`)) {
+          csBonus += 2;
+        }
+      }
+    }
+
+    return { csBonus, vsBonus };
+  }
 
   /**
    * Data-driven turn-length calibration.
@@ -442,6 +574,14 @@ export class SpeakerAttributionSession {
         }
       }
     }
+
+    // ── Name signals (strongest signal — must run every time) ─────────────
+    // Names from session context are near-unambiguous ground truth.
+    // These high-weight scores allow the blob-size guard to be bypassed
+    // when a name is present, giving attribution even on large blobs.
+    const { csBonus, vsBonus } = this.nameScore(text);
+    cs += csBonus;
+    vs += vsBonus;
 
     // Turn alternation: mild push toward the opposite speaker
     const last = this.history.length > 0 ? this.history[this.history.length - 1] : null;

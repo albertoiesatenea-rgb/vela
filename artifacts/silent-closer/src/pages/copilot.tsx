@@ -677,11 +677,27 @@ export default function CopilotPage() {
         );
       }
 
+      // ── Enrich context with detected speaker names ──────────────────────
+      // When speaker session has parsed names from context, append them as
+      // explicit identifiers so the AI can use them for per-turn attribution
+      // even when the frontend classifier returned UNKNOWN.
+      let apiContext: string | undefined = sessionContext ?? undefined;
+      if (apiContext && capturedSpeakerMode === "auto") {
+        const names = speakerSessionRef.current.getDetectedNames();
+        if (names.vendor || names.client) {
+          const nameHints = [
+            names.vendor ? `[YO]=${names.vendor}` : null,
+            names.client ? `[CLIENTE]=${names.client}` : null,
+          ].filter(Boolean).join(", ");
+          apiContext = `${apiContext}\n[IDENTIFICACIÓN DE SPEAKERS: ${nameHints}]`;
+        }
+      }
+
       analyze(
         {
           data: {
             text: fullText,
-            ...(sessionContext ? { context: sessionContext } : {}),
+            ...(apiContext ? { context: apiContext } : {}),
             ...(memoryStr ? { call_memory: memoryStr } : {}),
             conversation_history: conversationHistoryPayload,
             ...(structuredContext ? { structured_context: structuredContext } : {}),

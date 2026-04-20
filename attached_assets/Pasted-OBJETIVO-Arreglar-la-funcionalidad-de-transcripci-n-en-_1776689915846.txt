@@ -1,0 +1,120 @@
+OBJETIVO
+
+Arreglar la funcionalidad de transcripción en Copilot para que capture mejor la conversación real, separe mejor vendedor y cliente en vivo, y use el contexto de la llamada para mejorar la atribución de speakers y la utilidad del coaching táctico.
+
+CONTEXTO DEL PROBLEMA
+
+La capa de audio a texto está fallando demasiado y eso hace que Copilot pierda valor justo al principio del flujo.
+
+El problema no es solo que “transcriba regular”. El problema real es este:
+
+no captura bien toda la conversación
+mezcla varias intervenciones distintas dentro de un mismo bloque
+no separa bien quién habla
+no está usando suficientemente el contexto de la llamada para entender vendedor vs cliente
+como consecuencia, say_now, reading, mission y el resto del coaching salen contaminados
+
+No quiero una herramienta bonita de transcripción. Quiero un copiloto de ventas útil en directo.
+La prioridad es que el sistema entienda mejor la conversación mientras ocurre y que la guía táctica se apoye en una base mucho más fiable.
+
+EJEMPLO CONCRETO DEL FALLO
+
+En esta prueba concreta:
+
+Alberto = vendedor de Immvest
+Wendy = clienta / prospecto
+
+La conversación original fue esta:
+
+Alberto: ¿Qué tal? Soy Alberto, de Immvest.
+Wendy: Sí, mira, vi vuestro anuncio en Facebook o Instagram y me llamó la atención. Quise llamar para entender un poco mejor cómo funciona.
+Alberto: Perfecto. La idea de esta llamada es explicarte muy rápido lo que hacemos y comprobar si cumples los requisitos básicos para invertir. Si encaja, el siguiente paso sería una videollamada con más detalle. ¿Te parece bien?
+Wendy: Sí, claro.
+Alberto: Nosotros ayudamos a personas a invertir en inmuebles en Alemania. La idea es comprar un apartamento, ponerlo en alquiler y acompañarte en todo el proceso: selección del inmueble, financiación, visita, notario y gestión del alquiler.
+Wendy: Vale, pero entonces, ¿cómo se gana dinero con eso? Porque todo eso también habrá que pagarlo.
+Alberto: Sí, claro. Los números exactos los vemos en la siguiente videollamada. Pero antes de eso, lo primero es comprobar si tu perfil puede conseguir financiación con un banco alemán.
+Wendy: Vale.
+Alberto: Lo primero es la residencia. ¿Tienes permiso permanente o una situación estable aquí en Alemania?
+Wendy: Sí, yo soy alemana.
+Alberto: Perfecto. Lo segundo es la situación laboral. El banco quiere ver ingresos estables. ¿Tienes contrato indefinido o una fuente sólida de ingresos?
+Wendy: Sí. Tengo un contrato y además también gano dinero por mi propia empresa.
+Alberto: Entendido. Aproximadamente, ¿cuánto te entra neto al mes?
+Wendy: Del contrato me entran unos 1.500 euros netos. Y aparte, por mi empresa, mínimo unos 2.000 euros más, aunque depende de las ventas.
+Alberto: Vale, perfecto. El tercer punto es el capital. Normalmente la inversión se puede hacer con unos 10.000 euros de aportación, pero el banco quiere ver más colchón. Lo ideal es que tengas entre 16.000 y 20.000 euros disponibles.
+Wendy: Vale. Ahora mismo tengo unos 10.000.
+Alberto: Entonces estás cerca, pero todavía un poco justa para que el banco lo vea sólido. ¿Podrías tener entre 16.000 y 20.000 euros visibles pronto?
+Wendy: Sí. Lo tengo repartido y lo puedo ir metiendo poco a poco. Yo creo que en una semana.
+Alberto: Perfecto. Entonces lo más sensato es que en cuanto tengas eso preparado me avises y te mandamos el formulario para que el equipo financiero revise tu caso. Y si los números te cuadran, ya avanzamos con la propuesta.
+Wendy: Sí, me parece bien.
+Alberto: Adiós Wendy.
+Wendy: Adiós Alberto.
+
+Pero el sistema la convirtió en 4 bloques grandes y ambiguos, por ejemplo:
+
+mezcla saludo + origen del lead + explicación + aceptación + parte del pitch
+mezcla explicación del servicio + objeción de rentabilidad + transición a financiación
+mezcla situación laboral + ingresos + parte del filtro de capital
+mezcla capital actual + plazo + siguiente paso + despedida
+
+Además, hubo errores tipo:
+
+“barco” en vez de “banco”
+“Baco” en vez de “banco”
+pérdida de estructura real de turnos
+mala o nula separación de speakers
+
+Este ejemplo no es para hardcodearlo. Es para que entiendas con claridad el tipo exacto de fallo que está ocurriendo y mejores la robustez real del sistema.
+
+LO QUE NECESITO QUE CAMBIE
+
+Quiero una mejora real en estos puntos:
+
+Captura de conversación
+recoger mejor lo que realmente se dice
+perder menos contenido
+evitar que demasiadas intervenciones se mezclen dentro del mismo bloque
+Separación de hablantes
+distinguir mejor vendedor y cliente
+no inventar atribuciones con falsa confianza
+no dejar toda la conversación en un limbo inútil cuando sí hay señales suficientes
+Uso del contexto
+aprovechar mejor el contexto de sesión para interpretar la conversación
+usar nombres, roles y lógica comercial de la llamada como ayuda real para separar speakers y entender mejor el momento de la conversación
+Calidad del coaching en tiempo real
+hacer que say_now y el análisis táctico se apoyen en una base más limpia
+evitar que el copiloto guíe sobre texto mezclado o mal interpretado
+recuperar utilidad real en vivo
+Robustez
+que funcione mejor incluso cuando la conversación va rápida
+que no dependa demasiado de supuestos frágiles
+que el sistema sea más sólido de verdad, no solo más conservador
+RESTRICCIONES
+No quiero una solución cosmética.
+No quiero hardcodear este ejemplo concreto.
+No quiero bajar la calidad del producto para maquillar métricas.
+No quiero volver a falsa confianza sobre una atribución mala.
+Puedes cambiar enfoque, flujo o estructura si hace falta.
+La prioridad es mejorar la utilidad real del copiloto en directo.
+ENTREGABLES
+mejora real de la transcripción/escucha en Copilot
+mejor separación vendedor/cliente
+mejor uso del contexto para interpretar la llamada
+mejor base para say_now y coaching táctico
+una explicación breve y clara de qué se cambió y por qué debería funcionar mejor
+TESTS
+
+Valida la mejora repitiendo pruebas reales de lectura en voz alta y comprueba:
+
+que se capture más texto útil
+que se mezclen menos intervenciones en el mismo bloque
+que la atribución de speakers mejore
+que el contexto ayude de verdad
+que el coaching salga mejor apoyado
+que no reaparezcan regresiones graves
+CRITERIOS DE ACEPTACIÓN
+ Copilot captura la conversación de forma claramente más útil
+ Baja la mezcla de varias intervenciones dentro del mismo bloque
+ Mejora la separación entre vendedor y cliente
+ El contexto de la sesión ayuda realmente a interpretar la llamada
+ say_now y el coaching táctico resultan más creíbles y más útiles
+ No hay regresión hacia blobs gigantes, falsa confianza o colapso del flujo en vivo
