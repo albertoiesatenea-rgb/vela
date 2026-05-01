@@ -1626,6 +1626,7 @@ export default function CopilotPage() {
           audit_hints_pack: hintsPack,
           human_notes: humanNotes.trim() || undefined,
           ...(speakerUncertainty ? { speaker_uncertainty: speakerUncertainty } : {}),
+          ...(whisperTranscript ? { whisper_transcript: whisperTranscript } : {}),
         }),
       });
       if (!res.ok) throw new Error("audit failed");
@@ -1681,6 +1682,7 @@ export default function CopilotPage() {
           vela_suggestions: velaSuggestions.length > 0 ? velaSuggestions : undefined,
           call_memory: memoryStr,
           outcome: callOutcome ?? undefined,
+          ...(whisperTranscript ? { whisper_transcript: whisperTranscript } : {}),
         }),
       });
       if (!res.ok) throw new Error("vela audit failed");
