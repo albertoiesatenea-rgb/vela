@@ -1711,7 +1711,34 @@ router.post("/copilot/transcribe", async (req, res) => {
         prompt: contextPrompt || undefined,
       });
 
-      res.json({ transcript: transcription.text, segments: (transcription as any).segments ?? [] });
+      const rawTranscript = transcription.text;
+
+      const cleanupPrompt = contextPrompt
+        ? `Eres un asistente que limpia y estructura transcripciones de llamadas de venta.
+
+CONTEXTO DE LA SESIÓN:
+${contextPrompt}
+
+TRANSCRIPT EN BRUTO (de Whisper):
+${rawTranscript}
+
+Basándote en el contexto, identifica quién habla en cada fragmento (vendedor vs cliente) y devuelve el transcript limpio con este formato exacto, sin explicaciones ni texto adicional:
+
+[VENDEDOR]: texto del vendedor
+[CLIENTE]: texto del cliente
+
+Si no puedes identificar el hablante con seguridad, usa [DESCONOCIDO]. Mantén el contenido exacto, solo añade las etiquetas de hablante.`
+        : null;
+
+      const cleanTranscript = cleanupPrompt
+        ? await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            max_tokens: 4000,
+            messages: [{ role: "user", content: cleanupPrompt }],
+          }).then(r => r.choices[0]?.message?.content ?? rawTranscript)
+        : rawTranscript;
+
+      res.json({ transcript: cleanTranscript, raw_transcript: rawTranscript, segments: (transcription as any).segments ?? [] });
     });
 
     req.pipe(bb);
