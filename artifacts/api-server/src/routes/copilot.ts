@@ -1674,4 +1674,40 @@ Sin explicaciones. Sin markdown. Solo el JSON.`;
   }
 });
 
+// POST /api/copilot/transcribe — transcribe audio with Whisper
+router.post("/transcribe", async (req, res) => {
+  try {
+    const busboy = (await import("busboy")).default;
+    const bb = busboy({ headers: req.headers });
+    const chunks: Buffer[] = [];
+    let filename = "audio.webm";
+
+    bb.on("file", (_field, file, info) => {
+      filename = info.filename || filename;
+      file.on("data", (d) => chunks.push(d));
+    });
+
+    bb.on("finish", async () => {
+      const buffer = Buffer.concat(chunks);
+      const { Readable } = await import("stream");
+      const readable = Readable.from(buffer);
+      (readable as any).name = filename;
+
+      const transcription = await openai.audio.transcriptions.create({
+        file: readable as any,
+        model: "whisper-1",
+        language: "es",
+        response_format: "verbose_json",
+      });
+
+      res.json({ transcript: transcription.text, segments: (transcription as any).segments ?? [] });
+    });
+
+    req.pipe(bb);
+  } catch (err) {
+    req.log?.error(err, "transcribe error");
+    res.status(500).json({ error: "transcription failed" });
+  }
+});
+
 export default router;

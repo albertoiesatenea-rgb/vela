@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { Mic, Keyboard, Loader2, AlertCircle, ExternalLink, ChevronDown, Info, List } from "lucide-react";
 import { analyzeConversation } from "@workspace/api-client-react";
 import { useSpeech } from "@/hooks/use-speech";
+import { useAudioRecorder } from "@/hooks/use-audio-recorder";
 import { TacticalDisplay } from "@/components/tactical-display";
 import { ContextSetup, SessionBar, VelaIcon } from "@/components/context-panel";
 import type { ArenaConfig, AppMode, StructuredContext } from "@/components/context-panel";
@@ -704,6 +705,7 @@ export default function CopilotPage() {
   const [brutalAuditError, setBrutalAuditError] = useState(false);
   const [retropassDone, setRetropassDone] = useState(false);
   const [retropassRunning, setRetropassRunning] = useState(false);
+  const [whisperTranscript, setWhisperTranscript] = useState<string>("");
   const [humanNotes, setHumanNotes] = useState("");
   const [importedTranscript, setImportedTranscript] = useState("");
   const [importTranscriptOpen, setImportTranscriptOpen] = useState(false);
@@ -1112,6 +1114,7 @@ export default function CopilotPage() {
 
   const { isSupported, isListening, error: speechError, interimText, startListening, stopListening } =
     useSpeech({ onAnalyzeReady: handleAnalysis, analysisIntervalMs: 8000, lang });
+  const { startRecording, stopRecording } = useAudioRecorder();
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -1268,9 +1271,24 @@ export default function CopilotPage() {
     setInitRole(arenaRole ?? undefined);
   };
 
-  const handleClearSession = () => {
+  const handleClearSession = async () => {
     stopListening();
     setIsSessionListening(false);
+    const audioBlob = await stopRecording();
+    if (audioBlob) {
+      const formData = new FormData();
+      formData.append("audio", audioBlob, "session.webm");
+      try {
+        const res = await fetch("/api/copilot/transcribe", { method: "POST", body: formData });
+        const data = await res.json();
+        if (data.transcript) {
+          console.log("[vela:whisper] transcript ready", data.transcript.slice(0, 100));
+          setWhisperTranscript(data.transcript);
+        }
+      } catch (e) {
+        console.error("[vela:whisper] transcription failed", e);
+      }
+    }
     // If no real conversation happened, just exit — no scoring, no outcome picker
     if (!hasRealConversation) {
       handleActuallyClearSession();
@@ -1726,7 +1744,7 @@ export default function CopilotPage() {
 
   const handleMicToggle = () => {
     if (isSessionListening) { stopListening(); setIsSessionListening(false); }
-    else { startListening(); setIsSessionListening(true); }
+    else { startListening(); setIsSessionListening(true); startRecording(); }
   };
 
   const handleSimulateSubmit = (e: React.FormEvent) => {
