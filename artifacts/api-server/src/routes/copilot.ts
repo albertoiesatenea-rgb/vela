@@ -842,7 +842,7 @@ ${fullReportInstructions}`;
 router.post("/copilot/audit-report", async (req, res) => {
   const {
     call_memory, outcome, context, lang = "es", speaker_uncertainty,
-    closing_excerpt, session_summary, audit_hints_pack, human_notes, imported_transcript,
+    closing_excerpt, session_summary, audit_hints_pack, human_notes, imported_transcript, whisper_transcript,
   } = req.body as {
     call_memory?: string[];
     outcome?: string;
@@ -854,6 +854,7 @@ router.post("/copilot/audit-report", async (req, res) => {
     audit_hints_pack?: { likely_primary_failure?: string; suspected_soft_next_step?: string; next_step_quality?: string; audit_notes?: string[] };
     human_notes?: string;
     imported_transcript?: string;
+    whisper_transcript?: string;
   };
 
   const isEn = lang === "en";
@@ -1340,6 +1341,10 @@ ${schema}`;
     evidenceParts.push(
       `${isEn ? "VERIFIED TRANSCRIPT (manually provided by seller — highest authority, use as primary source for all evaluation)" : "TRANSCRIPCIÓN VERIFICADA (proporcionada manualmente por el vendedor — máxima autoridad, usa como fuente principal para toda la evaluación)"}:\n${imported_transcript.trim()}`
     );
+  } else if (whisper_transcript?.trim()) {
+    evidenceParts.push(
+      `${isEn ? "CONVERSATION TRANSCRIPT (Whisper audio transcription — high quality, use as primary source for all evaluation)" : "TRANSCRIPCIÓN DE CONVERSACIÓN (transcripción de audio Whisper — alta calidad, usa como fuente principal para toda la evaluación)"}:\n${whisper_transcript.trim()}`
+    );
   } else if (hasClosingExcerpt) {
     evidenceParts.push(
       `${isEn ? "CLOSING TRANSCRIPT — last raw turns (authoritative for commitments/dates)" : "TRANSCRIPCIÓN DE CIERRE — últimas interacciones en bruto (fuente principal para compromisos/fechas)"}:\n${closingLines}`
@@ -1400,6 +1405,7 @@ router.post("/copilot/audit-report-vela", async (req, res) => {
     session_metrics,
     auto_transcript,
     imported_transcript,
+    whisper_transcript,
     vela_suggestions,
     call_memory,
     outcome,
@@ -1414,6 +1420,7 @@ router.post("/copilot/audit-report-vela", async (req, res) => {
     };
     auto_transcript?: string[];
     imported_transcript?: string;
+    whisper_transcript?: string;
     vela_suggestions?: string[];
     call_memory?: string;
     outcome?: string;
@@ -1454,12 +1461,12 @@ router.post("/copilot/audit-report-vela", async (req, res) => {
     evidenceParts.push((isEn ? "FINAL CALL MEMORY (compressed):\n" : "MEMORIA FINAL DE LLAMADA (comprimida):\n") + call_memory.trim());
   }
 
-  if (auto_transcript && auto_transcript.length > 0) {
-    evidenceParts.push((isEn ? "AUTO-CAPTURED TRANSCRIPT (last 20 turns):\n" : "TRANSCRIPCIÓN AUTO-CAPTURADA (últimos 20 turnos):\n") + auto_transcript.slice(-20).join("\n"));
-  }
-
   if (imported_transcript?.trim()) {
-    evidenceParts.push((isEn ? "MANUALLY IMPORTED TRANSCRIPT (seller-verified):\n" : "TRANSCRIPCIÓN IMPORTADA MANUALMENTE (verificada por vendedor):\n") + imported_transcript.trim());
+    evidenceParts.push((isEn ? "MANUALLY IMPORTED TRANSCRIPT (seller-verified — highest authority):\n" : "TRANSCRIPCIÓN IMPORTADA MANUALMENTE (verificada por vendedor — máxima autoridad):\n") + imported_transcript.trim());
+  } else if (whisper_transcript?.trim()) {
+    evidenceParts.push((isEn ? "WHISPER AUDIO TRANSCRIPT (high quality — use as primary source):\n" : "TRANSCRIPCIÓN DE AUDIO WHISPER (alta calidad — usa como fuente principal):\n") + whisper_transcript.trim());
+  } else if (auto_transcript && auto_transcript.length > 0) {
+    evidenceParts.push((isEn ? "AUTO-CAPTURED TRANSCRIPT (last 20 turns):\n" : "TRANSCRIPCIÓN AUTO-CAPTURADA (últimos 20 turnos):\n") + auto_transcript.slice(-20).join("\n"));
   }
 
   if (outcome) {
