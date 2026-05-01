@@ -1111,7 +1111,7 @@ export default function CopilotPage() {
   );
 
   const { isSupported, isListening, error: speechError, interimText, startListening, stopListening } =
-    useSpeech({ onAnalyzeReady: handleAnalysis, analysisIntervalMs: 3000, lang });
+    useSpeech({ onAnalyzeReady: handleAnalysis, analysisIntervalMs: 8000, lang });
 
   // Keyboard shortcuts
   useEffect(() => {
