@@ -461,7 +461,7 @@ router.post("/copilot/analyze", async (req, res) => {
     ].join("\n\n");
   } else {
     userMessage = [
-      call_memory ? `MEMORIA ACUMULADA:\n${call_memory}` : null,
+      call_memory ? `MEMORIA ACUMULADA:\n${call_memory.split("\n").slice(-6).join("\n")}` : null,
       `FRAGMENTO:\n${text}`,
       "JSON táctico:",
     ].filter(Boolean).join("\n\n");
