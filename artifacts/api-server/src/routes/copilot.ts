@@ -1682,6 +1682,11 @@ router.post("/copilot/transcribe", async (req, res) => {
     const bb = busboy({ headers: req.headers });
     const chunks: Buffer[] = [];
     let filename = "audio.webm";
+    let contextPrompt = "";
+
+    bb.on("field", (name, value) => {
+      if (name === "context") contextPrompt = value;
+    });
 
     bb.on("file", (_field, file, info) => {
       filename = info.filename || filename;
@@ -1699,6 +1704,7 @@ router.post("/copilot/transcribe", async (req, res) => {
         model: "whisper-1",
         language: "es",
         response_format: "verbose_json",
+        prompt: contextPrompt || undefined,
       });
 
       res.json({ transcript: transcription.text, segments: (transcription as any).segments ?? [] });
