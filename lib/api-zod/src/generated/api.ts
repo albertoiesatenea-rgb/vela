@@ -147,6 +147,10 @@ export const CallSummarizeBody = zod.object({
     .string()
     .optional()
     .describe("Manually pasted transcript — used as primary conversation source, overrides auto-captured excerpt when present"),
+  whisper_transcript: zod
+    .string()
+    .optional()
+    .describe("Whisper audio transcription — high quality, used as primary source when no manual transcript is present"),
 });
 
 export const CallSummarizeResponse = zod.object({

@@ -610,7 +610,7 @@ router.post("/copilot/summarize", async (req, res) => {
   const parseResult = CallSummarizeBody.safeParse(req.body);
   if (!parseResult.success) { res.status(400).json({ error: "Invalid request body" }); return; }
 
-  const { call_memory, outcome, lang, full_report, speaker_uncertainty, analyze_failure_count, conversation_excerpt, imported_transcript } = parseResult.data;
+  const { call_memory, outcome, lang, full_report, speaker_uncertainty, analyze_failure_count, conversation_excerpt, imported_transcript, whisper_transcript } = parseResult.data;
   const sessionId = (req.headers["x-session-id"] as string | undefined) ?? undefined;
   const isEn = lang === "en";
 
@@ -639,16 +639,20 @@ Obligatorio: señala esta limitación explícitamente en improvements[0] y en fu
 Esto NO es crítica al vendedor — significa que VELA tuvo datos insuficientes para hacer coaching.`)
     : "";
 
-  // ── Conversation source — imported transcript takes precedence over auto-captured excerpt ─
+  // ── Conversation source — priority: imported_transcript > whisper_transcript > conversation_excerpt ─
   const excerptBlock = imported_transcript?.trim()
     ? (isEn
         ? `\nCONVERSATION TRANSCRIPT (manually verified — use as primary source):\n${imported_transcript.trim()}`
         : `\nTRANSCRIPCIÓN DE CONVERSACIÓN (verificada manualmente — usa como fuente principal):\n${imported_transcript.trim()}`)
-    : (conversation_excerpt && conversation_excerpt.length > 0)
+    : whisper_transcript?.trim()
       ? (isEn
-          ? `\nCONVERSATION EXCERPT (last ${conversation_excerpt.length} turns — more accurate than compressed memory):\n${conversation_excerpt.join("\n")}`
-          : `\nEXTRACTO DE CONVERSACIÓN (últimos ${conversation_excerpt.length} turnos — más preciso que la memoria comprimida):\n${conversation_excerpt.join("\n")}`)
-      : "";
+          ? `\nCONVERSATION TRANSCRIPT (Whisper audio transcription — high quality, use as primary source):\n${whisper_transcript.trim()}`
+          : `\nTRANSCRIPCIÓN DE CONVERSACIÓN (transcripción de audio Whisper — alta calidad, usa como fuente principal):\n${whisper_transcript.trim()}`)
+      : (conversation_excerpt && conversation_excerpt.length > 0)
+        ? (isEn
+            ? `\nCONVERSATION EXCERPT (last ${conversation_excerpt.length} turns — more accurate than compressed memory):\n${conversation_excerpt.join("\n")}`
+            : `\nEXTRACTO DE CONVERSACIÓN (últimos ${conversation_excerpt.length} turnos — más preciso que la memoria comprimida):\n${conversation_excerpt.join("\n")}`)
+        : "";
 
   const outcomeText = outcome ?? (isEn ? "unclear" : "no claro");
   const wantsFullReport = !!full_report;
