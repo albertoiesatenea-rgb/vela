@@ -1705,23 +1705,26 @@ router.post("/copilot/transcribe", async (req, res) => {
     });
 
     bb.on("finish", async () => {
-      const buffer = Buffer.concat(chunks);
-      const { Readable } = await import("stream");
-      const readable = Readable.from(buffer);
-      (readable as any).name = filename;
+      try {
+        const buffer = Buffer.concat(chunks);
+        const { toFile } = await import("openai");
+        const safeFilename = filename.match(/\.(webm|mp4|mp3|wav|ogg|flac|m4a|mpeg|mpga|oga)$/i)
+          ? filename
+          : filename + ".webm";
+        const audioFile = await toFile(buffer, safeFilename, { type: "audio/webm" });
 
-      const transcription = await openai.audio.transcriptions.create({
-        file: readable as any,
-        model: "whisper-1",
-        language: "es",
-        response_format: "verbose_json",
-        prompt: contextPrompt || undefined,
-      });
+        const transcription = await openai.audio.transcriptions.create({
+          file: audioFile,
+          model: "whisper-1",
+          language: "es",
+          response_format: "verbose_json",
+          prompt: contextPrompt || undefined,
+        });
 
-      const rawTranscript = transcription.text;
+        const rawTranscript = transcription.text;
 
-      const cleanupPrompt = contextPrompt
-        ? `Eres un asistente que limpia y estructura transcripciones de llamadas de venta.
+        const cleanupPrompt = contextPrompt
+          ? `Eres un asistente que limpia y estructura transcripciones de llamadas de venta.
 
 CONTEXTO DE LA SESIÓN:
 ${contextPrompt}
@@ -1735,17 +1738,26 @@ Basándote en el contexto, identifica quién habla en cada fragmento (vendedor v
 [CLIENTE]: texto del cliente
 
 Si no puedes identificar el hablante con seguridad, usa [DESCONOCIDO]. Mantén el contenido exacto, solo añade las etiquetas de hablante.`
-        : null;
+          : null;
 
-      const cleanTranscript = cleanupPrompt
-        ? await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            max_tokens: 4000,
-            messages: [{ role: "user", content: cleanupPrompt }],
-          }).then(r => r.choices[0]?.message?.content ?? rawTranscript)
-        : rawTranscript;
+        const cleanTranscript = cleanupPrompt
+          ? await openai.chat.completions.create({
+              model: "gpt-4o-mini",
+              max_tokens: 4000,
+              messages: [{ role: "user", content: cleanupPrompt }],
+            }).then(r => r.choices[0]?.message?.content ?? rawTranscript)
+          : rawTranscript;
 
-      res.json({ transcript: cleanTranscript, raw_transcript: rawTranscript, segments: (transcription as any).segments ?? [] });
+        res.json({ transcript: cleanTranscript, raw_transcript: rawTranscript, segments: (transcription as any).segments ?? [] });
+      } catch (finishErr: any) {
+        req.log?.error(finishErr, "[vela:transcribe] whisper/gpt error");
+        const isFormatError = finishErr?.status === 400 || finishErr?.message?.includes("Invalid file format");
+        res.status(isFormatError ? 422 : 500).json({
+          error: isFormatError
+            ? "Formato de audio no soportado. Usa webm, mp4, mp3, wav u ogg."
+            : "Error al transcribir el audio.",
+        });
+      }
     });
 
     req.pipe(bb);
