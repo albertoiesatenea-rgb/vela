@@ -1675,7 +1675,8 @@ Sin explicaciones. Sin markdown. Solo el JSON.`;
 });
 
 // POST /api/copilot/transcribe — transcribe audio with Whisper
-router.post("/transcribe", async (req, res) => {
+router.post("/copilot/transcribe", async (req, res) => {
+  req.log?.info("[vela:transcribe] endpoint hit");
   try {
     const busboy = (await import("busboy")).default;
     const bb = busboy({ headers: req.headers });
