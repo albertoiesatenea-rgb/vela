@@ -467,7 +467,7 @@ router.post("/copilot/analyze", async (req, res) => {
     ].filter(Boolean).join("\n\n");
   }
 
-  const ANALYZE_MODEL = "gpt-4o";
+  const ANALYZE_MODEL = "gpt-4o-mini";
   const ANALYZE_TIMEOUT_MS = 25000;
   const t0 = Date.now();
   let status: "ok" | "error" | "partial" = "ok";

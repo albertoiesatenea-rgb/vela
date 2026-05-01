@@ -1829,7 +1829,7 @@ router.post("/arena/turn", async (req, res) => {
 
   let aiMessage = "";
   const t0 = Date.now();
-  const TURN_MODEL = "gpt-4o";
+  const TURN_MODEL = "gpt-4o-mini";
   try {
     // Client mode: AI is seller — cap at 220 (allows real context when needed, blocks walls of text)
     const turnMaxTokens = session.role === "client" ? 220 : 300;
