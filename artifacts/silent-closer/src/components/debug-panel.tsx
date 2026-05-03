@@ -225,16 +225,19 @@ export function DebugPanel({ sessionId }: { sessionId?: string | null }) {
     }
   }, [data, sessionId]);
 
-  const session  = data?.sessions.find(s => s.sessionId === sessionId) ?? null;
-  const alert    = session ? getAlert(session) : null;
+  const session        = data?.sessions.find(s => s.sessionId === sessionId) ?? null;
+  const isActiveSession = session !== null;
+  // Fall back to most-recent closed session, then null — so panel always shows data
+  const displaySession = session ?? data?.sessions[0] ?? null;
+  const alert    = displaySession ? getAlert(displaySession) : null;
   const dominant = data ? getDominantRoute(data.routes) : null;
 
   const filteredSessions = data?.sessions.filter(s => mode === "all" || s.mode === mode) ?? [];
   const filteredRoutes   = data?.routes.filter(r => mode === "all" || r.route.startsWith(mode)) ?? [];
   const filteredCalls    = data?.recentCalls.filter(c => mode === "all" || c.mode === mode) ?? [];
 
-  // Button label: cost in euros, European format
-  const displayCost = session?.totalCostUsd ?? data?.global.totalCostUsd ?? null;
+  // Button label: active session → last session → global total
+  const displayCost = displaySession?.totalCostUsd ?? data?.global.totalCostUsd ?? null;
   const buttonCostLabel = fmtEur(displayCost ?? 0);
 
   return (
@@ -338,15 +341,27 @@ export function DebugPanel({ sessionId }: { sessionId?: string | null }) {
 
                 {/* ─ SESIÓN ACTUAL ─────────────────────────────────────── */}
                 <section className="px-3.5 pt-3 pb-3 border-b border-zinc-800/70">
-                  <div className="flex items-center justify-between mb-2.5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[7.5px] font-mono tracking-[0.2em] uppercase text-zinc-600">
-                        Sesión actual
-                      </span>
-                      {session && (
-                        <span className="text-[7px] font-mono text-zinc-700">
-                          {session.mode} · {shortId(session.sessionId)}
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex flex-col gap-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[7.5px] font-mono tracking-[0.2em] uppercase text-zinc-600">
+                          {isActiveSession ? "Sesión activa" : displaySession ? "Última sesión" : "Sesión"}
                         </span>
+                        {displaySession && (
+                          <span className="text-[7px] font-mono text-zinc-700">
+                            {displaySession.mode} · {shortId(displaySession.sessionId)}
+                          </span>
+                        )}
+                      </div>
+                      {displaySession && (
+                        <div className="flex gap-3">
+                          <span className="text-[7px] font-mono text-zinc-700 tabular-nums">
+                            Inicio: {fmtTime(displaySession.createdAt)}
+                          </span>
+                          <span className="text-[7px] font-mono text-zinc-700 tabular-nums">
+                            Servidor: {fmtTime(data.serverStartedAt)}
+                          </span>
+                        </div>
                       )}
                     </div>
                     {alert && (
@@ -359,17 +374,22 @@ export function DebugPanel({ sessionId }: { sessionId?: string | null }) {
                     )}
                   </div>
 
-                  {session ? (
-                    <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
-                      <Kpi label="Coste"    value={fmtEur(session.totalCostUsd)}       hi />
-                      <Kpi label="Tokens"   value={fmtK(session.totalTokens)} />
-                      <Kpi label="Llamadas" value={String(session.calls)} />
-                      <Kpi label="Latencia" value={fmtMs(session.avgLatencyMs)} />
-                      <Kpi label="Inicio sesión" value={fmtTime(session.createdAt)} />
-                      <Kpi label="Servidor desde" value={fmtTime(data.serverStartedAt)} />
+                  {displaySession ? (
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 mt-2">
+                      <Kpi label="Coste"    value={fmtEur(displaySession.totalCostUsd)} hi />
+                      <Kpi label="Tokens"   value={fmtK(displaySession.totalTokens)} />
+                      <Kpi label="Llamadas" value={String(displaySession.calls)} />
+                      <Kpi label="Latencia" value={fmtMs(displaySession.avgLatencyMs)} />
+                    </div>
+                  ) : data ? (
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 mt-2">
+                      <Kpi label="Total global" value={fmtEur(data.global.totalCostUsd)} hi />
+                      <Kpi label="Tokens"       value={fmtK(data.global.totalTokens)} />
+                      <Kpi label="Calls"        value={String(data.global.calls)} />
+                      <Kpi label="Servidor"     value={fmtTime(data.serverStartedAt)} />
                     </div>
                   ) : (
-                    <p className="text-[9px] font-mono text-zinc-700 italic">Sin sesión activa</p>
+                    <p className="text-[9px] font-mono text-zinc-700 italic">Sin datos</p>
                   )}
                 </section>
 
