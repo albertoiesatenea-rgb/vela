@@ -909,6 +909,7 @@ export function ContextSetup({
   const [prebriefEditing,   setPrebriefEditing]   = useState(false);
   const [prebriefEdit,      setPrebriefEdit]       = useState<PrebriefResult | null>(null);
   const [activeBrainId,     setActiveBrainId]     = useState<"generic" | "immvest">("immvest");
+  const [prebriefBrainId,   setPrebriefBrainId]   = useState<"generic" | "immvest" | null>(null);
   const [showBrainDropdown, setShowBrainDropdown] = useState(false);
   const brainDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -1036,6 +1037,8 @@ export function ContextSetup({
 
   const handleInterpret = async () => {
     if (!quickText.trim()) return;
+    const frozenBrainId = activeBrainId;
+    setPrebriefBrainId(frozenBrainId);
     setPrebriefLoading(true);
     setPrebriefResult(null);
     setPrebriefConfirmed(false);
@@ -1419,7 +1422,7 @@ export function ContextSetup({
                           Contexto detectado
                         </span>
                         <span className="text-[8px] font-mono text-zinc-600 px-0">
-                          Brain activo: {activeBrainId === "immvest" ? "Immvest" : "Genérico"}
+                          Brain activo: {prebriefBrainId === "immvest" ? "Immvest" : "Genérico"}
                         </span>
                       </div>
                       {prebriefResult.confidence && (

@@ -1916,14 +1916,14 @@ REGLAS DE FORMATO — obligatorias:
 
   const userPrompt = `Analiza este contexto comercial y devuelve SOLO este JSON exacto:
 {
-  "detected_phase": "fase del proceso (1-4 palabras)",
-  "call_type": "tipo de llamada: cierre|seguimiento|discovery|negociación|presentación|otro",
-  "today_decision": "qué se decide hoy en concreto (1-2 frases)",
-  "what_client_knows": ["lo que ya sabe el cliente", "máx 3 puntos"],
-  "main_blocker_probable": "bloqueo principal probable (1-2 frases)",
-  "valid_outcome_today": "outcome válido aunque no haya cierre (1 frase)",
+  "detected_phase": "fase comercial real y útil — usa el nombre del evento o fase del proceso (ej: 'Fase 2 — asesoría de inversión', 'Fase 4 — propuesta real', 'cualificación inicial')",
+  "call_type": "tipo de llamada operativo — usa el label más preciso disponible en el input (ej: 'asesoría de ganancia patrimonial', 'presentación de propuesta', 'llamada informativa', 'cierre'). NUNCA uses 'seguimiento' si el input contiene un evento más específico",
+  "today_decision": "decisión comercial real de esta llamada — qué se evalúa o decide hoy de verdad (1-2 frases concretas, no resumen administrativo)",
+  "what_client_knows": ["lo que ya conoce del proceso/modelo/motivo de la llamada — máx 3 puntos. NO datos financieros personales"],
+  "main_blocker_probable": "freno dominante probable en esta fase — un único bloqueo (1-2 frases)",
+  "valid_outcome_today": "avance válido alcanzable hoy según la fase real — puede ser agendar, confirmar encaje, reservar, aislar freno (1 frase)",
   "confidence": "high|medium|low",
-  "context_for_brief": "resumen compacto para que VELA use como base táctica (3-5 frases)"
+  "context_for_brief": "resumen táctico compacto para que VELA use como base — directo, sin humo, sin teoría (3-5 frases)"
 }
 
 INPUT:
