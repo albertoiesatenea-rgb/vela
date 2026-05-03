@@ -1377,6 +1377,7 @@ ${schema}`;
 
   const userMessage = evidenceParts.join("\n\n");
 
+  const t0Audit = Date.now();
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -1387,12 +1388,39 @@ ${schema}`;
         { role: "user", content: userMessage },
       ],
     });
+    const latencyMs = Date.now() - t0Audit;
+    if (completion.usage) {
+      logAICall({
+        route: "copilot/audit-report",
+        endpoint: "brutal-audit",
+        mode: "copilot",
+        model: "gpt-4o-mini",
+        maxTokensConfigured: 1100,
+        promptTokens: completion.usage.prompt_tokens,
+        completionTokens: completion.usage.completion_tokens,
+        totalTokens: completion.usage.total_tokens,
+        latencyMs,
+        status: "ok",
+      });
+    }
     const raw = completion.choices[0]?.message?.content ?? "{}";
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(raw);
     applySanityCheck(parsed);
     res.json(parsed);
   } catch {
+    logAICall({
+      route: "copilot/audit-report",
+      endpoint: "brutal-audit",
+      mode: "copilot",
+      model: "gpt-4o-mini",
+      maxTokensConfigured: 1100,
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      latencyMs: Date.now() - t0Audit,
+      status: "error",
+    });
     res.status(500).json({ error: "Audit generation failed" });
   }
 });
@@ -1513,6 +1541,7 @@ REGLAS DE AUTO-AUDITORÍA:
 Devuelve EXACTAMENTE este JSON, sin markdown, sin texto extra:
 ${velaSchema}`;
 
+  const t0Vela = Date.now();
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -1523,11 +1552,38 @@ ${velaSchema}`;
         { role: "user", content: evidenceParts.join("\n\n") },
       ],
     });
+    const latencyMs = Date.now() - t0Vela;
+    if (completion.usage) {
+      logAICall({
+        route: "copilot/audit-report-vela",
+        endpoint: "vela-audit",
+        mode: "copilot",
+        model: "gpt-4o-mini",
+        maxTokensConfigured: 800,
+        promptTokens: completion.usage.prompt_tokens,
+        completionTokens: completion.usage.completion_tokens,
+        totalTokens: completion.usage.total_tokens,
+        latencyMs,
+        status: "ok",
+      });
+    }
     const raw = completion.choices[0]?.message?.content ?? "{}";
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(raw);
     res.json(parsed);
   } catch {
+    logAICall({
+      route: "copilot/audit-report-vela",
+      endpoint: "vela-audit",
+      mode: "copilot",
+      model: "gpt-4o-mini",
+      maxTokensConfigured: 800,
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      latencyMs: Date.now() - t0Vela,
+      status: "error",
+    });
     res.status(500).json({ error: "VELA audit generation failed" });
   }
 });
@@ -1713,12 +1769,28 @@ router.post("/copilot/transcribe", async (req, res) => {
         const mimeType = safeFilename.endsWith(".ogg") ? "audio/ogg" : "audio/webm";
         const audioFile = new File([buffer], safeFilename, { type: mimeType });
 
+        const t0Whisper = Date.now();
         const transcription = await openai.audio.transcriptions.create({
           file: audioFile,
           model: "whisper-1",
           language: "es",
           response_format: "verbose_json",
           prompt: contextPrompt || undefined,
+        });
+        const whisperLatencyMs = Date.now() - t0Whisper;
+
+        const audioSeconds = (transcription as any).duration ?? buffer.length / 16000;
+        logAICall({
+          route: "copilot/transcribe",
+          endpoint: "whisper",
+          mode: "copilot",
+          model: "whisper-1",
+          maxTokensConfigured: 0,
+          promptTokens: audioSeconds,
+          completionTokens: 0,
+          totalTokens: 0,
+          latencyMs: whisperLatencyMs,
+          status: "ok",
         });
 
         const rawTranscript = transcription.text;
@@ -1754,6 +1826,7 @@ router.post("/copilot/transcribe-clean", async (req, res) => {
     res.status(400).json({ error: "raw_transcript is required" });
     return;
   }
+  const t0Clean = Date.now();
   try {
     const cleanupPrompt = `Eres un experto en transcripciones de llamadas de venta. Tu tarea es identificar quién habla en cada turno y añadir etiquetas [VENDEDOR] o [CLIENTE].
 
@@ -1777,11 +1850,38 @@ Devuelve SOLO el transcript con etiquetas, sin explicaciones ni texto adicional.
       max_tokens: 4000,
       messages: [{ role: "user", content: cleanupPrompt }],
     });
+    const cleanLatencyMs = Date.now() - t0Clean;
+    if (completion.usage) {
+      logAICall({
+        route: "copilot/transcribe-clean",
+        endpoint: "clean",
+        mode: "copilot",
+        model: "gpt-4o-mini",
+        maxTokensConfigured: 4000,
+        promptTokens: completion.usage.prompt_tokens,
+        completionTokens: completion.usage.completion_tokens,
+        totalTokens: completion.usage.total_tokens,
+        latencyMs: cleanLatencyMs,
+        status: "ok",
+      });
+    }
     const transcript = completion.choices[0]?.message?.content ?? raw_transcript;
     res.json({ transcript });
   } catch (err: any) {
     console.error("[vela:transcribe-clean] error:", err);
     req.log?.error(err, "[vela:transcribe-clean] gpt error");
+    logAICall({
+      route: "copilot/transcribe-clean",
+      endpoint: "clean",
+      mode: "copilot",
+      model: "gpt-4o-mini",
+      maxTokensConfigured: 4000,
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      latencyMs: Date.now() - t0Clean,
+      status: "error",
+    });
     res.status(500).json({ error: "clean transcription failed", transcript: raw_transcript });
   }
 });

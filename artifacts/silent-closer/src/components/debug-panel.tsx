@@ -361,10 +361,12 @@ export function DebugPanel({ sessionId }: { sessionId?: string | null }) {
 
                   {session ? (
                     <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
-                      <Kpi label="Coste"    value={fmt$(session.totalCostUsd)}         hi />
+                      <Kpi label="Coste"    value={fmtEur(session.totalCostUsd)}       hi />
                       <Kpi label="Tokens"   value={fmtK(session.totalTokens)} />
                       <Kpi label="Llamadas" value={String(session.calls)} />
                       <Kpi label="Latencia" value={fmtMs(session.avgLatencyMs)} />
+                      <Kpi label="Inicio sesión" value={fmtTime(session.createdAt)} />
+                      <Kpi label="Servidor desde" value={fmtTime(data.serverStartedAt)} />
                     </div>
                   ) : (
                     <p className="text-[9px] font-mono text-zinc-700 italic">Sin sesión activa</p>

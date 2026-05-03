@@ -15,6 +15,7 @@ const MODEL_PRICING: Record<string, { input: number; output: number }> = {
   "gpt-4o":      { input: 0.0025,   output: 0.01    }, // $2.50 / $10 per 1M
   "gpt-4":       { input: 0.03,     output: 0.06    },
   "gpt-4-turbo": { input: 0.01,     output: 0.03    },
+  "whisper-1":   { input: 0.006,    output: 0       }, // $0.006 per minute of audio
 };
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -84,6 +85,8 @@ export function estimateModelCost(
 ): number | null {
   const pricing = MODEL_PRICING[model];
   if (!pricing) return null;
+  // Whisper: promptTokens = seconds of audio; cost = seconds / 60 * $0.006/min
+  if (model === "whisper-1") return (promptTokens / 60) * pricing.input;
   return (promptTokens    / 1000) * pricing.input
        + (completionTokens / 1000) * pricing.output;
 }
