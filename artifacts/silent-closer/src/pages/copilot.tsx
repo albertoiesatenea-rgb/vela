@@ -1277,7 +1277,8 @@ export default function CopilotPage() {
     const audioBlob = await stopRecording();
     if (audioBlob) {
       const formData = new FormData();
-      formData.append("audio", audioBlob, "session.webm");
+      const ext = audioBlob.type.includes("ogg") ? "ogg" : "webm";
+      formData.append("audio", audioBlob, `session.${ext}`);
       formData.append("context", sessionContext || "");
       try {
         const res = await fetch("/api/copilot/transcribe", { method: "POST", body: formData });
