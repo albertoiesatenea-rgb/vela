@@ -726,6 +726,7 @@ export default function CopilotPage() {
   const [transcriptOpen, setTranscriptOpen] = useState(false);
   const [transcriptTab, setTranscriptTab] = useState<"webSpeech" | "whisper">("webSpeech");
   const [whisperCleanDone, setWhisperCleanDone] = useState(false);
+  const [whisperReady, setWhisperReady] = useState(false);
   const [liveTranscriptOpen, setLiveTranscriptOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [turnLog, setTurnLog] = useState<TurnLogEntry[]>([]);
@@ -1430,6 +1431,18 @@ export default function CopilotPage() {
     }
   }, [turnLog.length, speakerMode, applyRetroRepairs]);
 
+  // Mark whisper as ready when both raw transcript and clean pass are done
+  useEffect(() => {
+    if (whisperTranscript && whisperCleanDone) setWhisperReady(true);
+  }, [whisperTranscript, whisperCleanDone]);
+
+  // 60-second timeout fallback — enable download button regardless of Whisper state
+  useEffect(() => {
+    if (endStep === "none") return;
+    const timer = setTimeout(() => setWhisperReady(true), 60_000);
+    return () => clearTimeout(timer);
+  }, [endStep]);
+
   /**
    * Fix C — AI-powered semantic retropass (post-call only).
    *
@@ -1963,7 +1976,12 @@ export default function CopilotPage() {
       structuredContext,
       speakerSessionMetrics,
     });
-    triggerAuditLogDownload(log, sessionId || null);
+    triggerAuditLogDownload(log, sessionId || null, {
+      whisper_received: !!whisperTranscript,
+      whisper_clean_done: whisperCleanDone,
+      whisper_chars: whisperTranscript.length,
+      whisper_preview: whisperTranscript.slice(0, 400),
+    });
   };
 
   const OUTCOME_OPTS: { key: CallOutcome; label: string }[] = [
@@ -2550,9 +2568,17 @@ export default function CopilotPage() {
                 </div>
                 <button
                   onClick={handleDownloadAuditLog}
-                  className="w-full text-center text-[10px] font-mono text-zinc-600 hover:text-zinc-300 py-0.5 transition-colors"
+                  disabled={!whisperReady}
+                  className={cn(
+                    "w-full text-center text-[10px] font-mono py-0.5 transition-colors",
+                    whisperReady
+                      ? "text-zinc-600 hover:text-zinc-300 cursor-pointer"
+                      : "text-zinc-700 cursor-wait animate-pulse"
+                  )}
                 >
-                  {T[lang].DOWNLOAD_AUDIT}
+                  {whisperReady
+                    ? T[lang].DOWNLOAD_AUDIT
+                    : (lang === "en" ? "Generating transcript..." : "Generando transcript...")}
                 </button>
               </div>
             </div>

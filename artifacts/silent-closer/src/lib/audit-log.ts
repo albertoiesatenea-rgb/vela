@@ -811,7 +811,7 @@ export function buildArenaAuditLog(data: ArenaSessionData): AuditLog {
 
 // ── Markdown renderer ─────────────────────────────────────────────────────────
 
-export function renderAuditLogMarkdown(log: AuditLog): string {
+export function renderAuditLogMarkdown(log: AuditLog, whisperStatus?: WhisperStatus): string {
   const sections: string[] = [];
 
   // ── Header
@@ -1074,13 +1074,34 @@ export function renderAuditLogMarkdown(log: AuditLog): string {
   h.audit_notes.forEach(n => sections.push(`- ${n}`));
   sections.push("");
 
+  // ── WHISPER_STATUS
+  if (whisperStatus) {
+    sections.push("## WHISPER_STATUS");
+    sections.push("");
+    sections.push(`whisper_received: ${whisperStatus.whisper_received ? "yes" : "no"}`);
+    sections.push(`whisper_clean_done: ${whisperStatus.whisper_clean_done ? "yes" : "no"}`);
+    sections.push(`whisper_chars: ${whisperStatus.whisper_chars}`);
+    sections.push(`whisper_preview: |`);
+    sections.push(`  ${whisperStatus.whisper_preview.replace(/\n/g, "\n  ")}`);
+    sections.push("");
+  }
+
   return sections.join("\n");
+}
+
+// ── Whisper status type ───────────────────────────────────────────────────────
+
+export interface WhisperStatus {
+  whisper_received: boolean;
+  whisper_clean_done: boolean;
+  whisper_chars: number;
+  whisper_preview: string;
 }
 
 // ── Download helper ───────────────────────────────────────────────────────────
 
-export function triggerAuditLogDownload(log: AuditLog, sessionId: string | null): void {
-  const md = renderAuditLogMarkdown(log);
+export function triggerAuditLogDownload(log: AuditLog, sessionId: string | null, whisperStatus?: WhisperStatus): void {
+  const md = renderAuditLogMarkdown(log, whisperStatus);
   const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
