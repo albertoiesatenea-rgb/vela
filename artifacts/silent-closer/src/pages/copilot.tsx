@@ -1278,39 +1278,46 @@ export default function CopilotPage() {
     stopListening();
     setIsSessionListening(false);
     const audioBlob = await stopRecording();
+
+    // Fire-and-forget Whisper pipeline — does NOT block the UI
     if (audioBlob) {
-      const formData = new FormData();
-      const ext = audioBlob.type.includes("ogg") ? "ogg" : "webm";
-      formData.append("audio", audioBlob, `session.${ext}`);
-      formData.append("context", sessionContext || "");
-      try {
-        const res = await fetch("/api/copilot/transcribe", { method: "POST", body: formData });
-        const data = await res.json();
-        if (data.transcript) {
-          console.log("[vela:whisper] transcript ready", data.transcript.slice(0, 100));
-          setWhisperRawTranscript(data.transcript);
-          setWhisperTranscript(data.transcript);
-          if (data.cleaning) {
-            try {
-              const cleanRes = await fetch("/api/copilot/transcribe-clean", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ raw_transcript: data.transcript, context: sessionContext || "" }),
-              });
-              const cleanData = await cleanRes.json();
-              if (cleanData.transcript) {
-                console.log("[vela:whisper] clean transcript ready", cleanData.transcript.slice(0, 100));
-                setWhisperTranscript(cleanData.transcript);
+      const _ctx = sessionContext || "";
+      (async () => {
+        const formData = new FormData();
+        const ext = audioBlob.type.includes("ogg") ? "ogg" : "webm";
+        formData.append("audio", audioBlob, `session.${ext}`);
+        formData.append("context", _ctx);
+        try {
+          const res = await fetch("/api/copilot/transcribe", { method: "POST", body: formData });
+          const data = await res.json();
+          if (data.transcript) {
+            console.log("[vela:whisper] transcript ready", data.transcript.slice(0, 100));
+            setWhisperRawTranscript(data.transcript);
+            setWhisperTranscript(data.transcript);
+            if (data.cleaning) {
+              try {
+                const cleanRes = await fetch("/api/copilot/transcribe-clean", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ raw_transcript: data.transcript, context: _ctx }),
+                });
+                const cleanData = await cleanRes.json();
+                if (cleanData.transcript) {
+                  console.log("[vela:whisper] clean transcript ready", cleanData.transcript.slice(0, 100));
+                  setWhisperTranscript(cleanData.transcript);
+                  setWhisperCleanDone(true);
+                }
+              } catch (cleanErr) {
+                console.error("[vela:whisper] clean step failed", cleanErr);
               }
-            } catch (cleanErr) {
-              console.error("[vela:whisper] clean step failed", cleanErr);
             }
           }
+        } catch (e) {
+          console.error("[vela:whisper] transcription failed", e);
         }
-      } catch (e) {
-        console.error("[vela:whisper] transcription failed", e);
-      }
+      })();
     }
+
     // If no real conversation happened, just exit — no scoring, no outcome picker
     if (!hasRealConversation) {
       handleActuallyClearSession();
@@ -2177,17 +2184,24 @@ export default function CopilotPage() {
                                     )
                                   ) : (
                                     whisperTranscript ? (
-                                      whisperTranscript.split("\n").filter(Boolean).map((line, i) => {
-                                        const isClient = line.startsWith("[CLIENTE]") || line.startsWith("[CLIENT]");
-                                        const isVendor = line.startsWith("[VENDEDOR]") || line.startsWith("[VENDOR]");
-                                        const labelColor = isClient ? "text-sky-500" : isVendor ? "text-teal-400" : "text-zinc-500";
-                                        return (
-                                          <div key={i} className="flex gap-2 py-1 border-b border-zinc-800/30 last:border-0">
-                                            <span className="text-[9px] font-mono text-zinc-700 shrink-0 mt-[3px]">{i + 1}</span>
-                                            <p className={cn("text-[10px] font-mono leading-relaxed", labelColor)}>{line}</p>
-                                          </div>
-                                        );
-                                      })
+                                      <>
+                                        {whisperTranscript.split("\n").filter(Boolean).map((line, i) => {
+                                          const isClient = line.startsWith("[CLIENTE]") || line.startsWith("[CLIENT]");
+                                          const isVendor = line.startsWith("[VENDEDOR]") || line.startsWith("[VENDOR]");
+                                          const labelColor = isClient ? "text-sky-500" : isVendor ? "text-teal-400" : "text-zinc-500";
+                                          return (
+                                            <div key={i} className="flex gap-2 py-1 border-b border-zinc-800/30 last:border-0">
+                                              <span className="text-[9px] font-mono text-zinc-700 shrink-0 mt-[3px]">{i + 1}</span>
+                                              <p className={cn("text-[10px] font-mono leading-relaxed", labelColor)}>{line}</p>
+                                            </div>
+                                          );
+                                        })}
+                                        {!whisperCleanDone && (
+                                          <p className="text-[9px] font-mono text-zinc-600 italic animate-pulse mt-2">
+                                            {lang === "en" ? "Cleaning speakers..." : "Limpiando hablantes..."}
+                                          </p>
+                                        )}
+                                      </>
                                     ) : (
                                       <p className="text-[10px] font-mono text-zinc-600 italic">{lang === "en" ? "Pending..." : "Pendiente..."}</p>
                                     )
@@ -2198,8 +2212,8 @@ export default function CopilotPage() {
                           </div>
                         )}
 
-                        {/* ── AI attribution correction — optional, only in AUTO mode ── */}
-                        {speakerMode === "auto" && (
+                        {/* ── AI attribution correction — only in AUTO mode, only on Web Speech tab ── */}
+                        {speakerMode === "auto" && transcriptTab === "webSpeech" && (
                           <button
                             type="button"
                             disabled={(transcriptTab === "webSpeech" ? retropassDone : whisperCleanDone) || retropassRunning}

@@ -1757,6 +1757,8 @@ router.post("/copilot/transcribe-clean", async (req, res) => {
   try {
     const cleanupPrompt = `Eres un asistente que limpia y estructura transcripciones de llamadas de venta.
 
+REGLA CRÍTICA: Si un turno empieza con el nombre de una persona, eso NO significa que esa persona esté hablando — puede ser que el otro hablante se esté dirigiendo a ella por su nombre. Usa el contenido y el contexto para identificar quién habla.
+
 ${context?.trim() ? `CONTEXTO DE LA SESIÓN:\n${context.trim()}\n\n` : ""}TRANSCRIPT EN BRUTO (de Whisper):
 ${raw_transcript.trim()}
 
