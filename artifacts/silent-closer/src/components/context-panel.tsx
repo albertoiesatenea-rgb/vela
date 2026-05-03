@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, type ReactNode } from "react";
-import { ChevronDown, ChevronUp, Zap, SlidersHorizontal, User, Users, Target, Briefcase, ShieldOff, FileText, Swords, Navigation, Headphones, Shuffle, X, Package, Building, Lightbulb, MessageSquare, Sun, Moon } from "lucide-react";
+import { ChevronDown, ChevronUp, Zap, SlidersHorizontal, User, Users, Target, Briefcase, ShieldOff, FileText, Swords, Navigation, Headphones, Shuffle, X, Package, Building, Lightbulb, MessageSquare, Sun, Moon, Brain } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/use-theme";
 import type { ArenaRole } from "@/pages/arena";
@@ -909,6 +909,8 @@ export function ContextSetup({
   const [prebriefEditing,   setPrebriefEditing]   = useState(false);
   const [prebriefEdit,      setPrebriefEdit]       = useState<PrebriefResult | null>(null);
   const [activeBrainId,     setActiveBrainId]     = useState<"generic" | "immvest">("immvest");
+  const [showBrainDropdown, setShowBrainDropdown] = useState(false);
+  const brainDropdownRef = useRef<HTMLDivElement>(null);
 
   const quickRef = useRef<HTMLTextAreaElement>(null);
 
@@ -927,6 +929,18 @@ export function ContextSetup({
   const copilotOptsHide = () => {
     copilotHoverTimer.current = setTimeout(() => setShowCopilotOpts(false), 180);
   };
+
+  // Close brain dropdown on outside click
+  useEffect(() => {
+    if (!showBrainDropdown) return;
+    const handler = (e: MouseEvent) => {
+      if (brainDropdownRef.current && !brainDropdownRef.current.contains(e.target as Node)) {
+        setShowBrainDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showBrainDropdown]);
 
   // Auto-focus the textarea on mount and whenever quick mode is activated
   useEffect(() => {
@@ -1064,8 +1078,58 @@ export function ContextSetup({
             VELA
           </span>
         </div>
-        {/* Right: theme toggle + language toggle */}
+        {/* Right: brain selector + theme toggle + language toggle */}
         <div className="flex items-center gap-2">
+
+          {/* Brain selector — only in Copilot mode */}
+          {appMode === "copilot" && (
+            <div ref={brainDropdownRef} className="relative">
+              <button
+                onClick={() => setShowBrainDropdown(v => !v)}
+                onMouseDown={e => e.preventDefault()}
+                className={cn(
+                  "flex items-center gap-1.5 h-8 px-2.5 rounded-full border text-[10px] font-mono transition-all",
+                  showBrainDropdown
+                    ? "bg-foreground text-background border-foreground"
+                    : "bg-muted border-border text-muted-foreground hover:text-foreground hover:border-foreground/30",
+                )}
+              >
+                <Brain className="w-3 h-3 shrink-0" />
+                <span className="tracking-wide">{activeBrainId === "immvest" ? "Immvest" : "Genérico"}</span>
+                <ChevronDown className={cn("w-2.5 h-2.5 transition-transform", showBrainDropdown && "rotate-180")} />
+              </button>
+
+              {showBrainDropdown && (
+                <div className="absolute top-full right-0 mt-1.5 z-50 w-36 rounded-xl border border-border bg-background shadow-2xl overflow-hidden">
+                  {(["immvest", "generic"] as const).map(id => (
+                    <button
+                      key={id}
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={() => {
+                        setActiveBrainId(id);
+                        setPrebriefResult(null);
+                        setPrebriefEdit(null);
+                        setPrebriefConfirmed(false);
+                        setShowBrainDropdown(false);
+                      }}
+                      className={cn(
+                        "w-full flex items-center justify-between px-3 py-2.5 text-[11px] font-mono transition-colors",
+                        activeBrainId === id
+                          ? "bg-foreground text-background"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                      )}
+                    >
+                      <span>{id === "immvest" ? "Immvest" : "Genérico"}</span>
+                      {activeBrainId === id && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-current shrink-0" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <button
             onClick={toggleTheme}
             onMouseDown={e => e.preventDefault()}
@@ -1094,7 +1158,7 @@ export function ContextSetup({
       </div>
 
       {/* ── Main content — centered, scrollable ─────────────────────────── */}
-      <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center px-6 py-6">
+      <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center px-6 py-4">
       <div className="w-full max-w-lg flex flex-col gap-4">
 
         {/* ── Controls row ──────────────────────────────────────────────── */}
@@ -1327,28 +1391,6 @@ export function ContextSetup({
             {/* ── PRE-BRIEF: interpret context (Copilot only) ───────────── */}
             {appMode === "copilot" && (
               <>
-                {/* Brain selector — always visible in Copilot setup */}
-                {!prebriefConfirmed && (
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-mono text-zinc-600 tracking-widest uppercase mr-1">Brain</span>
-                    {(["immvest", "generic"] as const).map(id => (
-                      <button
-                        key={id}
-                        onClick={() => { setActiveBrainId(id); setPrebriefResult(null); setPrebriefEdit(null); setPrebriefConfirmed(false); }}
-                        onMouseDown={e => e.preventDefault()}
-                        className={cn(
-                          "text-[10px] font-mono px-2.5 py-1 rounded-lg border transition-all",
-                          activeBrainId === id
-                            ? "bg-white text-black border-white"
-                            : "text-zinc-500 border-zinc-800 hover:border-zinc-600 hover:text-zinc-300",
-                        )}
-                      >
-                        {id === "immvest" ? "Immvest" : "Genérico"}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
                 {/* "Interpretar contexto" trigger — only if text present and no result yet */}
                 {quickText.trim() && !prebriefLoading && !prebriefResult && (
                   <button
@@ -1376,8 +1418,8 @@ export function ContextSetup({
                         <span className="text-[9px] font-mono tracking-[0.22em] uppercase text-zinc-500">
                           Contexto detectado
                         </span>
-                        <span className="text-[8px] font-mono text-zinc-600 border border-zinc-800 px-1.5 py-0.5 rounded">
-                          {activeBrainId === "immvest" ? "Immvest" : "Genérico"}
+                        <span className="text-[8px] font-mono text-zinc-600 px-0">
+                          Brain activo: {activeBrainId === "immvest" ? "Immvest" : "Genérico"}
                         </span>
                       </div>
                       {prebriefResult.confidence && (

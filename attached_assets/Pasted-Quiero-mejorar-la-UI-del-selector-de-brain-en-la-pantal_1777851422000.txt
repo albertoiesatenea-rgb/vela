@@ -1,0 +1,81 @@
+Quiero mejorar la UI del selector de brain en la pantalla inicial de Copiloto, partiendo del estado actual de la app.
+
+Estado actual:
+- Ya existe una top bar limpia con logo a la izquierda y controles globales a la derecha.
+- Ya existe el selector de brain funcionando, pero está en el cuerpo del formulario debajo del textarea como:
+  BRAIN / Immvest / Genérico
+- No quiero tocar la lógica del brain. Solo quiero arreglar su presentación visual y su posición.
+
+Objetivo:
+El brain debe sentirse como una configuración global de la sesión, no como un campo más del formulario.
+Por eso debe vivir en la top bar, no debajo del textarea.
+
+NO toques:
+- la lógica de `COPILOT_BRAINS`
+- `getCopilotBrain()`
+- el envío de `brainId`
+- el endpoint `/copilot/prebrief-context`
+- live / whisper / summarize / auditorías
+- Arena behavior
+- backend
+
+SOLO quiero cambios en:
+`artifacts/silent-closer/src/components/context-panel.tsx`
+
+Haz estos cambios:
+
+1) Mover el selector de brain a la top bar
+- En la pantalla inicial de Copiloto, mueve el control de brain a la barra superior.
+- Debe ir en la zona derecha de la top bar, junto a los controles globales existentes (tema / idioma).
+- No lo dejes dentro del flujo principal del formulario.
+
+2) Convertir el selector en un trigger compacto
+En vez del bloque actual “BRAIN + pills”, quiero un trigger compacto con:
+- icono de cerebro
+- nombre del brain activo (`Immvest` o `Genérico`)
+- chevron pequeño
+
+Debe verse como un control global premium/minimalista, consistente con la top bar.
+
+3) Dropdown / popover
+Al hacer click en el trigger, abrir un dropdown o popover pequeño y limpio con dos opciones:
+- Immvest
+- Genérico
+
+Cada opción debe tener:
+- nombre
+- estado activo visual claro
+- hover bonito
+- selección inmediata al click
+
+No quiero cards grandes ni cajas pesadas.
+
+4) Eliminar el bloque viejo del cuerpo
+Quita del cuerpo del formulario el bloque actual:
+- label `BRAIN`
+- pills `Immvest / Genérico`
+
+5) Ajustar la composición vertical
+Ahora hay demasiado vacío entre la top bar y el bloque principal.
+Quiero que el bloque central de setup suba un poco en la pantalla, manteniendo limpieza.
+No hace falta rehacer toda la pantalla, solo mejorar la distribución vertical para que no parezca “caída”.
+
+6) Brain activo en resultado
+En el bloque de “Contexto detectado”, mantén solo una indicación pequeña y discreta del brain activo, por ejemplo:
+- `Brain activo: Immvest`
+- `Brain activo: Genérico`
+
+Debe ser sutil, no un bloque grande.
+
+7) No romper nada
+- El selector debe seguir guardando `brainId` igual que ahora
+- `brainId` debe seguir llegando al endpoint `/api/copilot/prebrief-context`
+- El flujo de interpretar contexto debe seguir funcionando igual
+- El botón “Iniciar copiloto” no debe romperse
+
+8) Verificación
+Cuando termines:
+- enséñame el trigger del brain en la top bar
+- enséñame el dropdown/popover
+- confirma que `brainId` sigue llegando igual al endpoint
+- dime exactamente qué cambiaste en la UI
