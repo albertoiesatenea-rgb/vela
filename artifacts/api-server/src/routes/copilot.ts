@@ -1707,11 +1707,11 @@ router.post("/copilot/transcribe", async (req, res) => {
     bb.on("finish", async () => {
       try {
         const buffer = Buffer.concat(chunks);
-        const { toFile } = await import("openai");
         const safeFilename = filename.match(/\.(webm|mp4|mp3|wav|ogg|flac|m4a|mpeg|mpga|oga)$/i)
           ? filename
           : filename + ".webm";
-        const audioFile = await toFile(buffer, safeFilename, { type: "audio/webm" });
+        const mimeType = safeFilename.endsWith(".ogg") ? "audio/ogg" : "audio/webm";
+        const audioFile = new File([buffer], safeFilename, { type: mimeType });
 
         const transcription = await openai.audio.transcriptions.create({
           file: audioFile,
