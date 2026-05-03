@@ -707,6 +707,8 @@ export default function CopilotPage() {
   const [retropassRunning, setRetropassRunning] = useState(false);
   const [whisperTranscript, setWhisperTranscript] = useState<string>("");
   const [whisperRawTranscript, setWhisperRawTranscript] = useState<string>("");
+  const [whisperChunks, setWhisperChunks] = useState<string[]>([]);
+  const whisperChunksRef = useRef<string[]>([]);
   const [humanNotes, setHumanNotes] = useState("");
   const [importedTranscript, setImportedTranscript] = useState("");
   const [importTranscriptOpen, setImportTranscriptOpen] = useState(false);
@@ -1118,7 +1120,28 @@ export default function CopilotPage() {
 
   const { isSupported, isListening, error: speechError, interimText, startListening, stopListening } =
     useSpeech({ onAnalyzeReady: handleAnalysis, analysisIntervalMs: 8000, lang });
-  const { startRecording, stopRecording } = useAudioRecorder();
+  const handleChunkReady = useCallback((blob: Blob) => {
+    const _ctx = sessionContext || "";
+    (async () => {
+      const formData = new FormData();
+      const ext = blob.type.includes("ogg") ? "ogg" : "webm";
+      formData.append("audio", blob, `chunk.${ext}`);
+      formData.append("context", _ctx);
+      try {
+        const res = await fetch("/api/copilot/transcribe", { method: "POST", body: formData });
+        const data = await res.json();
+        if (data.transcript) {
+          console.log("[vela:whisper] chunk transcript ready", data.transcript.slice(0, 80));
+          whisperChunksRef.current = [...whisperChunksRef.current, data.transcript];
+          setWhisperChunks([...whisperChunksRef.current]);
+        }
+      } catch (e) {
+        console.error("[vela:whisper] chunk transcription failed", e);
+      }
+    })();
+  }, [sessionContext]);
+
+  const { startRecording, stopRecording } = useAudioRecorder({ onChunkReady: handleChunkReady });
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -1262,6 +1285,10 @@ export default function CopilotPage() {
     setTranscriptOpen(false);
     speakerSessionRef.current.reset();
     setSpeakerQualityLevel("normal");
+    setWhisperChunks([]);
+    whisperChunksRef.current = [];
+    setWhisperCleanDone(false);
+    setWhisperReady(false);
   };
 
   const handleGoArena = () => {
@@ -1293,14 +1320,15 @@ export default function CopilotPage() {
           const data = await res.json();
           if (data.transcript) {
             console.log("[vela:whisper] transcript ready", data.transcript.slice(0, 100));
-            setWhisperRawTranscript(data.transcript);
-            setWhisperTranscript(data.transcript);
+            const combined = [...whisperChunksRef.current, data.transcript].filter(Boolean).join("\n");
+            setWhisperRawTranscript(combined);
+            setWhisperTranscript(combined);
             if (data.cleaning) {
               try {
                 const cleanRes = await fetch("/api/copilot/transcribe-clean", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ raw_transcript: data.transcript, context: _ctx }),
+                  body: JSON.stringify({ raw_transcript: combined, context: _ctx }),
                 });
                 const cleanData = await cleanRes.json();
                 if (cleanData.transcript) {
