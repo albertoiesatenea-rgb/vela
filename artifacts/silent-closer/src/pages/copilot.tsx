@@ -706,6 +706,7 @@ export default function CopilotPage() {
   const [retropassDone, setRetropassDone] = useState(false);
   const [retropassRunning, setRetropassRunning] = useState(false);
   const [whisperTranscript, setWhisperTranscript] = useState<string>("");
+  const [whisperRawTranscript, setWhisperRawTranscript] = useState<string>("");
   const [humanNotes, setHumanNotes] = useState("");
   const [importedTranscript, setImportedTranscript] = useState("");
   const [importTranscriptOpen, setImportTranscriptOpen] = useState(false);
@@ -1287,6 +1288,7 @@ export default function CopilotPage() {
         const data = await res.json();
         if (data.transcript) {
           console.log("[vela:whisper] transcript ready", data.transcript.slice(0, 100));
+          setWhisperRawTranscript(data.transcript);
           setWhisperTranscript(data.transcript);
           if (data.cleaning) {
             try {
@@ -2212,7 +2214,7 @@ export default function CopilotPage() {
                                   const cleanRes = await fetch("/api/copilot/transcribe-clean", {
                                     method: "POST",
                                     headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({ raw_transcript: whisperTranscript, context: sessionContext || "" }),
+                                    body: JSON.stringify({ raw_transcript: whisperRawTranscript || whisperTranscript, context: sessionContext || "" }),
                                   });
                                   const cleanData = await cleanRes.json();
                                   if (cleanData.transcript) setWhisperTranscript(cleanData.transcript);
