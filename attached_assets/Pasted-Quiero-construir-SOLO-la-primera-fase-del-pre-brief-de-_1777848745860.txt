@@ -1,0 +1,111 @@
+Quiero construir SOLO la primera fase del pre-brief de VELA, sin meter todavía el briefing en cards, sin objeciones, sin guion y sin tocar el live actual.
+
+Objetivo de esta fase:
+pegar contexto sucio -> VELA lo interpreta -> muestra “Contexto detectado” -> yo confirmo o edito -> se guarda en estado para usarlo después
+
+No quiero refactor grande todavía. No quiero joder Copiloto. Haz el cambio más pequeño posible sobre el flujo inicial actual.
+
+1) Backend — nuevo endpoint POST /api/copilot/prebrief-context
+Archivo: artifacts/api-server/src/routes/copilot.ts
+
+Crea un endpoint que reciba:
+{
+  raw_input: string,
+  has_asset?: boolean,
+  call_type_hint?: string,
+  user_risk_hint?: string
+}
+
+Debe devolver SOLO este JSON:
+{
+  "detected_phase": string,
+  "call_type": string,
+  "today_decision": string,
+  "what_client_knows": string[],
+  "main_blocker_probable": string,
+  "valid_outcome_today": string,
+  "confidence": "high" | "medium" | "low",
+  "context_for_brief": string
+}
+
+Reglas del prompt:
+- El trabajo es convertir ruido comercial en contexto útil.
+- Leer el caso según fase real del proceso, no tratar todo como cierre ni todo como discovery.
+- Detectar qué se decide hoy de verdad.
+- Detectar qué sabe ya el cliente.
+- Detectar el bloqueo principal probable.
+- Detectar cuál sería un outcome válido hoy aunque no haya cierre.
+- Compactar el resultado para poder confirmarlo antes de generar el briefing.
+- No inventar cifras, hechos ni decisiones del cliente.
+- Responder SOLO JSON válido.
+- Idioma: español.
+- Tono: directo, táctico, compacto.
+
+Usa gpt-4o-mini.
+Añade tracking con logAICall usando:
+route: "copilot/prebrief-context"
+endpoint: "prebrief-context"
+mode: "copilot"
+
+2) Frontend — integración mínima en la pantalla inicial actual
+Archivo: artifacts/silent-closer/src/components/context-panel.tsx
+
+No quiero rehacer todavía Copiloto entero ni crear el flujo completo Preparar/Live/Post.
+Solo añade una primera fase ligera en la pantalla inicial actual.
+
+Comportamiento:
+- Mantén la caja grande actual para pegar contexto.
+- Añade un botón principal: “Interpretar contexto”
+- Añade loading honesto: “VELA está leyendo el caso…”
+
+Cuando llegue la respuesta del backend:
+- mostrar un bloque debajo llamado “Contexto detectado”
+- renderizar estos campos como cards compactas:
+  - Fase probable
+  - Tipo de llamada
+  - Qué se decide hoy
+  - Qué sabe ya el cliente
+  - Bloqueo principal probable
+  - Outcome válido hoy
+  - Contexto resumido para VELA
+
+Debajo del bloque:
+- botón “Confirmar contexto”
+- botón “Editar contexto”
+
+Si el usuario pulsa “Editar contexto”:
+permitir edición inline de estos campos:
+- detected_phase
+- call_type
+- today_decision
+- main_blocker_probable
+- valid_outcome_today
+- context_for_brief
+
+Si el usuario pulsa “Confirmar contexto”:
+- guardar ese contexto confirmado en estado React
+- no entrar todavía al live automáticamente
+- solo mostrar una confirmación visual pequeña tipo “Contexto confirmado”
+- dejar preparado el estado para que en la siguiente fase podamos generar el briefing
+
+3) Estado local
+No metas DB todavía.
+No toques live, whisper, auditoría ni arena.
+Solo guarda en estado:
+- raw_input
+- detected context
+- confirmed context
+
+4) UX
+- No usar tablas
+- No usar textos enormes
+- Cards compactas y legibles
+- Cambio mínimo posible sobre la UI actual
+- No rompas el botón actual de inicio del Copiloto; si hace falta, déjalo tal cual y añade este flujo antes de él con el menor impacto posible
+
+5) Verificación
+Cuando termines:
+- verifica que /api/copilot/prebrief-context responde
+- verifica que la pantalla inicial permite pegar ruido y ver “Contexto detectado”
+- verifica que puedo editar y confirmar
+- dime exactamente qué archivos tocaste

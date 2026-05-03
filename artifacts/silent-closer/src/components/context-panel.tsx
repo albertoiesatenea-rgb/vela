@@ -32,6 +32,17 @@ export interface StructuredContext {
   desired_deliverable_today?: string;
 }
 
+interface PrebriefResult {
+  detected_phase: string;
+  call_type: string;
+  today_decision: string;
+  what_client_knows: string[];
+  main_blocker_probable: string;
+  valid_outcome_today: string;
+  confidence: "high" | "medium" | "low";
+  context_for_brief: string;
+}
+
 // ── VELA mark: triangular sail + two internal diagonal cuts ───────────────────
 // NO mask approach — explicit fill polygon + cut lines drawn on top.
 //
@@ -891,6 +902,13 @@ export function ContextSetup({
   const [showCopilotOpts, setShowCopilotOpts] = useState(false);
   const copilotHoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Pre-brief: context interpreter (phase 1)
+  const [prebriefResult,    setPrebriefResult]    = useState<PrebriefResult | null>(null);
+  const [prebriefLoading,   setPrebriefLoading]   = useState(false);
+  const [prebriefConfirmed, setPrebriefConfirmed] = useState(false);
+  const [prebriefEditing,   setPrebriefEditing]   = useState(false);
+  const [prebriefEdit,      setPrebriefEdit]       = useState<PrebriefResult | null>(null);
+
   const quickRef = useRef<HTMLTextAreaElement>(null);
 
   const presetOptsShow = () => {
@@ -999,6 +1017,36 @@ export function ContextSetup({
         .catch(() => {})
         .finally(() => { setIsGeneratingCtx(false); focusAndScrollTop(); });
     }
+  };
+
+  const handleInterpret = async () => {
+    if (!quickText.trim()) return;
+    setPrebriefLoading(true);
+    setPrebriefResult(null);
+    setPrebriefConfirmed(false);
+    setPrebriefEditing(false);
+    setPrebriefEdit(null);
+    try {
+      const res = await fetch("/api/copilot/prebrief-context", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ raw_input: quickText }),
+      });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json() as PrebriefResult;
+      setPrebriefResult(data);
+      setPrebriefEdit({ ...data });
+    } catch {
+      // no-op — textarea stays, user can retry
+    } finally {
+      setPrebriefLoading(false);
+    }
+  };
+
+  const handlePrebriefConfirm = () => {
+    if (prebriefEdit) setPrebriefResult({ ...prebriefEdit });
+    setPrebriefConfirmed(true);
+    setPrebriefEditing(false);
   };
 
   const ctaLabel = appMode === "arena" ? t.START_ARENA : t.START;
@@ -1275,9 +1323,144 @@ export function ContextSetup({
               />
             )}
 
+            {/* ── PRE-BRIEF: interpret context (Copilot only) ───────────── */}
+            {appMode === "copilot" && (
+              <>
+                {/* "Interpretar contexto" trigger — only if text present and no result yet */}
+                {quickText.trim() && !prebriefLoading && !prebriefResult && (
+                  <button
+                    onClick={() => void handleInterpret()}
+                    onMouseDown={e => e.preventDefault()}
+                    className="w-full border border-zinc-700 text-zinc-300 text-xs font-mono py-2.5 rounded-xl hover:border-zinc-500 hover:text-white active:scale-[0.98] transition-all"
+                  >
+                    Interpretar contexto
+                  </button>
+                )}
+
+                {/* Loading */}
+                {prebriefLoading && (
+                  <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-zinc-800 bg-zinc-950/60">
+                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 animate-pulse shrink-0" />
+                    <span className="text-[11px] font-mono text-zinc-400 tracking-wide">VELA está leyendo el caso…</span>
+                  </div>
+                )}
+
+                {/* Result block */}
+                {prebriefResult && (
+                  <div className="flex flex-col gap-2.5 rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-mono tracking-[0.22em] uppercase text-zinc-500">
+                        Contexto detectado
+                      </span>
+                      {prebriefResult.confidence && (
+                        <span className={cn(
+                          "text-[8px] font-mono tracking-widest uppercase px-1.5 py-0.5 rounded border",
+                          prebriefResult.confidence === "high"   && "text-teal-400 border-teal-800",
+                          prebriefResult.confidence === "medium" && "text-amber-400 border-amber-800",
+                          prebriefResult.confidence === "low"    && "text-zinc-500 border-zinc-700",
+                        )}>
+                          {prebriefResult.confidence === "high" ? "alta" : prebriefResult.confidence === "medium" ? "media" : "baja"}
+                        </span>
+                      )}
+                    </div>
+
+                    {prebriefEditing && prebriefEdit ? (
+                      /* ── Edit mode ───────────────────────────────────── */
+                      <div className="flex flex-col gap-2">
+                        {(
+                          [
+                            ["detected_phase",       "Fase"],
+                            ["call_type",            "Tipo de llamada"],
+                            ["today_decision",       "Qué se decide hoy"],
+                            ["main_blocker_probable","Bloqueo principal"],
+                            ["valid_outcome_today",  "Outcome válido hoy"],
+                            ["context_for_brief",    "Contexto para VELA"],
+                          ] as [keyof PrebriefResult, string][]
+                        ).map(([field, label]) => (
+                          <div key={field} className="flex flex-col gap-0.5">
+                            <span className="text-[8.5px] font-mono text-zinc-600 uppercase tracking-widest">{label}</span>
+                            <textarea
+                              rows={field === "context_for_brief" ? 3 : 1}
+                              value={String(prebriefEdit[field] ?? "")}
+                              onChange={e => setPrebriefEdit(prev => prev ? { ...prev, [field]: e.target.value } : prev)}
+                              className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-1.5 text-[11px] font-mono text-white focus:outline-none focus:border-zinc-500 resize-none leading-relaxed"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      /* ── Display cards ───────────────────────────────── */
+                      <div className="flex flex-col gap-1.5">
+                        {[
+                          { label: "Fase", value: prebriefResult.detected_phase },
+                          { label: "Tipo de llamada", value: prebriefResult.call_type },
+                          { label: "Qué se decide hoy", value: prebriefResult.today_decision },
+                          { label: "Qué sabe el cliente", value: Array.isArray(prebriefResult.what_client_knows) ? prebriefResult.what_client_knows.join(" · ") : String(prebriefResult.what_client_knows) },
+                          { label: "Bloqueo probable", value: prebriefResult.main_blocker_probable },
+                          { label: "Outcome válido hoy", value: prebriefResult.valid_outcome_today },
+                          { label: "Contexto para VELA", value: prebriefResult.context_for_brief },
+                        ].map(({ label, value }) => (
+                          <div key={label} className="flex flex-col gap-0.5 px-2.5 py-2 rounded-lg bg-zinc-900/60 border border-zinc-800">
+                            <span className="text-[8px] font-mono text-zinc-600 uppercase tracking-widest">{label}</span>
+                            <span className="text-[11px] font-mono text-zinc-300 leading-relaxed">{value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Action row */}
+                    {!prebriefConfirmed ? (
+                      <div className="flex gap-2 pt-0.5">
+                        {prebriefEditing ? (
+                          <>
+                            <button
+                              onMouseDown={e => e.preventDefault()}
+                              onClick={handlePrebriefConfirm}
+                              className="flex-1 bg-white text-black text-[11px] font-mono font-bold py-2 rounded-lg hover:bg-zinc-100 active:scale-[0.98] transition-all"
+                            >
+                              Confirmar contexto
+                            </button>
+                            <button
+                              onMouseDown={e => e.preventDefault()}
+                              onClick={() => { setPrebriefEditing(false); setPrebriefEdit(prebriefResult ? { ...prebriefResult } : null); }}
+                              className="px-3 py-2 rounded-lg border border-zinc-700 text-zinc-400 text-[11px] font-mono hover:border-zinc-500 hover:text-white transition-all"
+                            >
+                              Cancelar
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onMouseDown={e => e.preventDefault()}
+                              onClick={handlePrebriefConfirm}
+                              className="flex-1 bg-white text-black text-[11px] font-mono font-bold py-2 rounded-lg hover:bg-zinc-100 active:scale-[0.98] transition-all"
+                            >
+                              Confirmar contexto
+                            </button>
+                            <button
+                              onMouseDown={e => e.preventDefault()}
+                              onClick={() => setPrebriefEditing(true)}
+                              className="px-3 py-2 rounded-lg border border-zinc-700 text-zinc-400 text-[11px] font-mono hover:border-zinc-500 hover:text-white transition-all"
+                            >
+                              Editar
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-teal-950/40 border border-teal-800/50">
+                        <span className="w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0" />
+                        <span className="text-[10px] font-mono text-teal-400 tracking-widest uppercase">Contexto confirmado</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+
             {/* CTA */}
             <button
-              onClick={() => handleSubmit(quickText)}
+              onClick={() => handleSubmit(prebriefConfirmed && prebriefResult ? prebriefResult.context_for_brief : quickText)}
               disabled={(appMode === "arena" && !quickText.trim()) || isGeneratingCtx}
               className="w-full bg-white text-black text-sm font-mono font-bold py-3.5 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all disabled:opacity-40 disabled:pointer-events-none"
             >

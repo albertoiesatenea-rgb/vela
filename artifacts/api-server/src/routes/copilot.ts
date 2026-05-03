@@ -1886,4 +1886,98 @@ Devuelve SOLO el transcript con etiquetas, sin explicaciones ni texto adicional.
   }
 });
 
+// ── PRE-BRIEF CONTEXT INTERPRETER ────────────────────────────────────────────
+router.post("/copilot/prebrief-context", async (req, res) => {
+  const { raw_input, has_asset, call_type_hint, user_risk_hint } = req.body as {
+    raw_input: string;
+    has_asset?: boolean;
+    call_type_hint?: string;
+    user_risk_hint?: string;
+  };
+
+  if (!raw_input?.trim()) {
+    res.status(400).json({ error: "raw_input required" });
+    return;
+  }
+
+  const t0 = Date.now();
+
+  const systemPrompt = `Eres un intérprete táctico de contexto comercial. Conviertes ruido comercial en contexto útil para una llamada de ventas.
+
+Reglas:
+- Lee el caso según la fase real (no todo es cierre ni todo es discovery)
+- Detecta qué se decide HOY de verdad
+- Detecta qué sabe ya el cliente
+- Detecta el bloqueo principal probable
+- Detecta cuál sería un outcome válido hoy aunque no haya cierre
+- No inventes cifras, hechos ni decisiones del cliente
+- Responde SOLO JSON válido, sin markdown ni texto extra
+- Idioma: español. Tono: directo, táctico, compacto`;
+
+  const userPrompt = `Analiza este contexto comercial y devuelve SOLO este JSON exacto:
+{
+  "detected_phase": "fase del proceso (1-4 palabras)",
+  "call_type": "tipo de llamada: cierre|seguimiento|discovery|negociación|presentación|otro",
+  "today_decision": "qué se decide hoy en concreto (1-2 frases)",
+  "what_client_knows": ["lo que ya sabe el cliente", "máx 3 puntos"],
+  "main_blocker_probable": "bloqueo principal probable (1-2 frases)",
+  "valid_outcome_today": "outcome válido aunque no haya cierre (1 frase)",
+  "confidence": "high|medium|low",
+  "context_for_brief": "resumen compacto para que VELA use como base táctica (3-5 frases)"
+}
+
+INPUT:
+${raw_input}${has_asset ? "\n[El cliente tiene propuesta/documentación]" : ""}${call_type_hint ? `\n[Pista tipo llamada: ${call_type_hint}]` : ""}${user_risk_hint ? `\n[Pista riesgo: ${user_risk_hint}]` : ""}`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.3,
+      max_tokens: 600,
+    });
+
+    const latencyMs = Date.now() - t0;
+    logAICall({
+      route: "copilot/prebrief-context",
+      endpoint: "prebrief-context",
+      mode: "copilot",
+      model: "gpt-4o-mini",
+      maxTokensConfigured: 600,
+      promptTokens: completion.usage?.prompt_tokens ?? 0,
+      completionTokens: completion.usage?.completion_tokens ?? 0,
+      totalTokens: completion.usage?.total_tokens ?? 0,
+      latencyMs,
+      status: "ok",
+    });
+
+    const raw = completion.choices[0]?.message?.content ?? "{}";
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
+    }
+    res.json(parsed);
+  } catch (err: unknown) {
+    req.log?.error(err, "[vela:prebrief-context] error");
+    logAICall({
+      route: "copilot/prebrief-context",
+      endpoint: "prebrief-context",
+      mode: "copilot",
+      model: "gpt-4o-mini",
+      maxTokensConfigured: 600,
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      latencyMs: Date.now() - t0,
+      status: "error",
+    });
+    res.status(500).json({ error: "prebrief-context failed" });
+  }
+});
+
 export default router;
