@@ -723,6 +723,8 @@ export default function CopilotPage() {
   // when the download runs after the retropass has already fixed all UNKNOWN turns.
   const aiRetropassReclassifiedRef = useRef(0);
   const [transcriptOpen, setTranscriptOpen] = useState(false);
+  const [transcriptTab, setTranscriptTab] = useState<"webSpeech" | "whisper">("webSpeech");
+  const [whisperCleanDone, setWhisperCleanDone] = useState(false);
   const [liveTranscriptOpen, setLiveTranscriptOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [turnLog, setTurnLog] = useState<TurnLogEntry[]>([]);
@@ -2083,7 +2085,7 @@ export default function CopilotPage() {
                         )}
 
                         {/* ── Transcript — collapsible view of the raw conversation ── */}
-                        {conversationLog.length > 0 && (
+                        {(conversationLog.length > 0 || !!whisperTranscript) && (
                           <div className="border border-zinc-800/60 rounded-xl overflow-hidden">
                             <button
                               onClick={() => setTranscriptOpen(o => !o)}
@@ -2092,23 +2094,76 @@ export default function CopilotPage() {
                             >
                               <p className="text-[9px] font-mono tracking-widest uppercase text-zinc-600">
                                 {lang === "en" ? "Conversation transcript" : "Transcripción de la conversación"}
-                                <span className="ml-2 text-zinc-700">({conversationLog.length} {lang === "en" ? "turns" : "turnos"})</span>
+                                {transcriptTab === "webSpeech" && conversationLog.length > 0 && (
+                                  <span className="ml-2 text-zinc-700">({conversationLog.length} {lang === "en" ? "turns" : "turnos"})</span>
+                                )}
                               </p>
                               <span className={cn("text-zinc-600 text-xs font-mono transition-transform duration-200", transcriptOpen ? "rotate-180" : "")}>▾</span>
                             </button>
                             {transcriptOpen && (
-                              <div className="border-t border-zinc-800/60 px-4 pb-4 pt-3 max-h-72 overflow-y-auto">
-                                {conversationLog.map((turn, i) => {
-                                  const isClient = turn.startsWith("[CLIENTE]") || turn.startsWith("[CLIENT]");
-                                  const isMe = turn.startsWith("[YO]") || turn.startsWith("[ME]");
-                                  const labelColor = isClient ? "text-sky-500" : isMe ? "text-teal-400" : "text-zinc-500";
-                                  return (
-                                    <div key={i} className="flex gap-2 py-1 border-b border-zinc-800/30 last:border-0">
-                                      <span className="text-[9px] font-mono text-zinc-700 shrink-0 mt-[3px]">{i + 1}</span>
-                                      <p className={cn("text-[10px] font-mono leading-relaxed", labelColor)}>{turn}</p>
-                                    </div>
-                                  );
-                                })}
+                              <div className="border-t border-zinc-800/60">
+                                {/* ── Tabs ── */}
+                                <div className="flex border-b border-zinc-800/60">
+                                  <button
+                                    type="button"
+                                    onClick={() => setTranscriptTab("webSpeech")}
+                                    className={cn(
+                                      "flex-1 py-2 text-[9px] font-mono tracking-widest uppercase transition-colors",
+                                      transcriptTab === "webSpeech"
+                                        ? "text-zinc-200 border-b border-zinc-400"
+                                        : "text-zinc-600 hover:text-zinc-400"
+                                    )}
+                                  >
+                                    Web Speech
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setTranscriptTab("whisper")}
+                                    className={cn(
+                                      "flex-1 py-2 text-[9px] font-mono tracking-widest uppercase transition-colors flex items-center justify-center gap-1.5",
+                                      transcriptTab === "whisper"
+                                        ? "text-zinc-200 border-b border-zinc-400"
+                                        : "text-zinc-600 hover:text-zinc-400"
+                                    )}
+                                  >
+                                    Whisper
+                                    {whisperTranscript && <span className="w-1.5 h-1.5 rounded-full bg-teal-500 shrink-0" />}
+                                  </button>
+                                </div>
+                                {/* ── Tab content ── */}
+                                <div className="px-4 pb-4 pt-3 max-h-72 overflow-y-auto">
+                                  {transcriptTab === "webSpeech" ? (
+                                    conversationLog.length > 0 ? conversationLog.map((turn, i) => {
+                                      const isClient = turn.startsWith("[CLIENTE]") || turn.startsWith("[CLIENT]");
+                                      const isMe = turn.startsWith("[YO]") || turn.startsWith("[ME]");
+                                      const labelColor = isClient ? "text-sky-500" : isMe ? "text-teal-400" : "text-zinc-500";
+                                      return (
+                                        <div key={i} className="flex gap-2 py-1 border-b border-zinc-800/30 last:border-0">
+                                          <span className="text-[9px] font-mono text-zinc-700 shrink-0 mt-[3px]">{i + 1}</span>
+                                          <p className={cn("text-[10px] font-mono leading-relaxed", labelColor)}>{turn}</p>
+                                        </div>
+                                      );
+                                    }) : (
+                                      <p className="text-[10px] font-mono text-zinc-600 italic">{lang === "en" ? "No turns captured." : "Sin turnos capturados."}</p>
+                                    )
+                                  ) : (
+                                    whisperTranscript ? (
+                                      whisperTranscript.split("\n").filter(Boolean).map((line, i) => {
+                                        const isClient = line.startsWith("[CLIENTE]") || line.startsWith("[CLIENT]");
+                                        const isVendor = line.startsWith("[VENDEDOR]") || line.startsWith("[VENDOR]");
+                                        const labelColor = isClient ? "text-sky-500" : isVendor ? "text-teal-400" : "text-zinc-500";
+                                        return (
+                                          <div key={i} className="flex gap-2 py-1 border-b border-zinc-800/30 last:border-0">
+                                            <span className="text-[9px] font-mono text-zinc-700 shrink-0 mt-[3px]">{i + 1}</span>
+                                            <p className={cn("text-[10px] font-mono leading-relaxed", labelColor)}>{line}</p>
+                                          </div>
+                                        );
+                                      })
+                                    ) : (
+                                      <p className="text-[10px] font-mono text-zinc-600 italic">{lang === "en" ? "Pending..." : "Pendiente..."}</p>
+                                    )
+                                  )}
+                                </div>
                               </div>
                             )}
                           </div>
@@ -2118,20 +2173,31 @@ export default function CopilotPage() {
                         {speakerMode === "auto" && (
                           <button
                             type="button"
-                            disabled={retropassDone || retropassRunning}
+                            disabled={(transcriptTab === "webSpeech" ? retropassDone : whisperCleanDone) || retropassRunning}
                             onClick={async () => {
                               setRetropassRunning(true);
                               try {
-                                const corrected = await aiSpeakerRetropass(turnLog, true);
-                                setTurnLog(corrected);
-                                setRetropassDone(true);
+                                if (transcriptTab === "webSpeech") {
+                                  const corrected = await aiSpeakerRetropass(turnLog, true);
+                                  setTurnLog(corrected);
+                                  setRetropassDone(true);
+                                } else {
+                                  const cleanRes = await fetch("/api/copilot/transcribe-clean", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ raw_transcript: whisperTranscript, context: sessionContext || "" }),
+                                  });
+                                  const cleanData = await cleanRes.json();
+                                  if (cleanData.transcript) setWhisperTranscript(cleanData.transcript);
+                                  setWhisperCleanDone(true);
+                                }
                               } finally {
                                 setRetropassRunning(false);
                               }
                             }}
                             className={cn(
                               "w-full flex items-center justify-center gap-2 border rounded-lg py-2.5 text-[11px] font-mono font-semibold transition-all",
-                              retropassDone
+                              (transcriptTab === "webSpeech" ? retropassDone : whisperCleanDone)
                                 ? "border-teal-900/50 text-teal-600 bg-teal-950/20 cursor-default"
                                 : retropassRunning
                                   ? "border-zinc-700 text-zinc-400 bg-zinc-900/40 cursor-wait"
@@ -2140,7 +2206,7 @@ export default function CopilotPage() {
                           >
                             {retropassRunning ? (
                               <><Loader2 className="w-3 h-3 animate-spin" />{lang === "en" ? "Correcting attribution..." : "Corrigiendo atribución..."}</>
-                            ) : retropassDone ? (
+                            ) : (transcriptTab === "webSpeech" ? retropassDone : whisperCleanDone) ? (
                               <>{lang === "en" ? "✦ Attribution corrected" : "✦ Atribución corregida"}</>
                             ) : (
                               <>{lang === "en" ? "✦ Correct attribution with AI" : "✦ Corregir atribución con IA"}</>
