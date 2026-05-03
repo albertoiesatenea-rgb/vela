@@ -10,6 +10,7 @@ import { logAICall } from "../lib/ai-tracker";
 import {
   OBJECTION_TAXONOMY_BLOCK,
   MASTER_SELLER_BRAIN,
+  getCopilotBrain,
 } from "@workspace/sales-brain";
 
 const router: IRouter = Router();
@@ -1888,11 +1889,12 @@ Devuelve SOLO el transcript con etiquetas, sin explicaciones ni texto adicional.
 
 // ── PRE-BRIEF CONTEXT INTERPRETER ────────────────────────────────────────────
 router.post("/copilot/prebrief-context", async (req, res) => {
-  const { raw_input, has_asset, call_type_hint, user_risk_hint } = req.body as {
+  const { raw_input, has_asset, call_type_hint, user_risk_hint, brainId } = req.body as {
     raw_input: string;
     has_asset?: boolean;
     call_type_hint?: string;
     user_risk_hint?: string;
+    brainId?: string;
   };
 
   if (!raw_input?.trim()) {
@@ -1901,15 +1903,13 @@ router.post("/copilot/prebrief-context", async (req, res) => {
   }
 
   const t0 = Date.now();
+  const brain = getCopilotBrain(brainId);
 
-  const systemPrompt = `Eres un intérprete táctico de contexto comercial. Conviertes ruido comercial en contexto útil para una llamada de ventas.
+  const systemPrompt = `Eres un intérprete táctico de contexto comercial. Tu trabajo: convertir ruido comercial en contexto útil para una llamada de ventas.
 
-Reglas:
-- Lee el caso según la fase real (no todo es cierre ni todo es discovery)
-- Detecta qué se decide HOY de verdad
-- Detecta qué sabe ya el cliente
-- Detecta el bloqueo principal probable
-- Detecta cuál sería un outcome válido hoy aunque no haya cierre
+${brain.prebriefRules.es}
+
+REGLAS DE FORMATO — obligatorias:
 - No inventes cifras, hechos ni decisiones del cliente
 - Responde SOLO JSON válido, sin markdown ni texto extra
 - Idioma: español. Tono: directo, táctico, compacto`;

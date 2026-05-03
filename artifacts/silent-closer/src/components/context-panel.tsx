@@ -908,6 +908,7 @@ export function ContextSetup({
   const [prebriefConfirmed, setPrebriefConfirmed] = useState(false);
   const [prebriefEditing,   setPrebriefEditing]   = useState(false);
   const [prebriefEdit,      setPrebriefEdit]       = useState<PrebriefResult | null>(null);
+  const [activeBrainId,     setActiveBrainId]     = useState<"generic" | "immvest">("immvest");
 
   const quickRef = useRef<HTMLTextAreaElement>(null);
 
@@ -1030,7 +1031,7 @@ export function ContextSetup({
       const res = await fetch("/api/copilot/prebrief-context", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ raw_input: quickText }),
+        body: JSON.stringify({ raw_input: quickText, brainId: activeBrainId }),
       });
       if (!res.ok) throw new Error("HTTP " + res.status);
       const data = await res.json() as PrebriefResult;
@@ -1326,6 +1327,28 @@ export function ContextSetup({
             {/* ── PRE-BRIEF: interpret context (Copilot only) ───────────── */}
             {appMode === "copilot" && (
               <>
+                {/* Brain selector — always visible in Copilot setup */}
+                {!prebriefConfirmed && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-mono text-zinc-600 tracking-widest uppercase mr-1">Brain</span>
+                    {(["immvest", "generic"] as const).map(id => (
+                      <button
+                        key={id}
+                        onClick={() => { setActiveBrainId(id); setPrebriefResult(null); setPrebriefEdit(null); setPrebriefConfirmed(false); }}
+                        onMouseDown={e => e.preventDefault()}
+                        className={cn(
+                          "text-[10px] font-mono px-2.5 py-1 rounded-lg border transition-all",
+                          activeBrainId === id
+                            ? "bg-white text-black border-white"
+                            : "text-zinc-500 border-zinc-800 hover:border-zinc-600 hover:text-zinc-300",
+                        )}
+                      >
+                        {id === "immvest" ? "Immvest" : "Genérico"}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 {/* "Interpretar contexto" trigger — only if text present and no result yet */}
                 {quickText.trim() && !prebriefLoading && !prebriefResult && (
                   <button
@@ -1349,9 +1372,14 @@ export function ContextSetup({
                 {prebriefResult && (
                   <div className="flex flex-col gap-2.5 rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-[9px] font-mono tracking-[0.22em] uppercase text-zinc-500">
-                        Contexto detectado
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] font-mono tracking-[0.22em] uppercase text-zinc-500">
+                          Contexto detectado
+                        </span>
+                        <span className="text-[8px] font-mono text-zinc-600 border border-zinc-800 px-1.5 py-0.5 rounded">
+                          {activeBrainId === "immvest" ? "Immvest" : "Genérico"}
+                        </span>
+                      </div>
                       {prebriefResult.confidence && (
                         <span className={cn(
                           "text-[8px] font-mono tracking-widest uppercase px-1.5 py-0.5 rounded border",

@@ -1,0 +1,187 @@
+Quiero hacer una refactorización estructural de brains en VELA antes de seguir afinando el pre-brief.
+
+Diagnóstico actual:
+- Arena ya usa una capa de negocio/preset en `lib/sales-brain/src/index.ts` mediante `PRESET_SYSTEM_DESC`.
+- Copilot live usa doctrina compartida mediante `MASTER_SELLER_BRAIN`.
+- Pero `/copilot/prebrief-context` en `artifacts/api-server/src/routes/copilot.ts` sigue usando un prompt inline local y genérico.
+- Eso hace que el pre-brief salga razonable pero poco fino, porque no bebe de una capa de brain real.
+- Quiero preparar VELA para que mañana pueda funcionar con otros brains, sin meter todavía DB ni multiusuario.
+
+Objetivo de esta iteración:
+- Crear una capa mínima de brain activo para Copilot/prebrief.
+- Añadir un selector mínimo de brain en la UI de setup de Copiloto con dos opciones:
+  - Genérico
+  - Immvest
+- Hacer que `/copilot/prebrief-context` use ese brain activo.
+- NO tocar todavía live, whisper, auditoría ni arena behavior.
+- NO meter base de datos todavía.
+
+Haz estos cambios:
+
+1) En `lib/sales-brain/src/index.ts`
+Crea una capa mínima de brain para Copilot.
+
+Quiero estas nuevas exportaciones:
+
+- un tipo:
+  `export interface CopilotBrainContext { brainId: string; brainLabel: string; prebriefRules: Record<Lang, string>; }`
+
+- un registro:
+  `export const COPILOT_BRAINS: Record<string, CopilotBrainContext>`
+
+- una función:
+  `export function getCopilotBrain(brainId?: string): CopilotBrainContext`
+
+Reglas:
+- Si `brainId` no existe o no es válido, devolver el brain `immvest` por defecto.
+- Quiero dos brains:
+  - `generic`
+  - `immvest`
+
+2) Brain `generic`
+Dentro de `COPILOT_BRAINS`, crea un brain `generic` para prebrief.
+
+`brainId`: `generic`
+`brainLabel`: `Genérico`
+
+`prebriefRules.es` debe enseñar al modelo a:
+- leer la fase comercial real de una conversación de ventas o asesoría
+- distinguir llamada informativa, discovery, follow-up, propuesta y cierre sin asumir que todo es lo mismo
+- detectar qué se decide hoy de verdad
+- definir outcome válido por fase sin asumir cierre
+- interpretar “qué sabe ya el cliente” como lo que conoce del proceso, del modelo o del motivo de la llamada
+- detectar el bloqueo principal probable sin mezclar demasiadas objeciones
+- compactar el caso en contexto útil para briefing posterior
+- sonar táctico, compacto, sin humo ni teoría
+
+Haz también `prebriefRules.en` breve para mantener consistencia.
+
+3) Brain `immvest`
+Dentro de `COPILOT_BRAINS`, crea un brain `immvest` para prebrief.
+
+`brainId`: `immvest`
+`brainLabel`: `Immvest`
+
+NO reutilices directamente `PRESET_SYSTEM_DESC.immvest` como prompt entero.
+Quiero una capa específica de prebrief, más corta y más orientada a lectura del caso.
+
+`prebriefRules.es` de Immvest debe enseñar al modelo a:
+- leer la fase real del proceso comercial
+- distinguir especialmente:
+  - Fase 1 = llamada informativa / cualificación
+  - Fase 2 = asesoría de inversión
+  - Fase 3 = follow-up intermedio
+  - Fase 4 = propuesta real
+- priorizar señales explícitas de evento como:
+  - “Asesoría de ganancia patrimonial”
+  - “Asesoría de inversión”
+  - “Presentación del plan”
+  sobre labels vagas de CRM como “seguimiento”
+- detectar qué se decide hoy de verdad
+- definir outcome válido por fase sin asumir cierre
+- interpretar “qué sabe ya el cliente” como:
+  qué conoce del proceso, del modelo Immvest, del motivo de la llamada o de la propuesta
+  y NO como datos del cliente
+- detectar el bloqueo principal probable sin mezclar tres objeciones a la vez
+- compactar el caso en contexto útil para VELA sin triturar el CRM
+- sonar táctico, compacto, sin humo, sin teoría
+
+Haz también `prebriefRules.en` breve para mantener consistencia del lib.
+
+4) Refactor de `/copilot/prebrief-context`
+Archivo: `artifacts/api-server/src/routes/copilot.ts`
+
+Importa:
+- `getCopilotBrain`
+
+Refactoriza SOLO este endpoint:
+- `router.post("/copilot/prebrief-context"...`
+
+Mantén el mismo endpoint, pero añade `brainId` opcional al request:
+
+request:
+{
+  "raw_input": "string",
+  "has_asset": "boolean opcional",
+  "call_type_hint": "string opcional",
+  "user_risk_hint": "string opcional",
+  "brainId": "string opcional"
+}
+
+response:
+{
+  "detected_phase": "string",
+  "call_type": "string",
+  "today_decision": "string",
+  "what_client_knows": ["string"],
+  "main_blocker_probable": "string",
+  "valid_outcome_today": "string",
+  "confidence": "high|medium|low",
+  "context_for_brief": "string"
+}
+
+Quiero que el `systemPrompt` deje de contener la lógica comercial inline actual.
+En su lugar, debe componerse así:
+- instrucción corta de rol
+- reglas del brain activo: `getCopilotBrain(brainId).prebriefRules.es`
+- reglas fijas de formato:
+  - no inventar
+  - responder solo JSON válido
+  - español
+  - compacto y táctico
+
+Mantén EXACTAMENTE el mismo shape del response.
+
+5) Ajustes concretos de calidad del endpoint
+Quiero que esta refactorización mejore estas salidas:
+- `call_type` NO debe devolver “seguimiento” si el input contiene claramente una asesoría explícita
+- `detected_phase` debe sonar a fase comercial útil, por ejemplo:
+  “Fase 2 — asesoría de inversión”
+- `what_client_knows` debe hablar de lo que el cliente ya conoce del proceso/modelo/llamada, no de sus finanzas
+- `today_decision` debe sonar a decisión comercial real, no a resumen administrativo
+- `context_for_brief` debe quedar compacto y utilizable
+
+6) UI mínima: selector de brain en setup de Copiloto
+Archivo: `artifacts/silent-closer/src/components/context-panel.tsx`
+
+Quiero un selector MUY simple en la pantalla inicial de Copiloto, antes de interpretar contexto.
+
+Opciones:
+- Genérico
+- Immvest
+
+Reglas:
+- selector visual pequeño, limpio, tipo segmented control o pills
+- default: `Immvest`
+- solo visible en Copiloto, no hace falta mover nada de Arena
+- guardar el brain seleccionado en estado React local
+- cuando se pulse “Interpretar contexto”, mandar `brainId` al endpoint `/api/copilot/prebrief-context`
+- cuando aparezca “Contexto detectado”, mostrar una línea pequeña o badge sutil:
+  `Brain activo: Immvest`
+  o
+  `Brain activo: Genérico`
+
+No quiero selector complejo.
+No quiero configuración avanzada.
+No quiero DB.
+Solo quiero validar la arquitectura.
+
+7) No tocar
+- no tocar live
+- no tocar whisper
+- no tocar summarize
+- no tocar audit-report
+- no tocar arena behavior
+- no tocar randomPreset ni presets de Arena
+- no tocar base de datos
+- no romper el botón actual de iniciar copiloto
+
+8) Verificación
+Cuando termines:
+- enséñame el bloque nuevo creado en `lib/sales-brain/src/index.ts`
+- enséñame cómo queda `getCopilotBrain()`
+- enséñame el nuevo `systemPrompt` del endpoint refactorizado
+- verifica que el selector de brain aparece en el setup de Copiloto
+- prueba con brain `immvest` un caso tipo “Asesoría de ganancia patrimonial...” y comprueba que `call_type` no salga “seguimiento”
+- prueba con brain `generic` y comprueba que el endpoint sigue funcionando sin romper el shape
+- dime exactamente qué archivos tocaste

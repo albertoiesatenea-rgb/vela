@@ -1092,3 +1092,120 @@ PROHIBICIONES ABSOLUTAS (cualquiera de estas = respuesta fallida):
 — Construir un ejemplo numérico donde la alternativa rival gana de forma clara sin usarlo inmediatamente para atacar el criterio de comparación
 — Mandar varios mensajes ampliando el mismo punto después de haber dado la conclusión`;
 }
+
+// ── Copilot Brain — prebrief context interpreter ──────────────────────────────
+// Capa mínima de brain activo para /copilot/prebrief-context.
+// Cada brain define sus propias reglas de lectura de fase comercial.
+// El endpoint inyecta estas reglas en el systemPrompt.
+
+export interface CopilotBrainContext {
+  brainId: string;
+  brainLabel: string;
+  prebriefRules: Record<Lang, string>;
+}
+
+export const COPILOT_BRAINS: Record<string, CopilotBrainContext> = {
+
+  generic: {
+    brainId: "generic",
+    brainLabel: "Genérico",
+    prebriefRules: {
+      es: `LECTURA DE FASE COMERCIAL — GENERIC BRAIN
+
+FASE: Detecta la fase real del proceso sin asumir que todo es cierre ni discovery:
+- Informativa / cualificación: primer contacto, filtrar intención, medir interés real
+- Discovery: explorar motivación, necesidad y criterio de decisión
+- Follow-up intermedio: recuperar contexto, aislar freno vivo, confirmar intención
+- Propuesta: presentación de solución o producto concreto
+- Negociación / cierre: ajuste final y decisión
+
+TIPO DE LLAMADA: Usa el label que describe el evento real del input, no el label de CRM:
+- Ejemplos válidos: "llamada informativa", "asesoría de inversión", "presentación de propuesta", "cierre", "resolución de objeción"
+- Usa "seguimiento" SOLO si no hay ningún evento más específico en el input
+
+QUÉ SE DECIDE HOY: Detecta la decisión comercial concreta de esta llamada, no un resumen administrativo.
+- Ejemplo correcto: "Decidir si el cliente pasa a propuesta o se descarta"
+- Ejemplo incorrecto: "Se revisará la propuesta y se evaluará si ajustar el precio"
+
+QUÉ SABE EL CLIENTE: Lo que ya conoce del proceso, del modelo o del motivo de la llamada.
+- NO incluyas datos financieros o personales del cliente
+- Sí incluye: si ya vio propuesta, si conoce el proceso, qué motivó la llamada
+
+BLOQUEO PRINCIPAL: El freno más relevante ahora mismo. Un único bloqueo, no una lista.
+
+OUTCOME VÁLIDO HOY: El resultado más ambicioso alcanzable en esta llamada sin forzar.
+- Por fase: cualificación → filtrar o agendar | discovery → confirmar encaje | propuesta → decisión o fecha | cierre → firma o microcompromiso
+
+CONTEXTO PARA VELA: 3-5 frases compactas y directas. Sin humo, sin teoría. Útil como base táctica inmediata.`,
+
+      en: `COMMERCIAL PHASE READING — GENERIC BRAIN
+
+Read the commercial context without assuming everything is a close or discovery.
+Detect the real phase: informational/qualification, discovery, intermediate follow-up, proposal, negotiation/close.
+Use the most specific call type label from the input — use "follow-up" only if no specific event is described.
+Detect what is genuinely decided today (commercial decision, not admin summary).
+What the client knows = their knowledge of the process, model, or call reason — not personal/financial data.
+Single main blocker. Valid outcome by phase. Compact 3-5 sentence context for tactical use.`,
+    },
+  },
+
+  immvest: {
+    brainId: "immvest",
+    brainLabel: "Immvest",
+    prebriefRules: {
+      es: `LECTURA DE FASE COMERCIAL — IMMVEST (inversión inmobiliaria en Alemania)
+
+FASES DEL PROCESO IMMVEST:
+- Fase 1 — Llamada informativa / cualificación: primer contacto, filtrar intención, medir capacidad real, agendar asesoría
+- Fase 2 — Asesoría de inversión / asesoría de ganancia patrimonial: descubrir motivación, posicionar Immvest, decidir si merece seguir
+- Fase 3 — Follow-up intermedio: recuperar contexto de asesoría anterior, aislar freno vivo, confirmar intención de continuar
+- Fase 4 — Propuesta real: presentar activo concreto, resolver objeciones, ir hacia reserva
+- Fase 5+ — Reserva (1.500€), financiación, visita, notaría
+
+PRIORIDAD DE LABEL — los eventos explícitos mandan sobre el label del CRM:
+- "Asesoría de ganancia patrimonial" → Fase 2 — asesoría. NUNCA "seguimiento"
+- "Asesoría de inversión" → Fase 2 — asesoría. NUNCA "seguimiento"
+- "Presentación del plan" o "Presentación de propuesta" → Fase 4
+- "Seguimiento" del CRM: úsalo SOLO si no hay ningún evento más específico en el input
+
+TIPO DE LLAMADA: Describe el evento real del input, no el label del CRM.
+- Ejemplos válidos: "asesoría de inversión", "asesoría de ganancia patrimonial", "presentación de propuesta", "cualificación inicial", "reserva"
+- PROHIBIDO: usar "seguimiento" si el input menciona un evento explícito
+
+QUÉ SE DECIDE HOY: La decisión comercial real de esta fase:
+- Fase 2: ¿el cliente encaja para seguir? ¿pasa a propuesta?
+- Fase 3: ¿se aísla el freno? ¿se confirma intención?
+- Fase 4: ¿reserva de 1.500€? ¿siguiente paso con fecha concreta?
+
+QUÉ SABE EL CLIENTE: Lo que ya conoce del proceso Immvest, del modelo financiero o del motivo de la llamada.
+- Sí incluye: si conoce el proceso, si ya vio propuesta, si entiende el cashflow alemán, qué motivó la llamada
+- NO incluyas datos financieros personales del cliente (liquidez, ingresos, etc.)
+
+BLOQUEO PRINCIPAL: El freno más relevante en esta fase. Un único bloqueo, no una lista de objeciones.
+- Objeciones Immvest habituales: cashflow negativo, desconocer Alemania, tipos de interés, confianza en empresa española, comparación con España
+
+OUTCOME VÁLIDO HOY por fase:
+- Fase 1: filtrar o agendar asesoría
+- Fase 2: confirmar encaje o pasar a propuesta real
+- Fase 3: aislar freno y confirmar intención de continuar
+- Fase 4: reserva de 1.500€ o siguiente paso concreto con fecha
+
+CONTEXTO PARA VELA: Resumen compacto (3-5 frases). No tritures el CRM. Táctico, directo, sin humo ni teoría.`,
+
+      en: `COMMERCIAL PHASE READING — IMMVEST (German real estate investment)
+
+Phases: 1=qualification/informational, 2=investment advisory, 3=intermediate follow-up, 4=real proposal, 5+=reservation/financing/closing.
+Priority: explicit event labels override CRM labels. "Investment advisory" or "patrimonial gain advisory" = Phase 2, never "follow-up".
+Call type must match the real event in the input, not the CRM tag.
+Today's decision by phase: Phase 2→confirm fit or move to proposal. Phase 4→reservation or concrete next step.
+What client knows = knowledge of Immvest process, financial model, call reason — not personal financial data.
+Single main blocker (cashflow, Germany unfamiliarity, interest rates, trust, Spain comparison).
+Valid outcome by phase. Compact 3-5 sentence context for tactical use.`,
+    },
+  },
+
+};
+
+export function getCopilotBrain(brainId?: string): CopilotBrainContext {
+  return COPILOT_BRAINS[brainId ?? "immvest"] ?? COPILOT_BRAINS["immvest"]!;
+}
