@@ -1750,6 +1750,7 @@ Si no puedes identificar el hablante con seguridad, usa [DESCONOCIDO]. Mantén e
 
         res.json({ transcript: cleanTranscript, raw_transcript: rawTranscript, segments: (transcription as any).segments ?? [] });
       } catch (finishErr: any) {
+        console.error("[vela:transcribe] error:", finishErr);
         req.log?.error(finishErr, "[vela:transcribe] whisper/gpt error");
         const isFormatError = finishErr?.status === 400 || finishErr?.message?.includes("Invalid file format");
         res.status(isFormatError ? 422 : 500).json({
