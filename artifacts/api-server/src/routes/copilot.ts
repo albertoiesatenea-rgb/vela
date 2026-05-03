@@ -1722,33 +1722,12 @@ router.post("/copilot/transcribe", async (req, res) => {
         });
 
         const rawTranscript = transcription.text;
-
-        const cleanupPrompt = contextPrompt
-          ? `Eres un asistente que limpia y estructura transcripciones de llamadas de venta.
-
-CONTEXTO DE LA SESIÓN:
-${contextPrompt}
-
-TRANSCRIPT EN BRUTO (de Whisper):
-${rawTranscript}
-
-Basándote en el contexto, identifica quién habla en cada fragmento (vendedor vs cliente) y devuelve el transcript limpio con este formato exacto, sin explicaciones ni texto adicional:
-
-[VENDEDOR]: texto del vendedor
-[CLIENTE]: texto del cliente
-
-Si no puedes identificar el hablante con seguridad, usa [DESCONOCIDO]. Mantén el contenido exacto, solo añade las etiquetas de hablante.`
-          : null;
-
-        const cleanTranscript = cleanupPrompt
-          ? await openai.chat.completions.create({
-              model: "gpt-4o-mini",
-              max_tokens: 4000,
-              messages: [{ role: "user", content: cleanupPrompt }],
-            }).then(r => r.choices[0]?.message?.content ?? rawTranscript)
-          : rawTranscript;
-
-        res.json({ transcript: cleanTranscript, raw_transcript: rawTranscript, segments: (transcription as any).segments ?? [] });
+        res.json({
+          transcript: rawTranscript,
+          raw_transcript: rawTranscript,
+          segments: (transcription as any).segments ?? [],
+          cleaning: true,
+        });
       } catch (finishErr: any) {
         console.error("[vela:transcribe] error:", finishErr);
         req.log?.error(finishErr, "[vela:transcribe] whisper/gpt error");
@@ -1765,6 +1744,40 @@ Si no puedes identificar el hablante con seguridad, usa [DESCONOCIDO]. Mantén e
   } catch (err) {
     req.log?.error(err, "transcribe error");
     res.status(500).json({ error: "transcription failed" });
+  }
+});
+
+// POST /api/copilot/transcribe-clean — GPT speaker attribution on a raw Whisper transcript
+router.post("/copilot/transcribe-clean", async (req, res) => {
+  const { raw_transcript, context } = req.body as { raw_transcript?: string; context?: string };
+  if (!raw_transcript?.trim()) {
+    res.status(400).json({ error: "raw_transcript is required" });
+    return;
+  }
+  try {
+    const cleanupPrompt = `Eres un asistente que limpia y estructura transcripciones de llamadas de venta.
+
+${context?.trim() ? `CONTEXTO DE LA SESIÓN:\n${context.trim()}\n\n` : ""}TRANSCRIPT EN BRUTO (de Whisper):
+${raw_transcript.trim()}
+
+Basándote en el contexto, identifica quién habla en cada fragmento (vendedor vs cliente) y devuelve el transcript limpio con este formato exacto, sin explicaciones ni texto adicional:
+
+[VENDEDOR]: texto del vendedor
+[CLIENTE]: texto del cliente
+
+Si no puedes identificar el hablante con seguridad, usa [DESCONOCIDO]. Mantén el contenido exacto, solo añade las etiquetas de hablante.`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_tokens: 4000,
+      messages: [{ role: "user", content: cleanupPrompt }],
+    });
+    const transcript = completion.choices[0]?.message?.content ?? raw_transcript;
+    res.json({ transcript });
+  } catch (err: any) {
+    console.error("[vela:transcribe-clean] error:", err);
+    req.log?.error(err, "[vela:transcribe-clean] gpt error");
+    res.status(500).json({ error: "clean transcription failed", transcript: raw_transcript });
   }
 });
 

@@ -1286,6 +1286,22 @@ export default function CopilotPage() {
         if (data.transcript) {
           console.log("[vela:whisper] transcript ready", data.transcript.slice(0, 100));
           setWhisperTranscript(data.transcript);
+          if (data.cleaning) {
+            try {
+              const cleanRes = await fetch("/api/copilot/transcribe-clean", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ raw_transcript: data.transcript, context: sessionContext || "" }),
+              });
+              const cleanData = await cleanRes.json();
+              if (cleanData.transcript) {
+                console.log("[vela:whisper] clean transcript ready", cleanData.transcript.slice(0, 100));
+                setWhisperTranscript(cleanData.transcript);
+              }
+            } catch (cleanErr) {
+              console.error("[vela:whisper] clean step failed", cleanErr);
+            }
+          }
         }
       } catch (e) {
         console.error("[vela:whisper] transcription failed", e);
