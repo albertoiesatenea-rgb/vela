@@ -1004,52 +1004,49 @@ export function ContextSetup({
   const ctaLabel = appMode === "arena" ? t.START_ARENA : t.START;
 
   return (
-    <div className="fixed inset-0 bg-black flex flex-col items-center justify-center px-6 overflow-y-auto py-6">
-      <div className="w-full max-w-lg flex flex-col gap-4">
+    <div className="fixed inset-0 bg-background flex flex-col">
 
-        {/* ── Brand lockup — calibrated middle ground ────────────────────── */}
-        {/* w-8 icon / text-xl wordmark: 67% of the old "too large" block,     */}
-        {/* twice the current "too small" stamp. White anchors the screen       */}
-        {/* without feeling corporate. No subtitle keeps it product-first.     */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <VelaIcon className="w-8 h-8 text-white shrink-0" />
-            <h1 className="text-2xl font-mono font-bold text-white tracking-[0.18em] uppercase leading-none">
-              VELA
-            </h1>
-          </div>
-          <div className="flex items-center gap-2">
-            {/* Theme toggle */}
-            <button
-              onClick={toggleTheme}
-              onMouseDown={e => e.preventDefault()}
-              title={theme === "dark" ? "Tema claro" : "Tema oscuro"}
-              className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 border border-white/8 text-zinc-400 hover:text-white transition-colors"
-            >
-              {theme === "dark"
-                ? <Sun className="w-3.5 h-3.5" />
-                : <Moon className="w-3.5 h-3.5" />}
-            </button>
-            {/* Language toggle */}
-            <div className="flex items-center bg-white/5 p-1 rounded-full border border-white/8 text-[9px] font-mono overflow-hidden">
-              {(["es", "en"] as Lang[]).map(l => (
-                <button
-                  key={l}
-                  onClick={() => onLangChange(l)}
-                  className={cn(
-                    "px-3 py-1.5 rounded-full uppercase tracking-widest transition-all font-medium",
-                    lang === l ? "bg-white text-black shadow" : "text-zinc-400 hover:text-white"
-                  )}
-                >
-                  {l}
-                </button>
-              ))}
-            </div>
+      {/* ── Top bar ────────────────────────────────────────────────────────── */}
+      <div className="shrink-0 flex items-center justify-between px-5 py-3 border-b border-border">
+        {/* Left: brand */}
+        <div className="flex items-center gap-2">
+          <VelaIcon className="w-5 h-5 text-foreground shrink-0" />
+          <span className="text-sm font-mono font-bold tracking-[0.18em] uppercase text-foreground leading-none">
+            VELA
+          </span>
+        </div>
+        {/* Right: theme toggle + language toggle */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggleTheme}
+            onMouseDown={e => e.preventDefault()}
+            title={theme === "dark" ? "Tema claro" : "Tema oscuro"}
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-muted border border-border text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {theme === "dark"
+              ? <Sun className="w-3.5 h-3.5" />
+              : <Moon className="w-3.5 h-3.5" />}
+          </button>
+          <div className="flex items-center bg-muted p-1 rounded-full border border-border text-[9px] font-mono overflow-hidden">
+            {(["es", "en"] as Lang[]).map(l => (
+              <button
+                key={l}
+                onClick={() => onLangChange(l)}
+                className={cn(
+                  "px-3 py-1.5 rounded-full uppercase tracking-widest transition-all font-medium",
+                  lang === l ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {l}
+              </button>
+            ))}
           </div>
         </div>
+      </div>
 
-        {/* Divider */}
-        <div className="border-t border-white/8" />
+      {/* ── Main content — centered, scrollable ─────────────────────────── */}
+      <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center px-6 py-6">
+      <div className="w-full max-w-lg flex flex-col gap-4">
 
         {/* ── Controls row ──────────────────────────────────────────────── */}
         <div className="flex items-center justify-between gap-3">
@@ -1321,6 +1318,7 @@ export function ContextSetup({
           </ArenaAdvancedForm>
         )}
 
+      </div>
       </div>
     </div>
   );
