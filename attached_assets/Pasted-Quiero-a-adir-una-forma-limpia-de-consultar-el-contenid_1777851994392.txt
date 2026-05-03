@@ -1,0 +1,93 @@
+Quiero añadir una forma limpia de consultar el contenido del brain activo en la UI, pero sin convertirlo todavía en un editor.
+
+Importante:
+- Ahora mismo el brain selector controla el pre-brief de Copiloto.
+- No quiero que la UI haga creer que ese brain ya gobierna todo VELA si todavía no es verdad.
+- Así que el panel debe ser HONESTO: mostrar qué brain está activo y en qué parte del sistema se está usando ahora.
+
+NO toques:
+- la lógica de `COPILOT_BRAINS`
+- `getCopilotBrain()`
+- el endpoint `/copilot/prebrief-context`
+- live / whisper / summarize / audit / arena
+- backend salvo que haga falta exponer lectura del brain de forma simple
+- nada de edición todavía
+
+Objetivo:
+Añadir una forma de abrir un “Brain Inspector” desde la UI del selector de brain en la top bar de Copiloto.
+
+Haz estos cambios:
+
+1) Exponer lectura simple del brain activo
+Si hace falta, en `lib/sales-brain/src/index.ts` añade una utilidad mínima para lectura, por ejemplo:
+- obtener `brainId`
+- `brainLabel`
+- `prebriefRules`
+No hace falta tocar la lógica del endpoint.
+Si no hace falta tocar el backend porque el frontend ya puede resolverlo de forma simple, mejor todavía.
+
+2) UI — acceso desde el selector de brain
+Archivo principal:
+`artifacts/silent-closer/src/components/context-panel.tsx`
+
+En el dropdown/popover actual del selector de brain de la top bar:
+- mantener las opciones `Immvest` y `Genérico`
+- añadir un separador sutil
+- añadir una acción:
+  - `Ver brain`
+
+3) Brain Inspector
+Al pulsar `Ver brain`, abrir un panel limpio (drawer lateral o modal limpio, elige la opción que mejor encaje con la UI actual).
+
+Contenido del panel:
+
+A. Cabecera
+- nombre del brain activo
+- label pequeña:
+  - `Ámbito actual: Pre-brief de Copiloto`
+- pequeño texto explicativo:
+  - `Este brain guía cómo VELA interpreta el contexto antes de iniciar la llamada.`
+
+B. Resumen entendible
+Mostrar una sección tipo “Qué hace este brain” con 4-6 bullets legibles y humanas.
+No quiero solo el prompt bruto sin contexto.
+
+Para `Immvest`, el resumen debe explicar de forma clara:
+- que distingue fases comerciales
+- que prioriza señales explícitas de asesoría/propuesta
+- que detecta decisión real del día
+- que separa lo que sabe el cliente de los datos del cliente
+- que detecta el bloqueo principal
+- que compacta contexto útil para VELA
+
+Para `Genérico`, lo mismo pero en versión generalista.
+
+C. Reglas completas
+Debajo del resumen, una sección colapsable o secundaria:
+- `Ver texto completo del brain`
+Y ahí sí mostrar `prebriefRules.es` del brain activo en un bloque legible.
+
+D. Honestidad de alcance
+Añadir una línea pequeña tipo:
+- `Usado ahora en: interpretación de contexto / pre-brief`
+No digas ni sugieras que gobierna live, auditoría o Arena si todavía no es verdad.
+
+4) UX
+- diseño limpio, minimalista, consistente con la top bar
+- no gigantesco
+- fácil de cerrar
+- click fuera o botón cerrar
+- no romper mobile
+
+5) No convertirlo en editor
+- nada de textareas editables
+- nada de guardar
+- nada de versionar
+- solo lectura
+
+6) Verificación
+Cuando termines:
+- enséñame cómo quedó la opción `Ver brain` en el dropdown
+- enséñame el panel/drawer/modal abierto
+- dime exactamente qué muestra para `Immvest`
+- confirma que deja claro que el alcance actual es solo el pre-brief
