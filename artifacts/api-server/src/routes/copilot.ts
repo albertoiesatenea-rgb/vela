@@ -1755,19 +1755,22 @@ router.post("/copilot/transcribe-clean", async (req, res) => {
     return;
   }
   try {
-    const cleanupPrompt = `Eres un asistente que limpia y estructura transcripciones de llamadas de venta.
+    const cleanupPrompt = `Eres un experto en transcripciones de llamadas de venta. Tu tarea es identificar quién habla en cada turno y añadir etiquetas [VENDEDOR] o [CLIENTE].
 
-REGLA CRÍTICA: Si un turno empieza con el nombre de una persona, eso NO significa que esa persona esté hablando — puede ser que el otro hablante se esté dirigiendo a ella por su nombre. Usa el contenido y el contexto para identificar quién habla.
+${context?.trim() ? `CONTEXTO DE LA SESIÓN (úsalo para identificar nombres y roles):\n${context.trim()}\n\n` : ""}REGLAS DE ATRIBUCIÓN (en orden de prioridad):
+1. Si el contexto identifica nombres (ej: "Alberto = vendedor, Pedro = cliente"), úsalos como señal principal.
+2. El VENDEDOR es quien explica el producto, hace preguntas de discovery, maneja objeciones y propone avanzar.
+3. El CLIENTE es quien expresa dudas, objeciones, preguntas sobre el producto o dice "tengo que pensarlo".
+4. REGLA CRÍTICA: Que un turno empiece con un nombre NO significa que esa persona esté hablando. "Pedro, antes de entrar en números..." es el VENDEDOR dirigiéndose a Pedro, no Pedro hablando.
+5. En llamadas de venta, el VENDEDOR suele hablar primero.
+6. Si no puedes identificar con seguridad, usa [DESCONOCIDO].
 
-${context?.trim() ? `CONTEXTO DE LA SESIÓN:\n${context.trim()}\n\n` : ""}TRANSCRIPT EN BRUTO (de Whisper):
+TRANSCRIPT EN BRUTO:
 ${raw_transcript.trim()}
 
-Basándote en el contexto, identifica quién habla en cada fragmento (vendedor vs cliente) y devuelve el transcript limpio con este formato exacto, sin explicaciones ni texto adicional:
-
-[VENDEDOR]: texto del vendedor
-[CLIENTE]: texto del cliente
-
-Si no puedes identificar el hablante con seguridad, usa [DESCONOCIDO]. Mantén el contenido exacto, solo añade las etiquetas de hablante.`;
+Devuelve SOLO el transcript con etiquetas, sin explicaciones ni texto adicional. Formato exacto:
+[VENDEDOR]: texto
+[CLIENTE]: texto`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
