@@ -2006,6 +2006,33 @@ export default function CopilotPage() {
             {/* ── Summary screen ── */}
             {(endStep === "summary" || endStep === "report") && (
               <div className="w-full max-w-sm flex flex-col gap-5 my-auto">
+
+                {/* ── Whisper pipeline status indicator ── */}
+                <div className="flex flex-col gap-1 border border-zinc-800/50 rounded-lg px-3 py-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-mono text-zinc-500">
+                      {lang === "en" ? "🎙 Whisper" : "🎙 Whisper"}
+                    </span>
+                    {whisperTranscript ? (
+                      <span className="text-[9px] font-mono text-teal-500">✓ {lang === "en" ? "Ready" : "Listo"}</span>
+                    ) : (
+                      <span className="text-[9px] font-mono text-zinc-500 animate-pulse">{lang === "en" ? "Processing..." : "Procesando..."}</span>
+                    )}
+                  </div>
+                  {whisperTranscript && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-mono text-zinc-500">
+                        {lang === "en" ? "🧹 Speaker cleanup" : "🧹 Limpieza de hablantes"}
+                      </span>
+                      {whisperCleanDone ? (
+                        <span className="text-[9px] font-mono text-teal-500">✓ {lang === "en" ? "Ready" : "Listo"}</span>
+                      ) : (
+                        <span className="text-[9px] font-mono text-zinc-500 animate-pulse">{lang === "en" ? "Processing..." : "Procesando..."}</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 {isSummarizing ? (
                   <div className="flex flex-col items-center gap-3 py-12">
                     <Loader2 className="w-5 h-5 text-zinc-400 animate-spin" />
