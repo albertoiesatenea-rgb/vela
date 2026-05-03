@@ -272,7 +272,7 @@ export function DebugPanel({ sessionId }: { sessionId?: string | null }) {
       <button
         onClick={() => setOpen(!open)}
         className={cn(
-          "fixed bottom-3 right-3 z-40",
+          "fixed bottom-3 right-3 z-[60]",
           "inline-flex items-center justify-center",
           "px-3 py-1 rounded border select-none",
           "text-[11px] leading-none whitespace-nowrap tabular-nums",
@@ -290,14 +290,14 @@ export function DebugPanel({ sessionId }: { sessionId?: string | null }) {
       {open && !pinned && (
         <div
           className="fixed inset-0"
-          style={{ zIndex: 49 }}
+          style={{ zIndex: 61 }}
           onClick={() => setOpen(false)}
         />
       )}
 
       {/* ── Panel ────────────────────────────────────────────────────────── */}
       {open && (
-        <div className="fixed bottom-11 right-3 z-50 w-[370px] max-h-[84vh] flex flex-col bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl overflow-hidden">
+        <div className="fixed bottom-11 right-3 z-[62] w-[370px] max-h-[84vh] flex flex-col bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl overflow-hidden">
 
           {/* ─ Header ──────────────────────────────────────────────────── */}
           <div className="flex items-center justify-between px-3.5 py-2 border-b border-zinc-800 shrink-0">
