@@ -1605,6 +1605,16 @@ export default function CopilotPage() {
       ? heuristicLog.filter(t => t.inferred_speaker === "UNKNOWN").length / Math.max(heuristicLog.length, 1)
       : 0;
     const speakerLowConf = speakerMode === "auto" && postRepairUnknownRate > 0.35;
+
+    if (!whisperCleanDoneRef.current) {
+      await new Promise<void>(resolve => {
+        const interval = setInterval(() => {
+          if (whisperCleanDoneRef.current) { clearInterval(interval); resolve(); }
+        }, 500);
+        setTimeout(() => { clearInterval(interval); resolve(); }, 45000);
+      });
+    }
+
     let freshSummary: typeof callSummary | null = null;
     try {
       const res = await fetch("/api/copilot/summarize", {
@@ -1654,16 +1664,6 @@ export default function CopilotPage() {
       setCallSummary(freshSummary);
     } finally {
       setIsSummarizing(false);
-    }
-
-    // Esperar a que whisper termine antes de guardar
-    if (!whisperCleanDoneRef.current) {
-      await new Promise<void>(resolve => {
-        const interval = setInterval(() => {
-          if (whisperCleanDoneRef.current) { clearInterval(interval); resolve(); }
-        }, 500);
-        setTimeout(() => { clearInterval(interval); resolve(); }, 45000);
-      });
     }
 
     // Guardar sesión en DB en background
