@@ -54,6 +54,11 @@
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 98%;
 
+  /* ── Tactical yellow — precise spec for VELA accent (dark mode) ────── */
+  /* amber-400 default (#fbbf24) shifted to the crisper spec yellow.      */
+  /* html.light overrides this back to a dark amber for light bg.         */
+  --color-amber-400: #F4D35E;
+
   /* ── Dark mode legibility: zinc scale tuned for black bg ────────────── */
   /* Standard zinc colors are designed for light mode; on pure black they  */
   /* need to be bumped significantly to reach WCAG AA (4.5:1 small text). */

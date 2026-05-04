@@ -1616,7 +1616,7 @@ export function ContextSetup({
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] font-mono tracking-widest uppercase text-zinc-500">Contexto detectado</span>
-                        <span className="text-[9px] text-zinc-700">· {prebriefBrainId === "immvest" ? "Immvest" : "Genérico"}</span>
+                        <span className="text-[9px] text-zinc-600">· {prebriefBrainId === "immvest" ? "Immvest" : "Genérico"}</span>
                       </div>
                       {prebriefResult.confidence && (
                         <span className={cn(
@@ -1690,9 +1690,9 @@ export function ContextSetup({
                         </div>
 
                         {/* C. Freno real — warning accent */}
-                        <div className="flex flex-col gap-1 bg-amber-950/20 border border-amber-900/30 rounded-lg px-3 py-2.5">
-                          <span className="text-[10px] text-amber-600 uppercase tracking-widest">Freno real</span>
-                          <p className="text-[15px] text-amber-200 leading-snug font-medium">{prebriefResult.main_blocker_probable}</p>
+                        <div className="flex flex-col gap-1 bg-amber-950/20 border border-amber-800/40 rounded-lg px-3 py-2.5">
+                          <span className="text-[10px] text-amber-400 uppercase tracking-widest">Freno real</span>
+                          <p className="text-[15px] text-zinc-100 leading-snug font-medium">{prebriefResult.main_blocker_probable}</p>
                         </div>
 
                         {/* D. Outcome válido */}
@@ -1726,7 +1726,7 @@ export function ContextSetup({
                                 <ul className="flex flex-col gap-0.5">
                                   {prebriefResult.what_client_knows.map((k, i) => (
                                     <li key={i} className="flex items-start gap-1.5">
-                                      <span className="text-zinc-700 shrink-0">·</span>
+                                      <span className="text-zinc-600 shrink-0">·</span>
                                       <span className="text-xs text-zinc-500">{k}</span>
                                     </li>
                                   ))}
@@ -1745,7 +1745,7 @@ export function ContextSetup({
                                 <ul className="flex flex-col gap-0.5">
                                   {prebriefResult.decision_constraints.map((c, i) => (
                                     <li key={i} className="flex items-start gap-1.5">
-                                      <span className="text-zinc-700 shrink-0">·</span>
+                                      <span className="text-zinc-600 shrink-0">·</span>
                                       <span className="text-xs text-zinc-500">{c}</span>
                                     </li>
                                   ))}
@@ -1758,7 +1758,7 @@ export function ContextSetup({
                                 <ul className="flex flex-col gap-0.5">
                                   {prebriefResult.case_specific_risks.map((r, i) => (
                                     <li key={i} className="flex items-start gap-1.5">
-                                      <span className="text-zinc-700 shrink-0">·</span>
+                                      <span className="text-zinc-600 shrink-0">·</span>
                                       <span className="text-xs text-zinc-500">{r}</span>
                                     </li>
                                   ))}
@@ -1894,8 +1894,8 @@ export function ContextSetup({
                         <ul className="flex flex-col gap-1.5">
                           {briefingResult.mistakes_to_avoid.map((m, i) => (
                             <li key={i} className="flex items-start gap-2">
-                              <span className="text-xs text-amber-900 shrink-0 mt-[2px]">✕</span>
-                              <span className="text-sm text-zinc-400 leading-snug">{m}</span>
+                              <span className="text-xs text-amber-400 shrink-0 mt-[2px]">✕</span>
+                              <span className="text-sm text-zinc-300 leading-snug">{m}</span>
                             </li>
                           ))}
                         </ul>
@@ -1907,13 +1907,13 @@ export function ContextSetup({
                       <div className="flex flex-col gap-3 px-4 py-4">
                         <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Script sugerido</span>
                         <div className="flex flex-col gap-1">
-                          <span className="text-[10px] text-zinc-700 uppercase tracking-widest">Apertura</span>
-                          <p className="text-sm text-zinc-200 leading-relaxed pl-3 border-l-2 border-zinc-700 italic">&ldquo;{briefingResult.suggested_opening}&rdquo;</p>
+                          <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Apertura</span>
+                          <p className="text-sm text-zinc-200 leading-relaxed pl-3 border-l-2 border-zinc-600 italic">&ldquo;{briefingResult.suggested_opening}&rdquo;</p>
                         </div>
                         <div className="h-px bg-zinc-800/40" />
                         <div className="flex flex-col gap-1">
-                          <span className="text-[10px] text-zinc-700 uppercase tracking-widest">Cierre / siguiente paso</span>
-                          <p className="text-sm text-zinc-200 leading-relaxed pl-3 border-l-2 border-zinc-700 italic">&ldquo;{briefingResult.suggested_next_step_close}&rdquo;</p>
+                          <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Cierre / siguiente paso</span>
+                          <p className="text-sm text-zinc-200 leading-relaxed pl-3 border-l-2 border-zinc-600 italic">&ldquo;{briefingResult.suggested_next_step_close}&rdquo;</p>
                         </div>
                       </div>
 
@@ -1934,7 +1934,7 @@ export function ContextSetup({
                               <div key={i} className="flex flex-col gap-1 pl-3 border-l border-zinc-800">
                                 <span className="text-sm font-semibold text-zinc-300">{obj.objection}</span>
                                 <span className="text-xs text-zinc-500 leading-snug">Por qué: {obj.why_likely}</span>
-                                <span className="text-xs text-zinc-400 leading-snug">Cómo: {obj.how_to_handle}</span>
+                                <span className="text-xs text-zinc-300 leading-snug">Cómo: {obj.how_to_handle}</span>
                               </div>
                             ))}
                           </div>
@@ -1945,7 +1945,7 @@ export function ContextSetup({
                             {briefingResult.suggested_call_structure.map((step, i) => (
                               <li key={i} className="flex items-start gap-2.5">
                                 <span className="text-xs text-zinc-600 shrink-0 mt-[2px] tabular-nums">{i + 1}.</span>
-                                <span className="text-sm text-zinc-400 leading-snug">{step}</span>
+                                <span className="text-sm text-zinc-300 leading-snug">{step}</span>
                               </li>
                             ))}
                           </ol>
