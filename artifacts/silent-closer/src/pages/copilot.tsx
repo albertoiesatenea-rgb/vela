@@ -1946,13 +1946,8 @@ export default function CopilotPage() {
           onLangChange={(l) => { setLang(l); saveLang(l); }}
           initialMode={initMode}
           initialRole={initRole}
+          onShowHistory={() => setShowHistory(true)}
         />
-        <button
-          onClick={() => setShowHistory(true)}
-          className="fixed top-[14px] left-20 z-30 text-[10px] font-mono text-muted-foreground hover:text-foreground transition-colors tracking-widest uppercase"
-        >
-          Historial
-        </button>
         <DebugPanel sessionId={null} />
       </>
     );

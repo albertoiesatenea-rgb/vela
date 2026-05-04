@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, type ReactNode } from "react";
 import { getCopilotBrainInspector } from "@workspace/sales-brain";
 import { triggerPrebriefLogDownload } from "@/lib/prebrief-log";
-import { ChevronDown, ChevronUp, Zap, SlidersHorizontal, User, Users, Target, Briefcase, ShieldOff, FileText, Swords, Navigation, Headphones, Shuffle, X, Package, Building, Lightbulb, MessageSquare, Sun, Moon, Brain } from "lucide-react";
+import { ChevronDown, ChevronUp, Zap, SlidersHorizontal, User, Users, Target, Briefcase, ShieldOff, FileText, Swords, Navigation, Headphones, Shuffle, X, Package, Building, Lightbulb, MessageSquare, Sun, Moon, Brain, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/use-theme";
 import type { ArenaRole } from "@/pages/arena";
@@ -886,6 +886,7 @@ export function ContextSetup({
   onLangChange,
   initialMode,
   initialRole,
+  onShowHistory,
 }: {
   onContextReady: (ctx: string, structuredCtx?: StructuredContext, brainId?: string) => void;
   onArenaReady: (ctx: string, role: ArenaRole, config: ArenaConfig) => void;
@@ -893,6 +894,7 @@ export function ContextSetup({
   onLangChange: (l: Lang) => void;
   initialMode?: AppMode;
   initialRole?: ArenaRole;
+  onShowHistory?: () => void;
 }) {
   const t = CP[lang];
   const { theme, toggleTheme } = useTheme();
@@ -1236,6 +1238,17 @@ export function ContextSetup({
             </div>
           )}
 
+          {onShowHistory && (
+            <button
+              onClick={onShowHistory}
+              onMouseDown={e => e.preventDefault()}
+              title="Historial de sesiones"
+              className="flex items-center gap-1.5 h-8 px-2.5 rounded-full bg-muted border border-border text-[10px] font-mono text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Clock className="w-3 h-3 shrink-0" />
+              <span className="tracking-widest uppercase">Historial</span>
+            </button>
+          )}
           <button
             onClick={toggleTheme}
             onMouseDown={e => e.preventDefault()}

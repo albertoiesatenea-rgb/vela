@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { eq } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { callSessions, prebriefLogs } from "@workspace/db";
 import {
@@ -2278,6 +2279,16 @@ router.get("/copilot/sessions", async (req, res) => {
     res.json({ sessions });
   } catch (err) {
     res.status(500).json({ error: "fetch-sessions failed" });
+  }
+});
+
+router.delete("/copilot/sessions/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.delete(callSessions).where(eq(callSessions.id, id));
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "delete failed" });
   }
 });
 
