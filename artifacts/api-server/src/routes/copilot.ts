@@ -2223,7 +2223,7 @@ router.post("/copilot/save-session", async (req, res) => {
 
     let prebriefRawInput: string | null = rawInput as string ?? null;
 
-    if (prebriefId && !prebriefRawInput) {
+    if (prebriefId) {
       try {
         const [prebrief] = await db
           .select({ rawInput: prebriefLogs.rawInput })
