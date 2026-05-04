@@ -5,6 +5,7 @@ import { useSpeech } from "@/hooks/use-speech";
 import { useAudioRecorder } from "@/hooks/use-audio-recorder";
 import { TacticalDisplay } from "@/components/tactical-display";
 import { ContextSetup, SessionBar, VelaIcon } from "@/components/context-panel";
+import { SessionHistory } from "@/components/session-history";
 import type { ArenaConfig, AppMode, StructuredContext } from "@/components/context-panel";
 import { Arena } from "@/pages/arena";
 import type { ArenaRole } from "@/pages/arena";
@@ -696,6 +697,7 @@ export default function CopilotPage() {
   // End-of-call flow
   const [endStep, setEndStep] = useState<EndStep>("none");
   const [callOutcome, setCallOutcome] = useState<CallOutcome | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
   const [callSummary, setCallSummary] = useState<CallSummary | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
@@ -1859,6 +1861,9 @@ export default function CopilotPage() {
 
   // Setup screen
   if (sessionContext === null) {
+    if (showHistory) {
+      return <SessionHistory onClose={() => setShowHistory(false)} />;
+    }
     // ── Recovery screen — shown when a recent session was interrupted ────────
     if (recoveredSession !== null) {
       const ageMin = Math.round((Date.now() - recoveredSession.savedAt) / 60000);
@@ -1942,6 +1947,12 @@ export default function CopilotPage() {
           initialMode={initMode}
           initialRole={initRole}
         />
+        <button
+          onClick={() => setShowHistory(true)}
+          className="fixed top-[14px] left-20 z-30 text-[10px] font-mono text-muted-foreground hover:text-foreground transition-colors tracking-widest uppercase"
+        >
+          Historial
+        </button>
         <DebugPanel sessionId={null} />
       </>
     );

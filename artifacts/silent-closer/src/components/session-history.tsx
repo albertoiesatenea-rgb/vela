@@ -1,0 +1,70 @@
+import { useState, useEffect } from "react";
+import { cn } from "@/lib/utils";
+
+interface SavedSession {
+  id: string;
+  createdAt: string;
+  outcome: string | null;
+  score: number | null;
+  brainId: string | null;
+  sessionContext: string | null;
+}
+
+export function SessionHistory({ onClose }: { onClose: () => void }) {
+  const [sessions, setSessions] = useState<SavedSession[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/copilot/sessions")
+      .then(r => r.json())
+      .then(d => { setSessions(d.sessions ?? []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const fmtDate = (iso: string) => {
+    const d = new Date(iso);
+    return d.toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" }) +
+      " · " + d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+  };
+
+  const outcomeLabel: Record<string, string> = {
+    closed: "Cerrado", next_step: "Siguiente paso",
+    follow_up: "Seguimiento", lost: "Perdido", unclear: "Sin definir",
+  };
+
+  const scoreColor = (s: number | null) => {
+    if (!s) return "text-zinc-500";
+    if (s >= 7) return "text-teal-400";
+    if (s >= 5) return "text-amber-400";
+    return "text-red-400";
+  };
+
+  return (
+    <div className="fixed inset-0 bg-background flex flex-col z-50">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+        <span className="text-sm font-mono font-bold tracking-widest uppercase text-foreground">Historial</span>
+        <button onClick={onClose} className="text-xs text-muted-foreground hover:text-foreground transition-colors">← Volver</button>
+      </div>
+      <div className="flex-1 overflow-y-auto px-6 py-4">
+        {loading && <p className="text-xs text-muted-foreground">Cargando...</p>}
+        {!loading && sessions.length === 0 && (
+          <p className="text-xs text-muted-foreground">No hay sesiones guardadas todavía.</p>
+        )}
+        {sessions.map(s => (
+          <div key={s.id} className="border border-border rounded-xl p-4 mb-3 flex items-center justify-between gap-4">
+            <div className="flex flex-col gap-1 min-w-0">
+              <span className="text-[10px] font-mono text-muted-foreground">{fmtDate(s.createdAt)}</span>
+              <span className="text-xs text-foreground truncate">{s.sessionContext?.slice(0, 80) ?? "Sin contexto"}</span>
+              <span className="text-[10px] text-muted-foreground">{s.brainId ?? "—"} · {outcomeLabel[s.outcome ?? ""] ?? s.outcome ?? "—"}</span>
+            </div>
+            <div className="shrink-0 text-right">
+              <span className={cn("text-2xl font-mono font-bold", scoreColor(s.score))}>
+                {s.score?.toFixed(1) ?? "—"}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
