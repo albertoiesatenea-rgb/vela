@@ -1,4 +1,6 @@
 import { Router, type IRouter } from "express";
+import { db } from "@workspace/db";
+import { callSessions, prebriefLogs } from "@workspace/db";
 import {
   AnalyzeConversationBody,
   AnalyzeConversationResponse,
@@ -2206,6 +2208,76 @@ Devuelve SOLO este JSON exacto:
       status: "error",
     });
     res.status(500).json({ error: "prebrief-script failed" });
+  }
+});
+
+router.post("/copilot/save-session", async (req, res) => {
+  try {
+    const {
+      brainId, sessionContext, outcome, score, durationSeconds,
+      callSummary, brutalAudit, whisperTranscript, webSpeechTurns,
+      totalCostUsd, prebriefId,
+    } = req.body as Record<string, unknown>;
+
+    const [session] = await db.insert(callSessions).values({
+      brainId:           brainId as string ?? null,
+      sessionContext:    sessionContext as string ?? null,
+      outcome:           outcome as string ?? null,
+      score:             score as number ?? null,
+      durationSeconds:   durationSeconds as number ?? null,
+      callSummary:       callSummary ?? null,
+      brutalAudit:       brutalAudit ?? null,
+      whisperTranscript: whisperTranscript as string ?? null,
+      webSpeechTurns:    webSpeechTurns ?? null,
+      totalCostUsd:      totalCostUsd as number ?? null,
+      prebriefId:        prebriefId as string ?? null,
+      endedAt:           new Date(),
+    }).returning();
+
+    res.json({ id: session.id });
+  } catch (err) {
+    req.log?.error(err, "save-session error");
+    res.status(500).json({ error: "save-session failed" });
+  }
+});
+
+router.post("/copilot/save-prebrief", async (req, res) => {
+  try {
+    const { brainId, rawInput, interpretedContext, briefing } = req.body as Record<string, unknown>;
+
+    const [log] = await db.insert(prebriefLogs).values({
+      brainId:            brainId as string ?? null,
+      rawInput:           rawInput as string ?? null,
+      interpretedContext: interpretedContext ?? null,
+      briefing:           briefing ?? null,
+    }).returning();
+
+    res.json({ id: log.id });
+  } catch (err) {
+    req.log?.error(err, "save-prebrief error");
+    res.status(500).json({ error: "save-prebrief failed" });
+  }
+});
+
+router.get("/copilot/sessions", async (req, res) => {
+  try {
+    const sessions = await db
+      .select({
+        id: callSessions.id,
+        createdAt: callSessions.createdAt,
+        outcome: callSessions.outcome,
+        score: callSessions.score,
+        durationSeconds: callSessions.durationSeconds,
+        brainId: callSessions.brainId,
+        sessionContext: callSessions.sessionContext,
+      })
+      .from(callSessions)
+      .orderBy(callSessions.createdAt)
+      .limit(50);
+
+    res.json({ sessions });
+  } catch (err) {
+    res.status(500).json({ error: "fetch-sessions failed" });
   }
 });
 

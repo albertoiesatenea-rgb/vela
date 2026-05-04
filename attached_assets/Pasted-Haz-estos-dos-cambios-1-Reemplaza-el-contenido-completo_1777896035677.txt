@@ -1,0 +1,113 @@
+Haz estos dos cambios:
+1. Reemplaza el contenido completo de lib/db/src/schema/index.ts con:
+typescriptimport { pgTable, text, uuid, timestamp, real, jsonb, integer } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod";
+
+export const callSessions = pgTable("call_sessions", {
+  id:                uuid("id").primaryKey().defaultRandom(),
+  createdAt:         timestamp("created_at").defaultNow().notNull(),
+  endedAt:           timestamp("ended_at"),
+  brainId:           text("brain_id"),
+  sessionContext:    text("session_context"),
+  outcome:           text("outcome"),
+  score:             real("score"),
+  durationSeconds:   integer("duration_seconds"),
+  callSummary:       jsonb("call_summary"),
+  brutalAudit:       jsonb("brutal_audit"),
+  whisperTranscript: text("whisper_transcript"),
+  webSpeechTurns:    jsonb("web_speech_turns"),
+  totalCostUsd:      real("total_cost_usd"),
+  prebriefId:        uuid("prebrief_id"),
+});
+
+export const prebriefLogs = pgTable("prebrief_logs", {
+  id:                 uuid("id").primaryKey().defaultRandom(),
+  createdAt:          timestamp("created_at").defaultNow().notNull(),
+  brainId:            text("brain_id"),
+  rawInput:           text("raw_input"),
+  interpretedContext: jsonb("interpreted_context"),
+  briefing:           jsonb("briefing"),
+});
+
+export const insertCallSessionSchema = createInsertSchema(callSessions);
+export const insertPrebriefLogSchema  = createInsertSchema(prebriefLogs);
+
+export type CallSession      = typeof callSessions.$inferSelect;
+export type InsertCallSession = z.infer<typeof insertCallSessionSchema>;
+export type PrebriefLog      = typeof prebriefLogs.$inferSelect;
+export type InsertPrebriefLog = z.infer<typeof insertPrebriefLogSchema>;
+2. En artifacts/api-server/src/routes/copilot.ts, añade estos imports al principio del archivo junto a los demás imports:
+typescriptimport { db } from "@workspace/db";
+import { callSessions, prebriefLogs } from "@workspace/db";
+3. En el mismo archivo copilot.ts, añade estos tres endpoints justo antes de la línea export default router:
+typescriptrouter.post("/copilot/save-session", async (req, res) => {
+  try {
+    const {
+      brainId, sessionContext, outcome, score, durationSeconds,
+      callSummary, brutalAudit, whisperTranscript, webSpeechTurns,
+      totalCostUsd, prebriefId,
+    } = req.body as Record<string, unknown>;
+
+    const [session] = await db.insert(callSessions).values({
+      brainId:           brainId as string ?? null,
+      sessionContext:    sessionContext as string ?? null,
+      outcome:           outcome as string ?? null,
+      score:             score as number ?? null,
+      durationSeconds:   durationSeconds as number ?? null,
+      callSummary:       callSummary ?? null,
+      brutalAudit:       brutalAudit ?? null,
+      whisperTranscript: whisperTranscript as string ?? null,
+      webSpeechTurns:    webSpeechTurns ?? null,
+      totalCostUsd:      totalCostUsd as number ?? null,
+      prebriefId:        prebriefId as string ?? null,
+      endedAt:           new Date(),
+    }).returning();
+
+    res.json({ id: session.id });
+  } catch (err) {
+    req.log?.error(err, "save-session error");
+    res.status(500).json({ error: "save-session failed" });
+  }
+});
+
+router.post("/copilot/save-prebrief", async (req, res) => {
+  try {
+    const { brainId, rawInput, interpretedContext, briefing } = req.body as Record<string, unknown>;
+
+    const [log] = await db.insert(prebriefLogs).values({
+      brainId:            brainId as string ?? null,
+      rawInput:           rawInput as string ?? null,
+      interpretedContext: interpretedContext ?? null,
+      briefing:           briefing ?? null,
+    }).returning();
+
+    res.json({ id: log.id });
+  } catch (err) {
+    req.log?.error(err, "save-prebrief error");
+    res.status(500).json({ error: "save-prebrief failed" });
+  }
+});
+
+router.get("/copilot/sessions", async (req, res) => {
+  try {
+    const sessions = await db
+      .select({
+        id: callSessions.id,
+        createdAt: callSessions.createdAt,
+        outcome: callSessions.outcome,
+        score: callSessions.score,
+        durationSeconds: callSessions.durationSeconds,
+        brainId: callSessions.brainId,
+        sessionContext: callSessions.sessionContext,
+      })
+      .from(callSessions)
+      .orderBy(callSessions.createdAt)
+      .limit(50);
+
+    res.json({ sessions });
+  } catch (err) {
+    res.status(500).json({ error: "fetch-sessions failed" });
+  }
+});
+No toques nada más. No reinicies el servidor todavía.
