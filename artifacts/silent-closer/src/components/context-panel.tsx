@@ -1565,7 +1565,7 @@ export function ContextSetup({
             {/* ── PRE-BRIEF: interpret context (Copilot only) ───────────── */}
             {appMode === "copilot" && (
               <>
-                {/* "Interpretar contexto" trigger — only if text present and no result yet */}
+                {/* "Interpretar contexto" trigger */}
                 {quickText.trim() && !prebriefLoading && !prebriefResult && (
                   <button
                     onClick={() => void handleInterpret()}
@@ -1580,21 +1580,19 @@ export function ContextSetup({
                 {prebriefLoading && (
                   <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-zinc-800 bg-zinc-950/60">
                     <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 animate-pulse shrink-0" />
-                    <span className="text-[11px] font-mono text-zinc-400 tracking-wide">VELA está leyendo el caso…</span>
+                    <span className="text-xs text-zinc-400">VELA está leyendo el caso…</span>
                   </div>
                 )}
 
-                {/* Result block */}
+                {/* ── Contexto detectado ─────────────────────────────── */}
                 {prebriefResult && (
-                  <div className="flex flex-col gap-2.5 rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3">
+                  <div className="flex flex-col gap-4 rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-4">
+
+                    {/* Header row */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="text-[9px] font-mono tracking-[0.22em] uppercase text-zinc-500">
-                          Contexto detectado
-                        </span>
-                        <span className="text-[8px] font-mono text-zinc-600 px-0">
-                          Brain activo: {prebriefBrainId === "immvest" ? "Immvest" : "Genérico"}
-                        </span>
+                        <span className="text-[10px] font-mono tracking-widest uppercase text-zinc-500">Contexto detectado</span>
+                        <span className="text-[9px] text-zinc-700">· {prebriefBrainId === "immvest" ? "Immvest" : "Genérico"}</span>
                       </div>
                       {prebriefResult.confidence && (
                         <span className={cn(
@@ -1609,156 +1607,200 @@ export function ContextSetup({
                     </div>
 
                     {prebriefEditing && prebriefEdit ? (
-                      /* ── Edit mode ───────────────────────────────────── */
-                      <div className="flex flex-col gap-2">
+                      /* ── Edit mode ──────────────────────────────────── */
+                      <div className="flex flex-col gap-3">
                         {(
                           [
-                            ["detected_phase",       "Fase"],
-                            ["call_type",            "Tipo de llamada"],
-                            ["today_decision",       "Qué se decide hoy"],
-                            ["main_blocker_probable","Bloqueo principal"],
-                            ["valid_outcome_today",  "Outcome válido hoy"],
-                            ["context_for_brief",    "Contexto para VELA"],
+                            ["detected_phase",        "Fase"],
+                            ["call_type",             "Tipo de llamada"],
+                            ["today_decision",        "Qué se decide hoy"],
+                            ["main_blocker_probable", "Freno real"],
+                            ["valid_outcome_today",   "Outcome válido hoy"],
+                            ["context_for_brief",     "Contexto para VELA"],
                           ] as [keyof PrebriefResult, string][]
                         ).map(([field, label]) => (
-                          <div key={field} className="flex flex-col gap-0.5">
-                            <span className="text-[8.5px] font-mono text-zinc-600 uppercase tracking-widest">{label}</span>
+                          <div key={field} className="flex flex-col gap-1">
+                            <span className="text-[10px] text-zinc-500 uppercase tracking-widest">{label}</span>
                             <textarea
-                              rows={field === "context_for_brief" ? 3 : 1}
+                              rows={field === "context_for_brief" ? 3 : 2}
                               value={String(prebriefEdit[field] ?? "")}
                               onChange={e => setPrebriefEdit(prev => prev ? { ...prev, [field]: e.target.value } : prev)}
-                              className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-1.5 text-[11px] font-mono text-white focus:outline-none focus:border-zinc-500 resize-none leading-relaxed"
+                              className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-zinc-500 resize-none leading-relaxed"
                             />
                           </div>
                         ))}
+                        <div className="flex gap-2">
+                          <button
+                            onMouseDown={e => e.preventDefault()}
+                            onClick={handlePrebriefConfirm}
+                            className="flex-1 bg-white text-black text-sm font-semibold py-2 rounded-lg hover:bg-zinc-100 active:scale-[0.98] transition-all"
+                          >
+                            Usar este contexto
+                          </button>
+                          <button
+                            onMouseDown={e => e.preventDefault()}
+                            onClick={() => { setPrebriefEditing(false); setPrebriefEdit(prebriefResult ? { ...prebriefResult } : null); }}
+                            className="px-3 py-2 rounded-lg border border-zinc-700 text-zinc-400 text-sm hover:border-zinc-500 hover:text-white transition-all"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
                       </div>
                     ) : (
-                      /* ── Display cards + flags ───────────────────────── */
-                      <>
-                        <div className="flex flex-col gap-1.5">
-                          {[
-                            { label: "Fase", value: prebriefResult.detected_phase },
-                            { label: "Tipo de llamada", value: prebriefResult.call_type },
-                            { label: "Qué se decide hoy", value: prebriefResult.today_decision },
-                            { label: "Qué sabe el cliente", value: Array.isArray(prebriefResult.what_client_knows) ? prebriefResult.what_client_knows.join(" · ") : String(prebriefResult.what_client_knows) },
-                            { label: "Bloqueo probable", value: prebriefResult.main_blocker_probable },
-                            { label: "Outcome válido hoy", value: prebriefResult.valid_outcome_today },
-                            { label: "Contexto para VELA", value: prebriefResult.context_for_brief },
-                          ].map(({ label, value }) => (
-                            <div key={label} className="flex flex-col gap-0.5 px-2.5 py-2 rounded-lg bg-zinc-900/60 border border-zinc-800">
-                              <span className="text-[8px] font-mono text-zinc-600 uppercase tracking-widest">{label}</span>
-                              <span className="text-[11px] font-mono text-zinc-300 leading-relaxed">{value}</span>
-                            </div>
-                          ))}
+                      /* ── Executive summary ──────────────────────────── */
+                      <div className="flex flex-col gap-3.5">
+
+                        {/* A. Fase / tipo */}
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Fase / tipo</span>
+                          <p className="text-sm font-semibold text-zinc-100 leading-snug">{prebriefResult.detected_phase}</p>
+                          {prebriefResult.call_type !== prebriefResult.detected_phase && (
+                            <p className="text-xs text-zinc-500">{prebriefResult.call_type}</p>
+                          )}
                         </div>
 
-                        {/* ── Flags estructurales — mini sección discreta ── */}
-                        {(
-                          (prebriefResult.special_context_flags?.length ?? 0) > 0 ||
-                          (prebriefResult.decision_constraints?.length ?? 0) > 0 ||
-                          (prebriefResult.case_specific_risks?.length ?? 0) > 0
-                        ) && (
-                          <div className="flex flex-col gap-1.5 pt-1 border-t border-zinc-800/60">
-                            {prebriefResult.special_context_flags?.length ? (
-                              <div className="flex flex-col gap-0.5">
-                                <span className="text-[7.5px] font-mono text-zinc-700 uppercase tracking-[0.2em]">Flags clave</span>
-                                <div className="flex flex-wrap gap-1">
-                                  {prebriefResult.special_context_flags.map((f, i) => (
-                                    <span key={i} className="text-[9px] font-mono text-amber-500/70 bg-amber-950/20 border border-amber-900/30 px-1.5 py-0.5 rounded-md">
-                                      {f}
-                                    </span>
+                        {/* B. Qué se decide hoy */}
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Qué se decide hoy</span>
+                          <p className="text-sm text-zinc-200 leading-snug">{prebriefResult.today_decision}</p>
+                        </div>
+
+                        {/* C. Freno real — warning accent */}
+                        <div className="flex flex-col gap-0.5 pl-3 border-l-2 border-amber-700/50">
+                          <span className="text-[10px] text-amber-700 uppercase tracking-widest">Freno real</span>
+                          <p className="text-sm text-zinc-200 leading-snug">{prebriefResult.main_blocker_probable}</p>
+                        </div>
+
+                        {/* D. Outcome válido */}
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Outcome válido hoy</span>
+                          <p className="text-sm text-zinc-400 leading-snug">{prebriefResult.valid_outcome_today}</p>
+                        </div>
+
+                        {/* Flags — chips */}
+                        {prebriefResult.special_context_flags?.length ? (
+                          <div className="flex flex-wrap gap-1.5">
+                            {prebriefResult.special_context_flags.map((f, i) => (
+                              <span key={i} className="text-[10px] text-amber-500/80 bg-amber-950/25 border border-amber-900/40 px-2 py-0.5 rounded-full">
+                                {f}
+                              </span>
+                            ))}
+                          </div>
+                        ) : null}
+
+                        {/* Ver detalle — collapsible */}
+                        <details className="group">
+                          <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden flex items-center gap-1 text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors select-none">
+                            <span className="group-open:hidden">▸</span>
+                            <span className="hidden group-open:inline">▾</span>
+                            <span>Ver detalle</span>
+                          </summary>
+                          <div className="flex flex-col gap-2.5 mt-2.5 pt-2.5 border-t border-zinc-800/60">
+                            {Array.isArray(prebriefResult.what_client_knows) && prebriefResult.what_client_knows.length ? (
+                              <div className="flex flex-col gap-1">
+                                <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Qué sabe el cliente</span>
+                                <ul className="flex flex-col gap-0.5">
+                                  {prebriefResult.what_client_knows.map((k, i) => (
+                                    <li key={i} className="flex items-start gap-1.5">
+                                      <span className="text-zinc-700 shrink-0">·</span>
+                                      <span className="text-xs text-zinc-500">{k}</span>
+                                    </li>
                                   ))}
-                                </div>
+                                </ul>
+                              </div>
+                            ) : null}
+                            {prebriefResult.context_for_brief ? (
+                              <div className="flex flex-col gap-1">
+                                <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Contexto para VELA</span>
+                                <p className="text-xs text-zinc-500 leading-relaxed">{prebriefResult.context_for_brief}</p>
                               </div>
                             ) : null}
                             {prebriefResult.decision_constraints?.length ? (
-                              <div className="flex flex-col gap-0.5">
-                                <span className="text-[7.5px] font-mono text-zinc-700 uppercase tracking-[0.2em]">Restricciones</span>
+                              <div className="flex flex-col gap-1">
+                                <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Restricciones</span>
                                 <ul className="flex flex-col gap-0.5">
                                   {prebriefResult.decision_constraints.map((c, i) => (
                                     <li key={i} className="flex items-start gap-1.5">
-                                      <span className="text-[9px] font-mono text-zinc-700 mt-[1px] shrink-0">·</span>
-                                      <span className="text-[10px] font-mono text-zinc-500 leading-snug">{c}</span>
+                                      <span className="text-zinc-700 shrink-0">·</span>
+                                      <span className="text-xs text-zinc-500">{c}</span>
                                     </li>
                                   ))}
                                 </ul>
                               </div>
                             ) : null}
                             {prebriefResult.case_specific_risks?.length ? (
-                              <div className="flex flex-col gap-0.5">
-                                <span className="text-[7.5px] font-mono text-zinc-700 uppercase tracking-[0.2em]">Riesgos del caso</span>
+                              <div className="flex flex-col gap-1">
+                                <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Riesgos del caso</span>
                                 <ul className="flex flex-col gap-0.5">
                                   {prebriefResult.case_specific_risks.map((r, i) => (
                                     <li key={i} className="flex items-start gap-1.5">
-                                      <span className="text-[9px] font-mono text-zinc-700 mt-[1px] shrink-0">·</span>
-                                      <span className="text-[10px] font-mono text-zinc-500 leading-snug">{r}</span>
+                                      <span className="text-zinc-700 shrink-0">·</span>
+                                      <span className="text-xs text-zinc-500">{r}</span>
                                     </li>
                                   ))}
                                 </ul>
                               </div>
                             ) : null}
                           </div>
-                        )}
-                      </>
+                        </details>
+
+                      </div>
                     )}
 
-                    {/* Action row */}
-                    {!prebriefConfirmed ? (
-                      <div className="flex gap-2 pt-0.5">
-                        {prebriefEditing ? (
-                          <>
-                            <button
-                              onMouseDown={e => e.preventDefault()}
-                              onClick={handlePrebriefConfirm}
-                              className="flex-1 bg-white text-black text-[11px] font-mono font-bold py-2 rounded-lg hover:bg-zinc-100 active:scale-[0.98] transition-all"
-                            >
-                              Confirmar contexto
-                            </button>
-                            <button
-                              onMouseDown={e => e.preventDefault()}
-                              onClick={() => { setPrebriefEditing(false); setPrebriefEdit(prebriefResult ? { ...prebriefResult } : null); }}
-                              className="px-3 py-2 rounded-lg border border-zinc-700 text-zinc-400 text-[11px] font-mono hover:border-zinc-500 hover:text-white transition-all"
-                            >
-                              Cancelar
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              onMouseDown={e => e.preventDefault()}
-                              onClick={handlePrebriefConfirm}
-                              className="flex-1 bg-white text-black text-[11px] font-mono font-bold py-2 rounded-lg hover:bg-zinc-100 active:scale-[0.98] transition-all"
-                            >
-                              Confirmar contexto
-                            </button>
-                            <button
-                              onMouseDown={e => e.preventDefault()}
-                              onClick={() => setPrebriefEditing(true)}
-                              className="px-3 py-2 rounded-lg border border-zinc-700 text-zinc-400 text-[11px] font-mono hover:border-zinc-500 hover:text-white transition-all"
-                            >
-                              Editar
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-teal-950/40 border border-teal-800/50">
-                          <span className="w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0" />
-                          <span className="text-[10px] font-mono text-teal-400 tracking-widest uppercase">Contexto confirmado</span>
+                    {/* ── Acciones del contexto ────────────────────────── */}
+                    {!prebriefEditing && (
+                      !prebriefConfirmed ? (
+                        <div className="flex gap-2">
+                          <button
+                            onMouseDown={e => e.preventDefault()}
+                            onClick={handlePrebriefConfirm}
+                            className="flex-1 bg-white text-black text-sm font-semibold py-2 rounded-lg hover:bg-zinc-100 active:scale-[0.98] transition-all"
+                          >
+                            Usar este contexto
+                          </button>
+                          <button
+                            onMouseDown={e => e.preventDefault()}
+                            onClick={() => setPrebriefEditing(true)}
+                            className="px-3 py-2 rounded-lg border border-zinc-700 text-zinc-400 text-sm hover:border-zinc-500 hover:text-white transition-all"
+                          >
+                            Corregir
+                          </button>
+                          <button
+                            onMouseDown={e => e.preventDefault()}
+                            onClick={() => { setPrebriefResult(null); setPrebriefEdit(null); setPrebriefConfirmed(false); setBriefingResult(null); briefingResultRef.current = null; }}
+                            className="px-3 py-2 text-zinc-600 text-sm hover:text-zinc-400 transition-colors"
+                          >
+                            Reinterpretar
+                          </button>
                         </div>
-                        <button
-                          onMouseDown={e => e.preventDefault()}
-                          onClick={() => { setPrebriefConfirmed(false); setBriefingResult(null); }}
-                          className="text-[10px] font-mono text-zinc-600 hover:text-zinc-400 transition-colors"
-                        >
-                          Reinterpretar
-                        </button>
-                      </div>
+                      ) : (
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0" />
+                            <span className="text-xs text-teal-400">Contexto listo</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <button
+                              onMouseDown={e => e.preventDefault()}
+                              onClick={() => { setPrebriefConfirmed(false); setPrebriefEditing(true); setBriefingResult(null); briefingResultRef.current = null; }}
+                              className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
+                            >
+                              Corregir
+                            </button>
+                            <button
+                              onMouseDown={e => e.preventDefault()}
+                              onClick={() => { setPrebriefResult(null); setPrebriefEdit(null); setPrebriefConfirmed(false); setBriefingResult(null); briefingResultRef.current = null; }}
+                              className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
+                            >
+                              Reinterpretar
+                            </button>
+                          </div>
+                        </div>
+                      )
                     )}
 
-                    {/* ── Descargar prebrief log ──────────────────────── */}
-                    <div className="flex justify-end pt-0.5">
+                    {/* ── Log download ─────────────────────────────────── */}
+                    <div className="flex justify-end">
                       <button
                         onMouseDown={e => e.preventDefault()}
                         onClick={() => {
@@ -1779,124 +1821,131 @@ export function ContextSetup({
                         ↓ prebrief log (.md)
                       </button>
                     </div>
+
                   </div>
                 )}
               </>
             )}
 
-            {/* ── Fase 2: botón "Preparar llamada" + briefing ──────────────── */}
+            {/* ── Fase 2: Preparar llamada + briefing ──────────────────── */}
             {appMode === "copilot" && prebriefConfirmed && prebriefResult && (
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-4">
 
-                {/* Botón Preparar llamada */}
+                {/* Preparar llamada */}
                 {!briefingResult && (
                   <button
                     onMouseDown={e => e.preventDefault()}
                     onClick={handlePrepareCall}
                     disabled={briefingLoading}
-                    className="w-full border border-zinc-700 text-zinc-200 text-[12px] font-mono font-semibold py-2.5 rounded-xl hover:border-zinc-500 hover:text-white active:scale-[0.98] transition-all disabled:opacity-40 disabled:pointer-events-none"
+                    className="w-full border border-zinc-700 text-zinc-200 text-sm font-semibold py-2.5 rounded-xl hover:border-zinc-500 hover:text-white active:scale-[0.98] transition-all disabled:opacity-40 disabled:pointer-events-none"
                   >
                     {briefingLoading ? "VELA está preparando tu llamada…" : "Preparar llamada"}
                   </button>
                 )}
 
-                {/* Briefing de 6 bloques */}
+                {/* ── Briefing de entrada ──────────────────────────────── */}
                 {briefingResult && (
-                  <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-4">
 
-                    {/* Badge de fase 2 */}
+                    {/* Badge + Regenerar */}
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-700">
+                      <div className="flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 shrink-0" />
-                        <span className="text-[10px] font-mono text-zinc-400 tracking-widest uppercase">Briefing listo</span>
+                        <span className="text-[10px] font-mono tracking-widest uppercase text-zinc-400">Briefing listo</span>
                       </div>
                       <button
                         onMouseDown={e => e.preventDefault()}
                         onClick={handlePrepareCall}
                         disabled={briefingLoading}
-                        className="text-[10px] font-mono text-zinc-600 hover:text-zinc-400 transition-colors disabled:opacity-40"
+                        className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors disabled:opacity-40"
                       >
                         {briefingLoading ? "Generando…" : "Regenerar"}
                       </button>
                     </div>
 
-                    {/* Bloque 1 — Objetivo real */}
-                    <div className="rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 flex flex-col gap-1.5">
-                      <span className="text-[9px] font-mono tracking-[0.22em] uppercase text-zinc-500">Objetivo real de la llamada</span>
-                      <p className="text-[12px] font-mono text-zinc-200 leading-relaxed">{briefingResult.real_call_goal}</p>
+                    {/* Objetivo real */}
+                    <div className="flex flex-col gap-1.5 rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3">
+                      <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Objetivo</span>
+                      <p className="text-sm font-semibold text-zinc-100 leading-snug">{briefingResult.real_call_goal}</p>
                     </div>
 
-                    {/* Bloque 2 — Qué conseguir hoy */}
-                    <div className="rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 flex flex-col gap-2">
-                      <span className="text-[9px] font-mono tracking-[0.22em] uppercase text-zinc-500">Qué tengo que conseguir hoy</span>
-                      <ul className="flex flex-col gap-1.5">
-                        {briefingResult.must_get_today.map((item, i) => (
-                          <li key={i} className="flex items-start gap-2">
-                            <span className="text-[10px] font-mono text-zinc-600 shrink-0 mt-[1px]">{i + 1}.</span>
-                            <span className="text-[12px] font-mono text-zinc-300 leading-relaxed">{item}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    {/* Bloque 3 — Objeciones esperadas */}
-                    <div className="rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 flex flex-col gap-2.5">
-                      <span className="text-[9px] font-mono tracking-[0.22em] uppercase text-zinc-500">Objeciones esperadas</span>
-                      <div className="flex flex-col gap-2.5">
-                        {briefingResult.expected_objections.map((obj, i) => (
-                          <div key={i} className="flex flex-col gap-1 pl-3 border-l border-zinc-700">
-                            <span className="text-[11px] font-mono font-semibold text-zinc-200">{obj.objection}</span>
-                            <span className="text-[10px] font-mono text-zinc-500 leading-snug">Por qué: {obj.why_likely}</span>
-                            <span className="text-[10px] font-mono text-zinc-400 leading-snug">Cómo: {obj.how_to_handle}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Bloque 4 — Errores a evitar */}
-                    <div className="rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 flex flex-col gap-2">
-                      <span className="text-[9px] font-mono tracking-[0.22em] uppercase text-zinc-500">Errores a evitar</span>
-                      <ul className="flex flex-col gap-1.5">
-                        {briefingResult.mistakes_to_avoid.map((m, i) => (
-                          <li key={i} className="flex items-start gap-2">
-                            <span className="text-[10px] font-mono text-zinc-700 shrink-0 mt-[1px]">✕</span>
-                            <span className="text-[12px] font-mono text-zinc-400 leading-relaxed">{m}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    {/* Bloque 5 — Estructura sugerida */}
-                    <div className="rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 flex flex-col gap-2">
-                      <span className="text-[9px] font-mono tracking-[0.22em] uppercase text-zinc-500">Estructura sugerida</span>
+                    {/* Qué tengo que conseguir hoy */}
+                    <div className="flex flex-col gap-2 rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3">
+                      <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Qué tengo que conseguir hoy</span>
                       <ol className="flex flex-col gap-1.5">
-                        {briefingResult.suggested_call_structure.map((step, i) => (
-                          <li key={i} className="flex items-start gap-2">
-                            <span className="text-[10px] font-mono text-zinc-600 shrink-0 mt-[1px] w-4">{i + 1}.</span>
-                            <span className="text-[12px] font-mono text-zinc-300 leading-relaxed">{step}</span>
+                        {briefingResult.must_get_today.map((item, i) => (
+                          <li key={i} className="flex items-start gap-2.5">
+                            <span className="text-xs text-zinc-600 shrink-0 mt-[2px] tabular-nums">{i + 1}.</span>
+                            <span className="text-sm text-zinc-300 leading-snug">{item}</span>
                           </li>
                         ))}
                       </ol>
                     </div>
 
-                    {/* Bloque 6 — Script sugerido (apertura + cierre) */}
-                    <div className="rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 flex flex-col gap-3">
-                      <span className="text-[9px] font-mono tracking-[0.22em] uppercase text-zinc-500">Script sugerido</span>
-                      <div className="flex flex-col gap-2">
-                        <div className="flex flex-col gap-1">
-                          <span className="text-[9px] font-mono tracking-widest uppercase text-zinc-600">Apertura</span>
-                          <p className="text-[12px] font-mono text-zinc-300 leading-relaxed italic">"{briefingResult.suggested_opening}"</p>
-                        </div>
-                        <div className="h-px bg-zinc-800" />
-                        <div className="flex flex-col gap-1">
-                          <span className="text-[9px] font-mono tracking-widest uppercase text-zinc-600">Cierre / siguiente paso</span>
-                          <p className="text-[12px] font-mono text-zinc-300 leading-relaxed italic">"{briefingResult.suggested_next_step_close}"</p>
-                        </div>
+                    {/* Errores a evitar */}
+                    <div className="flex flex-col gap-2 rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-3">
+                      <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Errores a evitar</span>
+                      <ul className="flex flex-col gap-1.5">
+                        {briefingResult.mistakes_to_avoid.map((m, i) => (
+                          <li key={i} className="flex items-start gap-2">
+                            <span className="text-xs text-zinc-700 shrink-0 mt-[2px]">✕</span>
+                            <span className="text-sm text-zinc-400 leading-snug">{m}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    {/* Script sugerido: apertura + cierre */}
+                    <div className="flex flex-col gap-3 rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-4">
+                      <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Script sugerido</span>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Apertura</span>
+                        <p className="text-sm text-zinc-200 leading-relaxed pl-3 border-l border-zinc-700 italic">"{briefingResult.suggested_opening}"</p>
+                      </div>
+                      <div className="h-px bg-zinc-800/60" />
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Cierre / siguiente paso</span>
+                        <p className="text-sm text-zinc-200 leading-relaxed pl-3 border-l border-zinc-700 italic">"{briefingResult.suggested_next_step_close}"</p>
                       </div>
                     </div>
 
+                    {/* Objeciones + Estructura — colapsables */}
+                    <details className="group">
+                      <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden flex items-center gap-1 text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors select-none">
+                        <span className="group-open:hidden">▸</span>
+                        <span className="hidden group-open:inline">▾</span>
+                        <span>Ver objeciones y estructura</span>
+                      </summary>
+                      <div className="flex flex-col gap-4 mt-3 pt-3 border-t border-zinc-800/60">
+                        <div className="flex flex-col gap-2.5">
+                          <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Objeciones esperadas</span>
+                          <div className="flex flex-col gap-2.5">
+                            {briefingResult.expected_objections.map((obj, i) => (
+                              <div key={i} className="flex flex-col gap-1 pl-3 border-l border-zinc-800">
+                                <span className="text-sm font-semibold text-zinc-300">{obj.objection}</span>
+                                <span className="text-xs text-zinc-500 leading-snug">Por qué: {obj.why_likely}</span>
+                                <span className="text-xs text-zinc-400 leading-snug">Cómo: {obj.how_to_handle}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Estructura sugerida</span>
+                          <ol className="flex flex-col gap-1.5">
+                            {briefingResult.suggested_call_structure.map((step, i) => (
+                              <li key={i} className="flex items-start gap-2.5">
+                                <span className="text-xs text-zinc-600 shrink-0 mt-[2px] tabular-nums">{i + 1}.</span>
+                                <span className="text-sm text-zinc-400 leading-snug">{step}</span>
+                              </li>
+                            ))}
+                          </ol>
+                        </div>
+                      </div>
+                    </details>
+
                   </div>
                 )}
+
               </div>
             )}
 

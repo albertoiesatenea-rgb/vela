@@ -1,0 +1,305 @@
+Quiero un refactor fuerte de UX/UI del pre-brief de Copiloto en VELA.
+
+IMPORTANTE:
+- No cambies la lógica comercial de fondo ni los endpoints si no hace falta.
+- Prioridad absoluta: mejorar jerarquía visual, escaneabilidad y utilidad táctica.
+- No romper el flujo existente:
+  - interpretar contexto
+  - confirmar/corregir
+  - preparar llamada
+  - iniciar copiloto
+  - descargar prebrief log
+- Mantén el brain selector actual de la top bar.
+- Mantén el soporte actual de:
+  - prebriefResult
+  - prebriefConfirmed
+  - prebriefEditing
+  - briefingResult
+  - prebrief log
+  - flags/restricciones/riesgos
+- Haz los cambios con criterio productivo, no mockup bonito.
+
+OBJETIVO UX
+Ahora mismo el pre-brief obliga a leer demasiado texto pequeño en demasiadas cajas iguales.
+Quiero que el pre-brief se pueda ENTENDER en 5 segundos.
+
+La pantalla debe responder visualmente, por este orden:
+1. Qué llamada es
+2. Qué se decide hoy
+3. Cuál es el freno real
+4. Qué tengo que conseguir
+5. Cómo entro en la llamada
+
+ARCHIVO PRINCIPAL A TOCAR
+- artifacts/silent-closer/src/components/context-panel.tsx
+
+SI NECESITAS EXTRAER HELPERS DE PRESENTACIÓN
+- puedes crear un helper pequeño en el frontend, pero no metas complejidad innecesaria.
+
+NO QUIERO
+- siete cajas iguales apiladas con microtexto
+- monoespaciado en todo
+- muros de texto visibles por defecto
+- CTA “Confirmar contexto”
+- briefing como otro bloque eterno de texto plano
+
+QUIERO ESTA NUEVA ESTRUCTURA VISUAL
+
+==================================================
+1) BLOQUE SUPERIOR — RESUMEN EJECUTIVO
+==================================================
+
+Cuando exista prebriefResult, la parte superior del resultado debe pasar a ser un “Executive Summary” claro, no una lista de campos iguales.
+
+Diseño:
+- una card principal más protagonista
+- arriba: título “Contexto detectado”
+- al lado: badge de confianza
+- inline sutil: “Brain activo: X”
+
+Dentro de esa card, mostrar SIEMPRE visibles estos 4 bloques prioritarios con muy buena jerarquía:
+
+A. Fase / tipo de llamada
+Ejemplo:
+- Fase 2 — asesoría de ganancia patrimonial
+- asesoría de ganancia patrimonial
+
+B. Qué se decide hoy
+Texto grande y muy legible. Este es uno de los bloques más importantes.
+
+C. Freno real / bloqueo probable
+Este bloque debe sentirse casi como warning estratégico.
+Si hay main_blocker_probable, darle más peso visual que a “qué sabe el cliente”.
+
+D. Outcome válido hoy
+Breve, claro, visible.
+
+Debajo de eso, si existen:
+- special_context_flags → mostrarlas como chips/badges
+- decision_constraints → lista compacta
+- case_specific_risks → lista compacta
+
+Pero:
+- flags visibles directamente
+- constraints y risks más discretos que el resumen principal
+
+==================================================
+2) BLOQUE DE ACCIÓN — LO QUE IMPORTA AHORA
+==================================================
+
+Cuando exista briefingResult, NO lo pintes como 6 cajas iguales.
+
+Crear un bloque visual de “Briefing de entrada” con mucha mejor jerarquía.
+
+Debe contener visibles por defecto:
+
+A. Objetivo real de la llamada
+- grande y claro
+- primer bloque del briefing
+
+B. Qué tengo que conseguir hoy
+- lista numerada clara
+- máximo protagonismo después del objetivo
+
+C. Errores a evitar
+- lista breve
+- con tono warning
+- visualmente distinta del resto
+
+D. Script sugerido
+- mostrar solo:
+  - Apertura
+  - Cierre / siguiente paso
+- muy legible
+- con formato de cita o bloque destacado
+- esto debe sentirse listo para usar, no enterrado
+
+NO mostrar por defecto:
+- toda la estructura sugerida entera si ocupa demasiado
+- objeciones completas largas
+- detalle extendido innecesario
+
+==================================================
+3) BLOQUE DETALLE — PLEGABLES
+==================================================
+
+Todo lo secundario debe ir en secciones expandibles o colapsables.
+
+Mover a detalle plegable:
+- qué sabe el cliente
+- contexto para VELA largo
+- objeciones esperadas completas
+- estructura sugerida completa
+- restricciones
+- riesgos del caso
+- log download si hace falta dejarlo más discreto
+
+Usa componentes simples, no una librería nueva si no hace falta:
+- details/summary o toggle local
+- animación ligera opcional, pero no prioritaria
+
+==================================================
+4) NUEVOS CTAS
+==================================================
+
+Cambiar copies.
+
+NO usar:
+- “Confirmar contexto”
+
+SÍ usar:
+- botón principal: “Usar este contexto”
+o “Seguir con este contexto”
+elige el que mejor quede, pero que suene comercial/productivo, no administrativo
+
+Acciones junto al contexto:
+- principal: usar este contexto
+- secundaria: corregir
+- terciaria discreta: reinterpretar
+
+Cuando el contexto ya esté confirmado:
+- mostrar badge/estado “Contexto listo”
+- mantener reinterpretar
+- no dejar un bloque muerto
+
+Para briefing:
+- si no existe briefingResult y el contexto ya está confirmado:
+  botón: “Preparar llamada”
+- si ya existe briefingResult:
+  badge “Briefing listo”
+  acción discreta “Regenerar”
+
+==================================================
+5) JERARQUÍA TIPOGRÁFICA
+==================================================
+
+Ajustes visuales obligatorios:
+- usar sans para títulos, cuerpo y labels principales
+- dejar monoespaciado solo donde ya tenga verdadero sentido, y mucho menos que ahora
+- aumentar tamaño de texto útil
+- reducir sensación de terminal/telemetría
+- más aire entre bloques importantes
+- cards menos repetitivas
+- aprovechar más ancho real de pantalla
+- evitar que el contenido importante quede en una columna microscópica
+
+==================================================
+6) REORDENACIÓN DE CONTENIDO
+==================================================
+
+Orden final ideal cuando ya hay contexto interpretado:
+
+[Resumen ejecutivo]
+- fase / tipo
+- qué se decide hoy
+- freno real
+- outcome válido
+- flags
+
+[Acciones del contexto]
+- usar este contexto
+- corregir
+- reinterpretar
+
+[Si contexto confirmado y briefing no existe]
+- preparar llamada
+
+[Si briefing existe]
+[Briefing de entrada]
+- objetivo real
+- qué tengo que conseguir hoy
+- errores a evitar
+- apertura
+- cierre / siguiente paso
+
+[Detalles plegables]
+- qué sabe el cliente
+- contexto completo para VELA
+- objeciones esperadas
+- estructura sugerida
+- restricciones
+- riesgos
+- log
+
+[CTA final estable]
+- iniciar copiloto
+
+==================================================
+7) COMPORTAMIENTO
+==================================================
+
+Requisitos funcionales:
+- no romper edición inline actual del contexto
+- si el usuario pulsa “corregir”, debe seguir pudiendo editar
+- si reinterpreta, resetear lo necesario igual que ahora
+- si confirma un nuevo contexto, invalidar briefing previo como ya hacéis hoy
+- el botón de iniciar copiloto debe seguir usando prioridad:
+  briefingResult.brief_for_live
+  -> context_for_brief confirmado
+  -> quickText
+
+==================================================
+8) COPIES
+==================================================
+
+Usa español natural, corto y fuerte.
+
+Sustituir copies pobres o administrativos por mejores.
+
+Ejemplos buenos:
+- Contexto detectado
+- Qué se decide hoy
+- Freno real
+- Outcome válido hoy
+- Flags clave
+- Qué tengo que conseguir hoy
+- Errores a evitar
+- Apertura sugerida
+- Cierre / siguiente paso
+- Usar este contexto
+- Corregir
+- Reinterpretar
+- Preparar llamada
+- Briefing listo
+- Ver detalle
+
+Evita:
+- textos demasiado técnicos
+- “confirmado” repetido cinco veces
+- bloques que parezcan logs internos
+
+==================================================
+9) ALCANCE
+==================================================
+
+Haz primero el refactor frontend sin tocar backend salvo que sea imprescindible.
+Si necesitas tocar algo mínimo para renderizar mejor, hazlo, pero no abras una reforma grande.
+
+==================================================
+10) CRITERIOS DE ACEPTACIÓN
+==================================================
+
+Quiero poder abrir el caso Antonio y que visualmente se entienda en 5 segundos:
+- qué llamada es
+- qué se decide hoy
+- cuál es el freno real
+- qué debo conseguir
+- cómo abro la llamada
+
+Y además:
+- menos texto visible por defecto
+- menos cajas iguales
+- mejor lectura
+- mejor uso de pantalla
+- CTAs más humanos
+- briefing mucho más accionable
+
+==================================================
+11) ENTREGA
+==================================================
+
+Cuando termines:
+- dime exactamente qué archivo(s) tocaste
+- resume qué cambió visualmente
+- dime si has tocado o no backend
+- confirma que el flujo de iniciar copiloto sigue intacto
