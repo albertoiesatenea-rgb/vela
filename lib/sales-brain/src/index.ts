@@ -1104,6 +1104,8 @@ export interface CopilotBrainContext {
   prebriefRules: Record<Lang, string>;
   prebriefScriptRules: Record<Lang, string>;
   inspectorBullets: string[];
+  prebriefContextBrainBlock: Record<Lang, string>;
+  prebriefScriptBrainBlock: Record<Lang, string>;
 }
 
 export const COPILOT_BRAINS: Record<string, CopilotBrainContext> = {
@@ -1201,6 +1203,8 @@ Brief for live: 4-7 sentences integrating phase, real goal, main blocker, must-g
       "Identifica el bloqueo dominante probable en esta fase — un único freno, no una lista.",
       "Genera un resumen táctico compacto (3-5 frases) utilizable como base inmediata para VELA.",
     ],
+    prebriefContextBrainBlock: { es: "", en: "" },
+    prebriefScriptBrainBlock: { es: "", en: "" },
   },
 
   immvest: {
@@ -1733,6 +1737,239 @@ Brief for live: 4-7 compact sentences integrating Immvest phase, real goal, domi
       "Identifica el bloqueo dominante más probable en esta fase — un único freno, no una lista de objeciones.",
       "Compacta el caso en 3-5 frases tácticas directas, útiles para que VELA arranque con contexto real.",
     ],
+    prebriefContextBrainBlock: {
+      es: `
+═══ ANTI-EJEMPLOS — lo que NO debes hacer ═══
+✗ Reducir el caso a "cashflow negativo" cuando hay complejidad fiscal/laboral/estructural más específica
+✗ Devolver "seguimiento" como call_type si el input menciona un evento explícito de asesoría
+✗ Poner en what_client_knows datos personales o financieros del cliente (ingresos, liquidez, patrimonio)
+✗ Tratar como main_blocker_probable una objeción sectorial genérica cuando el freno dominante es de encaje estructural
+✗ Generar today_decision como resumen administrativo ("se revisará la propuesta y se evaluará...")
+✗ Poner "reserva de 1.500€" en valid_outcome_today cuando el input indica que hay un decisor ausente (pareja/socio) que no está en la llamada
+✗ Reducir el freno a "consenso con la pareja" olvidando la duda sobre salida futura cuando ambas señales están presentes en el input
+
+═══ EJEMPLO BUENO — caso tipo Fase 2 Immvest con complejidad transfronteriza ═══
+Input: "asesoría de ganancia patrimonial, finance check completado, vive en Alemania pero trabaja bajo empresa española, no sabe cuánto tiempo se quedará, tiene hijos en España"
+Lectura correcta:
+- detected_phase: "Fase 2 — asesoría de ganancia patrimonial"
+- call_type: "asesoría de ganancia patrimonial" — NO "seguimiento"
+- today_decision: "Validar si su situación transfronteriza y horizonte de permanencia hacen viable el modelo antes de ir a propuesta"
+- main_blocker_probable: "Encaje real del caso: situación fiscal transfronteriza y horizonte de permanencia incierto en Alemania"
+- special_context_flags: ["situación fiscal/laboral transfronteriza", "permanencia en Alemania probablemente limitada", "estructura familiar relevante (hijos en España)"]
+- decision_constraints: ["no empujar propuesta sin validar encaje transfronterizo", "confirmar si el caso es financiable en condiciones actuales"]
+- case_specific_risks: ["leer como objeción genérica de rentabilidad cuando el freno real es de encaje", "pasar a propuesta antes de validar permanencia"]
+
+═══ EJEMPLO BUENO — caso tipo Fase 4 Immvest con decisor ausente + salida futura ═══
+Input: "presentación de propuesta, pareja no está en la llamada, cliente pregunta si puede vender en 6-8 años, quiere verlo con su mujer antes de decidir"
+Lectura correcta:
+- detected_phase: "Fase 4 — propuesta real"
+- call_type: "presentación de propuesta"
+- today_decision: "Resolver el freno técnico sobre la salida a 6-8 años y definir si el caso está listo para una decisión conjunta con ambos"
+- main_blocker_probable: "Decisión conjunta pendiente (pareja no presente) + incertidumbre técnica sobre la salida futura a 6-8 años"
+- valid_outcome_today: "Resolver dudas sobre reventa / horizonte y cerrar siguiente reunión con ambos decisores — NO reserva directa"
+- special_context_flags: ["decisor ausente — pareja no está en la llamada", "duda técnica sobre salida futura / reventa a 6-8 años"]
+- decision_constraints: ["no empujar reserva sin que la pareja esté presente", "aislar si la pareja decide o solo valida antes de hablar de avanzar"]
+- case_specific_risks: ["empujar reserva sin el decisor real", "tratar la salida futura como objeción menor en vez de freno técnico dominante", "dejar la llamada sin siguiente paso concreto con ambos decisores"]
+
+═══ GUARDRAIL COMPRADOR REAL + CHECKPOINT — anula lectura exploratoria ═══
+Detecta: ¿el input tiene 2+ señales de comprador real / intención alta (FC recibido, ingresos sólidos, entrada disponible, largo plazo, ya invierte, plazo real de compra) + 1+ señal estructural fuerte (transfronterizo, permanencia limitada, fiscal/laboral compleja, documentación condicionante)?
+
+Si SÍ → aplica OBLIGATORIAMENTE:
+  · today_decision: PROHIBIDO "explorar encaje", "ver si merece la pena", "evaluar si aplica el modelo". OBLIGATORIO formulación de checkpoint: "confirmar si el caso supera el checkpoint estructural para avanzar a propuesta" o equivalente directo.
+  · valid_outcome_today: PROHIBIDO cualquier formulación de exploración blanda. OBLIGATORIO sonar a checkpoint operativo: "aislar checkpoint + siguiente llamada con fecha si pasa el filtro".
+  · context_for_brief: DEBE mencionar explícitamente que el cliente NO es turista / tiene intención real + cuál es el freno estructural concreto + que no toca propuesta sin validar checkpoint.
+  · case_specific_risks: el riesgo número 1 DEBE ser "tratar al comprador real como si estuviera solo explorando". Añadir: "entrar en modelo o simulación sin validar el checkpoint", "pasar a propuesta antes de confirmar viabilidad estructural".
+
+═══ EJEMPLO BUENO — caso tipo Antonio (Fase 2, comprador real + restricción transfronteriza + checkpoint) ═══
+Input: "asesoría de ganancia patrimonial, FC recibido, trabaja bajo empresa española en Alemania, IRPF en Alemania + SS en España, permanencia < 5 años, intención de aportar entrada, ve el largo plazo, alta capacidad de ahorro"
+Lectura correcta:
+- detected_phase: "Fase 2 — asesoría de ganancia patrimonial"
+- call_type: "asesoría de ganancia patrimonial"
+- today_decision: "Confirmar si su situación transfronteriza permite avanzar a propuesta — tiene intención real y capacidad, pero hay un checkpoint estructural que resolver antes"
+- main_blocker_probable: "Encaje estructural: situación fiscal transfronteriza (empresa española en Alemania, IRPF+SS mixto) y permanencia probable <5 años que condiciona la financiación bancaria"
+- valid_outcome_today: "Determinar qué checkpoint estructural hace falta superar (banco, fiscal, documental) y cerrar siguiente llamada con fecha si pasa el filtro — NO propuesta directa"
+- context_for_brief: "Cliente con intención real y alta capacidad — NO es un turista. FC recibido, entrada disponible, visión a largo plazo. El freno no es intención sino encaje estructural: trabaja en Alemania bajo empresa española con permanencia probable <5 años. Hay que validar si el banco puede financiar esto antes de ir a propuesta."
+- special_context_flags: ["situación fiscal transfronteriza: IRPF Alemania + SS España", "permanencia en Alemania probablemente <5 años — condiciona financiación", "comprador real con intención alta — no es un turista"]
+- decision_constraints: ["no empujar propuesta sin validar viabilidad bancaria con su estructura laboral/fiscal", "no entrar en simulación genérica antes de resolver el checkpoint documental"]
+- case_specific_risks: ["tratar a un comprador real como si estuviera solo explorando", "entrar en modelo o simulación antes de validar el checkpoint estructural", "pasar a propuesta sin confirmar viabilidad del banco con su situación fiscal/laboral", "cerrar con seguimiento blando en vez de checkpoint + fecha concreta"]
+
+Lectura INCORRECTA para este mismo input:
+✗ today_decision: "Explorar si el modelo Immvest encaja con su perfil y su situación de vida"
+✗ valid_outcome_today: "Ver si hay encaje y si merece la pena seguir"
+✗ context_for_brief: "Cliente interesado en inversión inmobiliaria en Alemania, con dudas sobre el modelo"
+✗ case_specific_risks: ["cashflow negativo", "desconocer Alemania"] — estos no son el freno real
+
+═══ GUARDRAIL ANTI-SOBREAJUSTE — jerarquía freno dominante vs señal estructural ═══
+Antes de etiquetar main_blocker_probable, responde esta pregunta: "¿Qué está intentando decidir de verdad esta persona en esta llamada?"
+
+ORDEN DE PRIORIDAD para identificar el freno dominante:
+  1. CRITERIO VIVO DE DECISIÓN (manda sobre estructura si está presente):
+     - comparación entre alternativas (inmobiliario vs ETFs, España vs Alemania)
+     - criterio de diseño de operación (break-even, esfuerzo mensual, liquidez, cuánto capital poner)
+     - preferencia de perfil financiero (tranquilidad mensual, apalancamiento, cashflow)
+     - necesidad de ordenar criterio para decidir si el modelo aplica
+  2. Restricción estructural que impide avanzar aunque el criterio esté claro
+  3. Stage / CRM
+  4. Objeción típica del sector
+
+REGLA: Una señal estructural (pareja, uno trabaja en Alemania, situación transfronteriza) NO es el main_blocker_probable por defecto. Si el cliente está comparando o diseñando criterio financiero de forma más explícita, ESO es el freno dominante. La señal estructural va a special_context_flags / decision_constraints / case_specific_risks.
+
+═══ GUARDRAIL CRITERIO VIVO — casos tipo Lara (Fase 2, criterio financiero activo) ═══
+Detecta: ¿el input contiene señales de comparación activa o diseño financiero (ETFs, break-even, esfuerzo mensual, cuánto capital, liquidez vs tranquilidad), aunque también aparezcan señales estructurales?
+
+Si SÍ → aplica OBLIGATORIAMENTE:
+  · main_blocker_probable: centrarse en el criterio vivo (break-even, liquidez, capital, ETFs), NO en la señal estructural secundaria
+  · today_decision: formulación de criterio/diseño ("ordenar criterio financiero y decidir si merece propuesta"), NO de checkpoint estructural
+  · valid_outcome_today: claridad de criterio suficiente para decidir si propuesta sí/no
+  · Señal "inversión conjunta con pareja" o "solo uno trabaja en Alemania" → special_context_flags, no main_blocker_probable
+  · case_specific_risks: incluir "tratar señal estructural como bloqueo dominante cuando el criterio vivo es financiero"
+
+═══ EJEMPLO BUENO — caso tipo Lara (Fase 2, criterio vivo financiero + señal estructural secundaria) ═══
+Input: "asesoría de inversión, FC recibido, ya tiene inmueble, vive en Alemania, compara con ETFs, quiere claridad, valora que no le salga dinero al mes, inversión conjunta con pareja aunque solo ella trabaja en Alemania"
+Lectura correcta:
+- detected_phase: "Fase 2 — asesoría de inversión"
+- call_type: "asesoría de inversión"
+- today_decision: "Ordenar el criterio financiero (break-even vs liquidez vs ETFs) y decidir si el modelo Immvest cuadra con lo que busca antes de ir a propuesta"
+- main_blocker_probable: "Necesita ver si el modelo le compensa frente a ETFs y qué nivel de entrada/esfuerzo mensual le deja tranquila — el criterio aún no está ordenado"
+- valid_outcome_today: "Claridad suficiente sobre break-even, capital requerido y esfuerzo mensual para decidir si merece propuesta"
+- special_context_flags: ["inversión conjunta con pareja", "solo un miembro trabaja en Alemania — contexto relevante pero no el freno dominante"]
+- case_specific_risks: ["tratar la señal estructural conjunta como bloqueo dominante cuando el freno real es el criterio financiero", "saltar a propuesta sin resolver el criterio break-even/capital/liquidez", "entrar en checkpoint documental antes de ordenar el criterio de decisión"]
+
+Lectura INCORRECTA para este mismo input:
+✗ main_blocker_probable: "Encaje estructural de inversión conjunta con pareja donde solo uno trabaja en Alemania"
+✗ today_decision: "Validar viabilidad estructural de la inversión conjunta antes de propuesta"
+✗ real_call_goal: "Confirmar si el caso supera el checkpoint estructural"
+
+═══ GUARDRAIL TERCERO RELEVANTE — no se convierte en freno dominante automáticamente ═══
+Detecta: ¿el input menciona padre / madre / pareja / socio / familiar / aportante de capital?
+
+Si SÍ → aisla primero el rol real del tercero:
+  · ¿Decide? → puede condicionar valid_outcome_today
+  · ¿Solo aporta capital? → decision_constraints
+  · ¿Solo valida o influye? → special_context_flags
+  · ¿Solo habla más que el comprador principal? → case_specific_risks
+
+DESPUÉS verificar: "¿lo que bloquea realmente la llamada es ese tercero, o el criterio del comprador principal sobre cómo estructurar la operación?"
+
+Si el input muestra señales más fuertes de diseño / primera operación / seguridad del comprador principal → esas señales mandan. El tercero va a special_context_flags / decision_constraints.
+PROHIBIDO hacer del tercero el main_blocker_probable si el input muestra un criterio de diseño o seguridad más explícito del comprador principal.
+
+═══ GUARDRAIL PRIMERA OPERACIÓN — casos tipo María (Fase 2, primera inversión + tercero presente) ═══
+Detecta: ¿el input contiene señales de primera inversión / seguridad / diseño de estructura (capital, cuota, peor escenario, vacancia) + un tercero relevante presente?
+
+Si SÍ → aplica OBLIGATORIAMENTE:
+  · main_blocker_probable: criterio de diseño de la primera operación (capital, cuota, seguridad), NO el tercero
+  · today_decision: "ordenar criterio de la compradora principal y estructura de la primera operación antes de propuesta"
+  · context_for_brief: mencionar que la decisión es del comprador principal aunque el tercero influya o domine la conversación
+  · case_specific_risks: incluir "dejar que el caso se lea solo desde el tercero / perder el criterio de la compradora principal"
+  · Padre / apoyo familiar → special_context_flags y decision_constraints solamente
+
+═══ EJEMPLO BUENO — caso tipo María (Fase 2, primera inversión, padre presente) ═══
+Input: "asesoría de inversión, primera inversión, padre presente y participativo, posible apoyo de capital familiar, compradora busca seguridad, pregunta por peor escenario y vacancia, compara 100% financiación vs meter más entrada, no quieren equivocarse"
+Lectura correcta:
+- detected_phase: "Fase 2 — asesoría de inversión"
+- call_type: "asesoría de inversión"
+- today_decision: "Ordenar cómo debería ser la primera operación: criterio de capital, cuota y nivel de riesgo operativo que deja cómoda a la compradora"
+- main_blocker_probable: "No equivocarse con la estructura de entrada en la primera operación: cuánto capital poner, qué cuota asumir, qué peor escenario tolerar"
+- valid_outcome_today: "Claridad sobre criterio de capital/cuota/seguridad y decisión sobre si merece propuesta"
+- context_for_brief: "Primera inversión de la compradora principal — quiere seguridad y no equivocarse. El padre está presente y puede dominar la conversación, pero la decisión es de ella. El freno real es el criterio de diseño: cuánto capital poner, qué cuota asumir, y qué peor escenario tolera."
+- special_context_flags: ["padre presente en llamada — puede dominar la conversación", "posible apoyo de capital familiar pendiente de concretar"]
+- decision_constraints: ["falta concretar cuánto capital adicional familiar entra realmente y cuándo"]
+- case_specific_risks: ["dejar que el caso se lea solo desde el padre / perder el criterio de la compradora principal", "centrar el briefing en validar el apoyo familiar en vez de en la estructura de la operación", "saltar a propuesta sin ordenar criterio de capital/cuota/seguridad de la compradora"]
+
+Lectura INCORRECTA para este mismo input:
+✗ main_blocker_probable: "Validar el apoyo financiero familiar y confirmar aportación de los padres"
+✗ today_decision: "Entender el impacto del apoyo familiar y si permite avanzar a propuesta"
+✗ context_for_brief: omitir que la decisión es de la compradora principal o centrar el texto en el padre`,
+      en: "",
+    },
+    prebriefScriptBrainBlock: {
+      es: `
+BRAIN ACTIVO: IMMVEST — Reglas adicionales obligatorias:
+- Piensa como asesor comercial senior de Immvest que conoce el caso de primera mano.
+- El outcome válido depende de la fase real: en Fase 2 NO es "pasar a propuesta" automáticamente — es validar si el caso merece propuesta.
+- Prioriza frenos específicos del caso sobre objeciones genéricas del sector:
+  * ¿Hay señales de perfil transfronterizo (vive en Alemania o tiene vida allí)? → Prioriza coherencia del modelo para su caso.
+  * ¿Hay señales de horizonte de inversión incierto o situación laboral transitoria? → Prioriza estabilidad/permanencia.
+  * ¿Hay señales de que no ha entendido cómo funciona realmente el modelo financiero? → Prioriza validación del criterio antes de propuesta.
+  * ¿Hay señales de comparación con alternativas (España, renta variable)? → Prioriza reencuadre del criterio, no defensa del mercado.
+- "Cashflow negativo" es una objeción válida SOLO si el input la señala explícitamente como freno dominante. No la uses por defecto.
+- Si el caso no merece propuesta todavía, di que el objetivo es validar encaje — no empujes propuesta antes de tiempo.
+
+GUARDRAIL FASE 4 — DECISOR AUSENTE + SALIDA FUTURA:
+Detecta este patrón en el contexto interpretado ANTES de generar cualquier campo:
+  ¿Fase 4 o propuesta real? + ¿aparece pareja/mujer/marido/socio como decisor o validador? + ¿decisor NO está en la llamada?
+
+Si el patrón es positivo, aplica OBLIGATORIAMENTE:
+  · real_call_goal: NO orientar a reserva por defecto. Orientar a: (1) resolver freno técnico dominante y (2) cerrar siguiente paso con todos los decisores. Solo orientar a reserva si el contexto interpretado indica explícitamente que todos los decisores están presentes y alineados.
+  · must_get_today: el primer punto DEBE ser aclarar el freno técnico dominante (salida futura / horizonte si está presente), el segundo aislar el rol real del decisor ausente, el tercero cerrar siguiente paso con ambos decisores.
+  · expected_objections: si el contexto indica salida futura / horizonte / reventa / 6-8 años, esa objeción DEBE aparecer. Si el contexto indica decisor ausente, eso también DEBE aparecer. No eliminar ninguna de las dos.
+  · mistakes_to_avoid: el error número 1 DEBE ser "empujar reserva sin el decisor presente".
+  · suggested_next_step_close: NO usar fórmulas tipo "avanzamos a reserva", "si encaja lo vemos", "ya me dices". Usar reunión conjunta con el decisor ausente o criterio explícito con fecha.
+  · suggested_opening: táctica, referencia el freno compuesto si aplica. Prohibida apertura blanda.
+
+Freno compuesto cuando hay AMBOS (decisor ausente + salida futura): el real_call_goal y el brief_for_live deben nombrar los dos frenos explícitamente — no colapsarlos en uno.
+
+GUARDRAIL COMPRADOR REAL + CHECKPOINT ESTRUCTURAL (casos tipo Antonio):
+Detecta este patrón EN EL CONTEXTO INTERPRETADO ANTES de generar cualquier campo:
+  ¿Hay múltiples señales de intención alta (FC recibido / ingresos sólidos / entrada disponible / largo plazo / ya invierte)? + ¿Hay restricción estructural dominante (transfronterizo / permanencia / fiscal/laboral compleja / documentación condicionante)?
+
+Si el patrón es positivo, aplica OBLIGATORIAMENTE:
+  · real_call_goal: PROHIBIDO "ver si el caso merece propuesta" o "explorar encaje". OBLIGATORIO: "confirmar si el caso supera el checkpoint estructural y ordenar el criterio dominante antes de propuesta". Solo orientar a propuesta si el contexto confirma que el checkpoint ya está superado.
+  · must_get_today: 1er punto = aislar criterio dominante real. 2do = confirmar checkpoint estructural. 3ro = conseguir docs/validación o criterio de viabilidad. 4to = cerrar siguiente llamada con fecha concreta.
+  · mistakes_to_avoid: los 3 primeros DEBEN ser: (1) explicar modelo antes de validar checkpoint, (2) entrar en simulación sin fijar criterio dominante, (3) tratar el caso como exploratorio cuando la intención es alta.
+  · suggested_call_structure: orden obligatorio: aislar criterio dominante → aterrizar freno estructural → decidir qué validar → propuesta sí/no → cerrar docs + fecha.
+  · suggested_next_step_close: patrón checkpoint + docs + fecha. PROHIBIDO "si cuadra agendamos propuesta" / "vamos viendo" / "te mando algo".
+  · brief_for_live: DEBE incluir "comprador real" + freno estructural exacto + qué NO hacer + siguiente paso válido hoy.
+
+ANTI-PLANTILLA ABSOLUTA para este patrón — PROHIBIDO en cualquier campo:
+  · "caso todavía exploratorio"
+  · "ver si merece la pena seguir"
+  · "si hoy confirmamos que cuadra, agendamos propuesta"
+  · "explicar el modelo y luego ver"
+  · "resolver dudas generales antes de avanzar"
+
+GUARDRAIL ANTI-SOBREAJUSTE — antes de activar modo "checkpoint estructural dominante":
+Verifica si el contexto interpretado contiene señales de criterio vivo de decisión:
+  · comparación con alternativas (ETFs, España, renta variable)
+  · diseño de operación (break-even, esfuerzo mensual, liquidez, cuánto capital)
+  · preferencia de perfil financiero activa (tranquilidad vs apalancamiento vs cashflow)
+Si estas señales están presentes y son más explícitas que la restricción estructural → el criterio vivo manda. El modo "checkpoint estructural" queda desactivado para ese caso.
+
+GUARDRAIL CRITERIO VIVO — casos tipo Lara (Fase 2, criterio financiero activo):
+Detecta: ¿el contexto interpretado contiene criterio de decisión financiero activo (break-even, ETFs, capital, esfuerzo mensual, liquidez), aunque también aparezcan señales estructurales?
+
+Si SÍ → aplica OBLIGATORIAMENTE:
+  · real_call_goal: NO "confirmar viabilidad estructural". OBLIGATORIO: "ordenar criterio financiero (break-even / capital / liquidez) y decidir si el modelo merece propuesta con ese criterio".
+  · must_get_today: orden = (1) aislar si inmobiliario gana a la alternativa, (2) aislar break-even/liquidez/tranquilidad mensual, (3) aterrizar capital real y esfuerzo aceptable, (4) decidir si propuesta sí/no.
+  · expected_objections: reflejar el criterio vivo (esfuerzo mensual, capital de entrada, comparación ETFs), NO la señal estructural como objeción principal.
+  · suggested_opening: atacar el criterio vivo, no la estructura secundaria.
+  · suggested_next_step_close: cerrar decisión propuesta sí/no basada en criterio ordenado, NO en "confirmar viabilidad estructural conjunta".
+  · Señal "inversión conjunta con pareja" o "solo uno trabaja en Alemania" → decision_constraints o special_context_flags, nunca eje central del briefing.
+
+GUARDRAIL TERCERO RELEVANTE EN SCRIPT — recuperar al comprador principal (casos tipo María):
+Detecta: ¿el contexto interpretado menciona un tercero (padre, familiar, aportante de capital) + hay señales de primera inversión / seguridad / diseño de estructura como eje dominante?
+
+Si el patrón es positivo, aplica OBLIGATORIAMENTE:
+  · real_call_goal: NO centrar en el tercero. OBLIGATORIO: "ordenar estructura correcta de la primera operación y el criterio de la compradora antes de propuesta".
+  · must_get_today: 1er punto = qué prioriza la compradora (seguridad, cuota, liquidez). 2do = cuánto capital quieren poner. 3ro = resolver peor escenario / vacancia. 4to = decidir si merece propuesta.
+  · suggested_call_structure: DEBE incluir un paso explícito para recuperar el criterio de la compradora principal.
+  · suggested_opening: devolver el centro al comprador principal, NO al tercero.
+  · suggested_next_step_close: cerrar sobre estructura y decisión. PROHIBIDO "cuando esté listo el tema familiar" / "cuando estéis alineados".
+  · mistakes_to_avoid: DEBE incluir "dejar que el caso se lea solo desde el tercero / perder criterio de la compradora".
+
+ANTI-PLANTILLA para este patrón — PROHIBIDO en cualquier campo:
+  · "quiero entender cómo influye el apoyo familiar"
+  · "vamos a validar si el apoyo de tus padres permite avanzar"
+  · "el punto principal es el apoyo financiero familiar"
+  · "cuando esté listo el tema familiar, seguimos"
+
+EJEMPLO BUENO para caso tipo Fase 2 Immvest (perfil analítico, dudas sobre encaje):
+- real_call_goal: "Validar si la situación real de este cliente — su perfil, horizonte y criterio financiero — encaja con el modelo Immvest antes de ir a propuesta. No es una llamada de propuesta: es una llamada de decisión sobre si merece serlo."
+- freno dominante a leer: coherencia entre su situación y el modelo, no el cashflow en abstracto
+- siguiente paso válido: "avanzar a propuesta con fecha concreta" o "dejar claro por qué no es el momento todavía"`,
+      en: "",
+    },
   },
 
 };
@@ -1752,4 +1989,14 @@ export function getCopilotBrainInspector(brainId?: string): {
     bullets: brain.inspectorBullets,
     fullRules: brain.prebriefRules.es,
   };
+}
+
+export function buildPrebriefContextBrainBlock(brainId?: string, lang: Lang = "es"): string {
+  const brain = getCopilotBrain(brainId);
+  return brain.prebriefContextBrainBlock[lang] ?? "";
+}
+
+export function buildPrebriefScriptBrainBlock(brainId?: string, lang: Lang = "es"): string {
+  const brain = getCopilotBrain(brainId);
+  return brain.prebriefScriptBrainBlock[lang] ?? "";
 }

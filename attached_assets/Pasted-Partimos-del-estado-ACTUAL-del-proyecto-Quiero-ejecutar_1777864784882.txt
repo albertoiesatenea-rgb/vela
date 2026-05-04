@@ -1,0 +1,180 @@
+Partimos del estado ACTUAL del proyecto. Quiero ejecutar SOLO la FASE 2 del refactor de brains.
+
+OBJETIVO DE ESTA FASE
+Sacar de `artifacts/api-server/src/routes/copilot.ts` la doctrina local hardcodeada de Immvest para el prebrief, y moverla a `lib/sales-brain/src/index.ts`, de forma que:
+
+1. `copilot.ts` quede como motor / shell de endpoint
+2. `sales-brain` sea la fuente de verdad doctrinal del prebrief
+3. el comportamiento actual se mantenga lo más igual posible
+4. NO se toque frontend, NO se toque Arena, NO se cambie JSON, NO se cambien rutas
+
+PROBLEMA ACTUAL
+Hoy el prebrief ya usa:
+- `getCopilotBrain(brainId)`
+- `brain.prebriefRules.es`
+- `brain.prebriefScriptRules.es`
+
+Pero además `copilot.ts` sigue teniendo mucha doctrina local hardcodeada, especialmente para Immvest:
+- ejemplos buenos
+- anti-ejemplos
+- guardrails de Antonio / Lara / María
+- `brainSpecificRules` condicionado a `brain.brainId === "immvest"`
+
+Eso hace que la conducta real esté partida entre:
+- `sales-brain`
+- `copilot.ts`
+
+Quiero corregir eso.
+
+ALCANCE ESTRICTO
+Tocar solo estos archivos:
+1) `lib/sales-brain/src/index.ts`
+2) `artifacts/api-server/src/routes/copilot.ts`
+
+NO TOCAR
+- `artifacts/silent-closer/**`
+- `artifacts/api-server/src/routes/arena.ts`
+- prompts de Arena
+- UI
+- logs
+- endpoints distintos de prebrief
+- shapes JSON
+- nombres de campos
+- comportamiento de selección de brain
+- MASTER_SELLER_BRAIN
+- PRESET_SYSTEM_DESC
+
+OBJETIVO ARQUITECTÓNICO
+Después de este cambio:
+- la doctrina del prebrief debe vivir en `sales-brain`
+- `copilot.ts` solo debe encargarse de:
+  - leer body
+  - obtener el brain
+  - montar prompt con plantilla genérica
+  - insertar bloque doctrinal del brain
+  - llamar al modelo
+  - parsear JSON
+  - loggear
+
+No quiero que `copilot.ts` siga siendo medio-brain oculto.
+
+QUÉ QUIERO HACER
+
+A) EN `lib/sales-brain/src/index.ts`
+Amplía la estructura de `CopilotBrainContext` para soportar no solo:
+- `prebriefRules`
+- `prebriefScriptRules`
+
+sino también los bloques doctrinales extra que hoy están localmente en `copilot.ts`.
+
+No me importa el naming exacto, pero quiero algo claro y mantenible. Por ejemplo, una de estas dos aproximaciones:
+
+OPCIÓN 1 — campos explícitos:
+- `prebriefContextGuardrails`
+- `prebriefContextExamples`
+- `prebriefScriptGuardrails`
+- `prebriefScriptExamples`
+- opcional: `prebriefScriptBrainSpecificRules`
+
+OPCIÓN 2 — funciones helpers exportadas:
+- `buildPrebriefContextBrainBlock(brainId, lang)`
+- `buildPrebriefScriptBrainBlock(brainId, lang)`
+
+Puedes elegir la opción que deje el código más limpio, pero con este criterio:
+- doctrina reusable en `sales-brain`
+- `copilot.ts` lo más fino posible
+- sin ingeniería rara
+- fácil de mantener
+
+IMPORTANTE:
+Para `immvest`, mueve al brain TODO lo doctrinal específico que hoy está metido localmente en prebrief:
+- ejemplos Antonio / Lara / María
+- anti-ejemplos
+- guardrails de checkpoint estructural
+- guardrails de criterio vivo
+- guardrails de tercero relevante
+- guardrails de Fase 4 con decisor ausente
+- reglas específicas de briefing/script
+
+Para `generic`, no hace falta inventar una barbaridad. Puede quedarse más simple, pero la estructura debe soportarlo bien.
+
+B) EN `artifacts/api-server/src/routes/copilot.ts`
+Refactoriza SOLO los endpoints:
+- `/copilot/prebrief-context`
+- `/copilot/prebrief-script`
+
+Quiero que desaparezca de `copilot.ts` el contenido doctrinal grande y específico de Immvest.
+
+El endpoint debe quedarse con una plantilla genérica del system prompt, algo del estilo:
+- rol del modelo
+- instrucciones de formato
+- estructura JSON
+- llamada a bloque del brain
+
+Pero NO con:
+- casos tipo Antonio/Lara/María escritos ahí
+- anti-ejemplos Immvest ahí
+- reglas tácticas Immvest ahí
+- un `brainSpecificRules` gigante inline para immvest
+
+En otras palabras:
+`copilot.ts` debe ensamblar, no definir doctrina.
+
+C) COMPORTAMIENTO
+Quiero mantener el comportamiento lo más estable posible.
+No quiero “reimaginar” prompts.
+Quiero mover lo ya existente a la capa correcta.
+
+Así que:
+- conserva contenido doctrinal
+- conserva intención
+- conserva ejemplos
+- conserva guardrails
+- solo cambia dónde viven y cómo se ensamblan
+
+D) FORMA DE ENSAMBLAJE
+Quiero que el ensamblaje final en `copilot.ts` quede simple, algo como:
+- plantilla genérica
+- bloque doctrinal del brain
+- formato JSON
+- input del usuario
+
+Si necesitas crear una función como:
+- `getCopilotBrainPromptParts(brainId, lang)`
+o
+- `buildCopilotPrebriefContextPrompt(brainId, lang)`
+- `buildCopilotPrebriefScriptPrompt(brainId, lang)`
+
+hazlo en `sales-brain`, no en `copilot.ts`.
+
+E) COSAS QUE QUIERO VER DESAPARECER DE `copilot.ts`
+No hace falta que desaparezcan palabra por palabra, pero sí conceptualmente:
+- ejemplos largos de Immvest inline
+- `brain.brainId === "immvest"` con un bloque enorme de doctrina
+- casos tipo Antonio/Lara/María escritos directamente en el endpoint
+- doctrina de negocio incrustada en el transport layer
+
+F) COSAS QUE SÍ PUEDEN QUEDARSE EN `copilot.ts`
+Pueden quedarse cosas neutrales como:
+- “responde SOLO JSON válido”
+- el schema JSON esperado
+- parseo de respuesta
+- manejo de errores
+- logAICall
+- llamada OpenAI
+- body parsing
+
+G) CRITERIO DE ÉXITO
+Después del cambio:
+1. la doctrina de prebrief Immvest vive en `sales-brain`
+2. `copilot.ts` queda claramente más corto y más shell
+3. el comportamiento visible del prebrief sigue funcionando igual o casi igual
+4. NO se rompe el shape JSON
+5. NO se toca frontend ni Arena
+
+H) ENTREGA
+Cuando termines, devuélveme solo:
+1) archivos tocados
+2) qué estructura/exports nuevos añadiste en `sales-brain`
+3) qué bloques doctrinales desaparecieron de `copilot.ts`
+4) confirmación explícita de que NO cambiaste el JSON ni tocaste frontend/Arena
