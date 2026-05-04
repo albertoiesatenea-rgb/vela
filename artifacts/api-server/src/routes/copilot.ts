@@ -2221,13 +2221,29 @@ router.post("/copilot/save-session", async (req, res) => {
       totalCostUsd, prebriefId,
     } = req.body as Record<string, unknown>;
 
+    let resolvedClientName = clientName as string ?? null;
+
+    if (!resolvedClientName && rawInput) {
+      const raw = rawInput as string;
+      const m1 = raw.match(/[Cc]liente\s*[=:]\s*([^\n,.]+)/);
+      if (m1) resolvedClientName = m1[1].trim();
+      if (!resolvedClientName) {
+        const m2 = raw.match(/^([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){0,2})\s*[,.\n]/u);
+        if (m2) resolvedClientName = m2[1].trim();
+      }
+      if (!resolvedClientName) {
+        const m3 = raw.match(/(?:con|para)\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)?)/u);
+        if (m3) resolvedClientName = m3[1].trim();
+      }
+    }
+
     const [session] = await db.insert(callSessions).values({
       brainId:           brainId as string ?? null,
       sessionContext:    sessionContext as string ?? null,
       outcome:           outcome as string ?? null,
       score:             score as number ?? null,
       durationSeconds:   durationSeconds as number ?? null,
-      clientName:        clientName as string ?? null,
+      clientName:        resolvedClientName,
       rawInput:          rawInput as string ?? null,
       callSummary:       callSummary ?? null,
       brutalAudit:       brutalAudit ?? null,
