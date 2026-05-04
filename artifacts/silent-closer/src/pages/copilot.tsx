@@ -1634,6 +1634,32 @@ export default function CopilotPage() {
     } finally {
       setIsSummarizing(false);
     }
+
+    // Guardar sesión en DB en background
+    const saveSession = async () => {
+      try {
+        await fetch("/api/copilot/save-session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            brainId: sessionBrainIdRef.current ?? null,
+            sessionContext: sessionContext ?? null,
+            outcome: callOutcome ?? null,
+            score: callSummary?.score ?? null,
+            durationSeconds: null,
+            callSummary: callSummary ?? null,
+            brutalAudit: brutalAudit ?? null,
+            whisperTranscript: whisperTranscript || null,
+            webSpeechTurns: turnLog ?? null,
+            totalCostUsd: null,
+            prebriefId: null,
+          }),
+        });
+      } catch (e) {
+        console.error("[vela:db] save-session failed", e);
+      }
+    };
+    void saveSession();
   };
 
   const handleGenerateReport = async () => {
