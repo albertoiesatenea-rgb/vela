@@ -1905,39 +1905,73 @@ router.post("/copilot/prebrief-context", async (req, res) => {
   const t0 = Date.now();
   const brain = getCopilotBrain(brainId);
 
-  const systemPrompt = `Eres un intérprete táctico de contexto comercial. Tu trabajo: convertir ruido comercial en contexto útil para una llamada de ventas.
+  const systemPrompt = `Eres un intérprete táctico de contexto comercial. Tu trabajo: leer un input comercial con bisturí y extraer el contexto real del caso — no un resumen bonito, no una interpretación sesgada por tópicos del sector.
 
 ${brain.prebriefRules.es}
 
-REGLAS DE FORMATO — obligatorias:
+═══ JERARQUÍA DE LECTURA — obligatoria ═══
+Lée el input en este orden de prioridad:
+1. Evento explícito de la llamada — manda sobre cualquier label de CRM
+2. Hechos estructurales del caso — situación fiscal, laboral, geográfica, familiar, permanencia, financiación
+3. Restricciones reales de avance — qué impide concretamente pasar a la siguiente fase
+4. Stage / labels del CRM — solo como contexto secundario
+5. Objeciones típicas del sector — ÚNICAMENTE si no hay señales más específicas en el input
+
+═══ ANTI-EJEMPLOS — lo que NO debes hacer ═══
+✗ Reducir el caso a "cashflow negativo" cuando hay complejidad fiscal/laboral/estructural más específica
+✗ Devolver "seguimiento" como call_type si el input menciona un evento explícito de asesoría
+✗ Poner en what_client_knows datos personales o financieros del cliente (ingresos, liquidez, patrimonio)
+✗ Tratar como main_blocker_probable una objeción sectorial genérica cuando el freno dominante es de encaje estructural
+✗ Generar today_decision como resumen administrativo ("se revisará la propuesta y se evaluará...")
+
+═══ EJEMPLO BUENO — caso tipo Fase 2 Immvest con complejidad transfronteriza ═══
+Input: "asesoría de ganancia patrimonial, finance check completado, vive en Alemania pero trabaja bajo empresa española, no sabe cuánto tiempo se quedará, tiene hijos en España"
+Lectura correcta:
+- detected_phase: "Fase 2 — asesoría de ganancia patrimonial"
+- call_type: "asesoría de ganancia patrimonial" — NO "seguimiento"
+- today_decision: "Validar si su situación transfronteriza y horizonte de permanencia hacen viable el modelo antes de ir a propuesta"
+- main_blocker_probable: "Encaje real del caso: situación fiscal transfronteriza y horizonte de permanencia incierto en Alemania"
+- special_context_flags: ["situación fiscal/laboral transfronteriza", "permanencia en Alemania probablemente limitada", "estructura familiar relevante (hijos en España)"]
+- decision_constraints: ["no empujar propuesta sin validar encaje transfronterizo", "confirmar si el caso es financiable en condiciones actuales"]
+- case_specific_risks: ["leer como objeción genérica de rentabilidad cuando el freno real es de encaje", "pasar a propuesta antes de validar permanencia"]
+
+═══ FORMATO — obligatorio ═══
 - No inventes cifras, hechos ni decisiones del cliente
 - Responde SOLO JSON válido, sin markdown ni texto extra
 - Idioma: español. Tono: directo, táctico, compacto`;
 
-  const userPrompt = `Analiza este contexto comercial y devuelve SOLO este JSON exacto:
+  const userPrompt = `Lee este input comercial con bisturí. Extrae las señales estructurales del caso, no solo los tópicos del sector. Devuelve SOLO este JSON exacto:
 {
-  "detected_phase": "fase comercial real y útil — usa el nombre del evento o fase del proceso (ej: 'Fase 2 — asesoría de inversión', 'Fase 4 — propuesta real', 'cualificación inicial')",
-  "call_type": "tipo de llamada operativo — usa el label más preciso disponible en el input (ej: 'asesoría de ganancia patrimonial', 'presentación de propuesta', 'llamada informativa', 'cierre'). NUNCA uses 'seguimiento' si el input contiene un evento más específico",
-  "today_decision": "decisión comercial real de esta llamada — qué se evalúa o decide hoy de verdad (1-2 frases concretas, no resumen administrativo)",
-  "what_client_knows": ["lo que ya conoce del proceso/modelo/motivo de la llamada — máx 3 puntos. NO datos financieros personales"],
-  "main_blocker_probable": "freno dominante probable en esta fase — un único bloqueo (1-2 frases)",
-  "valid_outcome_today": "avance válido alcanzable hoy según la fase real — puede ser agendar, confirmar encaje, reservar, aislar freno (1 frase)",
+  "detected_phase": "fase comercial real — usa el nombre del evento o fase del proceso (ej: 'Fase 2 — asesoría de inversión', 'Fase 4 — propuesta real'). NUNCA 'seguimiento' si hay evento más específico",
+  "call_type": "tipo de llamada operativo — label más preciso del input (ej: 'asesoría de ganancia patrimonial', 'presentación de propuesta'). NUNCA 'seguimiento' si el input tiene evento explícito",
+  "today_decision": "decisión comercial real — qué se evalúa o decide hoy de verdad. No resumen administrativo. No 'se revisará'. Qué se mueve hoy (1-2 frases)",
+  "what_client_knows": ["solo lo que ya conoce del proceso/modelo/motivo de la llamada — máx 3 puntos. PROHIBIDO: datos financieros, ingresos, patrimonio personal"],
+  "main_blocker_probable": "freno dominante real de ESTE caso en ESTA fase — un único bloqueo. Prioriza restricciones estructurales (encaje, financiación, permanencia) sobre objeciones típicas del sector (1-2 frases)",
+  "valid_outcome_today": "avance concreto alcanzable hoy — agendar / confirmar encaje / validar restricción / reservar / aislar freno (1 frase)",
   "confidence": "high|medium|low",
-  "context_for_brief": "resumen táctico compacto para que VELA use como base — directo, sin humo, sin teoría (3-5 frases)"
+  "context_for_brief": "resumen táctico 3-5 frases. Debe incluir explícitamente cualquier restricción o riesgo estructural del caso si existe. Directo, sin humo",
+  "special_context_flags": ["señal estructural 1 que cambia la lectura táctica", "señal estructural 2"],
+  "decision_constraints": ["restricción que condiciona lo que se puede decidir hoy 1", "restricción 2"],
+  "case_specific_risks": ["riesgo de lectura o avance específico de este caso 1", "riesgo 2"]
 }
+
+Reglas para los 3 campos nuevos:
+- special_context_flags: señales que cambian la lectura táctica del caso (transfronterizo, permanencia limitada, Schufa, estructura familiar, zona muy concreta). Máx 3. Si no hay señales estructurales claras, devuelve array vacío [].
+- decision_constraints: qué no se puede/debe hacer hoy sin validar antes. Máx 3. Si no hay restricciones claras, devuelve [].
+- case_specific_risks: riesgos de lectura incorrecta o avance prematuro específicos de este caso. Máx 3. Si no hay riesgos específicos claros, devuelve [].
 
 INPUT:
 ${raw_input}${has_asset ? "\n[El cliente tiene propuesta/documentación]" : ""}${call_type_hint ? `\n[Pista tipo llamada: ${call_type_hint}]` : ""}${user_risk_hint ? `\n[Pista riesgo: ${user_risk_hint}]` : ""}`;
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
       temperature: 0.3,
-      max_tokens: 600,
+      max_tokens: 800,
     });
 
     const latencyMs = Date.now() - t0;
@@ -1945,8 +1979,8 @@ ${raw_input}${has_asset ? "\n[El cliente tiene propuesta/documentación]" : ""}$
       route: "copilot/prebrief-context",
       endpoint: "prebrief-context",
       mode: "copilot",
-      model: "gpt-4o-mini",
-      maxTokensConfigured: 600,
+      model: "gpt-4o",
+      maxTokensConfigured: 800,
       promptTokens: completion.usage?.prompt_tokens ?? 0,
       completionTokens: completion.usage?.completion_tokens ?? 0,
       totalTokens: completion.usage?.total_tokens ?? 0,
@@ -1994,6 +2028,9 @@ router.post("/copilot/prebrief-script", async (req, res) => {
       valid_outcome_today: string;
       confidence: string;
       context_for_brief: string;
+      special_context_flags?: string[];
+      decision_constraints?: string[];
+      case_specific_risks?: string[];
     };
   };
 
@@ -2095,6 +2132,7 @@ CONTEXTO INTERPRETADO:
 - Bloqueo principal probable: ${interpreted_context.main_blocker_probable}
 - Outcome válido hoy: ${interpreted_context.valid_outcome_today}
 - Contexto para brief: ${interpreted_context.context_for_brief}
+${interpreted_context.special_context_flags?.length ? `\nFLAGS ESTRUCTURALES (prioridad máxima — deben guiar objeciones, objetivo y brief):\n${interpreted_context.special_context_flags.map(f => `  · ${f}`).join("\n")}` : ""}${interpreted_context.decision_constraints?.length ? `\nRESTRICCIONES DE DECISIÓN (condicionan lo que se puede hacer hoy):\n${interpreted_context.decision_constraints.map(c => `  · ${c}`).join("\n")}` : ""}${interpreted_context.case_specific_risks?.length ? `\nRIESGOS ESPECÍFICOS DEL CASO (errores a evitar en objeciones y estructura):\n${interpreted_context.case_specific_risks.map(r => `  · ${r}`).join("\n")}` : ""}
 ${raw_input ? `\nINPUT ORIGINAL (úsalo para extraer señales específicas del caso):\n${raw_input}` : ""}
 
 Antes de generar, responde mentalmente:

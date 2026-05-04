@@ -1226,16 +1226,40 @@ QUÉ SABE EL CLIENTE: Lo que ya conoce del proceso Immvest, del modelo financier
 - Sí incluye: si conoce el proceso, si ya vio propuesta, si entiende el cashflow alemán, qué motivó la llamada
 - NO incluyas datos financieros personales del cliente (liquidez, ingresos, etc.)
 
-BLOQUEO PRINCIPAL: El freno más relevante en esta fase. Un único bloqueo, no una lista de objeciones.
-- Objeciones Immvest habituales: cashflow negativo, desconocer Alemania, tipos de interés, confianza en empresa española, comparación con España
+JERARQUÍA DE LECTURA DEL INPUT — obligatoria:
+1. Evento explícito de la llamada (siempre manda)
+2. Hechos estructurales del caso (situación fiscal/laboral/geográfica/familiar real)
+3. Restricciones reales de avance (qué impide pasar a propuesta o cerrar hoy)
+4. Stage / labels del CRM
+5. Objeciones típicas del negocio SOLO si no hay señales más fuertes
+
+SEÑALES ESTRUCTURALES — tienen prioridad sobre objeciones típicas del sector:
+- Situación transfronteriza: trabaja en Alemania bajo empresa española, IRPF en Alemania + SS en España
+- Permanencia limitada: menos de 5 años previstos en Alemania
+- Schufa no limpio o dudoso
+- Estructura familiar relevante: hijos, divorcio, hipoteca activa en España
+- Zona objetivo muy concreta: solo una ciudad o barrio
+- Score crediticio o capacidad de financiación no confirmada
+- Restricción de financiación conocida
+Si el input contiene cualquiera de estas señales, eso pesa más que "cashflow negativo", "desconocer Alemania" o "tipos altos".
+
+REGLA CRÍTICA — NO usar objeciones típicas del sector por defecto:
+NO priorices "cashflow negativo", "desconocer Alemania" o "tipos de interés" si el input contiene una restricción estructural más específica del caso.
+Si el freno dominante real es de encaje (¿aplica el modelo a este caso?), de financiación (¿puede financiar en estas condiciones?) o de permanencia (¿tiene sentido comprar si se va en 3 años?), di eso — no la objeción sectorial genérica.
+
+BLOQUEO PRINCIPAL: Un único freno dominante probable para este caso en esta fase. No una lista.
+Prioridad de frenos:
+1. Restricción estructural (encaje, financiación, permanencia) — si hay señal en el input
+2. Freno de criterio (no entiende qué decide hoy / no tiene claro si el modelo aplica)
+3. Objeción típica del modelo (cashflow, Alemania, tipos) — solo si no hay señales más específicas
 
 OUTCOME VÁLIDO HOY por fase:
 - Fase 1: filtrar o agendar asesoría
-- Fase 2: confirmar encaje o pasar a propuesta real
-- Fase 3: aislar freno y confirmar intención de continuar
+- Fase 2: confirmar encaje real del caso o pasar a propuesta — pero NO pasar a propuesta sin validar restricciones estructurales
+- Fase 3: aislar freno vivo y confirmar intención real de continuar
 - Fase 4: reserva de 1.500€ o siguiente paso concreto con fecha
 
-CONTEXTO PARA VELA: Resumen compacto (3-5 frases). No tritures el CRM. Táctico, directo, sin humo ni teoría.`,
+CONTEXTO PARA VELA: Resumen compacto (3-5 frases). Debe arrastrar explícitamente las restricciones y riesgos estructurales del caso si existen. No tritures el CRM. Táctico, directo, sin humo ni teoría.`,
 
       en: `COMMERCIAL PHASE READING — IMMVEST (German real estate investment)
 

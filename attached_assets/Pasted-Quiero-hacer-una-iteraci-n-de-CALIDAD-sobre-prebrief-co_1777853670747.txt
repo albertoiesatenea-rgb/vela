@@ -1,0 +1,215 @@
+Quiero hacer una iteración de CALIDAD sobre `prebrief-context`, porque el sistema ya funciona pero sigue leyendo algunos casos demasiado en genérico. El ejemplo claro es Antonio: la salida sigue cayendo demasiado en “cashflow negativo / Alemania” cuando el caso tiene señales estructurales más finas.
+
+Diagnóstico:
+- La arquitectura brain ya está bien.
+- `prebrief-script` ya mejoró.
+- Pero `prebrief-context` sigue comprimiendo demasiado el caso y pierde señales estructurales importantes.
+- Luego `prebrief-script` trabaja sobre una interpretación ya sesgada.
+
+Objetivo:
+Hacer que `POST /api/copilot/prebrief-context` lea el caso con más bisturí y detecte complejidad estructural real del prospecto, especialmente en brain `immvest`.
+
+NO tocar:
+- whisper
+- live
+- summarize
+- audit-report
+- arena
+- DB
+- selector de brain
+- Brain Inspector
+- layout general de UI
+
+Sí puedes tocar solo lo necesario en:
+- `artifacts/api-server/src/routes/copilot.ts`
+- `lib/sales-brain/src/index.ts`
+- `artifacts/silent-closer/src/components/context-panel.tsx`
+- y, si hace falta, un ajuste mínimo en `/copilot/prebrief-script` para que aproveche mejor los nuevos campos
+
+==================================================
+1) MEJORAR `prebrief-context` PARA LEER CASOS ESTRUCTURALES
+==================================================
+
+Quiero que `POST /api/copilot/prebrief-context` deje de priorizar objeciones tópicas del negocio cuando el input contiene señales más específicas del caso.
+
+Nueva jerarquía de lectura obligatoria del input:
+1. evento explícito de la llamada
+2. hechos estructurales del caso
+3. restricciones reales de avance
+4. stage / labels del CRM
+5. objeciones típicas del negocio solo si no hay señales más fuertes
+
+Reglas nuevas obligatorias del prompt:
+- No uses objeciones típicas del sector como “cashflow negativo”, “desconocer Alemania” o “tipos altos” por defecto si el input contiene fricciones más específicas.
+- Si el input contiene detalles fiscales, laborales, geográficos, familiares, de permanencia, financiación o scoring, promuévelos por encima de objeciones genéricas.
+- Si el caso tiene complejidad transfronteriza, horizonte de permanencia corto, score dudoso, estructura familiar relevante o restricciones de financiación, eso debe pesar en la lectura del caso.
+- `main_blocker_probable` debe ser un único freno dominante, no una lista.
+- `today_decision` debe reflejar la decisión comercial real de esta fase, no un resumen administrativo.
+- `what_client_knows` sigue significando solo lo que el cliente ya conoce del proceso/modelo/llamada, NO datos personales o financieros.
+- `context_for_brief` debe arrastrar explícitamente las restricciones y riesgos estructurales del caso.
+
+==================================================
+2) AÑADIR 3 CAMPOS NUEVOS AL OUTPUT DE `prebrief-context`
+==================================================
+
+Mantén los campos actuales, pero añade estos 3 campos nuevos al JSON de salida:
+
+{
+  "special_context_flags": ["string"],
+  "decision_constraints": ["string"],
+  "case_specific_risks": ["string"]
+}
+
+Definición exacta:
+
+- `special_context_flags`
+  = señales estructurales del caso que cambian la lectura táctica
+  Ejemplos:
+  - "situación fiscal/laboral transfronteriza"
+  - "permanencia en Alemania probablemente limitada"
+  - "estructura familiar relevante"
+  - "score crediticio no limpio"
+  - "geografía objetivo muy concreta"
+
+- `decision_constraints`
+  = cosas que condicionan lo que se puede decidir hoy
+  Ejemplos:
+  - "no empujar propuesta sin validar encaje España/Alemania"
+  - "necesita confirmar si su caso es financiable en estas condiciones"
+  - "conviene validar permanencia antes de pasar a propuesta"
+
+- `case_specific_risks`
+  = riesgos de lectura o de avance específicos de ESTE caso
+  Ejemplos:
+  - "leer el caso como objeción genérica de rentabilidad cuando el freno real es de encaje"
+  - "pasar a propuesta demasiado pronto"
+  - "confundir interés real con encaje real"
+
+Importante:
+- máximo 3 ítems por campo
+- compactos
+- específicos
+- nada de relleno
+
+==================================================
+3) REGLA ESPECIAL PARA BRAIN `immvest`
+==================================================
+
+En `lib/sales-brain/src/index.ts`, refuerza `prebriefRules.es` de `immvest` para que haga esto de forma explícita:
+
+- En casos Immvest, distinguir entre:
+  - objeción típica del modelo
+  - y restricción estructural del caso
+- Si hay señales como:
+  - trabajo en Alemania bajo empresa española
+  - IRPF en Alemania y seguridad social en España
+  - menos de 5 años previstos en Alemania
+  - familia / hijos
+  - Schufa no limpio
+  - zona objetivo muy concreta
+  entonces eso debe pesar más que una objeción típica de cashflow
+
+Añade una regla textual explícita:
+- “No priorices cashflow negativo, desconocimiento de Alemania o tipos de interés si el input contiene una restricción estructural más específica del caso.”
+
+==================================================
+4) AJUSTAR EL SHAPE EN FRONTEND SIN ROMPER LA UI
+==================================================
+
+En `artifacts/silent-closer/src/components/context-panel.tsx`:
+- amplía el tipo `PrebriefResult` para incluir:
+  - `special_context_flags?: string[]`
+  - `decision_constraints?: string[]`
+  - `case_specific_risks?: string[]`
+
+Pero NO quiero rediseño grande todavía.
+La UI actual puede seguir igual.
+
+Si es fácil y limpio, añade debajo del bloque actual de contexto detectado una mini sección discreta, solo cuando existan estos campos:
+
+- `Flags clave`
+- `Restricciones`
+- `Riesgos del caso`
+
+Formato:
+- listas cortas
+- sutiles
+- sin hacer la pantalla más fea
+- si complica la UI, prioriza mantener los datos en estado y no mostrarlos todavía
+
+==================================================
+5) HACER QUE `prebrief-script` USE ESTOS CAMPOS SI EXISTEN
+==================================================
+
+Si hace falta, toca mínimamente `/copilot/prebrief-script` en `artifacts/api-server/src/routes/copilot.ts` para que, cuando existan estos campos nuevos dentro de `interpreted_context`, los use como señales prioritarias.
+
+Reglas:
+- `special_context_flags`, `decision_constraints` y `case_specific_risks` deben tener prioridad sobre objeciones genéricas del negocio
+- si existen, deben empujar:
+  - `real_call_goal`
+  - `must_get_today`
+  - `expected_objections`
+  - `mistakes_to_avoid`
+  - `brief_for_live`
+
+No quiero reescribir todo `prebrief-script`.
+Solo quiero que consuma mejor la lectura estructural del caso.
+
+==================================================
+6) AÑADIR UN MINI ANTI-EJEMPLO EN EL PROMPT DE `prebrief-context`
+==================================================
+
+Quiero un bloque pequeño de anti-ejemplos para forzar calidad.
+
+Malas lecturas que el modelo debe evitar:
+- Reducir el caso a “cashflow negativo” cuando hay una complejidad fiscal/laboral más fuerte
+- Devolver “seguimiento” si hay un evento explícito de asesoría
+- Poner en `what_client_knows` datos personales o financieros
+- Tratar como objeción principal algo sectorial si el freno dominante es de encaje
+- Generar `today_decision` como resumen administrativo
+
+==================================================
+7) AÑADIR UN MINI EJEMPLO BUENO TIPO ANTONIO
+==================================================
+
+Añade un ejemplo muy corto dentro del prompt de `prebrief-context` para brain `immvest`, sin montar un sistema grande de few-shot.
+
+Idea del ejemplo:
+- caso con asesoría de ganancia patrimonial
+- finance check completado
+- situación España/Alemania
+- permanencia limitada en Alemania
+- resultado bueno:
+  - fase 2
+  - no “seguimiento”
+  - bloqueo dominante = validar encaje real del caso
+  - constraints = no empujar propuesta sin validar estructura
+  - risks = leerlo como objeción genérica
+
+No hace falta copiar Antonio literal.
+Solo un ejemplo corto que empuje en la dirección correcta.
+
+==================================================
+8) SI AYUDA A CALIDAD, PUEDES USAR GPT-4O
+==================================================
+
+Si consideras que esta mejora merece subir `prebrief-context` a `gpt-4o` en vez de `gpt-4o-mini`, adelante.
+Es una llamada por sesión, el coste es aceptable si mejora de verdad la lectura del caso.
+
+==================================================
+9) VERIFICACIÓN
+==================================================
+
+Cuando termines:
+- enséñame el nuevo bloque del prompt de `/copilot/prebrief-context`
+- enséñame cómo queda el shape nuevo del output
+- enséñame el refuerzo añadido al brain `immvest`
+- prueba otra vez el caso Antonio
+- compárame ANTES vs DESPUÉS en:
+  - `main_blocker_probable`
+  - `today_decision`
+  - `special_context_flags`
+  - `decision_constraints`
+  - `case_specific_risks`
+  - `context_for_brief`
+- dime exactamente qué archivos tocaste

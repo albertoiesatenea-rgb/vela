@@ -41,6 +41,9 @@ interface PrebriefResult {
   valid_outcome_today: string;
   confidence: "high" | "medium" | "low";
   context_for_brief: string;
+  special_context_flags?: string[];
+  decision_constraints?: string[];
+  case_specific_risks?: string[];
 }
 
 interface PrebriefScript {
@@ -1612,23 +1615,73 @@ export function ContextSetup({
                         ))}
                       </div>
                     ) : (
-                      /* ── Display cards ───────────────────────────────── */
-                      <div className="flex flex-col gap-1.5">
-                        {[
-                          { label: "Fase", value: prebriefResult.detected_phase },
-                          { label: "Tipo de llamada", value: prebriefResult.call_type },
-                          { label: "Qué se decide hoy", value: prebriefResult.today_decision },
-                          { label: "Qué sabe el cliente", value: Array.isArray(prebriefResult.what_client_knows) ? prebriefResult.what_client_knows.join(" · ") : String(prebriefResult.what_client_knows) },
-                          { label: "Bloqueo probable", value: prebriefResult.main_blocker_probable },
-                          { label: "Outcome válido hoy", value: prebriefResult.valid_outcome_today },
-                          { label: "Contexto para VELA", value: prebriefResult.context_for_brief },
-                        ].map(({ label, value }) => (
-                          <div key={label} className="flex flex-col gap-0.5 px-2.5 py-2 rounded-lg bg-zinc-900/60 border border-zinc-800">
-                            <span className="text-[8px] font-mono text-zinc-600 uppercase tracking-widest">{label}</span>
-                            <span className="text-[11px] font-mono text-zinc-300 leading-relaxed">{value}</span>
+                      /* ── Display cards + flags ───────────────────────── */
+                      <>
+                        <div className="flex flex-col gap-1.5">
+                          {[
+                            { label: "Fase", value: prebriefResult.detected_phase },
+                            { label: "Tipo de llamada", value: prebriefResult.call_type },
+                            { label: "Qué se decide hoy", value: prebriefResult.today_decision },
+                            { label: "Qué sabe el cliente", value: Array.isArray(prebriefResult.what_client_knows) ? prebriefResult.what_client_knows.join(" · ") : String(prebriefResult.what_client_knows) },
+                            { label: "Bloqueo probable", value: prebriefResult.main_blocker_probable },
+                            { label: "Outcome válido hoy", value: prebriefResult.valid_outcome_today },
+                            { label: "Contexto para VELA", value: prebriefResult.context_for_brief },
+                          ].map(({ label, value }) => (
+                            <div key={label} className="flex flex-col gap-0.5 px-2.5 py-2 rounded-lg bg-zinc-900/60 border border-zinc-800">
+                              <span className="text-[8px] font-mono text-zinc-600 uppercase tracking-widest">{label}</span>
+                              <span className="text-[11px] font-mono text-zinc-300 leading-relaxed">{value}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* ── Flags estructurales — mini sección discreta ── */}
+                        {(
+                          (prebriefResult.special_context_flags?.length ?? 0) > 0 ||
+                          (prebriefResult.decision_constraints?.length ?? 0) > 0 ||
+                          (prebriefResult.case_specific_risks?.length ?? 0) > 0
+                        ) && (
+                          <div className="flex flex-col gap-1.5 pt-1 border-t border-zinc-800/60">
+                            {prebriefResult.special_context_flags?.length ? (
+                              <div className="flex flex-col gap-0.5">
+                                <span className="text-[7.5px] font-mono text-zinc-700 uppercase tracking-[0.2em]">Flags clave</span>
+                                <div className="flex flex-wrap gap-1">
+                                  {prebriefResult.special_context_flags.map((f, i) => (
+                                    <span key={i} className="text-[9px] font-mono text-amber-500/70 bg-amber-950/20 border border-amber-900/30 px-1.5 py-0.5 rounded-md">
+                                      {f}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : null}
+                            {prebriefResult.decision_constraints?.length ? (
+                              <div className="flex flex-col gap-0.5">
+                                <span className="text-[7.5px] font-mono text-zinc-700 uppercase tracking-[0.2em]">Restricciones</span>
+                                <ul className="flex flex-col gap-0.5">
+                                  {prebriefResult.decision_constraints.map((c, i) => (
+                                    <li key={i} className="flex items-start gap-1.5">
+                                      <span className="text-[9px] font-mono text-zinc-700 mt-[1px] shrink-0">·</span>
+                                      <span className="text-[10px] font-mono text-zinc-500 leading-snug">{c}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ) : null}
+                            {prebriefResult.case_specific_risks?.length ? (
+                              <div className="flex flex-col gap-0.5">
+                                <span className="text-[7.5px] font-mono text-zinc-700 uppercase tracking-[0.2em]">Riesgos del caso</span>
+                                <ul className="flex flex-col gap-0.5">
+                                  {prebriefResult.case_specific_risks.map((r, i) => (
+                                    <li key={i} className="flex items-start gap-1.5">
+                                      <span className="text-[9px] font-mono text-zinc-700 mt-[1px] shrink-0">·</span>
+                                      <span className="text-[10px] font-mono text-zinc-500 leading-snug">{r}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ) : null}
                           </div>
-                        ))}
-                      </div>
+                        )}
+                      </>
                     )}
 
                     {/* Action row */}
