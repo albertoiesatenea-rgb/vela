@@ -1628,6 +1628,7 @@ export default function CopilotPage() {
           conversation_excerpt: convExcerpt.length > 0 ? convExcerpt : undefined,
           imported_transcript: importedTranscript.trim() || undefined,
           ...(speakerUncertainty ? { speaker_uncertainty: speakerUncertainty } : {}),
+          ...(whisperTranscript ? { whisper_transcript: whisperTranscript } : {}),
         }),
       });
       const data = await res.json() as {
