@@ -734,6 +734,8 @@ export default function CopilotPage() {
   const [transcriptTab, setTranscriptTab] = useState<"webSpeech" | "whisper">("webSpeech");
   const [whisperCleanDone, setWhisperCleanDone] = useState(false);
   const [whisperReady, setWhisperReady] = useState(false);
+  const whisperCleanDoneRef = useRef(false);
+  const whisperReadyRef = useRef(false);
   const [liveTranscriptOpen, setLiveTranscriptOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [turnLog, setTurnLog] = useState<TurnLogEntry[]>([]);
@@ -1476,7 +1478,11 @@ export default function CopilotPage() {
 
   // Mark whisper as ready when both raw transcript and clean pass are done
   useEffect(() => {
-    if (whisperTranscript && whisperCleanDone) setWhisperReady(true);
+    if (whisperTranscript && whisperCleanDone) {
+      setWhisperReady(true);
+      whisperReadyRef.current = true;
+      whisperCleanDoneRef.current = true;
+    }
   }, [whisperTranscript, whisperCleanDone]);
 
   // 60-second timeout fallback — enable download button regardless of Whisper state
@@ -1650,6 +1656,16 @@ export default function CopilotPage() {
       setIsSummarizing(false);
     }
 
+    // Esperar a que whisper termine antes de guardar
+    if (!whisperCleanDoneRef.current) {
+      await new Promise<void>(resolve => {
+        const interval = setInterval(() => {
+          if (whisperCleanDoneRef.current) { clearInterval(interval); resolve(); }
+        }, 500);
+        setTimeout(() => { clearInterval(interval); resolve(); }, 45000);
+      });
+    }
+
     // Guardar sesión en DB en background
     const saveSession = async () => {
       try {
@@ -1721,6 +1737,14 @@ export default function CopilotPage() {
 
   const handleLoadBrutalAudit = async (force = false) => {
     if (!force && (brutalAudit || brutalAuditLoading)) return;
+    if (!whisperCleanDoneRef.current) {
+      await new Promise<void>(resolve => {
+        const interval = setInterval(() => {
+          if (whisperCleanDoneRef.current) { clearInterval(interval); resolve(); }
+        }, 500);
+        setTimeout(() => { clearInterval(interval); resolve(); }, 45000);
+      });
+    }
     setBrutalAuditLoading(true);
     setBrutalAuditError(false);
     const speakerUncertainty = computeSpeakerUncertainty();
