@@ -1,0 +1,193 @@
+Quiero un ajuste UX muy concreto del pre-brief de Copiloto.
+
+OBJETIVO
+La bottom bar fija inferior del pre-brief debe tener 3 botones visibles siempre:
+1) Salir
+2) Descargar log
+3) Iniciar copiloto
+
+Y además hay que arreglar un bug de scroll:
+cuando ya se genera el briefing/preparar llamada, a veces no me deja volver hacia arriba para revisar el contexto. Eso tiene que quedar arreglado sí o sí.
+
+ARCHIVO PRINCIPAL
+artifacts/silent-closer/src/components/context-panel.tsx
+
+Y revisar también, solo si hace falta:
+artifacts/silent-closer/src/lib/prebrief-log.ts
+
+REQUISITOS EXACTOS
+
+1. BARRA FIJA INFERIOR
+Mantener/crear una bottom action bar fija:
+- fixed
+- bottom: 0
+- left: 0
+- right: 0
+- z-index alto
+- fondo sólido limpio
+- borde superior sutil
+- padding-bottom con env(safe-area-inset-bottom)
+
+Dentro:
+- contenedor centrado con mismo max-width que el contenido principal
+- 3 botones en fila:
+  [Salir] [Descargar log] [Iniciar copiloto]
+
+Layout:
+- desktop: fila horizontal
+- mobile: también horizontal si cabe bien
+- el botón principal "Iniciar copiloto" debe ocupar más ancho que los otros dos
+
+2. CUÁNDO SE MUESTRA
+Mostrar esta barra solo en modo Copiloto y solo durante el flujo de pre-brief, cuando exista alguno de estos estados:
+- prebriefResult
+- prebriefConfirmed
+- briefingLoading
+- briefingResult
+
+No mostrarla en Arena.
+
+3. BOTÓN "SALIR"
+Añadir botón real "Salir".
+
+Comportamiento:
+- sale del flujo actual de pre-brief
+- vuelve al estado inicial del setup de Copiloto
+- limpia:
+  - prebriefResult
+  - prebriefConfirmed
+  - prebriefEditing
+  - prebriefEdit
+  - briefingResult
+  - briefingLoading
+  - prebriefBrainId
+  - flags/estados derivados del prebrief si existen
+- PERO NO borres quickText
+
+Quiero que el usuario vuelva al textarea con su texto todavía escrito, por si quiere reinterpretar o cambiar algo sin perder trabajo.
+
+Visual:
+- botón secundario discreto, borde o ghost
+- no rojo agresivo
+- label: "Salir"
+
+4. BOTÓN "DESCARGAR LOG"
+Mover/usar la descarga del log desde esta barra.
+No dejar el enlace suelto dentro del contenido.
+
+Debe descargar:
+- rawInput
+- brainId
+- contexto interpretado
+- contexto confirmado/editado
+- contextConfirmed
+- userEditedContext
+- briefingGenerated
+- briefing completo si existe
+
+Si briefingResult existe, incluir:
+- real_call_goal
+- must_get_today
+- expected_objections
+- mistakes_to_avoid
+- suggested_call_structure
+- suggested_opening
+- suggested_next_step_close
+- brief_for_live
+
+Si briefing aún no existe, descargar log parcial igualmente.
+
+Estado:
+- habilitado si hay quickText o prebriefResult
+- botón real con icono opcional de download
+- label: "Descargar log"
+
+5. BOTÓN "INICIAR COPILOTO"
+Mantener exactamente la prioridad actual:
+- briefingResult?.brief_for_live
+- si no, prebriefResult.context_for_brief cuando esté confirmado
+- si no, quickText
+
+No cambiar la lógica de negocio, solo su ubicación visual en la barra fija.
+
+Visual:
+- botón principal negro
+- label: "Iniciar copiloto"
+- más ancho que los otros dos
+
+6. ELIMINAR DUPLICADOS
+Eliminar del body:
+- botón inline final de "Iniciar copiloto"
+- enlace/texto inline de descarga del log
+
+Todo eso debe vivir abajo en la barra fija.
+
+7. PADDING DEL CONTENIDO
+Asegurar padding-bottom suficiente en el contenedor scrolleable para que la barra fija no tape:
+- el final del contexto
+- el briefing
+- el script sugerido
+- los acordeones/details
+
+Quiero espacio real, aprox 120–140px según altura final de la barra.
+
+8. ARREGLAR BUG DE SCROLL
+Hay un bug claro:
+cuando ya aparece el briefing, el usuario hace scroll hacia abajo sin problema, pero luego intenta volver hacia arriba para revisar el contexto y a veces no puede o el scroll se queda “pillado”.
+
+Esto hay que arreglar de forma limpia.
+
+Qué quiero:
+- el contenedor principal del pre-brief debe poder hacer scroll vertical normal en ambos sentidos siempre
+- al aparecer briefingLoading o briefingResult NO se debe bloquear el scroll superior
+- no quiero auto-scroll agresivo que me mande al final
+- no quiero locks de overflow que impidan revisar el contexto ya generado
+- si existe algún `overflow-hidden`, `h-screen`, `max-h-screen`, scroll lock, sticky wrapper o contenedor anidado que esté capturando mal el scroll, corregirlo
+- revisar especialmente si el problema viene de:
+  - un contenedor interno con `overflow-y-auto` dentro de otro scroller
+  - un wrapper con altura fija que impide crecer al contenido
+  - un `scrollIntoView`, focus o re-render que me manda abajo al regenerar
+  - la bottom bar fija interfiriendo con el área scrolleable
+
+Comportamiento correcto esperado:
+- genero contexto
+- confirmo contexto
+- preparo llamada
+- bajo a ver el briefing
+- luego puedo volver arriba a revisar el contexto sin ninguna fricción
+- y volver a bajar otra vez si quiero
+
+Si hace falta:
+- dejar un único scroller vertical real para esta pantalla
+- evitar nested scrolls innecesarios
+- asegurar `min-h-0` / `overflow-y-auto` solo donde toque
+- no tocar el comportamiento de scroll del resto de la app si no hace falta
+
+9. ORDEN Y JERARQUÍA VISUAL
+Orden exacto de izquierda a derecha:
+- Salir
+- Descargar log
+- Iniciar copiloto
+
+Jerarquía:
+- Salir = terciario / ghost / borde discreto
+- Descargar log = secundario
+- Iniciar copiloto = primario dominante
+
+10. NO TOCAR BACKEND SI NO HACE FALTA
+Preferencia clara:
+- tocar solo frontend
+- tocar helper del log solo si falta contenido del briefing
+- no tocar endpoints ni prompts
+
+11. CRITERIO DE HECHO
+Quiero poder comprobar esto:
+- estoy viendo contexto o briefing
+- abajo fijo veo siempre:
+  [Salir] [Descargar log] [Iniciar copiloto]
+- al pulsar "Salir", vuelvo al setup pero con el quickText conservado
+- al pulsar "Descargar log", me baja el md con TODO, incluido briefing si ya existe
+- al pulsar "Iniciar copiloto", entra usando briefing si existe
+- después de generar briefing puedo bajar y subir libremente por toda la pantalla sin que el scroll se quede atrapado
+
+HAZ EL CAMBIO DIRECTO, limpio y sin reimaginar el resto del flujo.

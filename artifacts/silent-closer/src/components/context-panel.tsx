@@ -1224,6 +1224,20 @@ export function ContextSetup({
     }
   };
 
+  const handlePrebriefExit = () => {
+    setPrebriefResult(null);
+    setPrebriefConfirmed(false);
+    setPrebriefEditing(false);
+    setPrebriefEdit(null);
+    setBriefingResult(null);
+    briefingResultRef.current = null;
+    setBriefingLoading(false);
+    setPrebriefBrainId(null);
+    setPrebriefUserEdited(false);
+    prebriefResultAtInterpret.current = null;
+    // quickText preserved intentionally
+  };
+
   const ctaLabel = appMode === "arena" ? t.START_ARENA : t.START;
 
   const showActionBar =
@@ -1337,7 +1351,7 @@ export function ContextSetup({
       </div>
 
       {/* ── Main content — centered, scrollable ─────────────────────────── */}
-      <div className={cn("flex-1 overflow-y-auto flex flex-col items-center justify-center px-6 py-4", showActionBar && "pb-36")}>
+      <div className={cn("flex-1 overflow-y-auto flex flex-col items-center px-6 py-8", showActionBar && "pb-36")}>
       <div className="w-full max-w-lg flex flex-col gap-4">
 
         {/* ── Controls row ──────────────────────────────────────────────── */}
@@ -1987,7 +2001,15 @@ export function ContextSetup({
       {showActionBar && (
         <div className="fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur-sm border-t border-border"
           style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
-          <div className="max-w-lg mx-auto px-6 py-3 flex items-center gap-3">
+          <div className="max-w-lg mx-auto px-6 py-3 flex items-center gap-2">
+            {/* Salir */}
+            <button
+              onMouseDown={e => e.preventDefault()}
+              onClick={handlePrebriefExit}
+              className="shrink-0 px-3.5 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-all"
+            >
+              Salir
+            </button>
             {/* Descargar log */}
             <button
               onMouseDown={e => e.preventDefault()}
