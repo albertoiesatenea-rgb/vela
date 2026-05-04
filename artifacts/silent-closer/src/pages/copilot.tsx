@@ -724,6 +724,7 @@ export default function CopilotPage() {
   const analyzeErrorCountRef = useRef(0);
   const sessionBrainIdRef = useRef<string | undefined>(undefined);
   const sessionPrebriefIdRef = useRef<string | null>(null);
+  const savedSessionIdRef = useRef<string | null>(null);
   // Persists the total number of turns reclassified by the AI retropass across all
   // trigger points in this session (handleSelectOutcome, handleLoadVelaAudit,
   // handleDownloadAuditLog). Used so the audit log shows the correct count even
@@ -1342,6 +1343,13 @@ export default function CopilotPage() {
                   console.log("[vela:whisper] clean transcript ready", cleanData.transcript.slice(0, 100));
                   setWhisperTranscript(cleanData.transcript);
                   setWhisperCleanDone(true);
+                  if (savedSessionIdRef.current) {
+                    void fetch(`/api/copilot/sessions/${savedSessionIdRef.current}`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ whisperTranscript: cleanData.transcript }),
+                    }).catch(e => console.error("[vela:db] patch-whisper failed", e));
+                  }
                 }
               } catch (cleanErr) {
                 console.error("[vela:whisper] clean step failed", cleanErr);
@@ -1645,7 +1653,7 @@ export default function CopilotPage() {
     // Guardar sesión en DB en background
     const saveSession = async () => {
       try {
-        await fetch("/api/copilot/save-session", {
+        const r = await fetch("/api/copilot/save-session", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1668,6 +1676,8 @@ export default function CopilotPage() {
             prebriefId: sessionPrebriefIdRef.current ?? null,
           }),
         });
+        const d = await r.json();
+        if (d.id) savedSessionIdRef.current = d.id;
       } catch (e) {
         console.error("[vela:db] save-session failed", e);
       }
@@ -1743,6 +1753,13 @@ export default function CopilotPage() {
       if (!res.ok) throw new Error("audit failed");
       const data = await res.json() as BrutalAudit;
       setBrutalAudit(data);
+      if (savedSessionIdRef.current) {
+        void fetch(`/api/copilot/sessions/${savedSessionIdRef.current}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ brutalAudit: data }),
+        }).catch(e => console.error("[vela:db] patch-session failed", e));
+      }
     } catch {
       setBrutalAuditError(true);
     } finally {
@@ -2323,7 +2340,16 @@ export default function CopilotPage() {
                                     body: JSON.stringify({ raw_transcript: whisperRawTranscript || whisperTranscript, context: sessionContext || "" }),
                                   });
                                   const cleanData = await cleanRes.json();
-                                  if (cleanData.transcript) setWhisperTranscript(cleanData.transcript);
+                                  if (cleanData.transcript) {
+                                    setWhisperTranscript(cleanData.transcript);
+                                    if (savedSessionIdRef.current) {
+                                      void fetch(`/api/copilot/sessions/${savedSessionIdRef.current}`, {
+                                        method: "PATCH",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ whisperTranscript: cleanData.transcript }),
+                                      }).catch(e => console.error("[vela:db] patch-whisper failed", e));
+                                    }
+                                  }
                                   setWhisperCleanDone(true);
                                 }
                               } finally {

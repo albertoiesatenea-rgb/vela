@@ -2316,6 +2316,24 @@ router.get("/copilot/sessions", async (req, res) => {
   }
 });
 
+router.patch("/copilot/sessions/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { brutalAudit, whisperTranscript } = req.body as Record<string, unknown>;
+
+    await db.update(callSessions)
+      .set({
+        ...(brutalAudit !== undefined && { brutalAudit }),
+        ...(whisperTranscript !== undefined && { whisperTranscript: whisperTranscript as string }),
+      })
+      .where(eq(callSessions.id, id));
+
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "patch-session failed" });
+  }
+});
+
 router.delete("/copilot/sessions/:id", async (req, res) => {
   try {
     const { id } = req.params;

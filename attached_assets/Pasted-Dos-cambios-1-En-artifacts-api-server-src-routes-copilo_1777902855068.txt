@@ -1,0 +1,42 @@
+Dos cambios:
+1. En artifacts/api-server/src/routes/copilot.ts, añade un endpoint PATCH para actualizar una sesión con la auditoría y el transcript:
+typescriptrouter.patch("/copilot/sessions/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { brutalAudit, whisperTranscript } = req.body as Record<string, unknown>;
+    
+    await db.update(callSessions)
+      .set({
+        ...(brutalAudit !== undefined && { brutalAudit }),
+        ...(whisperTranscript !== undefined && { whisperTranscript: whisperTranscript as string }),
+      })
+      .where(eq(callSessions.id, id));
+
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "patch-session failed" });
+  }
+});
+2. En artifacts/silent-closer/src/pages/copilot.tsx, añade un ref savedSessionIdRef para guardar el ID de la sesión en DB cuando se crea:
+typescriptconst savedSessionIdRef = useRef<string | null>(null);
+En el bloque saveSession dentro de handleSelectOutcome, captura el ID devuelto:
+typescriptconst r = await fetch("/api/copilot/save-session", { ... });
+const d = await r.json();
+if (d.id) savedSessionIdRef.current = d.id;
+En handleLoadBrutalAudit, cuando se recibe la auditoría (setBrutalAudit(data)), añade inmediatamente después:
+typescriptif (savedSessionIdRef.current) {
+  void fetch(`/api/copilot/sessions/${savedSessionIdRef.current}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ brutalAudit: data }),
+  }).catch(e => console.error("[vela:db] patch-session failed", e));
+}
+También en el bloque donde se procesa el transcript de Whisper (setWhisperTranscript), añade después:
+typescriptif (savedSessionIdRef.current) {
+  void fetch(`/api/copilot/sessions/${savedSessionIdRef.current}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ whisperTranscript: cleanData.transcript }),
+  }).catch(e => console.error("[vela:db] patch-whisper failed", e));
+}
+Rebuild del servidor. No toques nada más.
