@@ -1,0 +1,159 @@
+Quiero un refactor UX muy concreto del pre-brief de Copiloto.
+
+OBJETIVO
+El botón "Iniciar copiloto" NO puede quedarse abajo perdido obligando a hacer scroll. 
+Quiero una barra de acciones fija en la parte inferior de la pantalla durante todo el flujo de pre-brief, y dentro de esa barra quiero:
+1) CTA principal: "Iniciar copiloto"
+2) CTA secundaria: "Descargar log"
+
+Además, el log debe incluir TODO el briefing cuando ya exista, no solo el contexto interpretado.
+
+CONTEXTO
+Estamos en:
+artifacts/silent-closer/src/components/context-panel.tsx
+
+Y la descarga del log ya existe en:
+artifacts/silent-closer/src/lib/prebrief-log.ts
+(o donde ya esté el helper actual de log)
+
+NO quiero romper nada del flujo actual:
+quickText
+→ interpretar contexto
+→ confirmar/corregir/reinterpretar
+→ preparar llamada
+→ iniciar copiloto
+
+QUIERO ESTO EXACTAMENTE
+
+1. BARRA FIJA INFERIOR
+Crear una bottom action bar fija:
+- position: fixed
+- bottom: 0
+- left: 0
+- right: 0
+- z-index alto
+- fondo sólido acorde al diseño actual
+- borde superior sutil
+- blur/surface suave si hace falta, pero limpio
+- respetar safe-area de iOS: padding-bottom con env(safe-area-inset-bottom)
+
+Dentro de esa barra:
+- contenedor centrado con el mismo max-width que el contenido principal
+- dos botones:
+  - secundario a la izquierda: "Descargar log"
+  - primario a la derecha: "Iniciar copiloto"
+
+Layout:
+- desktop: botones en fila
+- mobile: pueden seguir en fila si caben bien; si no, CTA principal más ancho pero SIEMPRE visibles sin scroll
+
+2. VISIBILIDAD DE LA BARRA
+La barra debe aparecer en modo Copiloto durante el flujo de pre-brief cuando exista al menos uno de estos estados:
+- prebriefResult
+- prebriefConfirmed
+- briefingLoading
+- briefingResult
+
+No la muestres en Arena.
+No dupliques el botón viejo dentro del contenido. Elimina el CTA final inline del body para que no existan dos "Iniciar copiloto".
+
+3. COMPORTAMIENTO DEL BOTÓN "INICIAR COPILOTO"
+Debe seguir usando exactamente la prioridad actual:
+briefingResult?.brief_for_live
+→ prebriefResult.context_for_brief si está confirmado
+→ quickText
+
+Mantener la lógica actual de handleSubmit.
+Solo cambia el lugar visual del botón: ahora vive en la barra fija inferior.
+
+4. COMPORTAMIENTO DEL BOTÓN "DESCARGAR LOG"
+Mover la descarga del log a la barra fija inferior también.
+No dejar el link perdido dentro del bloque.
+Quiero un botón real, no texto suelto.
+
+Debe usar el helper existente de descarga, pero verificando que el payload incluya TODO:
+- brainId
+- rawInput
+- interpreted context
+- confirmed context
+- contextConfirmed
+- userEditedContext
+- briefingGenerated
+- briefing completo si existe
+
+Si ya existe briefingResult, el log debe incluir:
+- real_call_goal
+- must_get_today
+- expected_objections
+- mistakes_to_avoid
+- suggested_call_structure
+- suggested_opening
+- suggested_next_step_close
+- brief_for_live
+
+Si briefing aún no existe, descargar igualmente el log parcial del pre-brief.
+
+5. PADDING DEL CONTENIDO
+Importantísimo:
+añadir padding-bottom al contenedor scrolleable principal del pre-brief para que la bottom bar no tape:
+- el final del contexto
+- el final del briefing
+- el acordeón de objeciones/estructura
+- el script sugerido
+
+Quiero espacio real suficiente. Aproximadamente 110–140px según quede la barra.
+
+6. ESTADOS DE LOS BOTONES
+Botón "Descargar log":
+- visible siempre que la barra exista
+- enabled si hay al menos rawInput o prebriefResult
+- texto:
+  - "Descargar log"
+  - no monoespaciado raro
+- icono download opcional, discreto
+
+Botón "Iniciar copiloto":
+- primario negro como hasta ahora
+- ancho dominante
+- texto "Iniciar copiloto"
+- si por alguna razón no hay contexto suficiente, deshabilitarlo honestamente
+- pero mantener prioridad actual del flujo, sin inventar nuevas validaciones agresivas
+
+6.5. TEXTO AUXILIAR OPCIONAL
+Si queda bien, encima de la barra o dentro de ella, un microtexto muy discreto tipo:
+- "VELA usará el briefing si ya está preparado"
+solo si no ensucia.
+Si ensucia, NO lo pongas.
+
+7. LIMPIEZA VISUAL
+Eliminar del body:
+- el botón inline final de "Iniciar copiloto"
+- el link suelto de "prebrief log (.md)" en la zona de contexto
+Todo eso pasa a la barra fija.
+
+El resultado debe sentirse:
+- más ejecutivo
+- más rápido
+- menos scroll absurdo
+- acción siempre disponible
+
+8. NO TOCAR BACKEND SI NO HACE FALTA
+Preferencia:
+- tocar solo frontend si el log ya incluye briefing correctamente
+- si detectas que el helper de log no está incluyendo el briefing completo, corrígelo en el helper, pero no cambies endpoints ni prompts
+
+9. ARCHIVOS A TOCAR
+Idealmente:
+- artifacts/silent-closer/src/components/context-panel.tsx
+- artifacts/silent-closer/src/lib/prebrief-log.ts   (solo si hace falta para incluir briefing completo)
+
+10. CRITERIO DE HECHO
+Quiero comprobar visualmente esto:
+- estoy viendo contexto o briefing
+- sin bajar al final del todo
+- abajo fijo veo:
+  [Descargar log]   [Iniciar copiloto]
+- pulso descargar y el md incluye también el briefing completo
+- pulso iniciar y entra al copiloto usando briefing si existe
+
+HAZ EL CAMBIO DIRECTO, sin reimaginar el flujo entero y sin tocar backend innecesariamente.

@@ -1226,6 +1226,11 @@ export function ContextSetup({
 
   const ctaLabel = appMode === "arena" ? t.START_ARENA : t.START;
 
+  const showActionBar =
+    appMode === "copilot" &&
+    contextMode === "quick" &&
+    (!!prebriefResult || prebriefConfirmed || briefingLoading || !!briefingResult);
+
   return (
     <div className="fixed inset-0 bg-background flex flex-col">
 
@@ -1332,7 +1337,7 @@ export function ContextSetup({
       </div>
 
       {/* ── Main content — centered, scrollable ─────────────────────────── */}
-      <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center px-6 py-4">
+      <div className={cn("flex-1 overflow-y-auto flex flex-col items-center justify-center px-6 py-4", showActionBar && "pb-36")}>
       <div className="w-full max-w-lg flex flex-col gap-4">
 
         {/* ── Controls row ──────────────────────────────────────────────── */}
@@ -1799,29 +1804,6 @@ export function ContextSetup({
                       )
                     )}
 
-                    {/* ── Log download ─────────────────────────────────── */}
-                    <div className="flex justify-end">
-                      <button
-                        onMouseDown={e => e.preventDefault()}
-                        onClick={() => {
-                          const currentBriefing = briefingResultRef.current;
-                          triggerPrebriefLogDownload({
-                            brainId: prebriefBrainId ?? activeBrainId,
-                            rawInput: quickText,
-                            interpreted: prebriefResultAtInterpret.current ?? prebriefResult,
-                            confirmed: prebriefConfirmed && prebriefEdit ? prebriefEdit : null,
-                            contextConfirmed: prebriefConfirmed,
-                            userEditedContext: prebriefUserEdited,
-                            briefingGenerated: !!currentBriefing,
-                            briefing: currentBriefing,
-                          });
-                        }}
-                        className="text-[9px] font-mono text-zinc-700 hover:text-zinc-400 transition-colors tracking-wide"
-                      >
-                        ↓ prebrief log (.md)
-                      </button>
-                    </div>
-
                   </div>
                 )}
               </>
@@ -1949,18 +1931,20 @@ export function ContextSetup({
               </div>
             )}
 
-            {/* CTA */}
-            <button
-              onClick={() => handleSubmit(
-                briefingResult?.brief_for_live
-                  || (prebriefConfirmed && prebriefResult ? prebriefResult.context_for_brief : "")
-                  || quickText
-              )}
-              disabled={(appMode === "arena" && !quickText.trim()) || isGeneratingCtx}
-              className="w-full bg-white text-black text-sm font-mono font-bold py-3.5 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all disabled:opacity-40 disabled:pointer-events-none"
-            >
-              {ctaLabel}
-            </button>
+            {/* CTA — inline only when action bar is not showing */}
+            {!showActionBar && (
+              <button
+                onClick={() => handleSubmit(
+                  briefingResult?.brief_for_live
+                    || (prebriefConfirmed && prebriefResult ? prebriefResult.context_for_brief : "")
+                    || quickText
+                )}
+                disabled={(appMode === "arena" && !quickText.trim()) || isGeneratingCtx}
+                className="w-full bg-white text-black text-sm font-mono font-bold py-3.5 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all disabled:opacity-40 disabled:pointer-events-none"
+              >
+                {ctaLabel}
+              </button>
+            )}
           </>
         )}
 
@@ -1998,6 +1982,49 @@ export function ContextSetup({
 
       </div>
       </div>
+
+      {/* ── Fixed bottom action bar — Copilot pre-brief ─────────────── */}
+      {showActionBar && (
+        <div className="fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur-sm border-t border-border"
+          style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+          <div className="max-w-lg mx-auto px-6 py-3 flex items-center gap-3">
+            {/* Descargar log */}
+            <button
+              onMouseDown={e => e.preventDefault()}
+              onClick={() => {
+                const currentBriefing = briefingResultRef.current;
+                triggerPrebriefLogDownload({
+                  brainId: prebriefBrainId ?? activeBrainId,
+                  rawInput: quickText,
+                  interpreted: prebriefResultAtInterpret.current ?? prebriefResult,
+                  confirmed: prebriefConfirmed && prebriefEdit ? prebriefEdit : null,
+                  contextConfirmed: prebriefConfirmed,
+                  userEditedContext: prebriefUserEdited,
+                  briefingGenerated: !!currentBriefing,
+                  briefing: currentBriefing,
+                });
+              }}
+              disabled={!quickText.trim() && !prebriefResult}
+              className="shrink-0 flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-all disabled:opacity-30 disabled:pointer-events-none"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Descargar log
+            </button>
+            {/* Iniciar copiloto */}
+            <button
+              onClick={() => handleSubmit(
+                briefingResult?.brief_for_live
+                  || (prebriefConfirmed && prebriefResult ? prebriefResult.context_for_brief : "")
+                  || quickText
+              )}
+              disabled={isGeneratingCtx}
+              className="flex-1 bg-foreground text-background text-sm font-semibold py-2.5 rounded-xl hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-40 disabled:pointer-events-none"
+            >
+              Iniciar copiloto
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Brain Inspector — slide-in panel ──────────────────────────── */}
       {showBrainInspector && (
