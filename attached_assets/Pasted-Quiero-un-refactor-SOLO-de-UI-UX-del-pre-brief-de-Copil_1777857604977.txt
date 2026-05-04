@@ -1,0 +1,196 @@
+Quiero un refactor SOLO de UI/UX del pre-brief de Copiloto en VELA. No toques backend, prompts, endpoints, tipos de respuesta ni lógica de negocio. Solo frontend, y solo en:
+
+artifacts/silent-closer/src/components/context-panel.tsx
+
+OBJETIVO
+El pre-brief ya tiene buen contenido, pero visualmente sigue siendo demasiado largo, plano y poco ejecutivo. Quiero una versión mucho más compacta, clara y usable antes de entrar en live.
+
+PRINCIPIO DE DISEÑO
+Esto NO es una ficha para leer entera como un documento.
+Esto es una pantalla de preparación rápida para una videollamada.
+Tiene que permitir entender el caso en 5-8 segundos y luego profundizar solo si hace falta.
+
+NO QUIERO
+- 7 cajas iguales apiladas
+- demasiado texto visible a la vez
+- labels pequeños por todas partes sin jerarquía
+- tener que hacer mucho scroll para entender lo importante
+- aspecto de formulario administrativo
+- tocar backend
+- tocar prompts
+- tocar el contenido generado
+- romper la barra fija inferior actual
+
+SÍ QUIERO
+- resumen ejecutivo arriba, muy compacto
+- detalles colapsados por defecto
+- jerarquía visual fuerte
+- freno real y decisión del día muy protagonistas
+- briefing también más ejecutivo y menos “bloque gris tras bloque gris”
+- mantener la barra fija inferior con 3 botones:
+  1. Salir
+  2. Descargar log
+  3. Iniciar copiloto
+
+CAMBIO PRINCIPAL — PREBRIEF EN 2 NIVELES
+
+NIVEL 1: RESUMEN EJECUTIVO SIEMPRE VISIBLE
+Arriba del bloque “Contexto detectado” quiero una cabecera-resumen con solo estas 4 piezas:
+1. Fase / tipo
+2. Qué se decide hoy
+3. Freno real
+4. Outcome válido hoy
+
+Cómo debe verse:
+- una sola card principal
+- visualmente limpia
+- tipografía sans, no mono para contenido
+- labels pequeños en uppercase sí, pero el contenido importante en texto grande/medio
+- “Freno real” con acento visual claro en ámbar
+- “Qué se decide hoy” y “Freno real” deben pesar más que el resto
+- confidence badge mantenerlo, pero discreto arriba a la derecha
+- brain activo muy discreto, casi metadato
+
+Dentro de ese resumen ejecutivo:
+- Fase / tipo: una línea potente, tipo:
+  “Fase 2 — asesoría de ganancia patrimonial”
+  debajo, en pequeño:
+  “asesoría de ganancia patrimonial”
+- Qué se decide hoy: bloque principal
+- Freno real: bloque principal con borde izquierdo ámbar o highlight ámbar
+- Outcome válido hoy: más pequeño, secundario
+- flags estructurales: como chips visibles justo debajo
+- nada más visible por defecto
+
+NIVEL 2: DETALLE COLAPSADO
+Todo lo demás va debajo en un details/summary o bloque expandible que por defecto esté cerrado.
+Título del colapsable:
+“Ver detalle del contexto”
+
+Dentro de ese detalle:
+- Qué sabe el cliente
+- Contexto para VELA
+- Restricciones
+- Riesgos del caso
+
+Requisitos:
+- si un campo está vacío, no renderizarlo
+- listas limpias con bullets simples
+- sin cajas separadas para cada cosa
+- un solo bloque de detalle interno, ordenado por secciones
+- separación visual elegante, no exceso de bordes
+
+ESTADO CONFIRMADO
+Cuando el contexto esté confirmado:
+- mostrar badge “Contexto listo”
+- mantener “Corregir” y “Reinterpretar” a la derecha
+- no hacer que el bloque crezca ni cambie de forma bruscamente
+- si pulso “Corregir”, entrar en edit mode y limpiar briefing previo como ya hace ahora
+
+EDIT MODE
+En edición:
+- nada de layout raro
+- textareas cómodas y legibles
+- sans-serif
+- spacing limpio
+- botones claros:
+  - Guardar contexto
+  - Cancelar
+- NO usar monoespaciado en el contenido editable
+
+BRIEFING — REFACTOR VISUAL
+Quiero que el briefing también pase a lógica “ejecutiva”, no 6 bloques iguales.
+
+ESTRUCTURA NUEVA DEL BRIEFING
+
+1. CABECERA DEL BRIEFING
+- línea superior compacta:
+  “• Briefing listo” a la izquierda
+  “Regenerar” a la derecha
+
+2. BLOQUE PRINCIPAL VISIBLE
+Mostrar visibles sin colapsar:
+- Objetivo
+- Qué tengo que conseguir hoy
+- Errores a evitar
+- Script sugerido
+
+3. BLOQUE SECUNDARIO COLAPSADO
+Meter dentro de un expandible por defecto cerrado:
+- Objeciones esperadas
+- Estructura sugerida
+
+Título:
+“Ver objeciones y estructura”
+
+JERARQUÍA VISUAL DEL BRIEFING
+- Objetivo: muy protagonista, una sola card fuerte
+- Qué tengo que conseguir hoy: lista numerada clara
+- Errores a evitar: fondo ligeramente distinto o tono más warning
+- Script sugerido:
+  - Apertura
+  - Cierre / siguiente paso
+  con diseño listo para leer rápido antes de entrar en llamada
+  puede ser con borde izquierdo sutil y texto un poco más grande/itálico
+- Objeciones y estructura: solo visibles al abrir el colapsable
+
+IMPORTANTE
+No conviertas todo en mini-texto.
+Necesito que lo principal se pueda leer bien incluso rápido.
+
+SCROLL Y LAYOUT
+- Mantener la barra fija inferior actual
+- Mantener scroll general funcional
+- El contenido no debe quedar tapado por la barra fija: deja padding bottom suficiente en el contenedor principal
+- No bloquear el scroll al generar briefing
+- No hacer auto-scroll agresivo al cambiar entre contexto y briefing
+- Quiero poder subir y bajar libremente aunque exista la barra fija
+
+BARRA FIJA INFERIOR
+Mantén la barra fija inferior, pero déjala bien integrada visualmente.
+Debe tener exactamente estos 3 botones:
+- Salir
+- Descargar log
+- Iniciar copiloto
+
+Requisitos:
+- “Iniciar copiloto” como CTA principal negro
+- “Salir” y “Descargar log” secundarios
+- responsive y alineados
+- no tapar contenido
+- sombra o borde superior sutil para separar del contenido
+- que no parezca un parche flotando mal puesto
+
+TIPOGRAFÍA
+- labels de sección: sí pueden ir en mono uppercase tracking amplio
+- contenido: sans-serif
+- nada de bloques enteros en monoespaciado
+- mejorar legibilidad global
+
+CONDICIONES TÉCNICAS
+- toca solo context-panel.tsx
+- no añadas dependencias nuevas
+- no rompas tipos
+- no cambies nombres de endpoints
+- no cambies shape de datos
+- no cambies lógica del submit final
+- no toques Copilot live
+- no toques Arena
+- no toques backend
+
+ACEPTACIÓN
+Doy por bueno el cambio si al entrar en un caso como Antonio:
+- veo arriba un resumen ejecutivo en 1 card
+- entiendo en 5 segundos fase, decisión del día, freno real y outcome
+- el resto del contexto está escondido en “Ver detalle del contexto”
+- el briefing visible es más corto y más fuerte visualmente
+- objeciones y estructura quedan escondidas en un colapsable
+- la barra inferior fija sigue funcionando con:
+  Salir / Descargar log / Iniciar copiloto
+- puedo hacer scroll arriba y abajo sin que nada se rompa
+
+HAZ EL CAMBIO COMPLETO Y AL FINAL DIME:
+1. qué partes exactas del JSX reemplazaste
+2. si tocaste algún estado existente
+3. si hubo que añadir algún helper local
+4. confirmación de que backend no se tocó

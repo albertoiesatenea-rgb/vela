@@ -1654,7 +1654,7 @@ export function ContextSetup({
                             onClick={handlePrebriefConfirm}
                             className="flex-1 bg-white text-black text-sm font-semibold py-2 rounded-lg hover:bg-zinc-100 active:scale-[0.98] transition-all"
                           >
-                            Usar este contexto
+                            Guardar contexto
                           </button>
                           <button
                             onMouseDown={e => e.preventDefault()}
@@ -1672,7 +1672,7 @@ export function ContextSetup({
                         {/* A. Fase / tipo */}
                         <div className="flex flex-col gap-0.5">
                           <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Fase / tipo</span>
-                          <p className="text-sm font-semibold text-zinc-100 leading-snug">{prebriefResult.detected_phase}</p>
+                          <p className="text-[15px] font-bold text-white leading-snug tracking-tight">{prebriefResult.detected_phase}</p>
                           {prebriefResult.call_type !== prebriefResult.detected_phase && (
                             <p className="text-xs text-zinc-500">{prebriefResult.call_type}</p>
                           )}
@@ -1681,19 +1681,19 @@ export function ContextSetup({
                         {/* B. Qué se decide hoy */}
                         <div className="flex flex-col gap-0.5">
                           <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Qué se decide hoy</span>
-                          <p className="text-sm text-zinc-200 leading-snug">{prebriefResult.today_decision}</p>
+                          <p className="text-[15px] text-zinc-100 leading-snug">{prebriefResult.today_decision}</p>
                         </div>
 
                         {/* C. Freno real — warning accent */}
-                        <div className="flex flex-col gap-0.5 pl-3 border-l-2 border-amber-700/50">
-                          <span className="text-[10px] text-amber-700 uppercase tracking-widest">Freno real</span>
-                          <p className="text-sm text-zinc-200 leading-snug">{prebriefResult.main_blocker_probable}</p>
+                        <div className="flex flex-col gap-1 bg-amber-950/20 border border-amber-900/30 rounded-lg px-3 py-2.5">
+                          <span className="text-[10px] text-amber-600 uppercase tracking-widest">Freno real</span>
+                          <p className="text-[15px] text-amber-200 leading-snug font-medium">{prebriefResult.main_blocker_probable}</p>
                         </div>
 
                         {/* D. Outcome válido */}
                         <div className="flex flex-col gap-0.5">
                           <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Outcome válido hoy</span>
-                          <p className="text-sm text-zinc-400 leading-snug">{prebriefResult.valid_outcome_today}</p>
+                          <p className="text-sm text-zinc-500 leading-snug">{prebriefResult.valid_outcome_today}</p>
                         </div>
 
                         {/* Flags — chips */}
@@ -1712,7 +1712,7 @@ export function ContextSetup({
                           <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden flex items-center gap-1 text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors select-none">
                             <span className="group-open:hidden">▸</span>
                             <span className="hidden group-open:inline">▾</span>
-                            <span>Ver detalle</span>
+                            <span>Ver detalle del contexto</span>
                           </summary>
                           <div className="flex flex-col gap-2.5 mt-2.5 pt-2.5 border-t border-zinc-800/60">
                             {Array.isArray(prebriefResult.what_client_knows) && prebriefResult.what_client_knows.length ? (
@@ -1859,50 +1859,59 @@ export function ContextSetup({
                       </button>
                     </div>
 
-                    {/* Objetivo real */}
-                    <div className="flex flex-col gap-1.5 rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3">
+                    {/* Objetivo — card protagonista */}
+                    <div className="flex flex-col gap-2 rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-4">
                       <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Objetivo</span>
-                      <p className="text-sm font-semibold text-zinc-100 leading-snug">{briefingResult.real_call_goal}</p>
+                      <p className="text-base font-bold text-white leading-snug">{briefingResult.real_call_goal}</p>
                     </div>
 
-                    {/* Qué tengo que conseguir hoy */}
-                    <div className="flex flex-col gap-2 rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3">
-                      <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Qué tengo que conseguir hoy</span>
-                      <ol className="flex flex-col gap-1.5">
-                        {briefingResult.must_get_today.map((item, i) => (
-                          <li key={i} className="flex items-start gap-2.5">
-                            <span className="text-xs text-zinc-600 shrink-0 mt-[2px] tabular-nums">{i + 1}.</span>
-                            <span className="text-sm text-zinc-300 leading-snug">{item}</span>
-                          </li>
-                        ))}
-                      </ol>
-                    </div>
+                    {/* Qué conseguir + Errores + Script — tarjeta unificada */}
+                    <div className="rounded-xl border border-zinc-800 bg-zinc-950 overflow-hidden">
 
-                    {/* Errores a evitar */}
-                    <div className="flex flex-col gap-2 rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-3">
-                      <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Errores a evitar</span>
-                      <ul className="flex flex-col gap-1.5">
-                        {briefingResult.mistakes_to_avoid.map((m, i) => (
-                          <li key={i} className="flex items-start gap-2">
-                            <span className="text-xs text-zinc-700 shrink-0 mt-[2px]">✕</span>
-                            <span className="text-sm text-zinc-400 leading-snug">{m}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    {/* Script sugerido: apertura + cierre */}
-                    <div className="flex flex-col gap-3 rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-4">
-                      <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Script sugerido</span>
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Apertura</span>
-                        <p className="text-sm text-zinc-200 leading-relaxed pl-3 border-l border-zinc-700 italic">"{briefingResult.suggested_opening}"</p>
+                      {/* Qué tengo que conseguir hoy */}
+                      <div className="flex flex-col gap-2.5 px-4 py-4">
+                        <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Qué tengo que conseguir hoy</span>
+                        <ol className="flex flex-col gap-1.5">
+                          {briefingResult.must_get_today.map((item, i) => (
+                            <li key={i} className="flex items-start gap-2.5">
+                              <span className="text-xs text-zinc-600 shrink-0 mt-[2px] tabular-nums">{i + 1}.</span>
+                              <span className="text-sm text-zinc-300 leading-snug">{item}</span>
+                            </li>
+                          ))}
+                        </ol>
                       </div>
-                      <div className="h-px bg-zinc-800/60" />
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Cierre / siguiente paso</span>
-                        <p className="text-sm text-zinc-200 leading-relaxed pl-3 border-l border-zinc-700 italic">"{briefingResult.suggested_next_step_close}"</p>
+
+                      <div className="h-px bg-zinc-800/60 mx-4" />
+
+                      {/* Errores a evitar */}
+                      <div className="flex flex-col gap-2.5 px-4 py-4">
+                        <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Errores a evitar</span>
+                        <ul className="flex flex-col gap-1.5">
+                          {briefingResult.mistakes_to_avoid.map((m, i) => (
+                            <li key={i} className="flex items-start gap-2">
+                              <span className="text-xs text-amber-900 shrink-0 mt-[2px]">✕</span>
+                              <span className="text-sm text-zinc-400 leading-snug">{m}</span>
+                            </li>
+                          ))}
+                        </ul>
                       </div>
+
+                      <div className="h-px bg-zinc-800/60 mx-4" />
+
+                      {/* Script sugerido */}
+                      <div className="flex flex-col gap-3 px-4 py-4">
+                        <span className="text-[10px] text-zinc-600 uppercase tracking-widest">Script sugerido</span>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[10px] text-zinc-700 uppercase tracking-widest">Apertura</span>
+                          <p className="text-sm text-zinc-200 leading-relaxed pl-3 border-l-2 border-zinc-700 italic">&ldquo;{briefingResult.suggested_opening}&rdquo;</p>
+                        </div>
+                        <div className="h-px bg-zinc-800/40" />
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[10px] text-zinc-700 uppercase tracking-widest">Cierre / siguiente paso</span>
+                          <p className="text-sm text-zinc-200 leading-relaxed pl-3 border-l-2 border-zinc-700 italic">&ldquo;{briefingResult.suggested_next_step_close}&rdquo;</p>
+                        </div>
+                      </div>
+
                     </div>
 
                     {/* Objeciones + Estructura — colapsables */}
