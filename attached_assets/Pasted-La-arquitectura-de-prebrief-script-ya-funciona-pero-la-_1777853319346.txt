@@ -1,0 +1,112 @@
+La arquitectura de `prebrief-script` ya funciona, pero la calidad del contenido sigue siendo demasiado genérica. Quiero una iteración de CALIDAD, no de infraestructura.
+
+NO tocar:
+- endpoints existentes salvo `/copilot/prebrief-script`
+- UI salvo lo imprescindible si hay que ajustar labels
+- DB
+- live
+- whisper
+- summarize
+- audit
+- arena
+- selector de brain
+- Brain Inspector
+- shape del output del endpoint
+
+Objetivo:
+Hacer que `POST /api/copilot/prebrief-script` produzca briefing más táctico, más específico al caso, menos plantilla GPT, especialmente con brain `immvest`.
+
+Problema actual:
+- `real_call_goal` demasiado genérico
+- `must_get_today` flojo
+- `expected_objections` demasiado plantilla Immvest
+- `suggested_call_structure` demasiado universal
+- `suggested_opening` débil
+- `suggested_next_step_close` blando
+- `brief_for_live` correcto pero poco afilado
+
+Quiero mejorar SOLO la lógica/prompt de `prebrief-script`.
+
+1) Ajuste de prompt
+En `artifacts/api-server/src/routes/copilot.ts`, dentro de `/copilot/prebrief-script`, refuerza el prompt con estas reglas:
+
+- No devuelvas objeciones genéricas si el caso contiene señales más específicas.
+- Prioriza el bloqueo dominante real del caso por encima de los tópicos del sector.
+- Si el input contiene detalles fiscales, laborales, geográficos o de estructura personal, úsalo para afinar objeciones y objetivo real.
+- No uses “cashflow negativo” por defecto salvo que realmente sea el freno dominante más probable.
+- El objetivo de la llamada debe ser comercialmente realista para la fase, no una abstracción bonita.
+- `must_get_today` debe ser accionable y concreto.
+- `suggested_call_structure` debe sonar a secuencia táctica útil, no a plantilla universal.
+- `suggested_opening` debe ser natural, breve y usable por un vendedor real.
+- `suggested_next_step_close` debe empujar al siguiente paso realista con concreción, no sonar genérico.
+- Si el caso todavía no merece propuesta, no empujes propuesta.
+- Si el caso necesita validación previa, dilo.
+- Nada de teoría de ventas. Nada de frases consultant-style. Nada de relleno.
+
+2) Regla específica para Immvest
+Si `brainId === "immvest"`:
+- piensa como asesor comercial senior de Immvest
+- outcome por fase real
+- detecta frenos específicos del caso, no solo objeciones típicas del negocio
+- en casos como Antonio, prioriza frenos como:
+  - encaje real del caso España/Alemania
+  - estabilidad/permanencia en Alemania
+  - coherencia entre perfil, horizonte y modelo
+  - necesidad de validar si merece pasar a propuesta
+- solo usar “cashflow negativo” si de verdad es el freno dominante probable
+
+3) Añadir guardrails de calidad
+Dentro del prompt de `/copilot/prebrief-script`, añade reglas explícitas:
+
+- `expected_objections`: máximo 3, y deben ser específicas al caso
+- `must_get_today`: 3-5 puntos, todos accionables
+- `suggested_opening`: máximo 2 frases, sonar a humano real
+- `suggested_next_step_close`: debe incluir siguiente paso concreto o criterio claro de avance
+- `suggested_call_structure`: 4-6 pasos, todos útiles, sin vaguedades tipo “saludo y conexión”
+
+4) Añadir mini-bloque de anti-ejemplos en el prompt
+Quiero que le expliques al modelo lo que NO debe hacer:
+
+Mal ejemplo de objeción:
+- “Desconocer Alemania” si el caso tiene una fricción mucho más específica
+
+Mal ejemplo de estructura:
+- “Saludo y conexión / revisar llamada anterior / resolver objeciones”
+
+Mal ejemplo de apertura:
+- “Hola Antonio, ¿cómo te encuentras?”
+
+Mal ejemplo de cierre:
+- “Si te parece bien, podemos agendar una próxima llamada”
+
+El modelo debe evitar ese nivel de genericidad.
+
+5) Añadir un pequeño bloque de ejemplos buenos para Immvest
+No quiero un sistema de few-shots gigante, solo 1 ejemplo corto dentro del prompt si hace falta.
+
+Ejemplo de buena lectura para un caso tipo Antonio:
+- objetivo real: validar si su caso encaja realmente para avanzar a propuesta, no vender propuesta demasiado pronto
+- freno dominante probable: encaje de su situación transfronteriza y claridad sobre si el modelo aplica bien a su caso
+- siguiente paso válido: avanzar a propuesta o dejar validación concreta cerrada
+
+6) No cambiar el shape del output
+Mantén exactamente:
+- real_call_goal
+- must_get_today
+- expected_objections
+- mistakes_to_avoid
+- suggested_call_structure
+- suggested_opening
+- suggested_next_step_close
+- brief_for_live
+
+7) Verificación
+Cuando termines:
+- enséñame el nuevo bloque del prompt de `/copilot/prebrief-script`
+- prueba otra vez el caso Antonio con brain `immvest`
+- compárame ANTES vs DESPUÉS en:
+  - `real_call_goal`
+  - `expected_objections`
+  - `suggested_opening`
+  - `suggested_next_step_close`
+- dime exactamente qué mejoró

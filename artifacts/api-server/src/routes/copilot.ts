@@ -2005,19 +2005,87 @@ router.post("/copilot/prebrief-script", async (req, res) => {
   const t0 = Date.now();
   const brain = getCopilotBrain(brainId);
 
-  const systemPrompt = `Eres un preparador táctico de llamadas de ventas. Tu trabajo es generar un briefing de trabajo corto, operativo y directo para que el vendedor entre en la llamada preparado de verdad.
+  const brainSpecificRules = brain.brainId === "immvest"
+    ? `
+BRAIN ACTIVO: IMMVEST — Reglas adicionales obligatorias:
+- Piensa como asesor comercial senior de Immvest que conoce el caso de primera mano.
+- El outcome válido depende de la fase real: en Fase 2 NO es "pasar a propuesta" automáticamente — es validar si el caso merece propuesta.
+- Prioriza frenos específicos del caso sobre objeciones genéricas del sector:
+  * ¿Hay señales de perfil transfronterizo (vive en Alemania o tiene vida allí)? → Prioriza coherencia del modelo para su caso.
+  * ¿Hay señales de horizonte de inversión incierto o situación laboral transitoria? → Prioriza estabilidad/permanencia.
+  * ¿Hay señales de que no ha entendido cómo funciona realmente el modelo financiero? → Prioriza validación del criterio antes de propuesta.
+  * ¿Hay señales de comparación con alternativas (España, renta variable)? → Prioriza reencuadre del criterio, no defensa del mercado.
+- "Cashflow negativo" es una objeción válida SOLO si el input la señala explícitamente como freno dominante. No la uses por defecto.
+- Si el caso no merece propuesta todavía, di que el objetivo es validar encaje — no empujes propuesta antes de tiempo.
+
+EJEMPLO BUENO para caso tipo Fase 2 Immvest (perfil analítico, dudas sobre encaje):
+- real_call_goal: "Validar si la situación real de este cliente — su perfil, horizonte y criterio financiero — encaja con el modelo Immvest antes de ir a propuesta. No es una llamada de propuesta: es una llamada de decisión sobre si merece serlo."
+- freno dominante a leer: coherencia entre su situación y el modelo, no el cashflow en abstracto
+- siguiente paso válido: "avanzar a propuesta con fecha concreta" o "dejar claro por qué no es el momento todavía"
+`
+    : "";
+
+  const systemPrompt = `Eres un preparador táctico de llamadas de ventas. Generas briefings de trabajo cortos, específicos al caso y útiles para el vendedor — no plantillas GPT.
 
 ${brain.prebriefScriptRules.es}
+${brainSpecificRules}
 
-REGLAS DE FORMATO — obligatorias:
+═══ GUARDRAILS DE CALIDAD — obligatorios ═══
+
+ESPECIFICIDAD:
+- Lee el input original y el contexto interpretado. Extrae señales concretas: detalles fiscales, laborales, geográficos, de perfil personal, de fase comercial real.
+- El briefing debe sonar a "este caso" no a "un caso típico del sector".
+- No uses objeciones genéricas si el caso tiene señales más específicas.
+- No uses el bloqueo dominante por defecto del sector — prioriza el bloqueo real de este caso.
+
+CADA CAMPO — reglas específicas:
+- real_call_goal: objetivo comercialmente realista para esta fase y este caso. No abstracto. No "generar confianza". No "resolver dudas". Qué se mueve hoy.
+- must_get_today: 3-5 puntos. Todos accionables y verificables al terminar la llamada. No comportamientos — resultados.
+- expected_objections: máximo 3, específicas al caso. La objeción debe sonar a algo que diría ESTE cliente, no cualquier cliente del sector. El "why_likely" debe referenciar algo del caso concreto.
+- mistakes_to_avoid: máximo 5, específicos al caso y la fase. No errores genéricos de ventas.
+- suggested_call_structure: 4-6 pasos operativos y útiles. Ningún paso vago.
+- suggested_opening: máximo 2 frases. Natural, usable por un vendedor real. Debe referenciar algo concreto del caso o del motivo de la llamada — no un saludo genérico.
+- suggested_next_step_close: incluye el siguiente paso concreto y el criterio de avance. No "agendamos algo si te parece bien".
+- brief_for_live: 4-7 frases. Compacto, afilado, listo para usar sin reescritura.
+
+═══ ANTI-EJEMPLOS — lo que NO debes hacer ═══
+
+Mal objetivo real:
+✗ "Resolver las dudas de Antonio y avanzar hacia propuesta"
+✗ "Generar confianza y confirmar encaje"
+
+Mal objeción:
+✗ "Desconocer Alemania" — si el caso tiene una fricción mucho más específica
+✗ Objeción genérica del sector que no viene del input
+
+Mala estructura:
+✗ "Saludo y conexión / Revisar llamada anterior / Resolver objeciones / Cerrar"
+
+Mala apertura:
+✗ "Hola [nombre], ¿cómo te encuentras? Quería hablar sobre..."
+✗ "Me gustaría profundizar en tu interés por la inversión..."
+✗ Cualquier apertura que empezaría cualquier vendedor con cualquier cliente
+✓ BUENA: "De la asesoría anterior me quedó una duda — dijiste que el cashflow te preocupaba, pero no llegamos a ver si tu situación real encaja con el modelo. ¿Puedo preguntarte algo antes de ir a propuesta?"
+✓ BUENA: "Antes de hablar de activos, necesito entender algo: ¿cuál es el escenario que te haría decir que esto no es para ti? Eso me ayuda a darte lo que realmente necesitas hoy."
+
+Mal cierre:
+✗ "Si te parece bien, podemos agendar una próxima llamada"
+✗ "Quedamos en hablar más adelante"
+✗ "Si todo está claro, podemos avanzar a propuesta y fijar una fecha para revisarla juntos"
+✓ BUENO: "Si al terminar esta llamada ves que el modelo cuadra con tu situación, agendamos la propuesta para [esta semana / próxima semana]. Si no, lo cerramos aquí — sin presión."
+✓ BUENO: "Una última pregunta: ¿qué necesitarías ver hoy para decirme que quieres pasar a propuesta? Eso es lo que vamos a resolver."
+
+REGLA ESPECIAL para suggested_opening:
+La apertura DEBE referenciar algo concreto del input o del contexto del caso (una preocupación mencionada, el tipo de evento, la fase en la que están). Si no hay nada específico, usa una apertura que rompa el patrón de saludo-agenda-pregunta genérica. Máximo 2 frases. Sin "¿cómo te encuentras?" ni variantes.
+
+═══ FORMATO — obligatorio ═══
 - No inventes datos del cliente
 - Responde SOLO JSON válido, sin markdown ni texto extra
-- Idioma: español. Tono: directo, táctico, compacto
-- No más de 3 objeciones esperadas
-- No más de 5 errores a evitar
-- No más de 6 pasos en la estructura sugerida`;
+- Idioma: español. Tono: directo, táctico, sin relleno`;
 
-  const userPrompt = `A partir del contexto ya interpretado, genera el briefing táctico de esta llamada.
+  const userPrompt = `Genera el briefing táctico de esta llamada a partir del contexto interpretado y el input original.
+
+Tu trabajo: extraer las señales específicas de este caso y producir un briefing que suene a "este caso" — no a una plantilla.
 
 CONTEXTO INTERPRETADO:
 - Fase detectada: ${interpreted_context.detected_phase}
@@ -2027,35 +2095,40 @@ CONTEXTO INTERPRETADO:
 - Bloqueo principal probable: ${interpreted_context.main_blocker_probable}
 - Outcome válido hoy: ${interpreted_context.valid_outcome_today}
 - Contexto para brief: ${interpreted_context.context_for_brief}
-${raw_input ? `\nINPUT ORIGINAL:\n${raw_input}` : ""}
+${raw_input ? `\nINPUT ORIGINAL (úsalo para extraer señales específicas del caso):\n${raw_input}` : ""}
+
+Antes de generar, responde mentalmente:
+1. ¿Cuál es el freno real más probable de ESTE cliente en ESTA fase? (no el tópico del sector)
+2. ¿Qué haría que esta llamada sea un éxito real hoy?
+3. ¿Qué diría un vendedor mediocre que debes evitar?
 
 Devuelve SOLO este JSON exacto:
 {
-  "real_call_goal": "objetivo comercial real y concreto de esta llamada (1-2 frases)",
-  "must_get_today": ["cosa concreta 1", "cosa concreta 2", "cosa concreta 3"],
+  "real_call_goal": "objetivo comercial concreto de esta llamada — qué se mueve hoy, no el ideal abstracto (1-2 frases)",
+  "must_get_today": ["resultado accionable 1", "resultado accionable 2", "resultado accionable 3"],
   "expected_objections": [
     {
-      "objection": "la objeción probable",
-      "why_likely": "por qué aparecerá en este caso (1 frase)",
-      "how_to_handle": "cómo manejarla tácticamente (1-2 frases, sin discurso)"
+      "objection": "la fricción real probable de ESTE cliente",
+      "why_likely": "por qué aparecerá en este caso concreto — referencia algo del input (1 frase)",
+      "how_to_handle": "cómo manejarla tácticamente, breve y sin discurso (1-2 frases)"
     }
   ],
-  "mistakes_to_avoid": ["error concreto 1", "error concreto 2", "error concreto 3"],
-  "suggested_call_structure": ["paso 1", "paso 2", "paso 3", "paso 4", "paso 5"],
-  "suggested_opening": "apertura natural y útil para esta llamada",
-  "suggested_next_step_close": "frase de cierre orientada al siguiente paso real de esta fase",
-  "brief_for_live": "bloque compacto 4-7 frases listo para VELA live: fase + objetivo real + freno dominante + qué conseguir hoy + siguiente paso esperado"
+  "mistakes_to_avoid": ["error concreto 1 para este caso", "error concreto 2", "error concreto 3"],
+  "suggested_call_structure": ["paso operativo 1", "paso operativo 2", "paso operativo 3", "paso operativo 4", "paso operativo 5"],
+  "suggested_opening": "apertura de máximo 2 frases, natural, referencia algo concreto del caso, usable por vendedor real",
+  "suggested_next_step_close": "frase con el siguiente paso concreto y el criterio de avance — no genérica",
+  "brief_for_live": "4-7 frases compactas: fase real + objetivo concreto + freno dominante + qué conseguir hoy + siguiente paso. Afilado, sin relleno."
 }`;
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
       temperature: 0.3,
-      max_tokens: 900,
+      max_tokens: 1000,
     });
 
     const latencyMs = Date.now() - t0;
