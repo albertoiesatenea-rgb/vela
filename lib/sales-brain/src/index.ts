@@ -1102,6 +1102,7 @@ export interface CopilotBrainContext {
   brainId: string;
   brainLabel: string;
   prebriefRules: Record<Lang, string>;
+  prebriefScriptRules: Record<Lang, string>;
 }
 
 export const COPILOT_BRAINS: Record<string, CopilotBrainContext> = {
@@ -1146,6 +1147,50 @@ Use the most specific call type label from the input — use "follow-up" only if
 Detect what is genuinely decided today (commercial decision, not admin summary).
 What the client knows = their knowledge of the process, model, or call reason — not personal/financial data.
 Single main blocker. Valid outcome by phase. Compact 3-5 sentence context for tactical use.`,
+    },
+    prebriefScriptRules: {
+      es: `BRIEFING TÁCTICO DE LLAMADA — GENERIC BRAIN
+
+Genera un briefing de trabajo corto y operativo. No un resumen bonito — un documento de preparación real.
+
+OBJETIVO REAL: El objetivo comercial concreto de esta llamada según la fase detectada. No el ideal abstracto — el movimiento real posible hoy.
+
+QUÉ CONSEGUIR HOY: 3-5 resultados concretos y verificables que harían que la llamada valiera la pena. No comportamientos, no conversaciones — resultados operativos.
+
+OBJECIONES ESPERADAS: Máximo 3. Para cada una:
+- La objeción más probable en este contexto
+- Por qué aparecerá en este caso concreto (no "en general")
+- Cómo manejarla tácticamente, breve, sin discurso
+
+ERRORES A EVITAR: Máximo 5 errores concretos del vendedor en este caso específico. No errores genéricos de ventas.
+
+ESTRUCTURA SUGERIDA: 4-6 pasos breves y lógicos para esta llamada. Secuencia operativa, no metodología.
+
+APERTURA SUGERIDA: Frase o fórmula de apertura natural y útil. No robótica.
+
+CIERRE DE SIGUIENTE PASO: Una frase orientada al siguiente paso real y alcanzable en esta fase.
+
+BRIEF PARA LIVE: 4-7 frases que integren fase, objetivo real, freno dominante, qué conseguir hoy y siguiente paso esperado. Listo para alimentar a VELA en live sin reescritura.
+
+REGLAS ABSOLUTAS:
+- Sin teoría de ventas
+- Sin texto inflado
+- Sin "depende" salvo que sea imprescindible
+- No inventar datos del cliente
+- Usar el contexto interpretado como fuente principal
+- Tono: directo, táctico, compacto`,
+
+      en: `TACTICAL CALL BRIEFING — GENERIC BRAIN
+
+Generate a short, operational briefing. Not a summary — a real prep document.
+Real goal: concrete commercial objective for this call given the detected phase.
+Must-get-today: 3-5 concrete, verifiable outcomes. Operational results, not behaviors.
+Expected objections: max 3, each with why it will appear and how to handle it tactically.
+Mistakes to avoid: max 5, specific to this case.
+Suggested structure: 4-6 brief steps, logical sequence for this call.
+Suggested opening: natural, useful, not robotic.
+Next step close: one phrase aimed at the realistic next step for this phase.
+Brief for live: 4-7 sentences integrating phase, real goal, main blocker, must-get-today, expected next step. Ready for VELA live.`,
     },
   },
 
@@ -1201,6 +1246,64 @@ Today's decision by phase: Phase 2→confirm fit or move to proposal. Phase 4→
 What client knows = knowledge of Immvest process, financial model, call reason — not personal financial data.
 Single main blocker (cashflow, Germany unfamiliarity, interest rates, trust, Spain comparison).
 Valid outcome by phase. Compact 3-5 sentence context for tactical use.`,
+    },
+    prebriefScriptRules: {
+      es: `BRIEFING TÁCTICO DE LLAMADA — IMMVEST (inversión inmobiliaria en Alemania)
+
+Genera un briefing de trabajo corto y operativo para esta llamada Immvest concreta. Piensa como un comercial senior de Immvest, no como un vendedor genérico.
+
+OBJETIVO REAL POR FASE:
+- Fase 1 (cualificación): filtrar intención real, medir capacidad financiera, decidir si agendar asesoría
+- Fase 2 (asesoría): descubrir motivación patrimonial, posicionar modelo Immvest, decidir si el caso merece propuesta
+- Fase 3 (follow-up): recuperar contexto de asesoría anterior, aislar freno vivo, confirmar intención real
+- Fase 4 (propuesta): resolver objeción dominante sobre el activo, ir a reserva de 1.500€ o concretar siguiente paso con fecha
+
+QUÉ CONSEGUIR HOY: 3-5 resultados concretos verificables según la fase. No "generar confianza" — resultados operativos reales.
+
+OBJECIONES ESPERADAS IMMVEST (máximo 3 para este caso):
+Objeciones habituales del modelo:
+- Cashflow negativo: el cliente no distingue aportación mensual controlada de descapitalizarse. Reencuadre: no compra yield puro, construye patrimonio financiado con renta.
+- Desconocer Alemania: no confía en el criterio de selección ciudad/zona/edificio. Respuesta: explicar el filtro, no defender el mercado en abstracto.
+- Tipos de interés altos: no ve que el diferencial financiero sigue siendo positivo. Respuesta: comparar con alternativa real, no con tipos históricos.
+- Confianza en empresa española: riesgo percibido de confiar activo en extranjero a empresa española. Respuesta: proceso, reserva devuelta, equipo financiero independiente.
+- Comparación con España: sesgo de familiaridad. Respuesta: no atacar España — reencuadrar para qué invertiría y qué consigue mejor aquí o allá.
+Selecciona las 3 más probables para este caso concreto.
+
+ERRORES A EVITAR EN ESTE CASO (máximo 5):
+Errores habituales a detectar:
+- Meter 4+ argumentos antes de entender el criterio real del cliente
+- Responder la objeción aparente sin leer la real (mapa de 4 capas: aparente / real / motivación / movimiento)
+- Empujar propuesta o reserva antes de confirmar encaje en Fase 2
+- Dejar la llamada sin siguiente paso concreto con fecha
+- Comparar rendimientos sin antes reencuadrar el criterio de comparación
+
+ESTRUCTURA SUGERIDA: 4-6 pasos breves y lógicos para esta fase del proceso Immvest.
+
+APERTURA SUGERIDA: Frase de apertura natural que conecte con el motivo real de esta llamada. Directa, sin protocolo corporativo.
+
+CIERRE DE SIGUIENTE PASO: Frase orientada al siguiente paso propio de esta fase Immvest. No vaga — concreta y con fecha implícita o explícita.
+
+BRIEF PARA LIVE: 4-7 frases compactas que integren: fase del proceso Immvest, objetivo real de hoy, freno dominante, qué conseguir hoy y siguiente paso esperado. Listo para alimentar a VELA en live sin reescritura. Táctico, sin humo.
+
+REGLAS ABSOLUTAS:
+- Pensar como Immvest, no como vendedor genérico
+- No empujar cierre prematuro — respetar la fase del proceso
+- No generar guion robot
+- No inventar datos del cliente
+- Usar el contexto interpretado como fuente principal
+- Tono: directo, táctico, sin humo, sin teoría`,
+
+      en: `TACTICAL CALL BRIEFING — IMMVEST (German real estate investment)
+
+Generate a short, operational briefing for this specific Immvest call. Think like a senior Immvest advisor, not a generic salesperson.
+Real goal by phase: Phase 1→filter intent/qualify. Phase 2→discover motivation, position model, decide if case warrants proposal. Phase 3→recover context, isolate blocker, confirm intent. Phase 4→resolve dominant objection, go to 1,500€ reservation or concrete next step.
+Must-get-today: 3-5 operational results, not behaviors.
+Expected Immvest objections (max 3 most likely for this case): negative cashflow, Germany unfamiliarity, interest rates, trust in Spanish company, Spain comparison.
+Mistakes to avoid (max 5): premature proposal push, responding to apparent objection not real one, leaving without concrete next step with date.
+Suggested structure: 4-6 brief steps for this Immvest phase.
+Suggested opening: natural, connects to real call reason.
+Next step close: specific to this Immvest phase, implies date.
+Brief for live: 4-7 compact sentences integrating Immvest phase, real goal, dominant blocker, must-get-today, expected next step. Ready for VELA live.`,
     },
   },
 

@@ -1,0 +1,249 @@
+Quiero construir la FASE 2 del pre-brief de Copiloto en VELA.
+
+Estado actual:
+- Ya existe `/copilot/prebrief-context`
+- Ya existe brain selector (`Immvest` / `Genérico`)
+- Ya existe interpretación inicial del caso
+- Ya existe confirmación del contexto
+- Ya existe `context_for_brief`
+- No quiero tocar todavía DB, histórico, whisper, live ni auditorías
+
+Objetivo:
+Después de confirmar el contexto detectado, VELA debe generar un briefing táctico útil antes de entrar en live.
+No un resumen bonito. Un briefing de trabajo.
+
+NO tocar:
+- live
+- whisper
+- summarize
+- audit-report
+- arena
+- base de datos
+- tracking existente
+- selector de brain ya existente
+- Brain Inspector ya existente
+
+Quiero tocar solo lo necesario para crear la fase 2 del pre-brief:
+- backend en `artifacts/api-server/src/routes/copilot.ts`
+- si hace falta, `lib/sales-brain/src/index.ts`
+- frontend en `artifacts/silent-closer/src/components/context-panel.tsx`
+
+1) NUEVO ENDPOINT
+
+Crear un nuevo endpoint:
+
+`POST /api/copilot/prebrief-script`
+
+Este endpoint debe usar:
+- `getCopilotBrain(brainId)`
+- `gpt-4o-mini`
+- mismo estilo de tracking que los otros endpoints
+
+Input del endpoint:
+{
+  "brainId": "immvest | generic",
+  "raw_input": "string",
+  "interpreted_context": {
+    "detected_phase": "string",
+    "call_type": "string",
+    "today_decision": "string",
+    "what_client_knows": ["string"],
+    "main_blocker_probable": "string",
+    "valid_outcome_today": "string",
+    "confidence": "high|medium|low",
+    "context_for_brief": "string"
+  }
+}
+
+Output exacto:
+{
+  "real_call_goal": "string",
+  "must_get_today": ["string"],
+  "expected_objections": [
+    {
+      "objection": "string",
+      "why_likely": "string",
+      "how_to_handle": "string"
+    }
+  ],
+  "mistakes_to_avoid": ["string"],
+  "suggested_call_structure": ["string"],
+  "suggested_opening": "string",
+  "suggested_next_step_close": "string",
+  "brief_for_live": "string"
+}
+
+2) CALIDAD DEL ENDPOINT
+
+Quiero que este briefing sea táctico y corto.
+
+Reglas:
+- nada de teoría de ventas
+- nada de texto inflado
+- nada de “depende” salvo que sea imprescindible
+- usar el brain activo
+- usar el contexto ya interpretado como fuente principal
+- no inventar datos
+- no mezclar 8 objeciones: máximo 3 objeciones esperadas
+- no generar un guion robot
+- el objetivo es preparar una llamada real
+
+Qué significa cada campo:
+
+- `real_call_goal`
+  = cuál es el objetivo comercial real de ESTA llamada, no el ideal abstracto
+
+- `must_get_today`
+  = 3-5 cosas que el vendedor necesita conseguir hoy para que la llamada haya merecido la pena
+
+- `expected_objections`
+  = máximo 3
+  Cada una con:
+  - objeción probable
+  - por qué probablemente aparecerá en este caso
+  - cómo manejarla tácticamente, sin discurso largo
+
+- `mistakes_to_avoid`
+  = máximo 5 errores concretos del vendedor en este caso
+
+- `suggested_call_structure`
+  = secuencia breve de 4-6 pasos
+  Ejemplo:
+  - abrir y encuadrar
+  - validar objetivo
+  - aislar freno
+  - resolver criterio clave
+  - cerrar siguiente paso
+
+- `suggested_opening`
+  = una apertura útil, natural, no demasiado larga
+
+- `suggested_next_step_close`
+  = una frase de cierre orientada al siguiente paso realista de esa fase
+
+- `brief_for_live`
+  = bloque compacto de contexto táctico listo para pasar a Copiloto live
+  Debe integrar:
+  - fase
+  - objetivo real
+  - freno dominante
+  - qué conseguir hoy
+  - siguiente paso esperado
+  En 4-7 frases máximo
+
+3) USO DEL BRAIN
+
+Quiero que el endpoint use el brain activo de verdad.
+
+Si el brain es `immvest`:
+- debe pensar como Immvest
+- outcome por fase Immvest
+- objeciones tipo Immvest
+- evitar empujar propuesta/cierre demasiado pronto
+- leer casos como Antonio con más finura que “cashflow negativo” genérico
+
+Si el brain es `generic`:
+- briefing útil, limpio y portable
+- sin referencias a Immvest
+
+Si hace falta, en `lib/sales-brain/src/index.ts` añade una nueva propiedad al brain de Copiloto, por ejemplo:
+- `prebriefScriptRules: Record<Lang, string>`
+
+Hazlo limpio.
+No metas otra vez toda la lógica comercial inline en `copilot.ts`.
+
+4) UI EN CONTEXT PANEL
+
+Archivo:
+`artifacts/silent-closer/src/components/context-panel.tsx`
+
+Después de que el usuario confirme el contexto detectado:
+- NO entrar automáticamente a live todavía
+- mostrar un nuevo botón:
+  `Preparar llamada`
+- ese botón llama a `/api/copilot/prebrief-script`
+
+Estados nuevos mínimos:
+- loading del briefing
+- resultado del briefing
+- opcionalmente confirmed/accepted del briefing si hace falta
+
+5) PRESENTACIÓN DEL BRIEFING
+
+Cuando llegue la respuesta, mostrarla debajo del contexto confirmado, con diseño limpio y claro.
+
+Quiero 6 bloques/cards, en este orden:
+
+1. `Objetivo real de la llamada`
+   → `real_call_goal`
+
+2. `Qué tengo que conseguir hoy`
+   → lista de `must_get_today`
+
+3. `Objeciones esperadas`
+   → cards compactas por objeción
+   cada una con:
+   - objeción
+   - por qué probablemente aparece
+   - cómo manejarla
+
+4. `Errores a evitar`
+   → lista de `mistakes_to_avoid`
+
+5. `Estructura sugerida`
+   → lista de `suggested_call_structure`
+
+6. `Script sugerido`
+   → dos subbloques:
+   - Apertura
+   - Cierre / siguiente paso
+
+No quiero una pared de texto.
+Quiero algo legible y operativo.
+
+6) HANDOFF A LIVE
+
+El botón principal `Iniciar copiloto` debe seguir funcionando.
+
+Pero ahora:
+- si existe briefing fase 2, el texto que se manda a live debe ser `brief_for_live`
+- si no existe briefing fase 2 pero sí contexto confirmado, usar `context_for_brief`
+- si no existe nada confirmado, usar el texto bruto del textarea como ahora
+
+No rompas el flujo actual.
+Solo mejora la prioridad del contexto que se envía.
+
+Prioridad final:
+1. `brief_for_live`
+2. `context_for_brief`
+3. `quickText`
+
+7) UX
+
+Quiero UX honesta:
+- botón `Preparar llamada`
+- loading tipo:
+  `VELA está preparando tu llamada…`
+- cuando llegue el briefing, mostrarlo claramente
+- nada recargado
+- nada de editor todavía
+- nada de guardar todavía
+
+8) TRACKING
+
+Añade `logAICall` al nuevo endpoint con:
+- route: `copilot/prebrief-script`
+- endpoint: `prebrief-script`
+
+Si es fácil, añade una nota con el brain usado.
+Si complica tipos, no fuerces.
+
+9) VERIFICACIÓN
+
+Cuando termines:
+- enséñame el nuevo endpoint completo
+- enséñame cómo compusiste el prompt con el brain activo
+- enséñame la parte de `context-panel.tsx` donde aparece el botón `Preparar llamada`
+- enséñame cómo queda la prioridad final del submit (`brief_for_live > context_for_brief > quickText`)
+- prueba el caso de Antonio con brain `immvest`
+- dime exactamente qué archivos tocaste

@@ -43,6 +43,17 @@ interface PrebriefResult {
   context_for_brief: string;
 }
 
+interface PrebriefScript {
+  real_call_goal: string;
+  must_get_today: string[];
+  expected_objections: { objection: string; why_likely: string; how_to_handle: string }[];
+  mistakes_to_avoid: string[];
+  suggested_call_structure: string[];
+  suggested_opening: string;
+  suggested_next_step_close: string;
+  brief_for_live: string;
+}
+
 // ── VELA mark: triangular sail + two internal diagonal cuts ───────────────────
 // NO mask approach — explicit fill polygon + cut lines drawn on top.
 //
@@ -1006,6 +1017,8 @@ export function ContextSetup({
   const [prebriefEdit,      setPrebriefEdit]       = useState<PrebriefResult | null>(null);
   const [activeBrainId,     setActiveBrainId]     = useState<"generic" | "immvest">("immvest");
   const [prebriefBrainId,   setPrebriefBrainId]   = useState<"generic" | "immvest" | null>(null);
+  const [briefingResult,    setBriefingResult]    = useState<PrebriefScript | null>(null);
+  const [briefingLoading,   setBriefingLoading]   = useState(false);
   const [showBrainDropdown, setShowBrainDropdown] = useState(false);
   const [showBrainInspector, setShowBrainInspector] = useState(false);
   const [fullRulesOpen, setFullRulesOpen] = useState(false);
@@ -1163,6 +1176,31 @@ export function ContextSetup({
     if (prebriefEdit) setPrebriefResult({ ...prebriefEdit });
     setPrebriefConfirmed(true);
     setPrebriefEditing(false);
+    setBriefingResult(null);
+  };
+
+  const handlePrepareCall = async () => {
+    if (!prebriefResult) return;
+    setBriefingLoading(true);
+    setBriefingResult(null);
+    try {
+      const res = await fetch("/api/copilot/prebrief-script", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          brainId: prebriefBrainId ?? activeBrainId,
+          raw_input: quickText,
+          interpreted_context: prebriefResult,
+        }),
+      });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json() as PrebriefScript;
+      setBriefingResult(data);
+    } catch {
+      // no-op — user can retry
+    } finally {
+      setBriefingLoading(false);
+    }
   };
 
   const ctaLabel = appMode === "arena" ? t.START_ARENA : t.START;
@@ -1633,9 +1671,18 @@ export function ContextSetup({
                         )}
                       </div>
                     ) : (
-                      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-teal-950/40 border border-teal-800/50">
-                        <span className="w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0" />
-                        <span className="text-[10px] font-mono text-teal-400 tracking-widest uppercase">Contexto confirmado</span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-teal-950/40 border border-teal-800/50">
+                          <span className="w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0" />
+                          <span className="text-[10px] font-mono text-teal-400 tracking-widest uppercase">Contexto confirmado</span>
+                        </div>
+                        <button
+                          onMouseDown={e => e.preventDefault()}
+                          onClick={() => { setPrebriefConfirmed(false); setBriefingResult(null); }}
+                          className="text-[10px] font-mono text-zinc-600 hover:text-zinc-400 transition-colors"
+                        >
+                          Reinterpretar
+                        </button>
                       </div>
                     )}
                   </div>
@@ -1643,9 +1690,129 @@ export function ContextSetup({
               </>
             )}
 
+            {/* ── Fase 2: botón "Preparar llamada" + briefing ──────────────── */}
+            {appMode === "copilot" && prebriefConfirmed && prebriefResult && (
+              <div className="flex flex-col gap-3">
+
+                {/* Botón Preparar llamada */}
+                {!briefingResult && (
+                  <button
+                    onMouseDown={e => e.preventDefault()}
+                    onClick={handlePrepareCall}
+                    disabled={briefingLoading}
+                    className="w-full border border-zinc-700 text-zinc-200 text-[12px] font-mono font-semibold py-2.5 rounded-xl hover:border-zinc-500 hover:text-white active:scale-[0.98] transition-all disabled:opacity-40 disabled:pointer-events-none"
+                  >
+                    {briefingLoading ? "VELA está preparando tu llamada…" : "Preparar llamada"}
+                  </button>
+                )}
+
+                {/* Briefing de 6 bloques */}
+                {briefingResult && (
+                  <div className="flex flex-col gap-3">
+
+                    {/* Badge de fase 2 */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-700">
+                        <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 shrink-0" />
+                        <span className="text-[10px] font-mono text-zinc-400 tracking-widest uppercase">Briefing listo</span>
+                      </div>
+                      <button
+                        onMouseDown={e => e.preventDefault()}
+                        onClick={handlePrepareCall}
+                        disabled={briefingLoading}
+                        className="text-[10px] font-mono text-zinc-600 hover:text-zinc-400 transition-colors disabled:opacity-40"
+                      >
+                        {briefingLoading ? "Generando…" : "Regenerar"}
+                      </button>
+                    </div>
+
+                    {/* Bloque 1 — Objetivo real */}
+                    <div className="rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 flex flex-col gap-1.5">
+                      <span className="text-[9px] font-mono tracking-[0.22em] uppercase text-zinc-500">Objetivo real de la llamada</span>
+                      <p className="text-[12px] font-mono text-zinc-200 leading-relaxed">{briefingResult.real_call_goal}</p>
+                    </div>
+
+                    {/* Bloque 2 — Qué conseguir hoy */}
+                    <div className="rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 flex flex-col gap-2">
+                      <span className="text-[9px] font-mono tracking-[0.22em] uppercase text-zinc-500">Qué tengo que conseguir hoy</span>
+                      <ul className="flex flex-col gap-1.5">
+                        {briefingResult.must_get_today.map((item, i) => (
+                          <li key={i} className="flex items-start gap-2">
+                            <span className="text-[10px] font-mono text-zinc-600 shrink-0 mt-[1px]">{i + 1}.</span>
+                            <span className="text-[12px] font-mono text-zinc-300 leading-relaxed">{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    {/* Bloque 3 — Objeciones esperadas */}
+                    <div className="rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 flex flex-col gap-2.5">
+                      <span className="text-[9px] font-mono tracking-[0.22em] uppercase text-zinc-500">Objeciones esperadas</span>
+                      <div className="flex flex-col gap-2.5">
+                        {briefingResult.expected_objections.map((obj, i) => (
+                          <div key={i} className="flex flex-col gap-1 pl-3 border-l border-zinc-700">
+                            <span className="text-[11px] font-mono font-semibold text-zinc-200">{obj.objection}</span>
+                            <span className="text-[10px] font-mono text-zinc-500 leading-snug">Por qué: {obj.why_likely}</span>
+                            <span className="text-[10px] font-mono text-zinc-400 leading-snug">Cómo: {obj.how_to_handle}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Bloque 4 — Errores a evitar */}
+                    <div className="rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 flex flex-col gap-2">
+                      <span className="text-[9px] font-mono tracking-[0.22em] uppercase text-zinc-500">Errores a evitar</span>
+                      <ul className="flex flex-col gap-1.5">
+                        {briefingResult.mistakes_to_avoid.map((m, i) => (
+                          <li key={i} className="flex items-start gap-2">
+                            <span className="text-[10px] font-mono text-zinc-700 shrink-0 mt-[1px]">✕</span>
+                            <span className="text-[12px] font-mono text-zinc-400 leading-relaxed">{m}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    {/* Bloque 5 — Estructura sugerida */}
+                    <div className="rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 flex flex-col gap-2">
+                      <span className="text-[9px] font-mono tracking-[0.22em] uppercase text-zinc-500">Estructura sugerida</span>
+                      <ol className="flex flex-col gap-1.5">
+                        {briefingResult.suggested_call_structure.map((step, i) => (
+                          <li key={i} className="flex items-start gap-2">
+                            <span className="text-[10px] font-mono text-zinc-600 shrink-0 mt-[1px] w-4">{i + 1}.</span>
+                            <span className="text-[12px] font-mono text-zinc-300 leading-relaxed">{step}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+
+                    {/* Bloque 6 — Script sugerido (apertura + cierre) */}
+                    <div className="rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 flex flex-col gap-3">
+                      <span className="text-[9px] font-mono tracking-[0.22em] uppercase text-zinc-500">Script sugerido</span>
+                      <div className="flex flex-col gap-2">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[9px] font-mono tracking-widest uppercase text-zinc-600">Apertura</span>
+                          <p className="text-[12px] font-mono text-zinc-300 leading-relaxed italic">"{briefingResult.suggested_opening}"</p>
+                        </div>
+                        <div className="h-px bg-zinc-800" />
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[9px] font-mono tracking-widest uppercase text-zinc-600">Cierre / siguiente paso</span>
+                          <p className="text-[12px] font-mono text-zinc-300 leading-relaxed italic">"{briefingResult.suggested_next_step_close}"</p>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* CTA */}
             <button
-              onClick={() => handleSubmit(prebriefConfirmed && prebriefResult ? prebriefResult.context_for_brief : quickText)}
+              onClick={() => handleSubmit(
+                briefingResult?.brief_for_live
+                  || (prebriefConfirmed && prebriefResult ? prebriefResult.context_for_brief : "")
+                  || quickText
+              )}
               disabled={(appMode === "arena" && !quickText.trim()) || isGeneratingCtx}
               className="w-full bg-white text-black text-sm font-mono font-bold py-3.5 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all disabled:opacity-40 disabled:pointer-events-none"
             >

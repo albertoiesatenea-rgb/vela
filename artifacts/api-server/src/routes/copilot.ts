@@ -1980,4 +1980,122 @@ ${raw_input}${has_asset ? "\n[El cliente tiene propuesta/documentación]" : ""}$
   }
 });
 
+// ── PRE-BRIEF SCRIPT (FASE 2) ─────────────────────────────────────────────────
+router.post("/copilot/prebrief-script", async (req, res) => {
+  const { brainId, raw_input, interpreted_context } = req.body as {
+    brainId?: string;
+    raw_input?: string;
+    interpreted_context: {
+      detected_phase: string;
+      call_type: string;
+      today_decision: string;
+      what_client_knows: string[];
+      main_blocker_probable: string;
+      valid_outcome_today: string;
+      confidence: string;
+      context_for_brief: string;
+    };
+  };
+
+  if (!interpreted_context?.detected_phase) {
+    res.status(400).json({ error: "interpreted_context required" });
+    return;
+  }
+
+  const t0 = Date.now();
+  const brain = getCopilotBrain(brainId);
+
+  const systemPrompt = `Eres un preparador táctico de llamadas de ventas. Tu trabajo es generar un briefing de trabajo corto, operativo y directo para que el vendedor entre en la llamada preparado de verdad.
+
+${brain.prebriefScriptRules.es}
+
+REGLAS DE FORMATO — obligatorias:
+- No inventes datos del cliente
+- Responde SOLO JSON válido, sin markdown ni texto extra
+- Idioma: español. Tono: directo, táctico, compacto
+- No más de 3 objeciones esperadas
+- No más de 5 errores a evitar
+- No más de 6 pasos en la estructura sugerida`;
+
+  const userPrompt = `A partir del contexto ya interpretado, genera el briefing táctico de esta llamada.
+
+CONTEXTO INTERPRETADO:
+- Fase detectada: ${interpreted_context.detected_phase}
+- Tipo de llamada: ${interpreted_context.call_type}
+- Qué se decide hoy: ${interpreted_context.today_decision}
+- Qué sabe el cliente: ${interpreted_context.what_client_knows.join(" / ")}
+- Bloqueo principal probable: ${interpreted_context.main_blocker_probable}
+- Outcome válido hoy: ${interpreted_context.valid_outcome_today}
+- Contexto para brief: ${interpreted_context.context_for_brief}
+${raw_input ? `\nINPUT ORIGINAL:\n${raw_input}` : ""}
+
+Devuelve SOLO este JSON exacto:
+{
+  "real_call_goal": "objetivo comercial real y concreto de esta llamada (1-2 frases)",
+  "must_get_today": ["cosa concreta 1", "cosa concreta 2", "cosa concreta 3"],
+  "expected_objections": [
+    {
+      "objection": "la objeción probable",
+      "why_likely": "por qué aparecerá en este caso (1 frase)",
+      "how_to_handle": "cómo manejarla tácticamente (1-2 frases, sin discurso)"
+    }
+  ],
+  "mistakes_to_avoid": ["error concreto 1", "error concreto 2", "error concreto 3"],
+  "suggested_call_structure": ["paso 1", "paso 2", "paso 3", "paso 4", "paso 5"],
+  "suggested_opening": "apertura natural y útil para esta llamada",
+  "suggested_next_step_close": "frase de cierre orientada al siguiente paso real de esta fase",
+  "brief_for_live": "bloque compacto 4-7 frases listo para VELA live: fase + objetivo real + freno dominante + qué conseguir hoy + siguiente paso esperado"
+}`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.3,
+      max_tokens: 900,
+    });
+
+    const latencyMs = Date.now() - t0;
+    logAICall({
+      route: "copilot/prebrief-script",
+      endpoint: "prebrief-script",
+      mode: "copilot",
+      model: "gpt-4o-mini",
+      maxTokensConfigured: 900,
+      promptTokens: completion.usage?.prompt_tokens ?? 0,
+      completionTokens: completion.usage?.completion_tokens ?? 0,
+      totalTokens: completion.usage?.total_tokens ?? 0,
+      latencyMs,
+      status: "ok",
+    });
+
+    const raw = completion.choices[0]?.message?.content ?? "{}";
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
+    }
+    res.json(parsed);
+  } catch (err: unknown) {
+    req.log?.error(err, "[vela:prebrief-script] error");
+    logAICall({
+      route: "copilot/prebrief-script",
+      endpoint: "prebrief-script",
+      mode: "copilot",
+      model: "gpt-4o-mini",
+      maxTokensConfigured: 900,
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      latencyMs: Date.now() - t0,
+      status: "error",
+    });
+    res.status(500).json({ error: "prebrief-script failed" });
+  }
+});
+
 export default router;
