@@ -1,0 +1,169 @@
+Partimos del estado ACTUAL del proyecto. NO rehagas la feature. NO toques UI. NO cambies shapes JSON. Quiero un parche fino para corregir un sobreajuste detectado tras el patch de Antonio.
+
+PROBLEMA DETECTADO
+El parche “comprador real + checkpoint estructural” ha mejorado Antonio, pero ha sobreajustado casos tipo Lara.
+
+En Lara, el sistema ha leído como freno dominante:
+- inversión conjunta con pareja
+- solo un miembro trabaja en Alemania
+- viabilidad estructural antes de propuesta
+
+Y eso es incorrecto como lectura principal.
+
+En el caso real de Lara, el eje dominante era:
+- comparar inmobiliario alemán vs ETFs / otras opciones
+- ordenar criterio de decisión
+- decidir qué tipo de operación tendría sentido
+- break-even / tranquilidad mensual vs liquidez / apalancamiento
+
+La estructura conjunta con la pareja es contexto relevante, pero NO el freno dominante principal.
+
+OBJETIVO
+Quiero que el sistema aprenda a distinguir entre:
+A) señal estructural importante
+B) freno dominante real de la llamada
+
+Regla nueva:
+Si hay señales estructurales, pero el input muestra con más fuerza un criterio vivo de decisión (comparación, preferencia de diseño financiero, break-even, liquidez, tranquilidad mensual, esfuerzo mensual, apalancamiento, etc.), entonces el sistema debe priorizar ese criterio vivo como:
+- today_decision
+- main_blocker_probable
+- valid_outcome_today
+- real_call_goal
+- must_get_today
+- expected_objections
+- brief_for_live
+
+La señal estructural puede quedar como:
+- special_context_flags
+- decision_constraints
+- riesgo secundario
+pero NO como eje principal si no es lo que realmente está decidiendo el cliente.
+
+ARCHIVOS A TOCAR
+1) lib/sales-brain/src/index.ts
+2) artifacts/api-server/src/routes/copilot.ts
+
+NO TOCAR
+- frontend
+- otros endpoints
+- JSON shape
+- nombres de campos
+- logs
+
+CAMBIO DE LÓGICA QUE QUIERO
+
+A) NUEVA JERARQUÍA: FRENO DOMINANTE VS CONTEXTO ESTRUCTURAL
+Añadir una regla explícita en el brain Immvest y en los prompts locales:
+
+Orden de prioridad para detectar el freno dominante:
+1. Lo que el cliente está intentando decidir de verdad en esta llamada
+   - comparación entre alternativas
+   - criterio de diseño de la operación
+   - preferencia por break-even, liquidez, tranquilidad mensual, apalancamiento, cashflow
+   - necesidad de claridad para decidir
+2. Restricción estructural que impide avanzar aunque el criterio esté claro
+3. Stage / CRM
+4. Objeciones típicas del sector
+
+Importante:
+No porque una señal estructural exista significa que sea el bloqueo dominante.
+Primero pregunta: “¿qué está intentando decidir realmente esta persona hoy?”
+
+B) REGLA ESPECÍFICA PARA CASOS TIPO LARA
+Cuando el input contenga cosas como:
+- compara inmobiliario con ETFs / otras opciones
+- quiere claridad para decidir
+- pregunta cuánto capital tendría que poner
+- prioriza que no le salga dinero todos los meses
+- quiere una operación más tranquila o cercana al break-even
+- habla de liquidez vs tranquilidad mensual
+ENTONCES:
+- today_decision debe formularse como decisión de criterio y diseño de operación
+- main_blocker_probable debe centrarse en encaje financiero / diseño de operación / criterio de capital
+- valid_outcome_today debe ser claridad suficiente para decidir si merece propuesta
+- NO convertir la señal “compra con su pareja / solo uno trabaja en Alemania” en el eje principal salvo que el input diga explícitamente que esa es la preocupación dominante del cliente
+
+C) USO CORRECTO DE SEÑALES ESTRUCTURALES
+Si el caso contiene datos como:
+- inversión conjunta con pareja
+- solo uno trabaja en Alemania
+- situación documental o financiera particular
+pero el cliente está decidiendo otra cosa de forma más clara,
+entonces esas señales deben ir preferentemente a:
+- special_context_flags
+- decision_constraints
+- case_specific_risks
+y no desplazar el bloqueo real.
+
+Ejemplo de Lara:
+Correcto:
+- main_blocker_probable: “Necesita ver si el modelo le compensa frente a ETFs y qué nivel de entrada/cashflow mensual le deja tranquila”
+- special_context_flags: “inversión conjunta con pareja”, “solo uno trabaja en Alemania”
+Incorrecto:
+- main_blocker_probable: “Encaje estructural de inversión conjunta con pareja donde solo uno trabaja en Alemania”
+
+D) PREBRIEF-SCRIPT — NO CONVERTIR CONTEXTO SECUNDARIO EN OBJETIVO CENTRAL
+En el briefing, si el caso es tipo Lara:
+- real_call_goal NO debe sonar a “confirmar viabilidad estructural”
+- debe sonar a “ordenar criterio y diseño financiero antes de decidir si pasar a propuesta”
+- must_get_today debe priorizar:
+  1. decidir si inmobiliario alemán gana a la alternativa
+  2. aislar si prioriza break-even o liquidez
+  3. aterrizar cuánto capital pondrían de verdad
+  4. decidir si merece propuesta
+- expected_objections debe reflejar:
+  - alquiler bajo / interés alto
+  - cuánto capital poner
+  - esfuerzo mensual
+  - comparación con ETFs
+- suggested_opening debe atacar el criterio vivo del caso, no la estructura secundaria
+- suggested_next_step_close debe cerrar una decisión sobre propuesta sí/no con ese criterio, no un pseudo-checkpoint estructural
+
+E) ANTI-SOBREAJUSTE DE ANTONIO
+Mantén la lógica de Antonio para casos donde de verdad haya:
+- comprador real
+- señal estructural fuerte
+- y esa señal estructural SÍ sea el freno dominante real
+
+Pero añade esta condición:
+Antes de activar el modo “checkpoint estructural dominante”, el sistema debe verificar si el input contiene una decisión más viva y más explícita del cliente.
+Si la contiene, esa decisión manda.
+
+F) EJEMPLO MENTAL OBLIGATORIO — CASO LARA
+Usa este patrón como test mental:
+- Fase 2 asesoría
+- FC recibido
+- capital
+- ya tiene inmueble
+- vive en Alemania
+- valora acompañamiento
+- compara con ETFs
+- quiere claridad
+- criterio vivo: cuánto capital poner y cuánto le saldría al mes
+- prefiere operación tranquila / cercana al break-even
+
+Output correcto:
+- Fase 2
+- no closing meeting
+- no propuesta real
+- no checkpoint estructural como bloqueo dominante
+- sí criterio financiero / diseño de operación / break-even vs liquidez como eje central
+
+Output incorrecto:
+- “validar viabilidad estructural conjunta antes de propuesta”
+- “solo uno trabaja en Alemania” como freno dominante
+- briefing centrado en estructura conjunta en vez de criterio financiero
+
+IMPLEMENTACIÓN
+1. Refuerza prebriefRules del brain Immvest en lib/sales-brain/src/index.ts
+2. Refuerza prebriefScriptRules del brain Immvest en lib/sales-brain/src/index.ts
+3. Refuerza systemPrompt / userPrompt / guardrails locales en artifacts/api-server/src/routes/copilot.ts
+4. NO cambies el JSON
+5. NO añadas campos nuevos
+
+ENTREGA
+Cuando termines, devuélveme solo:
+1) archivos tocados
+2) resumen corto de la lógica nueva
+3) ANTES vs DESPUÉS para Lara
+4) confirmación explícita de que NO cambiaste el JSON

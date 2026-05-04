@@ -1278,8 +1278,41 @@ Si aparece un decisor secundario explícito (pareja/socio) Y una duda concreta s
   2. Tratar la salida futura o el horizonte como objeción menor o secundaria cuando es el freno técnico dominante
   3. Responder sobre la decisión sin aislar si la pareja decide o solo valida
 
+JERARQUÍA OBLIGATORIA PARA IDENTIFICAR EL FRENO DOMINANTE:
+Antes de etiquetar main_blocker_probable, responde esta pregunta primero:
+"¿Qué está intentando decidir de verdad esta persona en esta llamada?"
+
+Orden de prioridad:
+1. CRITERIO VIVO DE DECISIÓN — lo que el cliente está comparando, evaluando o necesita ordenar para decidir:
+   - comparación entre alternativas (inmobiliario vs ETFs, España vs Alemania, cashflow vs capital)
+   - criterio de diseño de la operación (cuánto capital poner, break-even, esfuerzo mensual, liquidez)
+   - preferencia de perfil financiero (tranquilidad mensual, apalancamiento, cashflow, horizonte)
+   - necesidad de claridad para decidir si el modelo aplica a su caso
+2. RESTRICCIÓN ESTRUCTURAL que impide avanzar aunque el criterio ya esté claro
+   (transfronterizo, permanencia, fiscal, documental, score)
+3. Stage / CRM
+4. Objeción típica del sector
+
+REGLA CRÍTICA — señal estructural ≠ freno dominante automático:
+Una señal estructural en el input (pareja, uno trabaja en Alemania, situación transfronteriza, documental) NO convierte esa señal en el main_blocker_probable por defecto.
+Si el cliente está claramente decidiendo algo más concreto y vivo (criterio financiero, diseño, comparación de alternativas), ESO es el freno dominante.
+La señal estructural debe ir a special_context_flags / decision_constraints / case_specific_risks — NO a main_blocker_probable.
+
+Señales de CRITERIO VIVO que priorizan sobre estructura:
+- compara inmobiliario vs ETFs / renta variable / depósitos
+- pregunta cuánto capital pondrían de verdad
+- habla de esfuerzo mensual / tranquilidad / break-even como criterio
+- distingue entre liquidez y rentabilidad para decidir
+- necesita ordenar preferencia antes de decidir si el modelo aplica
+- habla de apalancamiento, cashflow, patrimonio como ejes de decisión activos
+
 REGLA COMPRADOR REAL + CHECKPOINT ESTRUCTURAL:
-Cuando el input contiene señales combinadas de "intención real alta" + "restricción estructural", la lectura táctica cambia por completo — NO es un caso de discovery blando.
+CONDICIÓN DE ACTIVACIÓN — solo activa este modo si se cumplen las dos condiciones:
+  a) El input tiene 2+ señales de intención real alta (FC recibido, ingresos sólidos, entrada disponible, largo plazo, ya invierte)
+  b) La restricción estructural ES el freno dominante — es decir, el input NO contiene señales más vivas de criterio financiero o diseño de operación (señales de la lista anterior)
+Si el input contiene criterio vivo de decisión, ese criterio manda — el checkpoint estructural queda como contexto secundario.
+
+Cuando el input contiene señales de "intención real alta" + "restricción estructural" Y esa restricción sí es el freno principal, la lectura táctica cambia — NO es un caso de discovery blando.
 
 Señales de comprador real / intención alta (no turista):
 - FC recibido / finance check completado / financeable confirmado
@@ -1289,7 +1322,7 @@ Señales de comprador real / intención alta (no turista):
 - Ya tiene inmuebles o ya invierte en activos
 - Menciona plazo razonable de compra o necesidad de actuar en plazo concreto
 
-Si el input tiene 2 o más señales de intención real COMBINADAS con una señal estructural fuerte (transfronterizo / permanencia limitada / fiscal/laboral compleja / documentación condicionante / score no confirmado), entonces:
+Si el input tiene 2 o más señales de intención real COMBINADAS con una señal estructural fuerte (transfronterizo / permanencia limitada / fiscal/laboral compleja / documentación condicionante / score no confirmado) Y no hay criterio vivo de decisión más explícito, entonces:
 
 today_decision — formular como checkpoint, NO como exploración:
   · CORRECTO: "Confirmar si el caso supera el checkpoint estructural para avanzar a propuesta"
@@ -1311,6 +1344,33 @@ case_specific_risks — cuando hay comprador real + restricción estructural, PR
   2. Entrar en modelo o simulación financiera antes de validar el checkpoint estructural
   3. Pasar a propuesta antes de confirmar viabilidad documental / financiera / laboral
   4. Cerrar la llamada con seguimiento blando en vez de checkpoint + fecha concreta
+
+REGLA CRITERIO VIVO — DISEÑO FINANCIERO Y COMPARACIÓN DE ALTERNATIVAS (casos tipo Lara, Fase 2):
+Cuando el input contiene señales de criterio de decisión activo (comparación con ETFs / diseño de operación / break-even / esfuerzo mensual / liquidez / cuánto capital poner), AUNQUE también existan señales estructurales secundarias:
+
+today_decision — formular como decisión de criterio, NO como checkpoint estructural:
+  · CORRECTO: "Ordenar el criterio financiero (break-even vs liquidez) y decidir si el modelo cuadra con lo que busca"
+  · CORRECTO: "Aislar si prioriza capital, cashflow mensual o tranquilidad para decidir si el modelo merece propuesta"
+  · PROHIBIDO: "validar viabilidad estructural antes de propuesta" si el criterio vivo es el eje real
+
+main_blocker_probable — centrarse en el criterio vivo, no en la señal estructural secundaria:
+  · CORRECTO: "Necesita ver si el modelo le compensa frente a ETFs y qué nivel de entrada/cashflow mensual le deja tranquila"
+  · CORRECTO: "No tiene claro si prioriza break-even, liquidez o apalancamiento para decidir si el modelo encaja"
+  · PROHIBIDO: convertir "inversión conjunta con pareja" o "solo uno trabaja en Alemania" en el eje principal si no es lo que el cliente está decidiendo de forma dominante
+
+valid_outcome_today:
+  · CORRECTO: "Claridad suficiente sobre el criterio (break-even / capital / tranquilidad) para decidir si merece propuesta"
+  · CORRECTO: "Ordenar preferencia entre liquidez y cashflow mensual + decidir si propuesta sí/no"
+
+Uso correcto de señales estructurales secundarias en este patrón:
+  · "Inversión conjunta con pareja" → special_context_flags, no main_blocker_probable
+  · "Solo un miembro trabaja en Alemania" → decision_constraints o case_specific_risks
+  · Si aparecen en el contexto, mencionarlas como contexto relevante — pero sin desplazar el criterio vivo
+
+case_specific_risks en el patrón Lara:
+  1. Tratar la señal estructural como bloqueo dominante cuando el cliente está decidiendo algo más financiero
+  2. Entrar en checkpoint documental/laboral antes de ordenar el criterio de decisión del cliente
+  3. Saltar a propuesta sin resolver el criterio de diseño (break-even, capital, esfuerzo mensual)
 
 CONTEXTO PARA VELA: Resumen compacto (3-5 frases). Debe arrastrar explícitamente las restricciones y riesgos estructurales del caso si existen. No tritures el CRM. Táctico, directo, sin humo ni teoría.`,
 
@@ -1451,6 +1511,42 @@ ANTI-PLANTILLA ABSOLUTA — PROHIBIDO en cualquier campo cuando hay comprador re
   · "explicar el modelo y luego ver"
   · "resolver dudas generales antes de avanzar"
   · "explorar el interés" / "explorar el encaje"
+
+REGLA CRITERIO VIVO EN SCRIPT — DISEÑO FINANCIERO Y COMPARACIÓN (casos tipo Lara):
+Detecta este patrón: el contexto interpretado o el input contiene señales de comparación activa / diseño de operación / break-even / liquidez / esfuerzo mensual, aunque también aparezcan señales estructurales secundarias.
+
+Si el patrón se activa:
+
+real_call_goal — NO sonar a "confirmar viabilidad estructural". Formulación correcta:
+  · "Ordenar el criterio financiero del cliente (break-even vs liquidez vs capital) y decidir si el modelo merece propuesta con ese criterio"
+  · "Aislar qué prioriza de verdad (tranquilidad mensual, capital, rentabilidad) y decidir si inmobiliario alemán gana a la alternativa"
+
+must_get_today — prioridad en este patrón:
+  1. Decidir si inmobiliario alemán gana a la alternativa del cliente (ETFs, depósitos, España, renta variable)
+  2. Aislar si prioriza break-even, liquidez o tranquilidad mensual como criterio dominante
+  3. Aterrizar cuánto capital pondrían de verdad y qué esfuerzo mensual es aceptable
+  4. Decidir si merece propuesta con ese criterio ya ordenado
+
+expected_objections — en este patrón deben reflejar el criterio vivo, NO la señal estructural:
+  · esfuerzo mensual / aportación mensual vs alternativa
+  · cuánto capital habría que poner de entrada
+  · comparación break-even vs ETFs / renta variable
+  · Prohibido: elevar "inversión conjunta con pareja" o "situación laboral" como objeción principal si el cliente está decidiendo criterio financiero
+
+mistakes_to_avoid — para este patrón:
+  1. Convertir la señal estructural secundaria en el eje central del briefing
+  2. Entrar en checkpoint documental/laboral antes de ordenar el criterio de decisión
+  3. Saltar a propuesta sin resolver el criterio de diseño (break-even, capital, esfuerzo mensual)
+  4. Usar apertura orientada a estructura cuando el cliente quiere ordenar criterio financiero
+
+suggested_opening — atacar el criterio vivo, no la estructura secundaria:
+  · BUENA: "[Nombre], antes de ver números concretos quiero entender una cosa: ¿lo que te frena ahora mismo es cuánto capital tendrías que poner, cuánto te saldría al mes, o si esto gana a los ETFs que ya tienes?"
+  · BUENA: "De la asesoría me quedó claro que el punto es si esto compensa frente a lo que ya haces — ¿podemos aislar eso primero antes de ir a propuesta?"
+  · MALA: "Quiero entender bien la situación de tu pareja y cómo lo haríais conjuntamente"
+
+suggested_next_step_close — cerrar decisión sobre propuesta sí/no con el criterio ordenado:
+  · CORRECTO: "Si al terminar esta llamada ves que el break-even o el esfuerzo mensual cuadra con lo que buscas, agendamos propuesta esta semana."
+  · PROHIBIDO: "si confirmamos la viabilidad estructural conjunta, agendamos propuesta"
 
 REGLA GENERAL — CONSERVACIÓN DE FRENO COMPUESTO:
 Si main_blocker_probable contiene dos elementos tácticos distintos (ejemplos: "decisor ausente + salida futura", "permanencia limitada + complejidad transfronteriza", "renta baja + contrato antiguo"), estos cinco campos DEBEN reflejar AMBOS elementos:

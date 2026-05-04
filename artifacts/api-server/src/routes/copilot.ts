@@ -1977,6 +1977,47 @@ Lectura INCORRECTA para este mismo input:
 ✗ context_for_brief: "Cliente interesado en inversión inmobiliaria en Alemania, con dudas sobre el modelo"
 ✗ case_specific_risks: ["cashflow negativo", "desconocer Alemania"] — estos no son el freno real
 
+═══ GUARDRAIL ANTI-SOBREAJUSTE — jerarquía freno dominante vs señal estructural ═══
+Antes de etiquetar main_blocker_probable, responde esta pregunta: "¿Qué está intentando decidir de verdad esta persona en esta llamada?"
+
+ORDEN DE PRIORIDAD para identificar el freno dominante:
+  1. CRITERIO VIVO DE DECISIÓN (manda sobre estructura si está presente):
+     - comparación entre alternativas (inmobiliario vs ETFs, España vs Alemania)
+     - criterio de diseño de operación (break-even, esfuerzo mensual, liquidez, cuánto capital poner)
+     - preferencia de perfil financiero (tranquilidad mensual, apalancamiento, cashflow)
+     - necesidad de ordenar criterio para decidir si el modelo aplica
+  2. Restricción estructural que impide avanzar aunque el criterio esté claro
+  3. Stage / CRM
+  4. Objeción típica del sector
+
+REGLA: Una señal estructural (pareja, uno trabaja en Alemania, situación transfronteriza) NO es el main_blocker_probable por defecto. Si el cliente está comparando o diseñando criterio financiero de forma más explícita, ESO es el freno dominante. La señal estructural va a special_context_flags / decision_constraints / case_specific_risks.
+
+═══ GUARDRAIL CRITERIO VIVO — casos tipo Lara (Fase 2, criterio financiero activo) ═══
+Detecta: ¿el input contiene señales de comparación activa o diseño financiero (ETFs, break-even, esfuerzo mensual, cuánto capital, liquidez vs tranquilidad), aunque también aparezcan señales estructurales?
+
+Si SÍ → aplica OBLIGATORIAMENTE:
+  · main_blocker_probable: centrarse en el criterio vivo (break-even, liquidez, capital, ETFs), NO en la señal estructural secundaria
+  · today_decision: formulación de criterio/diseño ("ordenar criterio financiero y decidir si merece propuesta"), NO de checkpoint estructural
+  · valid_outcome_today: claridad de criterio suficiente para decidir si propuesta sí/no
+  · Señal "inversión conjunta con pareja" o "solo uno trabaja en Alemania" → special_context_flags, no main_blocker_probable
+  · case_specific_risks: incluir "tratar señal estructural como bloqueo dominante cuando el criterio vivo es financiero"
+
+═══ EJEMPLO BUENO — caso tipo Lara (Fase 2, criterio vivo financiero + señal estructural secundaria) ═══
+Input: "asesoría de inversión, FC recibido, ya tiene inmueble, vive en Alemania, compara con ETFs, quiere claridad, valora que no le salga dinero al mes, inversión conjunta con pareja aunque solo ella trabaja en Alemania"
+Lectura correcta:
+- detected_phase: "Fase 2 — asesoría de inversión"
+- call_type: "asesoría de inversión"
+- today_decision: "Ordenar el criterio financiero (break-even vs liquidez vs ETFs) y decidir si el modelo Immvest cuadra con lo que busca antes de ir a propuesta"
+- main_blocker_probable: "Necesita ver si el modelo le compensa frente a ETFs y qué nivel de entrada/esfuerzo mensual le deja tranquila — el criterio aún no está ordenado"
+- valid_outcome_today: "Claridad suficiente sobre break-even, capital requerido y esfuerzo mensual para decidir si merece propuesta"
+- special_context_flags: ["inversión conjunta con pareja", "solo un miembro trabaja en Alemania — contexto relevante pero no el freno dominante"]
+- case_specific_risks: ["tratar la señal estructural conjunta como bloqueo dominante cuando el freno real es el criterio financiero", "saltar a propuesta sin resolver el criterio break-even/capital/liquidez", "entrar en checkpoint documental antes de ordenar el criterio de decisión"]
+
+Lectura INCORRECTA para este mismo input:
+✗ main_blocker_probable: "Encaje estructural de inversión conjunta con pareja donde solo uno trabaja en Alemania"
+✗ today_decision: "Validar viabilidad estructural de la inversión conjunta antes de propuesta"
+✗ real_call_goal: "Confirmar si el caso supera el checkpoint estructural"
+
 ═══ FORMATO — obligatorio ═══
 - No inventes cifras, hechos ni decisiones del cliente
 - Responde SOLO JSON válido, sin markdown ni texto extra
@@ -2129,6 +2170,24 @@ ANTI-PLANTILLA ABSOLUTA para este patrón — PROHIBIDO en cualquier campo:
   · "si hoy confirmamos que cuadra, agendamos propuesta"
   · "explicar el modelo y luego ver"
   · "resolver dudas generales antes de avanzar"
+
+GUARDRAIL ANTI-SOBREAJUSTE — antes de activar modo "checkpoint estructural dominante":
+Verifica si el contexto interpretado contiene señales de criterio vivo de decisión:
+  · comparación con alternativas (ETFs, España, renta variable)
+  · diseño de operación (break-even, esfuerzo mensual, liquidez, cuánto capital)
+  · preferencia de perfil financiero activa (tranquilidad vs apalancamiento vs cashflow)
+Si estas señales están presentes y son más explícitas que la restricción estructural → el criterio vivo manda. El modo "checkpoint estructural" queda desactivado para ese caso.
+
+GUARDRAIL CRITERIO VIVO — casos tipo Lara (Fase 2, criterio financiero activo):
+Detecta: ¿el contexto interpretado contiene criterio de decisión financiero activo (break-even, ETFs, capital, esfuerzo mensual, liquidez), aunque también aparezcan señales estructurales?
+
+Si SÍ → aplica OBLIGATORIAMENTE:
+  · real_call_goal: NO "confirmar viabilidad estructural". OBLIGATORIO: "ordenar criterio financiero (break-even / capital / liquidez) y decidir si el modelo merece propuesta con ese criterio".
+  · must_get_today: orden = (1) aislar si inmobiliario gana a la alternativa, (2) aislar break-even/liquidez/tranquilidad mensual, (3) aterrizar capital real y esfuerzo aceptable, (4) decidir si propuesta sí/no.
+  · expected_objections: reflejar el criterio vivo (esfuerzo mensual, capital de entrada, comparación ETFs), NO la señal estructural como objeción principal.
+  · suggested_opening: atacar el criterio vivo, no la estructura secundaria.
+  · suggested_next_step_close: cerrar decisión propuesta sí/no basada en criterio ordenado, NO en "confirmar viabilidad estructural conjunta".
+  · Señal "inversión conjunta con pareja" o "solo uno trabaja en Alemania" → decision_constraints o special_context_flags, nunca eje central del briefing.
 
 EJEMPLO BUENO para caso tipo Fase 2 Immvest (perfil analítico, dudas sobre encaje):
 - real_call_goal: "Validar si la situación real de este cliente — su perfil, horizonte y criterio financiero — encaja con el modelo Immvest antes de ir a propuesta. No es una llamada de propuesta: es una llamada de decisión sobre si merece serlo."
