@@ -1,0 +1,192 @@
+Partimos del estado ACTUAL del proyecto. NO rehagas la feature. NO toques UI. NO cambies shapes JSON. Quiero un parche fino para corregir un fallo nuevo detectado en casos tipo María Saavedra.
+
+PROBLEMA DETECTADO
+Ahora el sistema, cuando detecta un tercero relevante (padre, madre, pareja, socio, familiar que aporta capital o participa en la llamada), tiende a convertir automáticamente ese tercero en el eje principal del caso.
+
+Eso está mal en el caso María.
+
+En María:
+- sí existe apoyo financiero familiar
+- sí participa el padre
+- sí hay posible capital externo
+PERO el freno dominante real NO es “el apoyo familiar” ni “validar la ayuda de los padres”.
+
+El caso real iba de:
+- primera inversión segura y bien estructurada
+- cuánto capital conviene poner
+- cuánto esfuerzo mensual asumir
+- qué nivel de riesgo operativo toleran
+- no equivocarse con la estructura de entrada
+- recuperar el criterio de María, porque el padre domina la conversación
+
+OBJETIVO
+Quiero que el sistema aprenda esta distinción:
+
+1. Un tercero relevante puede ser:
+- contexto estructural
+- stakeholder
+- constraint operativo
+- apoyo financiero
+PERO eso no significa automáticamente que sea el bloqueo dominante.
+
+2. Si el caso muestra con más fuerza:
+- necesidad de control
+- diseño correcto de la operación
+- cuánto capital poner
+- break-even / cuota / esfuerzo mensual
+- primera operación segura
+- necesidad de ordenar criterio del comprador principal
+entonces eso debe mandar en:
+- today_decision
+- main_blocker_probable
+- valid_outcome_today
+- real_call_goal
+- must_get_today
+- expected_objections
+- brief_for_live
+
+y el tercero debe quedar como:
+- special_context_flags
+- decision_constraints
+- riesgo secundario
+- contexto relevante
+pero NO como eje principal salvo que el input diga explícitamente que el problema real es ese tercero.
+
+ARCHIVOS A TOCAR
+1) lib/sales-brain/src/index.ts
+2) artifacts/api-server/src/routes/copilot.ts
+
+NO TOCAR
+- frontend
+- otros endpoints
+- shapes JSON
+- logs
+- nombres de campos
+
+CAMBIO DE LÓGICA
+
+A) REGLA NUEVA — TERCERO RELEVANTE ≠ FRENO DOMINANTE
+Añadir regla explícita en prebriefRules y en prompts locales:
+
+Si aparece padre / madre / pareja / socio / familiar / acompañante / aportante de capital:
+primero decidir qué rol juega realmente:
+
+- ¿decide?
+- ¿solo valida?
+- ¿solo aporta capital?
+- ¿solo influye?
+- ¿solo habla más que el comprador principal?
+
+Y después preguntar:
+“¿lo que bloquea de verdad la llamada es ese tercero o el criterio del comprador principal sobre cómo estructurar la operación?”
+
+Si el bloqueo real es:
+- control
+- seguridad
+- primera operación
+- cuánto capital poner
+- nivel de cuota
+- riesgo operativo
+- orden de decisión
+entonces eso debe ir como bloqueo principal.
+
+B) REGLA ESPECÍFICA — CASOS TIPO MARÍA
+Cuando el input contenga señales como:
+- primera inversión
+- quiere empezar pequeño
+- quiere entender el peor escenario
+- pregunta por vacantes
+- pregunta por cuánto capital conviene poner
+- compara 100% financiación vs meter más entrada
+- busca seguridad y tranquilidad
+- el tercero domina la conversación, pero la compradora principal sí deja criterio útil cuando habla
+ENTONCES:
+- today_decision = ordenar cómo debería ser la primera operación antes de propuesta
+- main_blocker_probable = no equivocarse con la estructura de entrada / cuota / riesgo operativo
+- valid_outcome_today = salir con claridad sobre criterio de capital y si merece pasar a propuesta
+- NO convertir “apoyo financiero familiar” en freno dominante salvo que el input diga claramente que ese apoyo no está disponible o bloquea la decisión
+
+C) RECUPERAR AL COMPRADOR PRINCIPAL
+Añadir una regla fuerte:
+Si el transcript/contexto muestra que un tercero habla mucho, pero la inversión va a nombre del comprador principal, el briefing debe forzar a recuperar el criterio del comprador principal.
+
+En estos casos:
+- real_call_goal debe incluir ordenar el criterio del comprador principal
+- must_get_today debe incluir una línea tipo:
+  “aclarar qué prioriza de verdad la compradora: menor cuota, menos capital inmovilizado o máxima seguridad”
+- mistakes_to_avoid debe incluir:
+  “dejar que el caso se lea solo desde el tercero”
+- suggested_call_structure debe incluir un paso explícito para devolver la decisión al comprador principal
+
+D) USO CORRECTO DEL TERCERO RELEVANTE
+Ejemplo correcto para María:
+- special_context_flags: apoyo financiero familiar / padre presente en llamada
+- decision_constraints: falta concretar cuánto capital adicional entra realmente y cuándo
+- main_blocker_probable: necesidad de estructurar una primera operación segura sin equivocarse con entrada, cuota y riesgo operativo
+
+Ejemplo incorrecto:
+- main_blocker_probable: necesidad de validar el apoyo familiar
+si el input no muestra que eso sea el freno real dominante
+
+E) PREBRIEF-SCRIPT — NO CENTRAR EL BRIEFING EN EL FAMILIAR
+En casos tipo María:
+- real_call_goal NO debe ser “entender el impacto del apoyo familiar”
+- debe ser “ordenar la estructura correcta de la primera operación y el criterio de la compradora antes de pasar a propuesta”
+- must_get_today debe priorizar:
+  1. qué pesa más para la compradora principal: seguridad, cuota, liquidez o crecimiento
+  2. cuánto capital quieren poner realmente
+  3. qué escenario de entrada deja cómoda la operación
+  4. decidir si ya merece propuesta o si falta ordenar capital
+- expected_objections debe reflejar:
+  - vacancia
+  - nivel de cuota
+  - cuánto capital poner
+  - esfuerzo mensual
+  - seguridad de la primera operación
+- suggested_opening debe devolver el centro a la compradora principal
+- suggested_next_step_close debe cerrar una decisión concreta sobre estructura y siguiente llamada, no “cuando esté listo el tema familiar”
+
+F) ANTI-PLANTILLA ESPECÍFICO
+Prohibir en estos casos frases tipo:
+- “quiero entender cómo influye el apoyo familiar”
+- “vamos a validar si el apoyo de tus padres permite avanzar”
+- “el punto principal es el apoyo financiero familiar”
+si el input no demuestra que ese sea el bloqueo dominante real
+
+Mejor patrón:
+- “quiero ordenar cómo tiene sentido estructurar esta primera operación”
+- “quiero entender qué te dejaría tranquila de verdad”
+- “quiero saber cuánto esfuerzo mensual aceptarías y cuánto capital quieres conservar”
+
+G) EJEMPLO MENTAL OBLIGATORIO — MARÍA
+Usa este patrón como test mental:
+- Fase 2 asesoría
+- primera inversión
+- padre presente y participativo
+- posible apoyo de capital
+- compradora principal busca seguridad
+- pregunta por peor escenario / vacancia / entrada / cuota
+- no quieren equivocarse con la estructura
+Output correcto:
+- el padre es relevante, pero no es automáticamente el freno dominante
+- el eje es diseño correcto de la primera operación
+- recuperar criterio propio de María
+- salida válida: decidir estructura y si merece propuesta
+Output incorrecto:
+- “apoyo financiero familiar” como bloqueo principal
+- briefing centrado en validar a los padres
+- apertura dirigida al padre o al apoyo económico en vez de al criterio de la compradora
+
+IMPLEMENTACIÓN
+1. Refuerza prebriefRules del brain Immvest en lib/sales-brain/src/index.ts
+2. Refuerza prebriefScriptRules del brain Immvest en lib/sales-brain/src/index.ts
+3. Refuerza systemPrompt / userPrompt / guardrails locales en artifacts/api-server/src/routes/copilot.ts
+4. NO cambies el JSON
+5. NO añadas campos nuevos
+
+ENTREGA
+Cuando termines, devuélveme solo:
+1) archivos tocados
+2) resumen corto de la lógica nueva
+3) ANTES vs DESPUÉS para María
+4) confirmación explícita de que NO cambiaste el JSON

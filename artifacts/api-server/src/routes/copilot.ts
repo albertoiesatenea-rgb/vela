@@ -2018,6 +2018,48 @@ Lectura INCORRECTA para este mismo input:
 ✗ today_decision: "Validar viabilidad estructural de la inversión conjunta antes de propuesta"
 ✗ real_call_goal: "Confirmar si el caso supera el checkpoint estructural"
 
+═══ GUARDRAIL TERCERO RELEVANTE — no se convierte en freno dominante automáticamente ═══
+Detecta: ¿el input menciona padre / madre / pareja / socio / familiar / aportante de capital?
+
+Si SÍ → aisla primero el rol real del tercero:
+  · ¿Decide? → puede condicionar valid_outcome_today
+  · ¿Solo aporta capital? → decision_constraints
+  · ¿Solo valida o influye? → special_context_flags
+  · ¿Solo habla más que el comprador principal? → case_specific_risks
+
+DESPUÉS verificar: "¿lo que bloquea realmente la llamada es ese tercero, o el criterio del comprador principal sobre cómo estructurar la operación?"
+
+Si el input muestra señales más fuertes de diseño / primera operación / seguridad del comprador principal → esas señales mandan. El tercero va a special_context_flags / decision_constraints.
+PROHIBIDO hacer del tercero el main_blocker_probable si el input muestra un criterio de diseño o seguridad más explícito del comprador principal.
+
+═══ GUARDRAIL PRIMERA OPERACIÓN — casos tipo María (Fase 2, primera inversión + tercero presente) ═══
+Detecta: ¿el input contiene señales de primera inversión / seguridad / diseño de estructura (capital, cuota, peor escenario, vacancia) + un tercero relevante presente?
+
+Si SÍ → aplica OBLIGATORIAMENTE:
+  · main_blocker_probable: criterio de diseño de la primera operación (capital, cuota, seguridad), NO el tercero
+  · today_decision: "ordenar criterio de la compradora principal y estructura de la primera operación antes de propuesta"
+  · context_for_brief: mencionar que la decisión es del comprador principal aunque el tercero influya o domine la conversación
+  · case_specific_risks: incluir "dejar que el caso se lea solo desde el tercero / perder el criterio de la compradora principal"
+  · Padre / apoyo familiar → special_context_flags y decision_constraints solamente
+
+═══ EJEMPLO BUENO — caso tipo María (Fase 2, primera inversión, padre presente) ═══
+Input: "asesoría de inversión, primera inversión, padre presente y participativo, posible apoyo de capital familiar, compradora busca seguridad, pregunta por peor escenario y vacancia, compara 100% financiación vs meter más entrada, no quieren equivocarse"
+Lectura correcta:
+- detected_phase: "Fase 2 — asesoría de inversión"
+- call_type: "asesoría de inversión"
+- today_decision: "Ordenar cómo debería ser la primera operación: criterio de capital, cuota y nivel de riesgo operativo que deja cómoda a la compradora"
+- main_blocker_probable: "No equivocarse con la estructura de entrada en la primera operación: cuánto capital poner, qué cuota asumir, qué peor escenario tolerar"
+- valid_outcome_today: "Claridad sobre criterio de capital/cuota/seguridad y decisión sobre si merece propuesta"
+- context_for_brief: "Primera inversión de la compradora principal — quiere seguridad y no equivocarse. El padre está presente y puede dominar la conversación, pero la decisión es de ella. El freno real es el criterio de diseño: cuánto capital poner, qué cuota asumir, y qué peor escenario tolera."
+- special_context_flags: ["padre presente en llamada — puede dominar la conversación", "posible apoyo de capital familiar pendiente de concretar"]
+- decision_constraints: ["falta concretar cuánto capital adicional familiar entra realmente y cuándo"]
+- case_specific_risks: ["dejar que el caso se lea solo desde el padre / perder el criterio de la compradora principal", "centrar el briefing en validar el apoyo familiar en vez de en la estructura de la operación", "saltar a propuesta sin ordenar criterio de capital/cuota/seguridad de la compradora"]
+
+Lectura INCORRECTA para este mismo input:
+✗ main_blocker_probable: "Validar el apoyo financiero familiar y confirmar aportación de los padres"
+✗ today_decision: "Entender el impacto del apoyo familiar y si permite avanzar a propuesta"
+✗ context_for_brief: omitir que la decisión es de la compradora principal o centrar el texto en el padre
+
 ═══ FORMATO — obligatorio ═══
 - No inventes cifras, hechos ni decisiones del cliente
 - Responde SOLO JSON válido, sin markdown ni texto extra
@@ -2188,6 +2230,23 @@ Si SÍ → aplica OBLIGATORIAMENTE:
   · suggested_opening: atacar el criterio vivo, no la estructura secundaria.
   · suggested_next_step_close: cerrar decisión propuesta sí/no basada en criterio ordenado, NO en "confirmar viabilidad estructural conjunta".
   · Señal "inversión conjunta con pareja" o "solo uno trabaja en Alemania" → decision_constraints o special_context_flags, nunca eje central del briefing.
+
+GUARDRAIL TERCERO RELEVANTE EN SCRIPT — recuperar al comprador principal (casos tipo María):
+Detecta: ¿el contexto interpretado menciona un tercero (padre, familiar, aportante de capital) + hay señales de primera inversión / seguridad / diseño de estructura como eje dominante?
+
+Si el patrón es positivo, aplica OBLIGATORIAMENTE:
+  · real_call_goal: NO centrar en el tercero. OBLIGATORIO: "ordenar estructura correcta de la primera operación y el criterio de la compradora antes de propuesta".
+  · must_get_today: 1er punto = qué prioriza la compradora (seguridad, cuota, liquidez). 2do = cuánto capital quieren poner. 3ro = resolver peor escenario / vacancia. 4to = decidir si merece propuesta.
+  · suggested_call_structure: DEBE incluir un paso explícito para recuperar el criterio de la compradora principal.
+  · suggested_opening: devolver el centro al comprador principal, NO al tercero.
+  · suggested_next_step_close: cerrar sobre estructura y decisión. PROHIBIDO "cuando esté listo el tema familiar" / "cuando estéis alineados".
+  · mistakes_to_avoid: DEBE incluir "dejar que el caso se lea solo desde el tercero / perder criterio de la compradora".
+
+ANTI-PLANTILLA para este patrón — PROHIBIDO en cualquier campo:
+  · "quiero entender cómo influye el apoyo familiar"
+  · "vamos a validar si el apoyo de tus padres permite avanzar"
+  · "el punto principal es el apoyo financiero familiar"
+  · "cuando esté listo el tema familiar, seguimos"
 
 EJEMPLO BUENO para caso tipo Fase 2 Immvest (perfil analítico, dudas sobre encaje):
 - real_call_goal: "Validar si la situación real de este cliente — su perfil, horizonte y criterio financiero — encaja con el modelo Immvest antes de ir a propuesta. No es una llamada de propuesta: es una llamada de decisión sobre si merece serlo."

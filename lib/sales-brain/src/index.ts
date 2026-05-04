@@ -1372,6 +1372,48 @@ case_specific_risks en el patrón Lara:
   2. Entrar en checkpoint documental/laboral antes de ordenar el criterio de decisión del cliente
   3. Saltar a propuesta sin resolver el criterio de diseño (break-even, capital, esfuerzo mensual)
 
+REGLA TERCERO RELEVANTE ≠ FRENO DOMINANTE AUTOMÁTICO:
+Cuando el input menciona padre / madre / pareja / socio / familiar / acompañante / aportante de capital, el primer paso es identificar el rol real del tercero:
+  - ¿Decide? → puede condicionar valid_outcome_today
+  - ¿Solo valida o influye? → special_context_flags
+  - ¿Solo aporta capital pero no está bloqueando? → decision_constraints
+  - ¿Solo habla más que el comprador principal? → case_specific_risks
+
+DESPUÉS preguntar: "¿lo que bloquea realmente la llamada es ese tercero, o el criterio del comprador principal sobre cómo estructurar la operación?"
+
+Si el input muestra señales de decisión de diseño/seguridad del comprador principal con más fuerza:
+  - primera inversión / quiere empezar bien y sin errores
+  - diseño de la operación (cuánto capital, cuota, esfuerzo mensual, peor escenario)
+  - seguridad y tranquilidad como criterio dominante de la compradora
+  - recuperar el criterio propio de quien realmente invierte
+ENTONCES esas señales mandan sobre la presencia del tercero:
+  - main_blocker_probable = el criterio de diseño / estructura de la primera operación
+  - El tercero va a special_context_flags / decision_constraints / case_specific_risks
+
+REGLA PRIMERA OPERACIÓN SEGURA (casos tipo María, Fase 2):
+Cuando el input contiene: primera inversión + búsqueda de seguridad/tranquilidad + criterio de diseño activo (capital, cuota, vacancia, peor escenario) + tercero presente pero no bloqueante:
+
+today_decision:
+  · CORRECTO: "Ordenar cómo debería ser la primera operación y qué criterio (capital, cuota, seguridad) debe priorizar antes de propuesta"
+  · PROHIBIDO: "validar el apoyo financiero familiar antes de avanzar" si el input no lo señala como freno dominante real
+
+main_blocker_probable:
+  · CORRECTO: "No equivocarse con la estructura de entrada: cuánto capital poner, qué cuota asumir y qué nivel de riesgo operativo tolera la compradora"
+  · CORRECTO: "Necesidad de ordenar criterio propio de la compradora principal antes de decidir si merece propuesta"
+  · PROHIBIDO: "validar el apoyo familiar" o "confirmar la aportación de los padres" como eje principal si el input no lo señala como el bloqueo real
+
+valid_outcome_today:
+  · CORRECTO: "Claridad sobre criterio de capital/cuota/seguridad de la compradora y decisión sobre si merece propuesta"
+
+Recuperar al comprador principal — si un tercero domina la conversación pero la inversión va a nombre del comprador principal:
+  · context_for_brief: mencionar explícitamente que la decisión es del comprador principal aunque el tercero influya
+  · case_specific_risks: incluir "dejar que el caso se lea solo desde el tercero / perder el criterio de la compradora principal"
+
+Uso correcto del tercero en este patrón:
+  · "Padre presente en llamada" → special_context_flags
+  · "Apoyo financiero familiar / capital adicional pendiente de concretar" → decision_constraints
+  · "Tercero puede dominar la conversación" → case_specific_risks — NO main_blocker_probable
+
 CONTEXTO PARA VELA: Resumen compacto (3-5 frases). Debe arrastrar explícitamente las restricciones y riesgos estructurales del caso si existen. No tritures el CRM. Táctico, directo, sin humo ni teoría.`,
 
       en: `COMMERCIAL PHASE READING — IMMVEST (German real estate investment)
@@ -1547,6 +1589,57 @@ suggested_opening — atacar el criterio vivo, no la estructura secundaria:
 suggested_next_step_close — cerrar decisión sobre propuesta sí/no con el criterio ordenado:
   · CORRECTO: "Si al terminar esta llamada ves que el break-even o el esfuerzo mensual cuadra con lo que buscas, agendamos propuesta esta semana."
   · PROHIBIDO: "si confirmamos la viabilidad estructural conjunta, agendamos propuesta"
+
+REGLA TERCERO RELEVANTE EN SCRIPT — RECUPERAR AL COMPRADOR PRINCIPAL (casos tipo María):
+Detecta: ¿el contexto interpretado menciona un tercero (padre, familiar, aportante de capital) + hay señales de primera inversión / seguridad / diseño de estructura como eje dominante?
+
+Si el patrón se activa:
+
+real_call_goal — NO centrar el briefing en el tercero:
+  · CORRECTO: "Ordenar la estructura correcta de la primera operación y el criterio de la compradora antes de pasar a propuesta"
+  · CORRECTO: "Aislar qué prioriza de verdad la compradora (menor cuota, menos capital inmovilizado o máxima seguridad) y decidir si merece propuesta"
+  · PROHIBIDO: "entender el impacto del apoyo familiar" / "validar el apoyo de los padres" como objetivo principal
+
+must_get_today — prioridad en este patrón:
+  1. Aislar qué pesa más para la compradora principal: seguridad, cuota, liquidez o crecimiento
+  2. Aterrizar cuánto capital quieren poner realmente y qué estructura de entrada deja cómoda la operación
+  3. Resolver las dudas de peor escenario (vacancia, cuota, gestión) que frenan la decisión
+  4. Decidir si ya merece propuesta o si falta ordenar capital / estructura primero
+
+expected_objections — reflejar criterio de diseño / primera operación, NO el tercero como objeción:
+  · vacancia / peor escenario de gestión
+  · nivel de cuota mensual y esfuerzo real
+  · cuánto capital poner (100% financiación vs más entrada)
+  · seguridad de la primera operación
+  · Prohibido: elevar "apoyo familiar" como objeción principal si el bloqueo real es el criterio de estructura
+
+mistakes_to_avoid — para este patrón:
+  1. Dejar que el caso se lea solo desde el tercero — perder el criterio de la compradora principal
+  2. Centrar el briefing en validar el apoyo familiar en vez de en la estructura de la operación
+  3. Dirigir la apertura al tercero en vez de al comprador principal
+  4. Cerrar con "cuando esté listo el tema familiar, avanzamos" sin concretar estructura y decisión
+
+suggested_call_structure — DEBE incluir un paso explícito para recuperar el criterio de la compradora principal:
+  1. Recuperar criterio propio de la compradora (qué pesa más: seguridad, cuota, capital)
+  2. Resolver peor escenario / vacancia / cuota — los miedos propios de la primera operación
+  3. Aterrizar cuánto capital van a poner de verdad
+  4. Decidir si la estructura tiene sentido y si merece propuesta
+  5. Cerrar siguiente paso con estructura concreta + fecha
+
+suggested_opening — devolver el centro al comprador principal, NO al tercero:
+  · BUENA: "[Nombre], antes de ver números — ¿qué sería lo que más te dejaría tranquila en esta primera operación: que la cuota sea baja, que pongas el mínimo capital posible, o que el peor escenario esté muy controlado?"
+  · BUENA: "Antes de entrar en activos concretos, necesito entender tu criterio: si pudieras elegir, ¿priorizas mayor tranquilidad mensual o conservar más liquidez?"
+  · MALA: "Antes de avanzar, quería entender mejor cómo queréis estructurar el apoyo con tus padres"
+
+suggested_next_step_close — cerrar sobre estructura y decisión, NO sobre el tercero:
+  · CORRECTO: "Si hoy ordenamos cómo debería ser la operación, agendamos propuesta esta semana con los números que cuadran con tu criterio."
+  · PROHIBIDO: "Cuando tengáis claro lo del apoyo de tus padres, seguimos" / "Cuando estéis alineados, avanzamos"
+
+ANTI-PLANTILLA para este patrón — PROHIBIDO en cualquier campo:
+  · "quiero entender cómo influye el apoyo familiar"
+  · "vamos a validar si el apoyo de tus padres permite avanzar"
+  · "el punto principal es el apoyo financiero familiar"
+  · "cuando esté listo el tema familiar, avanzamos"
 
 REGLA GENERAL — CONSERVACIÓN DE FRENO COMPUESTO:
 Si main_blocker_probable contiene dos elementos tácticos distintos (ejemplos: "decisor ausente + salida futura", "permanencia limitada + complejidad transfronteriza", "renta baja + contrato antiguo"), estos cinco campos DEBEN reflejar AMBOS elementos:
