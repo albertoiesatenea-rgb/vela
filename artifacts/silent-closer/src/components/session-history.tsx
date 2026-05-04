@@ -148,9 +148,20 @@ function triggerDownload(content: string, sessionId: string) {
 
 function downloadSession(s: SavedSession) {
   if (s.canonicalLogMd) {
+    // Always prefer the canonical log
     triggerDownload(s.canonicalLogMd, s.id);
   } else {
-    triggerDownload(buildFallbackLog(s), s.id);
+    // Legacy/partial session — prepend explicit warning
+    const header = [
+      "> ESTA SESIÓN NO FUE GUARDADA COMO SESIÓN FINAL CANÓNICA",
+      `> id: ${s.id}`,
+      `> saved_explicitly: ${s.savedExplicitly ? "sí" : "no"}`,
+      `> saved_at: ${s.savedAt ?? "null"}`,
+      `> canonical_log_md: null`,
+      "",
+      "",
+    ].join("\n");
+    triggerDownload(header + buildFallbackLog(s), s.id);
   }
 }
 
@@ -455,10 +466,10 @@ function SessionCard({
                 ) : (
                   <div className="flex flex-col gap-1">
                     <Row label="Prebrief ID" value={s.prebriefId} />
-                    <p className="text-[11px] font-mono text-zinc-600 mt-1">
-                      {hasCanonical
-                        ? "El log canónico (↓ Descargar) contiene el prebrief completo en la Sección 4."
-                        : "Detalle no disponible — guardado antes de v2 del snapshot."}
+                    <p className="text-[11px] font-mono text-amber-700 mt-1">
+                      {!pbSnap
+                        ? "Prebrief linkado pero no empaquetado en snapshot — guardado antes de v2."
+                        : "Prebrief linkado pero sin datos de briefing en snapshot."}
                     </p>
                   </div>
                 )}
@@ -585,25 +596,39 @@ function SessionCard({
             )}
 
             {/* SISTEMA */}
-            {tab === "sistema" && (
+            {tab === "sistema" && (() => {
+              const costSnap2 = s.costSnapshot as Record<string, unknown> | null;
+              const costReasonStr = costUsd == null
+                ? (costSnap2?.["reason"] ? String(costSnap2["reason"]) : costNoDataReason)
+                : null;
+              return (
               <div className="flex flex-col gap-1.5">
-                {/* Cost — always first, visible */}
+                {/* Validez — los 5 campos requeridos */}
                 <div className="flex flex-col gap-1 border border-zinc-800/50 rounded p-2 mb-1">
-                  <p className="text-[9px] font-mono text-zinc-500 tracking-widest uppercase mb-0.5">Coste sesión</p>
-                  <Row label="Total USD"  value={costUsd != null ? `$${costUsd.toFixed(6)}` : `no disponible — ${costNoDataReason}`} />
-                  <Row label="Total EUR"  value={costUsd != null ? `~€${(costUsd * 0.93).toFixed(4)} (estimado)` : "—"} />
-                  {cost?.["calls"]       != null && <Row label="Llamadas API"   value={String(cost["calls"])} />}
-                  {cost?.["totalTokens"] != null && <Row label="Tokens totales" value={String(cost["totalTokens"])} />}
+                  <p className="text-[9px] font-mono text-zinc-500 tracking-widest uppercase mb-0.5">Validez sesión</p>
+                  <Row label="saved_explicitly"  value={s.savedExplicitly ? "sí ✓" : "no ✗"} />
+                  <Row label="saved_at"          value={s.savedAt ? `${fmtDate(s.savedAt)} ✓` : "null ✗"} />
+                  <Row label="canonical_log_md"  value={s.canonicalLogMd ? `sí — ${(s.canonicalLogMd.length / 1024).toFixed(1)} KB ✓` : "null ✗"} />
+                  <Row label="session_snapshot"  value={s.sessionSnapshot ? "sí ✓" : "null ✗"} />
+                  <Row label="timeline_snapshot" value={s.timelineSnapshot ? "sí ✓" : "null ✗"} />
                 </div>
 
-                <Row label="DB id"             value={s.id} />
-                <Row label="Source session"    value={s.sourceSessionId} />
-                <Row label="Prebrief ID"       value={s.prebriefId} />
-                {durationMin && <Row label="Duración (min)"  value={durationMin} />}
-                <Row label="Guardado"           value={s.savedAt ? fmtDate(s.savedAt) : "—"} />
-                <Row label="Guardado explícit." value={s.savedExplicitly ? "sí" : "no"} />
-                <Row label="Log canónico"       value={s.canonicalLogMd ? `${(s.canonicalLogMd.length / 1024).toFixed(1)} KB` : "no"} />
-                <Row label="Brain"              value={s.brainId} />
+                {/* Cost */}
+                <div className="flex flex-col gap-1 border border-zinc-800/50 rounded p-2 mb-1">
+                  <p className="text-[9px] font-mono text-zinc-500 tracking-widest uppercase mb-0.5">Coste sesión</p>
+                  <Row label="Total USD"
+                    value={costUsd != null ? `$${costUsd.toFixed(6)}` : `no disponible — ${costReasonStr ?? costNoDataReason}`} />
+                  <Row label="Total EUR"
+                    value={costUsd != null ? `~€${(costUsd * 0.93).toFixed(4)} (estimado)` : "—"} />
+                  {costSnap2?.["calls"]       != null && <Row label="Llamadas API"   value={String(costSnap2["calls"])} />}
+                  {costSnap2?.["totalTokens"] != null && <Row label="Tokens totales" value={String(costSnap2["totalTokens"])} />}
+                </div>
+
+                <Row label="DB id"           value={s.id} />
+                <Row label="source_session"  value={s.sourceSessionId} />
+                <Row label="prebrief_id"     value={s.prebriefId} />
+                {durationMin && <Row label="Duración (min)" value={durationMin} />}
+                <Row label="Brain"           value={s.brainId} />
 
                 {tl && (
                   <div className="border-t border-zinc-800/50 pt-2 mt-1 flex flex-col gap-1">
@@ -621,17 +646,28 @@ function SessionCard({
                   </div>
                 )}
               </div>
-            )}
+              );
+            })()}
           </div>
 
           {/* Download footer */}
-          <div className="px-4 pb-3 flex justify-end">
+          <div className="px-4 pb-3 flex justify-end items-center gap-2">
+            {!s.canonicalLogMd && (
+              <span className="text-[8px] font-mono text-amber-700 border border-amber-900/50 rounded px-1.5 py-0.5 shrink-0">
+                parcial
+              </span>
+            )}
             <button
               onClick={() => downloadSession(s)}
-              className="flex items-center gap-1.5 text-[9px] font-mono text-zinc-600 hover:text-zinc-300 transition-colors border border-zinc-800 rounded-full px-2.5 py-1"
+              className={cn(
+                "flex items-center gap-1.5 text-[9px] font-mono transition-colors border rounded-full px-2.5 py-1",
+                s.canonicalLogMd
+                  ? "text-zinc-600 hover:text-zinc-300 border-zinc-800"
+                  : "text-amber-700 hover:text-amber-500 border-amber-900/50"
+              )}
             >
               <Download className="w-3 h-3" />
-              {s.canonicalLogMd ? "Descargar log canónico" : "Descargar log"}
+              {s.canonicalLogMd ? "Descargar log canónico" : "Descargar log (parcial)"}
             </button>
           </div>
         </div>

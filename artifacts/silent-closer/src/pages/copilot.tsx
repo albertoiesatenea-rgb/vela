@@ -2230,6 +2230,11 @@ export default function CopilotPage() {
         prebriefBundle: prebriefBundleRef.current ?? null,
       };
 
+      // Warn if sourceSessionId is missing — cost tracking will be unavailable
+      if (!sourceSessionIdRef.current) {
+        console.warn("[vela:save] missing sourceSessionId — cost tracking unavailable for this session");
+      }
+
       const r = await fetch("/api/copilot/save-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -2253,7 +2258,10 @@ export default function CopilotPage() {
           whisperCleanTranscript: whisperTranscript || null,
           webSpeechTranscript: finalLog.map(t => `[${t.inferred_speaker}]: ${t.normalized_fragment}`).join("\n"),
           velaAudit: velaAudit ?? null,
-          costSnapshot: null,
+          // If no sourceSessionId, store reason so Bitácora can display it
+          costSnapshot: sourceSessionIdRef.current
+            ? null
+            : { reason: "missing sourceSessionId — cost tracking unavailable" },
           timelineSnapshot: { ...timelineSnapshotRef.current },
           savedExplicitly: true,
         }),

@@ -1,0 +1,84 @@
+Necesito cerrar definitivamente el flujo de Bitácora / sesión final. Hay mezcla entre sesiones legacy/parciales y sesiones canónicas. Quiero enforcement duro.
+
+OBJETIVO
+Bitácora debe mostrar SOLO sesiones explícitamente guardadas y completas.
+Una sesión final válida debe tener:
+- saved_explicitly = true
+- saved_at no nulo
+- canonical_log_md no nulo
+- session_snapshot no nulo
+- timeline_snapshot no nulo
+
+Todo lo demás se considera borrador/parcial y NO debe salir en Bitácora.
+
+CAMBIOS
+
+1) BACKEND — GET /copilot/sessions
+En artifacts/api-server/src/routes/copilot.ts:
+- modifica GET /copilot/sessions para devolver SOLO filas con savedExplicitly = true
+- ordénalas por savedAt desc si existe, y si no por createdAt desc
+- no mezcles drafts con sesiones finales
+
+2) BACKEND — SAVE SESSION ENFORCEMENT
+En POST /copilot/save-session:
+- si savedExplicitly !== true, NO debe crear una sesión final visible en Bitácora
+- opción simple: seguir permitiéndolo pero marcarlo como draft y luego GET /sessions lo filtra
+- opción mejor: si viene sin savedExplicitly true, devolver 400 salvo que exista un endpoint separado de draft
+- no inventes un endpoint nuevo si no hace falta; prioriza filtrar en GET
+
+3) FRONTEND — BUSCAR CALLERS ANTIGUOS
+Busca en todo el repo cualquier llamada a:
+"/api/copilot/save-session"
+Quiero:
+- identificar si existe cualquier caller fuera de handleSaveSession
+- eliminar cualquier autosave o guardado parcial legacy
+- dejar handleSaveSession como ÚNICO camino de guardado final
+- si hace falta, añade comentarios claros en el código
+
+4) FRONTEND — SOURCE SESSION ID
+En artifacts/silent-closer/src/pages/copilot.tsx:
+- garantiza que sourceSessionId viaje siempre al canonicalInput y al body de handleSaveSession
+- si sourceSessionId falta, muestra warning visible en consola con prefijo [vela:save] missing sourceSessionId
+- no dejes costSnapshot en null silenciosamente si faltó ese dato; deja reason: "missing sourceSessionId"
+
+5) FRONTEND — DESCARGA SOLO LOG CANÓNICO
+En live y en Bitácora:
+- si canonicalLogMd existe, descargar SIEMPRE ese
+- si no existe, reconstruirlo con buildCopilotCanonicalLog usando el snapshot actual SOLO en live
+- en Bitácora, si no existe canonicalLogMd, mostrar badge/label “sesión parcial” y deshabilitar descarga o descargar un log que empiece por:
+  "ESTA SESIÓN NO FUE GUARDADA COMO SESIÓN FINAL CANÓNICA"
+- no volver al log simple legacy
+
+6) PREBRIEF TAB
+En session-history.tsx:
+- si hay prebriefId pero no hay prebriefBundle en snapshot, mostrar:
+  "Prebrief linkado pero no empaquetado en snapshot"
+- si no hay prebriefId, mostrar:
+  "No se usó prebrief en esta sesión"
+- no mezclar ambos casos
+
+7) SISTEMA TAB
+En session-history.tsx:
+- si totalCostUsd es null y costSnapshot.reason existe, mostrar esa razón
+- mostrar claramente:
+  sourceSessionId
+  savedExplicitly
+  savedAt
+  canonicalLogMd yes/no
+  sessionSnapshot yes/no
+  timelineSnapshot yes/no
+
+8) QA
+Al terminar:
+- ejecuta rg sobre "/api/copilot/save-session" en todo el repo
+- pega qué callers quedan
+- ejecuta typecheck
+- no toques nada más fuera de este scope
+
+CRITERIO DE ÉXITO
+Después de una sesión nueva:
+- no aparece en Bitácora hasta pulsar Guardar sesión
+- al guardarla: saved_explicitly = true, saved_at != null, canonical_log_md != null, session_snapshot != null, timeline_snapshot != null
+- Bitácora muestra solo esa sesión final
+- Sistema enseña coste o reason clara
+- Descargar log desde Bitácora y desde live usa el mismo log canónico

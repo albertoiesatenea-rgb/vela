@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { callSessions, prebriefLogs } from "@workspace/db";
 import {
@@ -2339,6 +2339,7 @@ router.post("/copilot/save-prebrief", async (req, res) => {
 
 router.get("/copilot/sessions", async (req, res) => {
   try {
+    // Bitácora: ONLY explicitly-saved final sessions (saved_explicitly = true)
     const sessions = await db
       .select({
         id: callSessions.id,
@@ -2369,7 +2370,8 @@ router.get("/copilot/sessions", async (req, res) => {
         savedExplicitly: callSessions.savedExplicitly,
       })
       .from(callSessions)
-      .orderBy(desc(callSessions.createdAt))
+      .where(eq(callSessions.savedExplicitly, true))
+      .orderBy(sql`${callSessions.savedAt} DESC NULLS LAST`, desc(callSessions.createdAt))
       .limit(100);
 
     res.json({ sessions });
