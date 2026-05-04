@@ -11,6 +11,8 @@ export const callSessions = pgTable("call_sessions", {
   outcome:           text("outcome"),
   score:             real("score"),
   durationSeconds:   integer("duration_seconds"),
+  clientName:        text("client_name"),
+  rawInput:          text("raw_input"),
   callSummary:       jsonb("call_summary"),
   brutalAudit:       jsonb("brutal_audit"),
   whisperTranscript: text("whisper_transcript"),

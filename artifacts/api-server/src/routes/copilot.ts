@@ -2216,6 +2216,7 @@ router.post("/copilot/save-session", async (req, res) => {
   try {
     const {
       brainId, sessionContext, outcome, score, durationSeconds,
+      clientName, rawInput,
       callSummary, brutalAudit, whisperTranscript, webSpeechTurns,
       totalCostUsd, prebriefId,
     } = req.body as Record<string, unknown>;
@@ -2226,6 +2227,8 @@ router.post("/copilot/save-session", async (req, res) => {
       outcome:           outcome as string ?? null,
       score:             score as number ?? null,
       durationSeconds:   durationSeconds as number ?? null,
+      clientName:        clientName as string ?? null,
+      rawInput:          rawInput as string ?? null,
       callSummary:       callSummary ?? null,
       brutalAudit:       brutalAudit ?? null,
       whisperTranscript: whisperTranscript as string ?? null,

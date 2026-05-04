@@ -1652,6 +1652,12 @@ export default function CopilotPage() {
             outcome: outcome ?? null,
             score: freshSummary?.score ?? null,
             durationSeconds: null,
+            clientName: (() => {
+              const ctx = sessionContext ?? "";
+              const match = ctx.match(/[Cc]liente\s*[=:]\s*([^\n,.]+)/);
+              return match ? match[1].trim() : null;
+            })(),
+            rawInput: sessionContext ?? null,
             callSummary: freshSummary ?? null,
             brutalAudit: brutalAudit ?? null,
             whisperTranscript: whisperTranscript || null,
