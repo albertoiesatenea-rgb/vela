@@ -1949,6 +1949,34 @@ Lectura correcta:
 - decision_constraints: ["no empujar reserva sin que la pareja esté presente", "aislar si la pareja decide o solo valida antes de hablar de avanzar"]
 - case_specific_risks: ["empujar reserva sin el decisor real", "tratar la salida futura como objeción menor en vez de freno técnico dominante", "dejar la llamada sin siguiente paso concreto con ambos decisores"]
 
+═══ GUARDRAIL COMPRADOR REAL + CHECKPOINT — anula lectura exploratoria ═══
+Detecta: ¿el input tiene 2+ señales de comprador real / intención alta (FC recibido, ingresos sólidos, entrada disponible, largo plazo, ya invierte, plazo real de compra) + 1+ señal estructural fuerte (transfronterizo, permanencia limitada, fiscal/laboral compleja, documentación condicionante)?
+
+Si SÍ → aplica OBLIGATORIAMENTE:
+  · today_decision: PROHIBIDO "explorar encaje", "ver si merece la pena", "evaluar si aplica el modelo". OBLIGATORIO formulación de checkpoint: "confirmar si el caso supera el checkpoint estructural para avanzar a propuesta" o equivalente directo.
+  · valid_outcome_today: PROHIBIDO cualquier formulación de exploración blanda. OBLIGATORIO sonar a checkpoint operativo: "aislar checkpoint + siguiente llamada con fecha si pasa el filtro".
+  · context_for_brief: DEBE mencionar explícitamente que el cliente NO es turista / tiene intención real + cuál es el freno estructural concreto + que no toca propuesta sin validar checkpoint.
+  · case_specific_risks: el riesgo número 1 DEBE ser "tratar al comprador real como si estuviera solo explorando". Añadir: "entrar en modelo o simulación sin validar el checkpoint", "pasar a propuesta antes de confirmar viabilidad estructural".
+
+═══ EJEMPLO BUENO — caso tipo Antonio (Fase 2, comprador real + restricción transfronteriza + checkpoint) ═══
+Input: "asesoría de ganancia patrimonial, FC recibido, trabaja bajo empresa española en Alemania, IRPF en Alemania + SS en España, permanencia < 5 años, intención de aportar entrada, ve el largo plazo, alta capacidad de ahorro"
+Lectura correcta:
+- detected_phase: "Fase 2 — asesoría de ganancia patrimonial"
+- call_type: "asesoría de ganancia patrimonial"
+- today_decision: "Confirmar si su situación transfronteriza permite avanzar a propuesta — tiene intención real y capacidad, pero hay un checkpoint estructural que resolver antes"
+- main_blocker_probable: "Encaje estructural: situación fiscal transfronteriza (empresa española en Alemania, IRPF+SS mixto) y permanencia probable <5 años que condiciona la financiación bancaria"
+- valid_outcome_today: "Determinar qué checkpoint estructural hace falta superar (banco, fiscal, documental) y cerrar siguiente llamada con fecha si pasa el filtro — NO propuesta directa"
+- context_for_brief: "Cliente con intención real y alta capacidad — NO es un turista. FC recibido, entrada disponible, visión a largo plazo. El freno no es intención sino encaje estructural: trabaja en Alemania bajo empresa española con permanencia probable <5 años. Hay que validar si el banco puede financiar esto antes de ir a propuesta."
+- special_context_flags: ["situación fiscal transfronteriza: IRPF Alemania + SS España", "permanencia en Alemania probablemente <5 años — condiciona financiación", "comprador real con intención alta — no es un turista"]
+- decision_constraints: ["no empujar propuesta sin validar viabilidad bancaria con su estructura laboral/fiscal", "no entrar en simulación genérica antes de resolver el checkpoint documental"]
+- case_specific_risks: ["tratar a un comprador real como si estuviera solo explorando", "entrar en modelo o simulación antes de validar el checkpoint estructural", "pasar a propuesta sin confirmar viabilidad del banco con su situación fiscal/laboral", "cerrar con seguimiento blando en vez de checkpoint + fecha concreta"]
+
+Lectura INCORRECTA para este mismo input:
+✗ today_decision: "Explorar si el modelo Immvest encaja con su perfil y su situación de vida"
+✗ valid_outcome_today: "Ver si hay encaje y si merece la pena seguir"
+✗ context_for_brief: "Cliente interesado en inversión inmobiliaria en Alemania, con dudas sobre el modelo"
+✗ case_specific_risks: ["cashflow negativo", "desconocer Alemania"] — estos no son el freno real
+
 ═══ FORMATO — obligatorio ═══
 - No inventes cifras, hechos ni decisiones del cliente
 - Responde SOLO JSON válido, sin markdown ni texto extra
@@ -2083,6 +2111,25 @@ Si el patrón es positivo, aplica OBLIGATORIAMENTE:
 
 Freno compuesto cuando hay AMBOS (decisor ausente + salida futura): el real_call_goal y el brief_for_live deben nombrar los dos frenos explícitamente — no colapsarlos en uno.
 
+GUARDRAIL COMPRADOR REAL + CHECKPOINT ESTRUCTURAL (casos tipo Antonio):
+Detecta este patrón EN EL CONTEXTO INTERPRETADO ANTES de generar cualquier campo:
+  ¿Hay múltiples señales de intención alta (FC recibido / ingresos sólidos / entrada disponible / largo plazo / ya invierte)? + ¿Hay restricción estructural dominante (transfronterizo / permanencia / fiscal/laboral compleja / documentación condicionante)?
+
+Si el patrón es positivo, aplica OBLIGATORIAMENTE:
+  · real_call_goal: PROHIBIDO "ver si el caso merece propuesta" o "explorar encaje". OBLIGATORIO: "confirmar si el caso supera el checkpoint estructural y ordenar el criterio dominante antes de propuesta". Solo orientar a propuesta si el contexto confirma que el checkpoint ya está superado.
+  · must_get_today: 1er punto = aislar criterio dominante real. 2do = confirmar checkpoint estructural. 3ro = conseguir docs/validación o criterio de viabilidad. 4to = cerrar siguiente llamada con fecha concreta.
+  · mistakes_to_avoid: los 3 primeros DEBEN ser: (1) explicar modelo antes de validar checkpoint, (2) entrar en simulación sin fijar criterio dominante, (3) tratar el caso como exploratorio cuando la intención es alta.
+  · suggested_call_structure: orden obligatorio: aislar criterio dominante → aterrizar freno estructural → decidir qué validar → propuesta sí/no → cerrar docs + fecha.
+  · suggested_next_step_close: patrón checkpoint + docs + fecha. PROHIBIDO "si cuadra agendamos propuesta" / "vamos viendo" / "te mando algo".
+  · brief_for_live: DEBE incluir "comprador real" + freno estructural exacto + qué NO hacer + siguiente paso válido hoy.
+
+ANTI-PLANTILLA ABSOLUTA para este patrón — PROHIBIDO en cualquier campo:
+  · "caso todavía exploratorio"
+  · "ver si merece la pena seguir"
+  · "si hoy confirmamos que cuadra, agendamos propuesta"
+  · "explicar el modelo y luego ver"
+  · "resolver dudas generales antes de avanzar"
+
 EJEMPLO BUENO para caso tipo Fase 2 Immvest (perfil analítico, dudas sobre encaje):
 - real_call_goal: "Validar si la situación real de este cliente — su perfil, horizonte y criterio financiero — encaja con el modelo Immvest antes de ir a propuesta. No es una llamada de propuesta: es una llamada de decisión sobre si merece serlo."
 - freno dominante a leer: coherencia entre su situación y el modelo, no el cashflow en abstracto
@@ -2195,6 +2242,7 @@ Antes de generar, responde mentalmente:
 2. ¿Qué haría que esta llamada sea un éxito real hoy?
 3. ¿Qué diría un vendedor mediocre que debes evitar?
 4. ¿El "Bloqueo principal probable" tiene dos elementos distintos? Si sí → ¿aparecen los dos en real_call_goal, expected_objections, suggested_opening y brief_for_live?
+5. ¿El contexto o input tiene señales de "comprador real con intención alta" (FC, ingresos, entrada, largo plazo) + una restricción estructural? Si sí → ¿el real_call_goal suena a checkpoint estructural y NO a exploración blanda? ¿El must_get_today sigue el orden: criterio dominante → checkpoint → docs → fecha?
 
 Devuelve SOLO este JSON exacto:
 {

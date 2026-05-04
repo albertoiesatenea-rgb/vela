@@ -1,0 +1,165 @@
+Partimos del estado ACTUAL del proyecto. NO rehagas la feature. NO toques UI. NO cambies shapes JSON. Quiero un parche fino de lógica para que el prebrief de Immvest detecte mejor casos tipo Antonio: comprador real con restricción estructural y checkpoint previo antes de propuesta.
+
+BENCHMARK REAL
+Usa como referencia mental el caso Antonio:
+- alta intención real
+- Fase 2 de asesoría
+- FC recibido / financeable / contrato indefinido / largo plazo / capacidad de entrada
+- caso estructuralmente delicado por España-Alemania + permanencia limitada
+- error histórico real: tratarlo como exploratorio blando, explicar modelo demasiado pronto, no fijar checkpoint documental/financiero antes de propuesta, y cerrar flotante
+
+OBJETIVO DEL CAMBIO
+Quiero que VELA, en estos casos, haga 3 cosas mejor:
+1. Detecte “buyer intent high / comprador real” aunque no exista un campo explícito para eso
+2. Distinga entre:
+   - freno estructural que exige checkpoint previo
+   - objeción comercial normal
+3. Traduzca eso en un briefing que NO suene a:
+   - “si cuadra, agendamos propuesta”
+   - “vamos viendo”
+   - “explorar si merece la pena”
+sino a:
+   - validar checkpoint
+   - pedir/confirmar documentos o validación necesaria
+   - aislar criterio dominante
+   - cerrar siguiente llamada con decisión concreta
+
+ARCHIVOS A TOCAR
+1) lib/sales-brain/src/index.ts
+2) artifacts/api-server/src/routes/copilot.ts
+
+NO tocar ningún otro archivo salvo imports/tipos si fuera imprescindible.
+
+NO CAMBIAR
+- nombres de campos JSON
+- shape de /copilot/prebrief-context
+- shape de /copilot/prebrief-script
+- frontend
+- endpoints distintos al prebrief
+- logs
+- UI
+
+CAMBIOS DE LÓGICA
+
+A) PREBRIEF-CONTEXT — DETECCIÓN DE COMPRADOR REAL CON RESTRICCIÓN ESTRUCTURAL
+Refuerza las reglas del brain Immvest y del prompt local para que, cuando el input contenga varias señales como estas:
+- FC received / financeable / finance check completado
+- ingresos sólidos / contrato indefinido
+- visión a largo plazo
+- intención de aportar entrada
+- ya tiene inmuebles / ya invierte
+- comenta horizonte de compra real o necesidad de comprar en plazo razonable
+ENTONCES el sistema lea internamente:
+“cliente con intención real / no turista”
+aunque no lo saque como campo nuevo.
+
+Si al mismo tiempo hay una señal estructural fuerte, por ejemplo:
+- estructura fiscal/laboral transfronteriza
+- permanencia limitada en Alemania
+- score / financiabilidad no confirmada
+- situación documental que condiciona el banco
+ENTONCES:
+- main_blocker_probable debe priorizar esa restricción estructural
+- valid_outcome_today NO debe sonar a exploración blanda
+- today_decision debe formularse como:
+  “confirmar si el caso supera el checkpoint necesario para avanzar”
+  o equivalente
+- context_for_brief debe dejar claro que NO es turista, pero que tampoco toca ir a propuesta sin validar el checkpoint
+
+NO quiero un campo nuevo tipo buyer_intent.
+Quiero que esa lectura afecte a:
+- today_decision
+- valid_outcome_today
+- context_for_brief
+- case_specific_risks
+
+B) PREBRIEF-CONTEXT — RIESGO ESPECÍFICO NUEVO
+Cuando haya “comprador real + restricción estructural”, case_specific_risks debe priorizar cosas como:
+- tratar a un comprador real como si estuviera solo explorando
+- entrar en modelo o simulación antes de validar el punto estructural
+- pasar a propuesta antes de confirmar viabilidad documental/financiera
+- dejar la llamada con seguimiento blando en vez de checkpoint + fecha
+
+C) PREBRIEF-SCRIPT — CHECKPOINT PREVIO ANTES DE PROPUESTA
+Refuerza prebriefScriptRules y guardrails para que, en casos tipo Antonio:
+- real_call_goal NO sea simplemente “ver si pasa a propuesta”
+- sea algo más exacto:
+  “confirmar si el caso supera el checkpoint estructural y ordenar el criterio dominante antes de propuesta”
+- must_get_today priorice:
+  1. aislar criterio dominante real (patrimonio / cashflow / fiscalidad / comparación)
+  2. confirmar qué checkpoint previo hace falta
+  3. conseguir docs / validación / criterio de viabilidad
+  4. cerrar siguiente llamada concreta si el checkpoint sale bien
+- expected_objections no se vayan a objeciones genéricas del sector si el caso aún está condicionado por un punto estructural
+- mistakes_to_avoid prioricen:
+  - explicar el modelo demasiado pronto
+  - entrar en simulación genérica antes de fijar criterio dominante
+  - tratar el caso como exploratorio cuando la intención es alta
+  - cerrar con “te mando algo y hablamos”
+- suggested_call_structure debe reflejar este orden:
+  1. aislar qué pesa más de verdad
+  2. aterrizar el freno estructural
+  3. decidir qué hace falta validar
+  4. solo entonces decidir si propuesta sí/no
+  5. cerrar docs + fecha + siguiente conversación
+- suggested_opening debe sonar más afilada y menos plantilla
+- suggested_next_step_close debe usar el patrón:
+  checkpoint/documentos/validación + fecha + decisión siguiente
+  NO “si cuadra agendamos propuesta”
+- brief_for_live debe dejar muy claro:
+  - comprador real
+  - freno estructural dominante
+  - no explicar demasiado pronto
+  - siguiente paso permitido hoy
+
+D) ANTI-PLANTILLA ESPECÍFICO PARA ANTONIO-LIKE CASES
+En casos con comprador real + checkpoint estructural:
+PROHIBIDO en briefing:
+- “caso todavía exploratorio”
+- “ver si merece la pena seguir”
+- “si hoy confirmamos que cuadra, agendamos propuesta”
+- “explicar el modelo y luego ver”
+- “resolver dudas generales antes de avanzar”
+
+Debe sonar a:
+- “primero ordenamos criterio”
+- “luego validamos si el banco / estructura permite avanzar”
+- “si pasa ese filtro, siguiente llamada concreta ya”
+- “si no pasa, se dice claro”
+
+E) EJEMPLO MENTAL OBLIGATORIO — CASO ANTONIO
+Usa este patrón como test mental:
+- Fase 2
+- Asesoría de ganancia patrimonial
+- FC received
+- alta capacidad de ahorro
+- intención de entrada
+- largo plazo
+- trabajo en Alemania bajo empresa española
+- IRPF en Alemania + SS en España
+- permanencia < 5 años
+- cliente no turista
+Output correcto:
+- no tratarlo como discovery blando
+- no empujar propuesta directa sin checkpoint
+- no enfocarse en cashflow genérico
+- sí enfocar:
+  - viabilidad del caso
+  - criterio dominante real
+  - docs/validación
+  - siguiente llamada con fecha si encaja
+
+IMPLEMENTACIÓN
+1. Refuerza prebriefRules del brain Immvest en lib/sales-brain/src/index.ts
+2. Refuerza prebriefScriptRules del brain Immvest en lib/sales-brain/src/index.ts
+3. Refuerza el systemPrompt / userPrompt / guardrails locales en artifacts/api-server/src/routes/copilot.ts
+4. Mantén el shape JSON intacto
+5. No añadas campos nuevos
+6. No toques frontend
+
+ENTREGA
+Cuando termines, devuélveme solo:
+1) archivos tocados
+2) resumen corto de lógica añadida
+3) ejemplo ANTES vs DESPUÉS para un caso tipo Antonio
+4) confirmación explícita de que NO cambiaste el JSON

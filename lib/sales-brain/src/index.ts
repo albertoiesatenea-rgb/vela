@@ -1278,6 +1278,40 @@ Si aparece un decisor secundario explícito (pareja/socio) Y una duda concreta s
   2. Tratar la salida futura o el horizonte como objeción menor o secundaria cuando es el freno técnico dominante
   3. Responder sobre la decisión sin aislar si la pareja decide o solo valida
 
+REGLA COMPRADOR REAL + CHECKPOINT ESTRUCTURAL:
+Cuando el input contiene señales combinadas de "intención real alta" + "restricción estructural", la lectura táctica cambia por completo — NO es un caso de discovery blando.
+
+Señales de comprador real / intención alta (no turista):
+- FC recibido / finance check completado / financeable confirmado
+- Ingresos sólidos / contrato indefinido / nómina estable
+- Visión a largo plazo / horizonte de inversión real declarado
+- Capacidad de aportar entrada / ahorro disponible para inversión
+- Ya tiene inmuebles o ya invierte en activos
+- Menciona plazo razonable de compra o necesidad de actuar en plazo concreto
+
+Si el input tiene 2 o más señales de intención real COMBINADAS con una señal estructural fuerte (transfronterizo / permanencia limitada / fiscal/laboral compleja / documentación condicionante / score no confirmado), entonces:
+
+today_decision — formular como checkpoint, NO como exploración:
+  · CORRECTO: "Confirmar si el caso supera el checkpoint estructural para avanzar a propuesta"
+  · CORRECTO: "Validar si la situación [fiscal/laboral/transfronteriza] permite avanzar — el cliente tiene intención real"
+  · PROHIBIDO: "explorar si el modelo encaja", "ver si merece la pena seguir", "evaluar si hay encaje"
+
+valid_outcome_today — sonar a checkpoint operativo, NO a exploración blanda:
+  · CORRECTO: "Aislar el checkpoint estructural + confirmar siguiente llamada con fecha si pasa el filtro"
+  · CORRECTO: "Determinar qué documentación/validación hace falta y cerrar siguiente paso con fecha concreta"
+  · PROHIBIDO: "explorar si merece la pena", "ver si hay encaje", "explorar el modelo"
+
+context_for_brief — DEBE incluir explícitamente:
+  · Que el cliente NO es turista / tiene intención real declarada
+  · Cuál es la restricción estructural que condiciona el avance
+  · Que NO es momento de propuesta sin validar el checkpoint específico
+
+case_specific_risks — cuando hay comprador real + restricción estructural, PRIORIZAR:
+  1. Tratar a un comprador real como si estuviera solo explorando
+  2. Entrar en modelo o simulación financiera antes de validar el checkpoint estructural
+  3. Pasar a propuesta antes de confirmar viabilidad documental / financiera / laboral
+  4. Cerrar la llamada con seguimiento blando en vez de checkpoint + fecha concreta
+
 CONTEXTO PARA VELA: Resumen compacto (3-5 frases). Debe arrastrar explícitamente las restricciones y riesgos estructurales del caso si existen. No tritures el CRM. Táctico, directo, sin humo ni teoría.`,
 
       en: `COMMERCIAL PHASE READING — IMMVEST (German real estate investment)
@@ -1359,6 +1393,64 @@ suggested_next_step_close: NO empujar reserva por defecto si falta decisor. Pref
   · MALO: "Si encaja, avanzamos" / "Podemos ver la reserva" / "Ya me dices"
 
 brief_for_live en este patrón: jerarquía — fase real + qué se decide de verdad (no "reserva" si no hay todos los decisores) + freno dominante compuesto si aplica + qué NO hacer + siguiente paso válido hoy.
+
+REGLA COMPRADOR REAL + CHECKPOINT ESTRUCTURAL (casos tipo Antonio, Fase 2/3):
+Detecta este patrón: múltiples señales de intención real alta (FC recibido / ingresos sólidos / entrada disponible / largo plazo / ya invierte) + restricción estructural dominante (transfronterizo / permanencia limitada / fiscal/laboral compleja / documentación condicionante).
+
+Si el patrón se activa:
+
+real_call_goal — NO "ver si el caso merece propuesta". Formulación correcta:
+  · "Confirmar si el caso supera el checkpoint estructural y ordenar el criterio dominante antes de propuesta"
+  · "Aislar qué pesa más de verdad, validar el freno estructural y decidir el siguiente paso concreto"
+  Solo orientar a propuesta si el input confirma que el checkpoint ya está superado.
+
+must_get_today — prioridad obligatoria:
+  1. Aislar el criterio dominante real del cliente (patrimonio / cashflow / fiscalidad / comparación)
+  2. Confirmar qué checkpoint estructural hace falta superar (documental / financiero / laboral / fiscal)
+  3. Conseguir documentación / validación necesaria o criterio de viabilidad concreto
+  4. Cerrar siguiente llamada con fecha concreta si el checkpoint se puede resolver
+
+expected_objections — NO ir a objeciones genéricas del sector si el caso está condicionado por punto estructural:
+  · La objeción esperada DEBE ser la restricción estructural como fricción de avance (¿esto aplica a mi caso? ¿puede financiarme un banco alemán con mi situación?)
+  · El checkpoint no resuelto como bloqueo percibido por el cliente
+
+mistakes_to_avoid — DEBE priorizar en este patrón:
+  1. Explicar el modelo Immvest demasiado pronto (antes de validar el checkpoint estructural)
+  2. Entrar en simulación financiera genérica sin antes fijar el criterio dominante
+  3. Tratar el caso como exploratorio cuando la intención real es alta y confirmada
+  4. Cerrar con "te mando algo y hablamos" o seguimiento blando sin fecha
+  5. Ignorar la restricción estructural y tratar el caso como si solo hubiera objeciones comerciales
+
+suggested_call_structure — orden obligatorio en este patrón:
+  1. Aislar qué pesa más de verdad (criterio dominante real)
+  2. Aterrizar el freno estructural concreto (qué impide avanzar hoy)
+  3. Decidir qué hace falta validar (checkpoint: docs / banco / fiscal / laboral)
+  4. Solo entonces decidir si propuesta sí o no en esta conversación
+  5. Cerrar docs + fecha + siguiente conversación concreta
+
+suggested_opening — atacar el freno estructural, reconocer la intención real, no sonar a discovery blando:
+  · BUENA: "[Nombre], antes de ir a propuesta quiero resolver una cosa: con tu situación [fiscal/transfronteriza], ¿ya sabemos si el banco puede financiar esto o eso está por confirmar?"
+  · BUENA: "Tienes la intención y las condiciones para hacerlo — lo que necesito resolver hoy es si tu situación [específica] pasa el filtro del banco antes de hablar de activos concretos."
+  · MALA: "Quería explorar si el modelo Immvest encaja con lo que buscas"
+  · MALA: "Vamos a ver si esto te puede encajar"
+
+suggested_next_step_close — patrón checkpoint + docs/validación + fecha + decisión concreta. PROHIBIDO "si cuadra agendamos propuesta":
+  · CORRECTO: "Si confirmamos [el punto estructural] esta semana, agendamos propuesta la siguiente. ¿Qué necesitas de mi parte para resolverlo?"
+  · CORRECTO: "Si el banco puede financiar tu situación, el siguiente paso es propuesta con fecha. Para saberlo necesitamos [X]. ¿Lo consigues esta semana?"
+
+brief_for_live en este patrón — DEBE incluir:
+  · "Comprador real" o "no es un turista" + intención alta confirmada
+  · Freno estructural dominante exacto
+  · Qué NO hacer (no explicar modelo ni simulación sin antes validar el checkpoint)
+  · Siguiente paso permitido hoy (checkpoint / docs / validación + fecha si pasa el filtro)
+
+ANTI-PLANTILLA ABSOLUTA — PROHIBIDO en cualquier campo cuando hay comprador real + checkpoint estructural:
+  · "caso todavía exploratorio"
+  · "ver si merece la pena seguir"
+  · "si hoy confirmamos que cuadra, agendamos propuesta"
+  · "explicar el modelo y luego ver"
+  · "resolver dudas generales antes de avanzar"
+  · "explorar el interés" / "explorar el encaje"
 
 REGLA GENERAL — CONSERVACIÓN DE FRENO COMPUESTO:
 Si main_blocker_probable contiene dos elementos tácticos distintos (ejemplos: "decisor ausente + salida futura", "permanencia limitada + complejidad transfronteriza", "renta baja + contrato antiguo"), estos cinco campos DEBEN reflejar AMBOS elementos:
