@@ -2143,6 +2143,33 @@ Mal cierre:
 REGLA ESPECIAL para suggested_opening:
 La apertura DEBE referenciar algo concreto del input o del contexto del caso (una preocupación mencionada, el tipo de evento, la fase en la que están). Si no hay nada específico, usa una apertura que rompa el patrón de saludo-agenda-pregunta genérica. Máximo 2 frases. Sin "¿cómo te encuentras?" ni variantes.
 
+═══ GUARDRAILS ADICIONALES — obligatorios ═══
+
+CONSERVACIÓN DE FRENO COMPUESTO:
+Antes de escribir cualquier campo, verifica: ¿el campo "Bloqueo principal probable" del contexto interpretado contiene dos elementos tácticos distintos?
+Si sí → los campos real_call_goal, must_get_today, expected_objections, suggested_opening y brief_for_live DEBEN reflejar AMBOS. Prohibido colapsarlos.
+Señales de freno compuesto en main_blocker_probable: conectores "+" / "y" / texto con dos sustantivos tácticos distintos (ej: "decisor ausente + salida futura", "renta baja + contrato antiguo").
+
+NO SOBRERRECONSTRUIR WHAT_CLIENT_KNOWS:
+El campo "Qué sabe el cliente" del contexto interpretado refleja conocimiento ya adquirido — no intenciones de entender.
+Al generar el briefing, aplica la misma disciplina:
+  · Si el contexto dice que el cliente quiere entender algo → no lo uses como base de que ya lo entiende
+  · Si dice que revisará algo con alguien → no lo uses como confirmación de que ya lo revisó
+  · Fórmula de comprobación: antes de usar what_client_knows como premisa del briefing, pregúntate "¿el input confirma que ya sabe esto, o solo que quiere saberlo?"
+
+OBJECIONES DE ACTIVO — PRECISIÓN OBLIGATORIA:
+Si el contexto interpretado o el input contienen: renta, alquiler, yield, rentabilidad, contrato antiguo, precio del activo, matemática del inmueble → en expected_objections.how_to_handle:
+  · OBLIGATORIO separar: (1) datos del activo confirmados en contexto, (2) inferencias razonables, (3) datos pendientes de confirmar
+  · PROHIBIDO responder con reencuadre patrimonial abstracto sin antes abordar la matemática concreta
+  · PROHIBIDO citar "casos similares" o medias del mercado como respuesta si hay datos del activo en el contexto
+  · Si hay contrato antiguo: how_to_handle debe abordar explícitamente la brecha renta actual vs renta potencial de mercado
+
+ANTI-PLANTILLA — ESTRUCTURA Y CIERRE:
+suggested_call_structure: ningún paso puede ser vago. Cada paso debe nombrar el freno real, el activo, la decisión o el decisor específico del caso.
+  · PROHIBIDO: "resolver dudas", "conexión inicial", "revisar propuesta", "preguntas abiertas"
+suggested_next_step_close: debe incluir criterio de avance explícito + siguiente paso con fecha o plazo real.
+  · PROHIBIDO: "si encaja avanzamos", "vemos cómo seguir", "te digo algo", "si todo está claro"
+
 ═══ FORMATO — obligatorio ═══
 - No inventes datos del cliente
 - Responde SOLO JSON válido, sin markdown ni texto extra
@@ -2167,6 +2194,7 @@ Antes de generar, responde mentalmente:
 1. ¿Cuál es el freno real más probable de ESTE cliente en ESTA fase? (no el tópico del sector)
 2. ¿Qué haría que esta llamada sea un éxito real hoy?
 3. ¿Qué diría un vendedor mediocre que debes evitar?
+4. ¿El "Bloqueo principal probable" tiene dos elementos distintos? Si sí → ¿aparecen los dos en real_call_goal, expected_objections, suggested_opening y brief_for_live?
 
 Devuelve SOLO este JSON exacto:
 {

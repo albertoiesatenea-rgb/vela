@@ -1,0 +1,133 @@
+Partimos del estado ACTUAL del proyecto. NO rehagas la feature completa. NO reapliques prompts anteriores. Quiero un parche fino sobre el prebrief-script a partir de los tests ya hechos.
+
+OBJETIVO
+El prebrief-context ya está funcionando bastante bien.
+El problema restante está en /copilot/prebrief-script: todavía traduce algunos casos con demasiado olor a plantilla y en ciertos casos pierde precisión táctica.
+
+CASOS OBSERVADOS
+1. Javier:
+- el contexto lee bien el freno compuesto: decisor ausente + salida futura a 6-8 años
+- pero el briefing luego pierde parte de ese freno compuesto, sobre todo en brief_for_live y suggested_opening
+- no quiero que colapse dos frenos fuertes en uno solo
+
+2. Marta y Sergio:
+- lectura general correcta
+- pero en what_client_knows / arrastre al briefing está sobrerreconstruyendo
+- si el input dice que quieren entender el paso exacto de la reserva, NO lo conviertas en que ya conocen el proceso de reserva
+
+3. Fernando:
+- detecta bien que el freno es renta / contrato antiguo / matemática del activo
+- pero el how_to_handle sigue siendo demasiado abstracto
+- quiero defensa más específica del activo, no respuesta genérica
+
+4. Lucía / Raúl / parte de Javier:
+- openings, estructura y cierres aún huelen un poco a plantilla
+- necesito más especificidad táctica según el caso
+
+ARCHIVOS A TOCAR
+1) lib/sales-brain/src/index.ts
+2) artifacts/api-server/src/routes/copilot.ts
+
+NO tocar UI.
+NO tocar shapes JSON.
+NO tocar nombres de campos.
+NO tocar prebrief-context salvo que haga falta reforzar una instrucción compartida del script.
+La prioridad es prebrief-script.
+
+CAMBIOS QUE QUIERO
+
+A) CONSERVACIÓN OBLIGATORIA DEL FRENO COMPUESTO
+Si interpreted_context.main_blocker_probable contiene dos elementos tácticos relevantes, por ejemplo:
+- decisor ausente + salida futura
+- fiscalidad transfronteriza + permanencia limitada
+- renta actual baja + contrato antiguo
+entonces estos campos DEBEN conservar ambos elementos:
+- real_call_goal
+- must_get_today
+- expected_objections (si aplica)
+- suggested_opening
+- brief_for_live
+
+PROHIBIDO colapsar el caso a un solo freno si el contexto interpretado ya trae un freno compuesto.
+
+B) NO SOBRERRECONSTRUIR LO QUE EL CLIENTE SABE
+No conviertas preguntas, revisión pendiente o necesidad de entender en conocimiento ya adquirido.
+Ejemplos:
+- si el input dice "quiere entender bien el plan" → no escribir que ya lo entiende
+- si dice "quieren entender el paso exacto de la reserva" → no escribir que conocen el proceso de reserva
+- si dice "pregunta qué salida tendría en 6-8 años" → no escribir que entiende la salida futura
+
+Usa what_client_knows con disciplina estricta también al generar el briefing.
+
+C) OBJECIONES DE ACTIVO — BAJAR A TIERRA
+Si el caso contiene:
+- renta
+- yield / rentabilidad
+- contrato antiguo
+- precio vs renta
+- alquiler
+- defensa de números del activo
+entonces:
+- expected_objections debe formularse con ese lenguaje concreto
+- how_to_handle debe obligar a separar:
+  1. datos confirmados
+  2. inferencias razonables
+  3. datos no confirmados todavía
+- PROHIBIDO responder solo con reencuadre patrimonial abstracto o “casos similares”
+
+Para Fernando quiero una lógica tipo:
+- objeción: renta baja para precio + contrato antiguo
+- cómo manejar: defender la matemática concreta del activo, separar lo confirmado de lo supuesto, explicar qué dato contractual sostiene o no la renta antes de empujar avance
+
+D) ANTI-PLANTILLA EN OPENING / STRUCTURE / CLOSE
+1. suggested_opening
+- una o dos frases máximo
+- tiene que sonar a ESTE caso, no a vendedor genérico
+- debe atacar el punto vivo exacto del caso
+- evita fórmulas blandas tipo:
+  - "quiero asegurarme de que entendemos bien..."
+  - "vamos a revisar juntos..."
+  - "antes de avanzar, quiero entender..."
+si no aterrizan el caso con precisión real
+
+2. suggested_call_structure
+- prohibido devolver secuencias vacías tipo:
+  - revisar propuesta
+  - resolver dudas
+  - cerrar siguiente paso
+sin aterrizarlas
+- cada paso debe sonar al caso exacto
+
+3. suggested_next_step_close
+- debe incluir criterio explícito de avance + siguiente paso concreto
+- si aplica, fecha o reunión concreta
+- prohibido:
+  - "si encaja avanzamos"
+  - "vemos siguiente paso"
+  - "decidimos si avanzar"
+
+E) PRIORIZACIÓN DE OBJECIONES
+expected_objections no debe quedarse demasiado corto si el caso tiene dos frentes claros.
+Ejemplo Javier:
+- debe mantener salida futura
+- debe mantener decisor ausente
+Ejemplo Antonio:
+- debería mantener permanencia + complejidad transfronteriza si ambas siguen vivas
+Ejemplo Fernando:
+- debería mantener renta / contrato como objeción técnica dominante
+
+IMPLEMENTACIÓN
+1. Refuerza prebriefScriptRules del brain Immvest en lib/sales-brain/src/index.ts
+2. Refuerza también los guardrails locales del endpoint /copilot/prebrief-script en artifacts/api-server/src/routes/copilot.ts
+3. No cambies el JSON de salida
+4. No cambies el flujo de frontend
+5. No toques otros endpoints salvo que sea imprescindible por consistencia
+
+ENTREGA
+Cuando termines, devuélveme:
+1) archivos tocados
+2) resumen corto de la lógica nueva
+3) ANTES vs DESPUÉS para estos 3 casos:
+   - Javier
+   - Marta y Sergio
+   - Fernando
