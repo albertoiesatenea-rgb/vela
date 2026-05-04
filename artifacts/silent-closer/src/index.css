@@ -59,15 +59,23 @@
   /* html.light overrides this back to a dark amber for light bg.         */
   --color-amber-400: #F4D35E;
 
-  /* ── Dark mode legibility: zinc scale tuned for black bg ────────────── */
-  /* Standard zinc colors are designed for light mode; on pure black they  */
-  /* need to be bumped significantly to reach WCAG AA (4.5:1 small text). */
-  --color-zinc-500: #b4b4bc;  /* ↑ from #71717a → ~8:1 on black — labels, subtitles, status */
-  --color-zinc-600: #909099;  /* ↑ from #52525b → ~5:1 on black — muted text, helper hints  */
-  --color-zinc-700: #52525b;  /* ↑ from #3f3f46 → 2.3:1 — borders / separators only        */
+  /* ── Dark mode legibility: full zinc scale pinned for black bg ─────── */
+  /* oklch default values are undefined in our dark CSS layer, so we pin  */
+  /* each step explicitly. User-facing hierarchy:                          */
+  /*   100/200 → white/near-white (principal)                              */
+  /*   300     → #D1D5DB — secondary text                                  */
+  /*   400     → #9CA3AF — meta text                                       */
+  /*   500     → #B4B8C0 — label/status text                               */
+  /*   600     → #909099 — muted helpers                                   */
+  /*   700     → #52525b — borders/separators only                         */
+  --color-zinc-300: #D1D5DB;
+  --color-zinc-400: #9CA3AF;
+  --color-zinc-500: #B4B8C0;
+  --color-zinc-600: #909099;
+  --color-zinc-700: #52525b;
 
-  /* Muted foreground also needs a bump (0 0% 50% = #808080 = 3.5:1 fail) */
-  --muted-foreground: 0 0% 58%; /* → #949494 ≈ 4.9:1 on black ✓ */
+  /* Muted foreground: covers brain selector, lang toggle, icon buttons   */
+  --muted-foreground: 0 0% 73%; /* → #BABABA — bumped from 58% (#949494) */
 
   /* ── Irradiation compensation (dark mode) ───────────────────────────── */
   /* White text/shapes on black backgrounds appear to "bloom" (irradiation  */

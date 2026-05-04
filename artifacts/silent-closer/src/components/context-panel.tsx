@@ -1275,7 +1275,7 @@ export function ContextSetup({
                   "flex items-center gap-1.5 h-8 px-2.5 rounded-full border text-[10px] font-mono transition-all",
                   showBrainDropdown
                     ? "bg-foreground text-background border-foreground"
-                    : "bg-muted border-border text-muted-foreground hover:text-foreground hover:border-foreground/30",
+                    : "bg-muted border-border text-zinc-100 hover:text-foreground hover:border-foreground/30",
                 )}
               >
                 <Brain className="w-3 h-3 shrink-0" />
@@ -1300,7 +1300,7 @@ export function ContextSetup({
                         "w-full flex items-center justify-between px-3 py-2.5 text-[11px] font-mono transition-colors",
                         activeBrainId === id
                           ? "bg-foreground text-background"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                          : "text-zinc-300 hover:bg-muted hover:text-foreground",
                       )}
                     >
                       <span>{id === "immvest" ? "Immvest" : "Genérico"}</span>
@@ -1318,7 +1318,7 @@ export function ContextSetup({
                       setShowBrainInspector(true);
                       setShowBrainDropdown(false);
                     }}
-                    className="w-full flex items-center gap-2 px-3 py-2.5 text-[11px] font-mono text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                    className="w-full flex items-center gap-2 px-3 py-2.5 text-[11px] font-mono text-zinc-400 hover:bg-muted hover:text-foreground transition-colors"
                   >
                     <Brain className="w-3 h-3 shrink-0" />
                     <span>Ver brain</span>

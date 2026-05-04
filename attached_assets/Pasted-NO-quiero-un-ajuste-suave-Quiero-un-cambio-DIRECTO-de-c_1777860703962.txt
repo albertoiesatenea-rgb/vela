@@ -1,0 +1,105 @@
+NO quiero un ajuste “suave”. Quiero un cambio DIRECTO de contraste en dark mode.
+
+PROBLEMA
+En dark mode todavía se ve tipografía gris/lavada sobre negro.
+Se nota incluso en:
+- selector de brain “Immvest”
+- texto del home
+- placeholder del textarea
+- labels y textos secundarios
+
+Yo NO quiero ese gris apagado.  
+Quiero que en dark mode se vea claramente:
+- blanco para texto principal
+- gris claro solo para secundario real
+- amarillo táctico opcional para acentos importantes
+
+OBJETIVO VISUAL
+En dark mode:
+1. Texto principal = blanco o blanco roto muy visible
+2. Texto secundario = gris claro legible
+3. Texto terciario/meta = gris medio
+4. Acentos tácticos = amarillo visible, no marrón
+5. Nada de marrones, ocres apagados ni grises sucios sobre negro
+
+REGLA IMPORTANTE
+No me cambies solo variables abstractas si luego las clases locales siguen pisándolas.
+Quiero revisar y corregir también las clases hardcodeadas del frontend.
+
+ARCHIVOS A REVISAR
+- artifacts/silent-closer/src/components/context-panel.tsx
+- artifacts/silent-closer/src/pages/copilot.tsx
+- cualquier archivo de theme/tokens/global.css/tailwind config si existe
+
+CAMBIOS CONCRETOS QUE QUIERO EN DARK MODE
+
+TEXTO PRINCIPAL
+- usar blanco o blanco roto visible
+- ejemplos válidos:
+  - text-white
+  - text-zinc-50
+  - text-zinc-100
+
+TEXTO SECUNDARIO
+- usar algo tipo:
+  - text-zinc-300
+  - text-zinc-400
+
+TEXTO META / LABEL
+- usar algo tipo:
+  - text-zinc-500
+  - text-zinc-400
+pero SOLO para meta real, no para contenido principal
+
+PLACEHOLDER DEL TEXTAREA
+- que se vea claro, no apagado
+- algo tipo text-zinc-400 o text-zinc-500
+- nunca marrón/gris raro
+
+SELECTOR “IMMVEST” EN TOP BAR
+- si está activo, el texto debe verse blanco claro o amarillo táctico claro
+- ahora se sigue viendo gris apagado y no lo quiero
+
+FLAGS / CHIP / FRENO REAL
+- si quieres acento táctico, usa amarillo visible
+- ejemplos válidos:
+  - #F4D35E
+  - #FFD84D
+- no usar amarillo-marrón sucio
+
+PALETA DESEADA DARK
+- foreground principal: #F5F7FA
+- foreground secundario: #D1D5DB
+- foreground meta: #9CA3AF
+- border dark: #2A313D
+- tactical yellow: #F4D35E
+- tactical yellow strong: #FFD84D
+
+INSTRUCCIÓN CLAVE
+Busca clases hardcodeadas tipo:
+- text-zinc-500
+- text-zinc-600
+- text-muted-foreground
+- text-foreground/60
+- text-foreground/70
+- cualquier color lavado en modo oscuro
+
+Y corrígelas donde afecten a:
+- home del copilot
+- top bar
+- selector de brain
+- textarea
+- bloques de contexto/briefing
+
+NO TOCAR
+- lógica
+- prompts
+- endpoints
+- layout
+- spacing
+
+ENTREGA
+Cuando termines dime:
+1. archivos tocados
+2. qué clases o tokens exactos cambiaste
+3. confirmación explícita de que el texto principal en dark mode ahora es blanco / blanco roto y no gris lavado

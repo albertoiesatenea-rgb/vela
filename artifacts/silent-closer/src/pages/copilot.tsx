@@ -62,17 +62,17 @@ function LiveTranscriptDrawer({
       {/* Header */}
       <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-zinc-800/60">
         <div className="flex items-center gap-2">
-          <VelaIcon className="w-3 h-3 text-zinc-600 shrink-0" />
-          <span className="text-[9px] font-mono tracking-[0.18em] uppercase text-zinc-500">
+          <VelaIcon className="w-3 h-3 text-zinc-500 shrink-0" />
+          <span className="text-[9px] font-mono tracking-[0.18em] uppercase text-zinc-400">
             {lang === "es" ? "Conversación" : "Conversation"}
           </span>
           {turnLog.length > 0 && (
-            <span className="text-[9px] font-mono text-zinc-700">({turnLog.length})</span>
+            <span className="text-[9px] font-mono text-zinc-500">({turnLog.length})</span>
           )}
         </div>
         <button
           onClick={onClose}
-          className="text-zinc-700 hover:text-zinc-300 text-xs font-mono transition-colors leading-none px-1 py-0.5"
+          className="text-zinc-500 hover:text-zinc-100 text-xs font-mono transition-colors leading-none px-1 py-0.5"
           type="button"
           aria-label="Cerrar"
         >
@@ -91,12 +91,12 @@ function LiveTranscriptDrawer({
           </div>
           <div className="flex items-center gap-1">
             <span className="text-[7px] font-mono border border-zinc-700/60 text-zinc-500 bg-zinc-900/40 px-1 py-[1px] rounded leading-none">?</span>
-            <span className="text-[7px] font-mono text-zinc-700">{lang === "es" ? "desconocido" : "unknown"}</span>
+            <span className="text-[7px] font-mono text-zinc-500">{lang === "es" ? "desconocido" : "unknown"}</span>
           </div>
           {repairedCount > 0 && (
             <div className="ml-auto flex items-center gap-1">
               <span className="text-[7px] font-mono text-amber-500">↺</span>
-              <span className="text-[7px] font-mono text-zinc-700">{repairedCount}</span>
+              <span className="text-[7px] font-mono text-zinc-500">{repairedCount}</span>
             </div>
           )}
         </div>
@@ -106,7 +106,7 @@ function LiveTranscriptDrawer({
       <div ref={scrollRef} className="flex-1 overflow-y-auto py-1">
         {turnLog.length === 0 ? (
           <div className="flex flex-col items-center gap-2 mt-10 px-4">
-            <p className="text-[10px] font-mono text-zinc-700 text-center leading-relaxed">
+            <p className="text-[10px] font-mono text-zinc-400 text-center leading-relaxed">
               {lang === "es"
                 ? "La conversación aparecerá aquí mientras VELA escucha."
                 : "The conversation will appear here as VELA listens."}
@@ -169,7 +169,7 @@ function LiveTranscriptDrawer({
                       <span className="text-[7px] font-mono text-red-600 leading-none" title="analysis error">✗</span>
                     )}
                   </div>
-                  <span className="text-[8px] font-mono text-zinc-700">{idx + 1}</span>
+                  <span className="text-[8px] font-mono text-zinc-500">{idx + 1}</span>
                 </div>
 
                 <div className="flex flex-col gap-0.5">
@@ -198,7 +198,7 @@ function LiveTranscriptDrawer({
 
       {/* Footer */}
       <div className="shrink-0 border-t border-zinc-800/60 px-4 py-2">
-        <p className="text-[8px] font-mono text-zinc-700 tracking-widest uppercase">
+        <p className="text-[8px] font-mono text-zinc-500 tracking-widest uppercase">
           {lang === "es" ? "VELA · interpreta en tiempo real" : "VELA · real-time interpretation"}
         </p>
       </div>
