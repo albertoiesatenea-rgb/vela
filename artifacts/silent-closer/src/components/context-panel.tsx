@@ -1224,8 +1224,10 @@ export function ContextSetup({
     }
   };
 
-  const handlePrebriefExit = () => {
+  const resetCopilotSetup = () => {
+    setQuickText("");
     setPrebriefResult(null);
+    setPrebriefLoading(false);
     setPrebriefConfirmed(false);
     setPrebriefEditing(false);
     setPrebriefEdit(null);
@@ -1235,7 +1237,10 @@ export function ContextSetup({
     setPrebriefBrainId(null);
     setPrebriefUserEdited(false);
     prebriefResultAtInterpret.current = null;
-    // quickText preserved intentionally
+    setShowBrainDropdown(false);
+    setShowBrainInspector(false);
+    setShowCopilotOpts(false);
+    setShowPresetOpts(false);
   };
 
   const ctaLabel = appMode === "arena" ? t.START_ARENA : t.START;
@@ -1351,8 +1356,8 @@ export function ContextSetup({
       </div>
 
       {/* ── Main content — centered, scrollable ─────────────────────────── */}
-      <div className={cn("flex-1 overflow-y-auto flex flex-col items-center px-6 py-8", showActionBar && "pb-36")}>
-      <div className="w-full max-w-lg flex flex-col gap-4">
+      <div className={cn("flex-1 overflow-y-auto flex flex-col items-center px-6 py-6", showActionBar && "pb-36")}>
+      <div className="w-full max-w-lg flex flex-col gap-4 my-auto">
 
         {/* ── Controls row ──────────────────────────────────────────────── */}
         <div className="flex items-center justify-between gap-3">
@@ -1700,7 +1705,7 @@ export function ContextSetup({
                         {prebriefResult.special_context_flags?.length ? (
                           <div className="flex flex-wrap gap-1.5">
                             {prebriefResult.special_context_flags.map((f, i) => (
-                              <span key={i} className="text-[10px] text-amber-500/80 bg-amber-950/25 border border-amber-900/40 px-2 py-0.5 rounded-full">
+                              <span key={i} className="text-[10px] text-zinc-100 bg-zinc-800 border border-zinc-600 px-2 py-0.5 rounded-full">
                                 {f}
                               </span>
                             ))}
@@ -2014,7 +2019,7 @@ export function ContextSetup({
             {/* Salir */}
             <button
               onMouseDown={e => e.preventDefault()}
-              onClick={handlePrebriefExit}
+              onClick={resetCopilotSetup}
               className="shrink-0 px-3.5 py-2.5 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-all"
             >
               Salir

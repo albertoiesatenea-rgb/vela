@@ -1,0 +1,102 @@
+Quiero un ajuste de UX/UI en el setup de Copiloto. Solo frontend. Prioridad: dejar el home limpio, legible y cómodo antes de entrar en live.
+
+ARCHIVO PRINCIPAL
+- artifacts/silent-closer/src/components/context-panel.tsx
+
+OBJETIVOS
+
+1) BOTÓN "SALIR" = RESET REAL, no "atrás"
+Ahora "Salir" está comportándose como volver atrás: deja la caja de contexto llena y mantiene estado previo.
+No quiero eso.
+
+Quiero que al pulsar "Salir":
+- se limpie el textarea principal
+- se borre el contexto interpretado
+- se borre el contexto confirmado
+- se borre el briefing generado
+- se borren flags de edición/loading
+- se cierren dropdowns, inspector, drawers o paneles abiertos
+- se vuelva al estado inicial limpio del home de Copiloto
+- NO use history.back()
+- NO rehidrate el último texto
+- NO mantenga visible el layout documental del prebrief
+
+IMPLEMENTACIÓN
+- Crear un helper único tipo resetCopilotSetup()
+- Hacer que el botón "Salir" llame a ese helper
+- Si ahora "Salir" usa navegación/back, eliminarlo
+
+RESET DEBE LIMPIAR COMO MÍNIMO
+- quickText
+- prebriefResult
+- prebriefLoading
+- prebriefConfirmed
+- prebriefEditing
+- prebriefEdit
+- prebriefBrainId
+- prebriefUserEdited
+- briefingResult
+- briefingLoading
+- refs asociadas a interpretación/briefing si existen
+- showBrainDropdown
+- inspector / drawer / panel abierto
+- cualquier estado derivado que mantenga el layout del prebrief visible
+
+REGLA UX
+- Salir = destruir borrador y volver al home limpio
+- Reinterpretar = rehacer análisis con el texto actual
+- Corregir = editar lo ya interpretado
+
+2) AJUSTE VISUAL DEL HOME Y CONTRASTE
+Ahora el bloque principal del home se ve demasiado arriba. Antes se sentía más centrado verticalmente y estaba mejor.
+Quiero recuperar esa sensación.
+
+CAMBIO DE LAYOUT
+- El bloque principal del home de Copiloto (tabs + textarea + CTA inicial) debe quedar más centrado verticalmente
+- No tan pegado arriba
+- Mantener buena separación con la top bar
+- No romper responsive
+- Cuando no hay prebrief generado, el home debe respirar más y sentirse centrado
+- Cuando sí hay contenido largo, que el scroll siga funcionando normal
+
+3) CONTRASTE / ACCESIBILIDAD DE FLAGS
+Estas chips no se leen bien:
+- “situación fiscal/laboral transfronteriza”
+- “permanencia en Alemania probablemente limitada”
+
+PROBLEMA
+- El amarillo sobre beige tiene poco contraste
+- Soy daltónico, así que quiero contraste real, no color “bonito”
+
+QUIERO
+- fondo más oscuro o más neutro
+- texto mucho más contrastado
+- evitar combinaciones beige/amarillo suaves
+- priorizar legibilidad sobre estética
+- mantenerlas como chips/badges, pero claramente legibles
+
+REGLA DE ACCESIBILIDAD
+- No depender solo del color para transmitir importancia
+- Que se lean bien en tema claro
+- Usar contraste más fuerte en texto y borde
+- Si hace falta, pasar estas chips a estilo:
+  - fondo muy claro o muy oscuro
+  - texto oscuro/negro o casi negro
+  - borde definido
+- No usar amarillo pálido sobre beige
+
+4) NO TOCAR
+- backend
+- prompts
+- endpoints
+- lógica comercial
+- Arena
+- Copilot live
+
+ENTREGA
+- solo frontend
+- idealmente un único archivo: artifacts/silent-closer/src/components/context-panel.tsx
+- al final dime exactamente:
+  1. qué estados resetea resetCopilotSetup()
+  2. qué cambiaste para recentrar visualmente el home
+  3. qué clases/estilos cambiaste para mejorar el contraste de las chips
