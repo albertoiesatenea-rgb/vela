@@ -1024,6 +1024,7 @@ export function ContextSetup({
   const [briefingResult,    setBriefingResult]    = useState<PrebriefScript | null>(null);
   const [prebriefUserEdited, setPrebriefUserEdited] = useState(false);
   const prebriefResultAtInterpret = useRef<typeof prebriefResult>(null);
+  const briefingResultRef = useRef<PrebriefScript | null>(null);
   const [briefingLoading,   setBriefingLoading]   = useState(false);
   const [showBrainDropdown, setShowBrainDropdown] = useState(false);
   const [showBrainInspector, setShowBrainInspector] = useState(false);
@@ -1194,12 +1195,14 @@ export function ContextSetup({
     setPrebriefConfirmed(true);
     setPrebriefEditing(false);
     setBriefingResult(null);
+    briefingResultRef.current = null;
   };
 
   const handlePrepareCall = async () => {
     if (!prebriefResult) return;
     setBriefingLoading(true);
     setBriefingResult(null);
+    briefingResultRef.current = null;
     try {
       const res = await fetch("/api/copilot/prebrief-script", {
         method: "POST",
@@ -1213,6 +1216,7 @@ export function ContextSetup({
       if (!res.ok) throw new Error("HTTP " + res.status);
       const data = await res.json() as PrebriefScript;
       setBriefingResult(data);
+      briefingResultRef.current = data;
     } catch {
       // no-op — user can retry
     } finally {
@@ -1757,16 +1761,19 @@ export function ContextSetup({
                     <div className="flex justify-end pt-0.5">
                       <button
                         onMouseDown={e => e.preventDefault()}
-                        onClick={() => triggerPrebriefLogDownload({
-                          brainId: prebriefBrainId ?? activeBrainId,
-                          rawInput: quickText,
-                          interpreted: prebriefResultAtInterpret.current ?? prebriefResult,
-                          confirmed: prebriefConfirmed && prebriefEdit ? prebriefEdit : null,
-                          contextConfirmed: prebriefConfirmed,
-                          userEditedContext: prebriefUserEdited,
-                          briefingGenerated: !!briefingResult,
-                          briefing: briefingResult,
-                        })}
+                        onClick={() => {
+                          const currentBriefing = briefingResultRef.current;
+                          triggerPrebriefLogDownload({
+                            brainId: prebriefBrainId ?? activeBrainId,
+                            rawInput: quickText,
+                            interpreted: prebriefResultAtInterpret.current ?? prebriefResult,
+                            confirmed: prebriefConfirmed && prebriefEdit ? prebriefEdit : null,
+                            contextConfirmed: prebriefConfirmed,
+                            userEditedContext: prebriefUserEdited,
+                            briefingGenerated: !!currentBriefing,
+                            briefing: currentBriefing,
+                          });
+                        }}
                         className="text-[9px] font-mono text-zinc-700 hover:text-zinc-400 transition-colors tracking-wide"
                       >
                         ↓ prebrief log (.md)

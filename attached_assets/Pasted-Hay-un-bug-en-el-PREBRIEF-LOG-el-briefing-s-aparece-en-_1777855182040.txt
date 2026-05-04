@@ -1,0 +1,59 @@
+Hay un bug en el PREBRIEF LOG: el briefing sí aparece en UI, pero el .md descargado sigue saliendo con:
+
+- briefing_generated: no
+- ## BRIEFING -> "No generado todavía"
+
+Quiero un fix quirúrgico. NO tocar prompts, NO tocar endpoints, NO tocar layout, NO tocar live copilot, NO tocar whisper.
+
+Objetivo:
+Que el log descargable de prebrief incluya SIEMPRE el briefing real cuando `briefingResult` exista en el estado del componente.
+
+Archivos a revisar:
+- `artifacts/silent-closer/src/components/context-panel.tsx`
+- `artifacts/silent-closer/src/lib/prebrief-log.ts`
+
+Haz estas comprobaciones y fixes:
+
+1. En `context-panel.tsx`, localiza exactamente el handler del botón `Descargar prebrief log (.md)`.
+   - Verifica qué argumentos le pasa a `triggerPrebriefLogDownload(...)`.
+   - Asegúrate de que está pasando `briefingResult` REAL del estado actual.
+   - No quiero que construya el log con un objeto parcial ni con un snapshot anterior.
+   - Si hace falta, crea el objeto inline justo en el click handler con los estados actuales:
+     - `activeBrainId`
+     - `quickText`
+     - `prebriefResult`
+     - `prebriefEdit`
+     - `prebriefConfirmed`
+     - `briefingResult`
+
+2. En `prebrief-log.ts`, revisa `renderPrebriefLogMarkdown(...)`.
+   - Verifica que `briefing_generated` se calcule como `yes` cuando `briefingResult` exista.
+   - Verifica que la sección `## BRIEFING` renderice todos estos campos cuando existan:
+     - `real_call_goal`
+     - `must_get_today`
+     - `expected_objections`
+     - `mistakes_to_avoid`
+     - `suggested_call_structure`
+     - `suggested_opening`
+     - `suggested_next_step_close`
+     - `brief_for_live`
+   - Si `briefingResult` no existe, entonces sí debe poner `No generado todavía`.
+
+3. Asegúrate de que el log use el estado CONFIRMADO correcto:
+   - `CONFIRMED CONTEXT` debe usar la versión final confirmada
+   - `BRIEFING` debe usar `briefingResult` actual, no una copia antigua
+
+4. Añade una verificación mínima en el botón:
+   - si `briefingResult` existe, el markdown generado debe incluir literalmente el bloque `## BRIEFING` con contenido real
+   - no quiero que se descargue un log viejo por culpa de closures raras
+
+5. No cambies nombres ni estructura general del markdown. Solo arregla el bug para que el briefing salga.
+
+Cuando termines, enséñame:
+- qué archivos tocaste
+- el handler exacto del botón de descarga
+- la firma actual de `renderPrebriefLogMarkdown`
+- un ejemplo real del markdown generado donde se vea `briefing_generated: yes` y al menos:
+  - `real_call_goal`
+  - `suggested_opening`
+  - `suggested_next_step_close`
