@@ -1,0 +1,161 @@
+Quiero añadir un PREBRIEF LOG descargable, separado del audit log de llamadas.
+
+Objetivo:
+Poder descargar un `.md` con toda la información del flujo de pre-brief para revisarlo fuera y subirlo luego al chat. No quiero copiar/pegar manualmente cada caso.
+
+NO tocar:
+- live copilot
+- whisper
+- audit log de llamadas
+- arena
+- DB
+- tracker
+- prompts de prebrief
+- layout general fuera del prebrief
+
+Sí puedes tocar:
+- `artifacts/silent-closer/src/components/context-panel.tsx`
+- crear un helper nuevo tipo `artifacts/silent-closer/src/lib/prebrief-log.ts`
+- si hace falta, tipos mínimos asociados
+
+==================================================
+1) NUEVO LOG DESCARGABLE DE PREBRIEF
+==================================================
+
+Quiero un helper nuevo que genere un markdown descargable con esta estructura:
+
+# PREBRIEF LOG — VELA
+
+## META
+- created_at
+- brain_id
+- mode: copilot
+- setup_mode: rapido|avanzado (si está disponible)
+- context_confirmed: yes|no
+- briefing_generated: yes|no
+- user_edited_context: yes|no
+
+## RAW INPUT
+(pegar aquí el texto bruto que escribió el usuario)
+
+## INTERPRETED CONTEXT
+- detected_phase
+- call_type
+- today_decision
+- what_client_knows
+- main_blocker_probable
+- valid_outcome_today
+- confidence
+- context_for_brief
+
+## STRUCTURAL SIGNALS
+### special_context_flags
+- ...
+### decision_constraints
+- ...
+### case_specific_risks
+- ...
+
+## CONFIRMED CONTEXT
+(aquí la versión final confirmada por el usuario; si no hay cambios, igual que la interpretada)
+
+## BRIEFING
+- real_call_goal
+- must_get_today
+- expected_objections
+- mistakes_to_avoid
+- suggested_call_structure
+- suggested_opening
+- suggested_next_step_close
+- brief_for_live
+
+## NOTES
+- si no existe briefing todavía, poner: "No generado todavía"
+- si no existe contexto confirmado, poner: "No confirmado todavía"
+
+Formato:
+- markdown limpio
+- legible
+- sin JSON crudo
+- sin tablas
+- sin adornos raros
+
+Nombre del archivo:
+`prebrief-log-YYYY-MM-DDTHH-mm-ss.md`
+
+==================================================
+2) BOTÓN EN UI
+==================================================
+
+En `artifacts/silent-closer/src/components/context-panel.tsx` añade un botón:
+
+`Descargar prebrief log (.md)`
+
+Reglas:
+- Debe aparecer cuando ya exista `prebriefResult`
+- No hace falta esperar a que exista briefingResult; si no existe, el log sale parcial
+- Debe seguir visible aunque el contexto ya esté confirmado
+- Debe funcionar tanto antes como después de generar “Preparar llamada”
+
+Colócalo de forma discreta en el bloque del prebrief, sin ensuciar la UI.
+
+==================================================
+3) QUÉ DATOS USAR EXACTAMENTE
+==================================================
+
+Usa estos datos del estado actual del componente si existen:
+- `activeBrainId`
+- `quickText`
+- `prebriefResult`
+- `prebriefEdit`
+- `prebriefConfirmed`
+- `briefingResult`
+
+Importante:
+- Si `prebriefConfirmed` es true y `prebriefEdit` existe, la sección `CONFIRMED CONTEXT` debe usar esa versión final
+- Si no, usa `prebriefResult`
+- `user_edited_context` debe ser true si hubo edición manual real antes de confirmar
+
+==================================================
+4) HELPER NUEVO
+==================================================
+
+Crea algo como:
+
+`artifacts/silent-closer/src/lib/prebrief-log.ts`
+
+Con dos exports:
+
+- `renderPrebriefLogMarkdown(...)`
+- `triggerPrebriefLogDownload(...)`
+
+Hazlo limpio, parecido al estilo del audit log actual, pero separado. No mezclar con `audit-log.ts`.
+
+==================================================
+5) NO ROMPER EL FLUJO ACTUAL
+==================================================
+
+No cambies:
+- prioridad del CTA “Iniciar copiloto”
+- prompts
+- endpoints
+- selector de brain
+- Brain Inspector
+- Confirmar contexto
+- Preparar llamada
+
+Solo añadir el log descargable.
+
+==================================================
+6) VERIFICACIÓN
+==================================================
+
+Cuando termines:
+- enséñame qué archivo nuevo creaste
+- enséñame dónde aparece el botón
+- enséñame un ejemplo real del markdown generado con:
+  - raw input
+  - interpreted context
+  - structural signals
+  - briefing
+- dime exactamente qué archivos tocaste

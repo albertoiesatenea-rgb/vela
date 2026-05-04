@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, type ReactNode } from "react";
+import { triggerPrebriefLogDownload } from "@/lib/prebrief-log";
 import { ChevronDown, ChevronUp, Zap, SlidersHorizontal, User, Users, Target, Briefcase, ShieldOff, FileText, Swords, Navigation, Headphones, Shuffle, X, Package, Building, Lightbulb, MessageSquare, Sun, Moon, Brain } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/use-theme";
@@ -1021,6 +1022,8 @@ export function ContextSetup({
   const [activeBrainId,     setActiveBrainId]     = useState<"generic" | "immvest">("immvest");
   const [prebriefBrainId,   setPrebriefBrainId]   = useState<"generic" | "immvest" | null>(null);
   const [briefingResult,    setBriefingResult]    = useState<PrebriefScript | null>(null);
+  const [prebriefUserEdited, setPrebriefUserEdited] = useState(false);
+  const prebriefResultAtInterpret = useRef<typeof prebriefResult>(null);
   const [briefingLoading,   setBriefingLoading]   = useState(false);
   const [showBrainDropdown, setShowBrainDropdown] = useState(false);
   const [showBrainInspector, setShowBrainInspector] = useState(false);
@@ -1168,6 +1171,8 @@ export function ContextSetup({
       const data = await res.json() as PrebriefResult;
       setPrebriefResult(data);
       setPrebriefEdit({ ...data });
+      setPrebriefUserEdited(false);
+      prebriefResultAtInterpret.current = data;
     } catch {
       // no-op — textarea stays, user can retry
     } finally {
@@ -1176,7 +1181,16 @@ export function ContextSetup({
   };
 
   const handlePrebriefConfirm = () => {
-    if (prebriefEdit) setPrebriefResult({ ...prebriefEdit });
+    if (prebriefEdit) {
+      if (prebriefEditing) {
+        const orig = prebriefResultAtInterpret.current;
+        const hasEdit = orig
+          ? JSON.stringify(prebriefEdit) !== JSON.stringify(orig)
+          : false;
+        if (hasEdit) setPrebriefUserEdited(true);
+      }
+      setPrebriefResult({ ...prebriefEdit });
+    }
     setPrebriefConfirmed(true);
     setPrebriefEditing(false);
     setBriefingResult(null);
@@ -1738,6 +1752,26 @@ export function ContextSetup({
                         </button>
                       </div>
                     )}
+
+                    {/* ── Descargar prebrief log ──────────────────────── */}
+                    <div className="flex justify-end pt-0.5">
+                      <button
+                        onMouseDown={e => e.preventDefault()}
+                        onClick={() => triggerPrebriefLogDownload({
+                          brainId: prebriefBrainId ?? activeBrainId,
+                          rawInput: quickText,
+                          interpreted: prebriefResultAtInterpret.current ?? prebriefResult,
+                          confirmed: prebriefConfirmed && prebriefEdit ? prebriefEdit : null,
+                          contextConfirmed: prebriefConfirmed,
+                          userEditedContext: prebriefUserEdited,
+                          briefingGenerated: !!briefingResult,
+                          briefing: briefingResult,
+                        })}
+                        className="text-[9px] font-mono text-zinc-700 hover:text-zinc-400 transition-colors tracking-wide"
+                      >
+                        ↓ prebrief log (.md)
+                      </button>
+                    </div>
                   </div>
                 )}
               </>
