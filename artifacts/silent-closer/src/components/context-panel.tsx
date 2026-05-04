@@ -1106,6 +1106,17 @@ export function ContextSetup({
     setPrebriefEditing(false);
     setBriefingResult(null);
     briefingResultRef.current = null;
+
+    void fetch("/api/copilot/save-prebrief", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        brainId: prebriefBrainId ?? activeBrainId,
+        rawInput: quickText,
+        interpretedContext: prebriefEdit ?? prebriefResult,
+        briefing: briefingResultRef.current ?? null,
+      }),
+    }).catch(e => console.error("[vela:db] save-prebrief failed", e));
   };
 
   const handlePrepareCall = async () => {
@@ -1127,6 +1138,17 @@ export function ContextSetup({
       const data = await res.json() as PrebriefScript;
       setBriefingResult(data);
       briefingResultRef.current = data;
+
+      void fetch("/api/copilot/save-prebrief", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          brainId: prebriefBrainId ?? activeBrainId,
+          rawInput: quickText,
+          interpretedContext: prebriefResult,
+          briefing: data,
+        }),
+      }).catch(e => console.error("[vela:db] save-prebrief failed", e));
     } catch {
       // no-op — user can retry
     } finally {
