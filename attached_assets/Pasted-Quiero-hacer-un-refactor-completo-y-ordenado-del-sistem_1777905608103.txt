@@ -1,0 +1,589 @@
+Quiero hacer un refactor completo y ordenado del sistema de guardado + log forense canónico de VELA en Copiloto. NO hagas un parche rápido. Usa la arquitectura actual y deja una única fuente de verdad para el log descargable.
+
+OBJETIVO GLOBAL
+
+Quiero que una sesión de Copiloto se pueda:
+1. cerrar sin guardar en DB
+2. guardar explícitamente en DB
+3. descargar como un ÚNICO markdown forense canónico
+4. volver a descargar EXACTAMENTE el mismo archivo desde la pantalla de historial
+5. auditar después en ChatGPT o Claude con toda la información comercial y técnica del sistema
+
+REQUISITO CLAVE
+
+El archivo descargado desde la pantalla post-llamada y el archivo descargado desde historial deben ser EXACTAMENTE el mismo markdown canónico.
+Prohibido tener dos builders distintos o dos versiones distintas del log.
+Debe existir un único builder canónico del log en frontend, y el markdown generado por ese builder debe persistirse en DB como canonicalLogMd.
+Historial debe descargar canonicalLogMd tal cual desde DB, sin reconstruir otra versión.
+
+REGLAS DURAS
+
+- No borres funcionalidad actual útil.
+- No cambies la doctrina comercial ni los prompts de brain salvo lo estrictamente necesario para la fuente de transcript post-llamada.
+- No metas hardcodes raros para “Amara” ni similares.
+- No inventes razonamientos ocultos. Si explicas por qué VELA dijo algo, usa solo datos observables: fragmento, memoria, contexto, reading, mission, next_move, etc.
+- Todo análisis post-llamada debe usar como fuente principal el transcript limpio de Whisper con atribución de hablantes.
+- Web Speech queda como fuente secundaria / fallback explícito, nunca como fuente silenciosa.
+- Si Whisper limpio todavía no está listo al terminar llamada, summary / score / brutal audit / VELA audit deben esperar hasta 45s máximo. Si aun así no está, deben entrar en “modo degradado” y dejarlo explícito en UI y en el log.
+- Mantén el diseño coherente con el resto de la app.
+
+========================================
+1. CAMBIOS DE ESQUEMA EN DB
+========================================
+
+Edita lib/db/src/schema/index.ts.
+
+Sobre callSessions, añade estos campos nuevos:
+- sourceSessionId: text("source_session_id")
+- savedAt: timestamp("saved_at")
+- canonicalLogMd: text("canonical_log_md")
+- sessionSnapshot: jsonb("session_snapshot")
+- whisperRawTranscript: text("whisper_raw_transcript")
+- whisperCleanTranscript: text("whisper_clean_transcript")
+- webSpeechTranscript: text("web_speech_transcript")
+- velaAudit: jsonb("vela_audit")
+- costSnapshot: jsonb("cost_snapshot")
+- timelineSnapshot: jsonb("timeline_snapshot")
+- savedExplicitly: boolean("saved_explicitly").default(false)
+
+Mantén los campos ya existentes.
+No elimines prebriefId, rawInput, clientName, brutalAudit, totalCostUsd, etc.
+
+Si necesitas imports nuevos en drizzle, añádelos correctamente.
+
+Después ejecuta la migración / push que corresponda para crear las nuevas columnas.
+
+========================================
+2. BACKEND: SAVE / PATCH / GET
+========================================
+
+Edita artifacts/api-server/src/routes/copilot.ts.
+
+2.1 SAVE SESSION
+Amplía POST /copilot/save-session para aceptar y persistir:
+- sourceSessionId
+- canonicalLogMd
+- sessionSnapshot
+- whisperRawTranscript
+- whisperCleanTranscript
+- webSpeechTranscript
+- velaAudit
+- costSnapshot
+- timelineSnapshot
+- savedExplicitly
+
+Reglas:
+- savedAt debe ponerse con new Date() cuando se guarde
+- sourceSessionId debe venir del sessionId real de la sesión live
+- totalCostUsd NO debe quedarse en null si existe sessionId real: resuélvelo en backend usando getSessionStats(sourceSessionId) desde ai-tracker cuando esté disponible
+- si existe prebriefId, SIEMPRE usa el rawInput del prebrief como fuente preferente para rawInput y para extracción de clientName
+- si no hay prebriefId, usa el rawInput recibido en body
+- el clientName debe resolverse con la lógica actual, pero siempre sobre la mejor fuente disponible (prebrief raw input > rawInput body > null)
+
+2.2 PATCH SESSION
+Amplía PATCH /copilot/sessions/:id.
+Ahora no solo debe parchear brutalAudit y whisperTranscript. Debe aceptar y actualizar también:
+- canonicalLogMd
+- sessionSnapshot
+- whisperRawTranscript
+- whisperCleanTranscript
+- webSpeechTranscript
+- velaAudit
+- costSnapshot
+- timelineSnapshot
+- callSummary
+- brutalAudit
+
+Haz update condicional solo de los campos presentes en body.
+
+2.3 GET SESSIONS
+Amplía GET /copilot/sessions para devolver también:
+- sourceSessionId
+- savedAt
+- canonicalLogMd
+- sessionSnapshot
+- whisperRawTranscript
+- whisperCleanTranscript
+- webSpeechTranscript
+- velaAudit
+- costSnapshot
+- timelineSnapshot
+- savedExplicitly
+- callSummary
+- brutalAudit
+- rawInput
+- prebriefId
+- clientName
+- sessionContext
+- outcome
+- score
+- brainId
+- createdAt
+
+Orden descendente por createdAt para que lo más reciente salga primero.
+
+2.4 PREBRIEF SAVE SIN DUPLICADOS
+Ahora mismo save-prebrief crea filas duplicadas.
+Quiero que /copilot/save-prebrief acepte opcionalmente un id.
+- Si NO llega id: crea el prebrief y devuelve { id }
+- Si SÍ llega id: actualiza ese mismo prebrief con interpretedContext / briefing / rawInput / brainId y devuelve el mismo id
+
+Así el flujo será:
+- confirmar prebrief → crea fila
+- preparar llamada → actualiza esa misma fila con briefing completo
+No quiero duplicados por la misma sesión.
+
+========================================
+3. FRONTEND: FUENTE DE VERDAD DEL POST-LLAMADA
+========================================
+
+Edita artifacts/silent-closer/src/pages/copilot.tsx.
+
+3.1 SEPARAR WHISPER RAW Y WHISPER CLEAN
+Ahora mismo whisperTranscript se pisa con la versión limpia.
+Quiero separar estados:
+- whisperRawTranscript
+- whisperCleanTranscript
+
+Mantén compatibilidad local si necesitas una variable derivada:
+- analysisTranscript = whisperCleanTranscript si existe
+- si no, null / fallback explícito
+
+NO uses whisper raw como si fuera el limpio.
+Quiero preservar los tres niveles:
+- Web Speech
+- Whisper bruto
+- Whisper limpio con hablantes
+
+3.2 POST-LLAMADA: TODO USA WHISPER LIMPIO
+Revisa estas funciones y asegúrate de que usan la fuente correcta:
+- handleSelectOutcome
+- handleGenerateReport
+- handleLoadBrutalAudit
+- handleLoadVelaAudit
+- cualquier otro análisis post-llamada
+
+Regla:
+- esperan a whisperCleanDone hasta 45s máximo
+- usan whisperCleanTranscript como transcript principal
+- si cae a fallback, debe quedar marcado en el resultado / snapshot / log como fallback explícito
+- NO quiero que summarize o score se calculen en silencio con Web Speech si Whisper limpio aún viene de camino
+
+3.3 BOTONES POST-LLAMADA
+En la barra fija inferior de post-llamada, sustituye la lógica actual de “copiar resumen / cerrar sesión” como CTA principal.
+
+Quiero:
+CTA principal 1: Guardar sesión
+CTA principal 2: Cerrar sin guardar
+Acción secundaria: Descargar log
+Acción secundaria opcional: Copiar resumen / copiar informe, si quieres dejarlo como link pequeño o botón menor
+
+Comportamiento:
+- Guardar sesión = persiste en DB con savedExplicitly=true y devuelve savedSessionIdRef.current
+- Cerrar sin guardar = limpia sesión y sale, sin crear fila nueva en DB
+- Descargar log = usa el builder canónico actual y descarga el markdown inmediatamente, aunque aún no se haya guardado
+- Si la sesión ya fue guardada y luego se genera brutal audit / vela audit / mejora transcript, debe hacerse PATCH automático y actualizar también canonicalLogMd en DB
+
+3.4 DEJAR DE AUTOGUARDAR AL SELECCIONAR OUTCOME
+Ahora la sesión se guarda al seleccionar outcome.
+Eso hay que quitarlo.
+Seleccionar outcome debe:
+- calcular summary / score
+- abrir la capa post-llamada
+- NO insertar en DB todavía
+
+Solo se guarda al pulsar “Guardar sesión”.
+
+3.5 REFS Y ESTADO DE PERSISTENCIA
+Mantén / ajusta:
+- savedSessionIdRef
+- sessionPrebriefIdRef
+- sessionBrainIdRef
+- source sessionId real
+
+Añade un estado claro de si la sesión ya está guardada:
+- isSessionSaved o similar
+
+Si el usuario guarda una vez y luego genera brutal audit / vela audit / clean transcript, PATCH automático sobre esa misma sesión guardada.
+
+========================================
+4. CONTEXT SETUP / PREBRIEF: PASAR TODO EL MATERIAL
+========================================
+
+Edita artifacts/silent-closer/src/components/context-panel.tsx y artifacts/silent-closer/src/pages/copilot.tsx.
+
+Quiero que onContextReady no pase solo:
+- ctx
+- structuredCtx
+- brainId
+- prebriefId
+
+Quiero que pase además un paquete claro del prebrief ya listo para usar en el log canónico:
+- rawInput original pegado por el usuario
+- interpretedContext final confirmado
+- briefing final preparado
+- brainId
+- prebriefId
+- si hubo edición manual del prebrief o no
+
+Crea un objeto tipo:
+prebriefBundle = {
+  rawInput,
+  interpretedContext,
+  briefing,
+  brainId,
+  prebriefId,
+  userEdited
+}
+
+Guárdalo en copilot.tsx para que el builder del log lo pueda usar directamente, sin tener que reconstruir desde memoria parcial.
+
+Cuando se haga “Interpretar contexto” y “Preparar llamada”, usa save-prebrief create/update sobre el mismo registro, no dos filas distintas.
+
+========================================
+5. COSTE Y TRAZA DE SESIÓN
+========================================
+
+Quiero que el log canónico incluya el coste completo de la sesión.
+
+Usa artifacts/api-server/src/lib/ai-tracker.ts y el sourceSessionId real.
+
+Implementa esto:
+- al guardar sesión, backend intenta resolver getSessionStats(sourceSessionId)
+- si existe, guarda:
+  - totalCostUsd
+  - costSnapshot completo con calls, totalTokens, totalCostUsd, avgLatency si está disponible, y desglose por ruta/endpoint si lo puedes obtener sin hack feo
+- si no existe, deja claro en costSnapshot que no estaba disponible
+
+También quiero timelineSnapshot con timestamps relevantes:
+- session_started_at
+- session_ended_at
+- prebrief_created_at
+- prebrief_briefing_ready_at
+- whisper_raw_ready_at
+- whisper_clean_ready_at
+- summary_ready_at
+- brutal_audit_ready_at
+- vela_audit_ready_at
+- saved_at
+
+Si alguna marca no existe, guárdala como null, pero el campo debe existir en snapshot.
+
+========================================
+6. BUILDER CANÓNICO DEL LOG
+========================================
+
+Edita artifacts/silent-closer/src/lib/audit-log.ts.
+
+NO quiero seguir con un log parcial.
+Quiero un builder canónico nuevo para Copiloto, más forense y completo.
+
+Mantén lo que sirva del builder actual, pero crea la estructura correcta.
+Puedes:
+- extender buildCopilotAuditLog
+- o crear un builder nuevo tipo buildCopilotCanonicalSessionLog
+- pero la descarga final debe salir SIEMPRE de una única función canónica
+
+NECESITO DOS CAPAS:
+A) snapshot estructurado completo
+B) markdown canónico renderizado desde ese snapshot
+
+Crea tipos claros para snapshot canónico, por ejemplo algo equivalente a:
+- meta
+- prebrief
+- live_system_trace
+- transcripts
+- post_call
+- cost
+- timeline
+- raw_payloads
+
+No hace falta que uses exactamente esos nombres, pero el resultado debe cubrir TODO.
+
+EL MARKDOWN CANÓNICO DEBE INCLUIR, EN ESTE ORDEN:
+
+1. CABECERA
+- marca VELA
+- cliente
+- brain
+- outcome
+- score
+- fecha/hora
+- saved status
+- sourceSessionId
+- DB session id
+- prebrief id
+
+2. RESUMEN EJECUTIVO
+- una mini lectura de qué fue la sesión
+- fuente principal usada para auditar
+- si hubo modo degradado o no
+
+3. CONTEXTO ORIGINAL
+- raw input exacto pegado por el usuario
+- sessionContext final usado en live
+- structuredContext
+- contexto / objetivo / deliverable si existen
+
+4. PREBRIEF COMPLETO
+- interpretedContext pretty JSON
+- briefing pretty JSON
+- brain usado
+- userEdited true/false
+- diferencias relevantes entre rawInput y contexto final usado en live, si se pueden derivar de forma simple
+
+5. RASTRO DEL SISTEMA EN VIVO
+- input mode
+- speaker mode
+- sourceSessionId
+- sessionId DB
+- prebriefId
+- brain activo
+- runtime info disponible
+- si hubo heuristic retropass
+- si hubo AI retropass
+- cuántas reclasificaciones hizo AI retropass
+- si hubo loops detectados
+- si hubo speaker uncertainty
+- qué transcript fue la fuente de verdad para post-llamada
+
+6. TRANSCRIPTOS
+Secciones separadas, nunca mezcladas:
+- Web Speech legible
+- Whisper bruto
+- Whisper limpio con hablantes
+
+Quiero indicación explícita de cuál fue:
+- transcript usado para summarize / score
+- transcript usado para brutal audit
+- transcript usado para VELA audit
+
+7. COMPARATIVA DE TRANSCRIPTOS
+Haz una sección breve útil, sin IA extra:
+- chars / líneas aprox de web speech
+- chars / líneas aprox de whisper bruto
+- chars / líneas aprox de whisper limpio
+- ratio simple o nota breve de cobertura
+- no hace falta “accuracy real” matemática, pero sí una comparación operativa útil
+
+8. GUÍA TÁCTICA TURNO A TURNO
+Para cada turno de Copilot:
+- turn_index
+- timestamp
+- speaker
+- raw_input / normalized_input
+- signal
+- say_now
+- avoid
+- reading
+- mission
+- next_move
+- support
+- journey past / now / next
+- momentum
+- memory_before
+- memory_after
+- why_this_turn_exists
+- source_basis
+
+IMPORTANTE:
+source_basis NO es cadena de pensamiento privada.
+Debe derivarse de lo observable:
+- fragmento recibido
+- memory_before
+- structured context
+- signal / reading existentes
+Algo del estilo:
+“fragmento actual + memoria previa + objetivo de sesión”
+No inventes razonamiento interno.
+
+9. SUMMARY POST-LLAMADA
+- score
+- globalState
+- resultLabel
+- strengths
+- improvements
+- fullReport si existe
+- debriefReliable si existe
+- speakerLowConf si existe
+- analysis_source = whisper_clean / fallback_web_speech / imported_transcript
+
+10. AUDITORÍA BRUTAL
+- veredicto
+- what_worked
+- what_failed
+- failure_owner
+- missed_closes
+- rules_violated
+- priority_changes
+- what_i_would_have_done
+- perfect_conversation
+
+11. AUDITORÍA VELA
+- verdict
+- reliability_explanation
+- say_now_quality
+- speaker_attribution_quality
+- technical_failures
+- system_recommendations
+- loops_detected / loop_explanation si existe
+
+12. COSTE
+- totalCostUsd
+- totalCostEur aproximado si ya tienes helper o lo puedes derivar simple
+- costSnapshot pretty JSON / listado claro
+- indica si el coste es estimado
+
+13. TIMELINE
+- timelineSnapshot en formato legible
+
+14. SNAPSHOT CRUDO
+- sessionSnapshot pretty JSON o subsecciones clave
+- suficiente para que otra IA entienda cómo estaba estructurada la sesión
+
+15. PREGUNTAS QUE ESTE LOG PERMITE RESPONDER
+Añade al final una sección fija con estos bullets:
+- qué se dijo y cuándo
+- por qué VELA sugirió lo que sugirió
+- qué fuente se usó para auditar
+- si la lectura comercial fue coherente
+- si la atribución de hablantes fue fiable
+- si la auditoría brutal coincide con el transcript limpio
+- si hubo fallos del sistema o de fuente
+
+Si falta algo, NO lo ocultes:
+pon “no disponible”.
+
+========================================
+7. LIVE DOWNLOAD Y SAVE DEBEN USAR EL MISMO BUILDER
+========================================
+
+En copilot.tsx:
+- handleDownloadAuditLog debe construir el snapshot canónico completo y renderizar canonicalLogMd con el mismo builder final
+- al pulsar Guardar sesión, usa ESE MISMO snapshot y ESE MISMO canonicalLogMd en el POST /save-session
+- si la sesión ya está guardada y luego cambia brutalAudit / velaAudit / transcript limpio, reconstruye snapshot + markdown y PATCH a la sesión guardada
+
+REPITO:
+Nada de builder “live” y builder “history” distintos.
+
+========================================
+8. REDISEÑO DE HISTORIAL
+========================================
+
+Edita artifacts/silent-closer/src/components/session-history.tsx.
+
+Cambia el naming visible de “Historial” a “Bitácora”.
+
+Quiero desktop-first, no filas horizontales minúsculas.
+
+Lista:
+- cards apiladas y legibles
+- nombre del cliente prominente
+- score visible
+- outcome badge
+- fecha/hora
+- brain badge pequeño
+- indicación si tiene prebrief, brutal audit, VELA audit, whisper clean
+- papelera para borrar
+
+Detalle expandido:
+No quiero un chorizo.
+Usa secciones o tabs claras:
+- Contexto
+- Prebrief
+- Transcriptos
+- Auditorías
+- Sistema
+
+Dentro del detalle:
+- muestra contexto original y contexto live
+- muestra prebrief interpretado y briefing si existen
+- muestra Web Speech, Whisper bruto y Whisper limpio por separado
+- muestra brutal audit y VELA audit separados
+- muestra coste y timeline si existen
+
+Botón de descarga:
+- descarga canonicalLogMd desde la fila
+- si por cualquier razón una fila vieja no tiene canonicalLogMd pero sí sessionSnapshot, usa el mismo builder canónico como fallback de compatibilidad
+- pero para sesiones nuevas la fuente preferida SIEMPRE es canonicalLogMd
+
+Borrar sesión:
+- debe seguir funcionando con DELETE
+
+========================================
+9. FUENTE DE VERDAD DE TRANSCRIPTOS EN BACKEND / FRONTEND
+========================================
+
+No hagas hardcodes de limpieza por frases tipo Amara.
+Solo preserva correctamente:
+- whisperRawTranscript
+- whisperCleanTranscript
+
+Si el clean transcript llega desde /transcribe-clean, guárdalo separado.
+No sobrescribas el raw.
+
+Si actualmente alguna ruta / estado asume que whisperTranscript único = clean, corrígelo.
+
+========================================
+10. ACEPTACIÓN FUNCIONAL
+========================================
+
+Quiero que al terminar me dejes esto funcionando:
+
+CASO A
+- hago prebrief
+- preparo llamada
+- hago sesión live
+- termina whisper limpio
+- saco summary
+- saco brutal audit
+- saco vela audit
+- pulso Guardar sesión
+- se guarda una fila con canonicalLogMd, sessionSnapshot, prebriefId, clientName correcto, coste, timeline y transcriptos completos
+
+CASO B
+- hago sesión live sin prebrief
+- pulso Guardar sesión
+- se guarda igual, con rawInput/contexto libre y clientName inferido si se puede
+
+CASO C
+- hago sesión
+- NO quiero guardarla
+- pulso Cerrar sin guardar
+- no se crea fila nueva en DB
+
+CASO D
+- descargo log desde post-llamada
+- entro a Bitácora
+- descargo el log de esa misma sesión
+- ambos archivos son EXACTAMENTE iguales
+
+CASO E
+- entro a Bitácora
+- veo contexto, prebrief, transcriptos, auditorías y sistema de forma legible
+- puedo borrar la sesión
+
+========================================
+11. NO TE QUEDES A MEDIAS
+========================================
+
+Haz todos los cambios necesarios en:
+- lib/db/src/schema/index.ts
+- artifacts/api-server/src/routes/copilot.ts
+- artifacts/silent-closer/src/pages/copilot.tsx
+- artifacts/silent-closer/src/components/context-panel.tsx
+- artifacts/silent-closer/src/components/session-history.tsx
+- artifacts/silent-closer/src/lib/audit-log.ts
+
+Si necesitas tocar algún tipo auxiliar, hazlo.
+
+Al final:
+1. ejecuta migración DB si hace falta
+2. rebuild backend/frontend si hace falta
+3. verifica que no has roto TypeScript más allá de errores preexistentes
+4. dame un resumen final con:
+   - archivos tocados
+   - esquema nuevo
+   - flujo final save / close / patch
+   - qué se guarda exactamente
+   - cómo se garantiza que el log live y el log de Bitácora son el mismo

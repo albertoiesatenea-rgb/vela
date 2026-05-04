@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { callSessions, prebriefLogs } from "@workspace/db";
 import {
@@ -9,7 +9,7 @@ import {
   CallSummarizeResponse,
 } from "@workspace/api-zod";
 import { openai } from "@workspace/integrations-openai-ai-server";
-import { logAICall } from "../lib/ai-tracker";
+import { logAICall, getSessionStats } from "../lib/ai-tracker";
 import {
   OBJECTION_TAXONOMY_BLOCK,
   MASTER_SELLER_BRAIN,
@@ -2219,6 +2219,10 @@ router.post("/copilot/save-session", async (req, res) => {
       clientName, rawInput,
       callSummary, brutalAudit, whisperTranscript, webSpeechTurns,
       totalCostUsd, prebriefId,
+      // canonical fields
+      sourceSessionId, canonicalLogMd, sessionSnapshot,
+      whisperRawTranscript, whisperCleanTranscript, webSpeechTranscript,
+      velaAudit, costSnapshot, timelineSnapshot, savedExplicitly,
     } = req.body as Record<string, unknown>;
 
     let prebriefRawInput: string | null = rawInput as string ?? null;
@@ -2249,21 +2253,50 @@ router.post("/copilot/save-session", async (req, res) => {
       }
     }
 
+    // Resolve totalCostUsd + costSnapshot from AI tracker when sourceSessionId is available
+    let resolvedTotalCostUsd: number | null = totalCostUsd as number ?? null;
+    let resolvedCostSnapshot: unknown = costSnapshot ?? null;
+    if (sourceSessionId && typeof sourceSessionId === "string") {
+      const stats = getSessionStats(sourceSessionId);
+      if (stats) {
+        resolvedTotalCostUsd = Number(stats.totalCostUsd.toFixed(6));
+        resolvedCostSnapshot = {
+          totalCostUsd: resolvedTotalCostUsd,
+          calls: stats.calls,
+          totalTokens: stats.totalTokens,
+          avgLatencyMs: Math.round(stats.avgLatencyMs),
+          source: "ai_tracker",
+        };
+      }
+    }
+
     const [session] = await db.insert(callSessions).values({
-      brainId:           brainId as string ?? null,
-      sessionContext:    sessionContext as string ?? null,
-      outcome:           outcome as string ?? null,
-      score:             score as number ?? null,
-      durationSeconds:   durationSeconds as number ?? null,
-      clientName:        resolvedClientName,
-      rawInput:          prebriefRawInput,
-      callSummary:       callSummary ?? null,
-      brutalAudit:       brutalAudit ?? null,
-      whisperTranscript: whisperTranscript as string ?? null,
-      webSpeechTurns:    webSpeechTurns ?? null,
-      totalCostUsd:      totalCostUsd as number ?? null,
-      prebriefId:        prebriefId as string ?? null,
-      endedAt:           new Date(),
+      brainId:               brainId as string ?? null,
+      sessionContext:        sessionContext as string ?? null,
+      outcome:               outcome as string ?? null,
+      score:                 score as number ?? null,
+      durationSeconds:       durationSeconds as number ?? null,
+      clientName:            resolvedClientName,
+      rawInput:              prebriefRawInput,
+      callSummary:           callSummary ?? null,
+      brutalAudit:           brutalAudit ?? null,
+      whisperTranscript:     (whisperCleanTranscript as string) ?? (whisperTranscript as string) ?? null,
+      webSpeechTurns:        webSpeechTurns ?? null,
+      totalCostUsd:          resolvedTotalCostUsd,
+      prebriefId:            prebriefId as string ?? null,
+      endedAt:               new Date(),
+      // canonical fields
+      sourceSessionId:       sourceSessionId as string ?? null,
+      savedAt:               new Date(),
+      canonicalLogMd:        canonicalLogMd as string ?? null,
+      sessionSnapshot:       sessionSnapshot ?? null,
+      whisperRawTranscript:  whisperRawTranscript as string ?? null,
+      whisperCleanTranscript: whisperCleanTranscript as string ?? null,
+      webSpeechTranscript:   webSpeechTranscript as string ?? null,
+      velaAudit:             velaAudit ?? null,
+      costSnapshot:          resolvedCostSnapshot,
+      timelineSnapshot:      timelineSnapshot ?? null,
+      savedExplicitly:       (savedExplicitly as boolean) ?? false,
     }).returning();
 
     res.json({ id: session.id });
@@ -2275,16 +2308,29 @@ router.post("/copilot/save-session", async (req, res) => {
 
 router.post("/copilot/save-prebrief", async (req, res) => {
   try {
-    const { brainId, rawInput, interpretedContext, briefing } = req.body as Record<string, unknown>;
+    const { id, brainId, rawInput, interpretedContext, briefing } = req.body as Record<string, unknown>;
 
-    const [log] = await db.insert(prebriefLogs).values({
-      brainId:            brainId as string ?? null,
-      rawInput:           rawInput as string ?? null,
-      interpretedContext: interpretedContext ?? null,
-      briefing:           briefing ?? null,
-    }).returning();
-
-    res.json({ id: log.id });
+    if (id && typeof id === "string") {
+      // Upsert: update existing prebrief row (no duplicates)
+      await db.update(prebriefLogs)
+        .set({
+          ...(brainId !== undefined && { brainId: brainId as string }),
+          ...(rawInput !== undefined && { rawInput: rawInput as string }),
+          ...(interpretedContext !== undefined && { interpretedContext }),
+          ...(briefing !== undefined && { briefing }),
+        })
+        .where(eq(prebriefLogs.id, id));
+      res.json({ id });
+    } else {
+      // Create new prebrief
+      const [log] = await db.insert(prebriefLogs).values({
+        brainId:            brainId as string ?? null,
+        rawInput:           rawInput as string ?? null,
+        interpretedContext: interpretedContext ?? null,
+        briefing:           briefing ?? null,
+      }).returning();
+      res.json({ id: log.id });
+    }
   } catch (err) {
     req.log?.error(err, "save-prebrief error");
     res.status(500).json({ error: "save-prebrief failed" });
@@ -2303,12 +2349,27 @@ router.get("/copilot/sessions", async (req, res) => {
         brainId: callSessions.brainId,
         sessionContext: callSessions.sessionContext,
         clientName: callSessions.clientName,
-        whisperTranscript: callSessions.whisperTranscript,
+        rawInput: callSessions.rawInput,
+        prebriefId: callSessions.prebriefId,
+        callSummary: callSessions.callSummary,
         brutalAudit: callSessions.brutalAudit,
+        whisperTranscript: callSessions.whisperTranscript,
+        // canonical fields
+        sourceSessionId: callSessions.sourceSessionId,
+        savedAt: callSessions.savedAt,
+        canonicalLogMd: callSessions.canonicalLogMd,
+        sessionSnapshot: callSessions.sessionSnapshot,
+        whisperRawTranscript: callSessions.whisperRawTranscript,
+        whisperCleanTranscript: callSessions.whisperCleanTranscript,
+        webSpeechTranscript: callSessions.webSpeechTranscript,
+        velaAudit: callSessions.velaAudit,
+        costSnapshot: callSessions.costSnapshot,
+        timelineSnapshot: callSessions.timelineSnapshot,
+        savedExplicitly: callSessions.savedExplicitly,
       })
       .from(callSessions)
-      .orderBy(callSessions.createdAt)
-      .limit(50);
+      .orderBy(desc(callSessions.createdAt))
+      .limit(100);
 
     res.json({ sessions });
   } catch (err) {
@@ -2319,12 +2380,26 @@ router.get("/copilot/sessions", async (req, res) => {
 router.patch("/copilot/sessions/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { brutalAudit, whisperTranscript } = req.body as Record<string, unknown>;
+    const {
+      brutalAudit, whisperTranscript, callSummary,
+      velaAudit, canonicalLogMd, sessionSnapshot,
+      whisperRawTranscript, whisperCleanTranscript, webSpeechTranscript,
+      costSnapshot, timelineSnapshot,
+    } = req.body as Record<string, unknown>;
 
     await db.update(callSessions)
       .set({
-        ...(brutalAudit !== undefined && { brutalAudit }),
+        ...(brutalAudit !== undefined       && { brutalAudit }),
+        ...(callSummary !== undefined       && { callSummary }),
         ...(whisperTranscript !== undefined && { whisperTranscript: whisperTranscript as string }),
+        ...(velaAudit !== undefined         && { velaAudit }),
+        ...(canonicalLogMd !== undefined    && { canonicalLogMd: canonicalLogMd as string }),
+        ...(sessionSnapshot !== undefined   && { sessionSnapshot }),
+        ...(whisperRawTranscript !== undefined   && { whisperRawTranscript: whisperRawTranscript as string }),
+        ...(whisperCleanTranscript !== undefined  && { whisperCleanTranscript: whisperCleanTranscript as string }),
+        ...(webSpeechTranscript !== undefined    && { webSpeechTranscript: webSpeechTranscript as string }),
+        ...(costSnapshot !== undefined      && { costSnapshot }),
+        ...(timelineSnapshot !== undefined  && { timelineSnapshot }),
       })
       .where(eq(callSessions.id, id));
 

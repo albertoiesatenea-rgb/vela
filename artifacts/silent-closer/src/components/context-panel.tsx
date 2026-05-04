@@ -5,6 +5,7 @@ import { ChevronDown, ChevronUp, Zap, SlidersHorizontal, User, Users, Target, Br
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/use-theme";
 import type { ArenaRole } from "@/pages/arena";
+import { type PrebriefBundle } from "@/lib/audit-log";
 
 export interface ArenaStructuredContext {
   meeting_goal?: string;
@@ -888,7 +889,7 @@ export function ContextSetup({
   initialRole,
   onShowHistory,
 }: {
-  onContextReady: (ctx: string, structuredCtx?: StructuredContext, brainId?: string, prebriefId?: string) => void;
+  onContextReady: (ctx: string, structuredCtx?: StructuredContext, brainId?: string, prebriefId?: string, prebriefBundle?: PrebriefBundle) => void;
   onArenaReady: (ctx: string, role: ArenaRole, config: ArenaConfig) => void;
   lang: Lang;
   onLangChange: (l: Lang) => void;
@@ -1016,7 +1017,15 @@ export function ContextSetup({
           ? `\n\n[Perfil estimado del cliente: ${profileLabel}. Usa esto como referencia inicial en tus sugerencias, con flexibilidad si la conversación revela señales distintas.]`
           : `\n\n[Estimated client profile: ${profileLabel}. Use this as an initial reference in your suggestions, staying flexible if the conversation reveals different signals.]`;
       }
-      onContextReady(finalCtx, copilotSc, prebriefBrainId ?? activeBrainId, savedPrebriefIdRef.current ?? undefined);
+      const _bundle: PrebriefBundle = {
+        rawInput: quickText || null,
+        interpretedContext: prebriefEdit ?? prebriefResult,
+        briefing: briefingResultRef.current,
+        brainId: prebriefBrainId ?? activeBrainId ?? null,
+        prebriefId: savedPrebriefIdRef.current,
+        userEdited: prebriefUserEdited,
+      };
+      onContextReady(finalCtx, copilotSc, prebriefBrainId ?? activeBrainId, savedPrebriefIdRef.current ?? undefined, _bundle);
     }
   };
 
@@ -1120,7 +1129,7 @@ export function ContextSetup({
     })
       .then(r => r.json())
       .then((d: { id?: string }) => { if (d.id) savedPrebriefIdRef.current = d.id; })
-      .catch(e => console.error("[vela:db] save-prebrief failed", e));
+      .catch(e => console.error("[vela:db] save-prebrief (confirm) failed", e));
   };
 
   const handlePrepareCall = async () => {
@@ -1147,12 +1156,14 @@ export function ContextSetup({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          // Pass id to upsert — avoids duplicate prebrief rows for same session
+          id: savedPrebriefIdRef.current ?? undefined,
           brainId: prebriefBrainId ?? activeBrainId,
           rawInput: quickText,
           interpretedContext: prebriefResult,
           briefing: data,
         }),
-      }).catch(e => console.error("[vela:db] save-prebrief failed", e));
+      }).catch(e => console.error("[vela:db] save-prebrief (briefing) failed", e));
     } catch {
       // no-op — user can retry
     } finally {

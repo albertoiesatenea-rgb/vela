@@ -10,7 +10,7 @@ import type { ArenaConfig, AppMode, StructuredContext } from "@/components/conte
 import { Arena } from "@/pages/arena";
 import type { ArenaRole } from "@/pages/arena";
 import { cn } from "@/lib/utils";
-import { buildCopilotAuditLog, triggerAuditLogDownload, BRAND_NAME } from "@/lib/audit-log";
+import { buildCopilotAuditLog, triggerAuditLogDownload, BRAND_NAME, buildCopilotCanonicalLog, triggerCanonicalLogDownload, type PrebriefBundle, type CanonicalTimelineSnapshot, type CopilotCanonicalSessionInput, type CanonicalTranscriptSource, type SpeakerSessionMetricsForLog } from "@/lib/audit-log";
 import { SpeakerAttributionSession, type SpeakerResult, type SpeakerQualityLevel, type SpeakerLabel } from "@/lib/speaker-session";
 import { DebugPanel } from "@/components/debug-panel";
 
@@ -730,6 +730,22 @@ export default function CopilotPage() {
   // handleDownloadAuditLog). Used so the audit log shows the correct count even
   // when the download runs after the retropass has already fixed all UNKNOWN turns.
   const aiRetropassReclassifiedRef = useRef(0);
+  const [isSessionSaved, setIsSessionSaved] = useState(false);
+  const [isSavingSession, setIsSavingSession] = useState(false);
+  const prebriefBundleRef = useRef<PrebriefBundle | null>(null);
+  const sourceSessionIdRef = useRef<string>("");
+  const timelineSnapshotRef = useRef<CanonicalTimelineSnapshot>({
+    session_started_at: null,
+    session_ended_at: null,
+    prebrief_created_at: null,
+    prebrief_briefing_ready_at: null,
+    whisper_raw_ready_at: null,
+    whisper_clean_ready_at: null,
+    summary_ready_at: null,
+    brutal_audit_ready_at: null,
+    vela_audit_ready_at: null,
+    saved_at: null,
+  });
   const [transcriptOpen, setTranscriptOpen] = useState(false);
   const [transcriptTab, setTranscriptTab] = useState<"webSpeech" | "whisper">("webSpeech");
   const [whisperCleanDone, setWhisperCleanDone] = useState(false);
@@ -1166,18 +1182,39 @@ export default function CopilotPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [sessionActive]);
 
-  const handleContextReady = (context: string, sc?: StructuredContext, brainId?: string, prebriefId?: string) => {
+  const handleContextReady = (context: string, sc?: StructuredContext, brainId?: string, prebriefId?: string, bundle?: PrebriefBundle) => {
     setSessionContext(context);
     setStructuredContext(sc);
     sessionBrainIdRef.current = brainId;
     sessionPrebriefIdRef.current = prebriefId ?? null;
+    prebriefBundleRef.current = bundle ?? null;
+    // Reset session-save state for new session
+    setIsSessionSaved(false);
+    setIsSavingSession(false);
+    savedSessionIdRef.current = null;
+    // Assign stable source session id (used for AI cost tracking)
+    const sid = Date.now().toString(36);
+    sourceSessionIdRef.current = sid;
+    // Init timeline for this session
+    timelineSnapshotRef.current = {
+      session_started_at: new Date().toISOString(),
+      session_ended_at: null,
+      prebrief_created_at: null,
+      prebrief_briefing_ready_at: null,
+      whisper_raw_ready_at: null,
+      whisper_clean_ready_at: null,
+      summary_ready_at: null,
+      brutal_audit_ready_at: null,
+      vela_audit_ready_at: null,
+      saved_at: null,
+    };
     setTacticalState(EMPTY_STATE);
     setContextLabel("");
     saveLabel("");
     setDetailOpen(false);
     setTurnLog([]);
     turnCountRef.current = 0;
-    setSessionId(Date.now().toString(36));
+    setSessionId(sid);
     // Generate short context label in background
     void fetch("/api/copilot/context-label", {
       method: "POST",
@@ -1299,6 +1336,24 @@ export default function CopilotPage() {
     whisperChunksRef.current = [];
     setWhisperCleanDone(false);
     setWhisperReady(false);
+    // Reset canonical session state
+    setIsSessionSaved(false);
+    setIsSavingSession(false);
+    savedSessionIdRef.current = null;
+    prebriefBundleRef.current = null;
+    sourceSessionIdRef.current = "";
+    timelineSnapshotRef.current = {
+      session_started_at: null,
+      session_ended_at: null,
+      prebrief_created_at: null,
+      prebrief_briefing_ready_at: null,
+      whisper_raw_ready_at: null,
+      whisper_clean_ready_at: null,
+      summary_ready_at: null,
+      brutal_audit_ready_at: null,
+      vela_audit_ready_at: null,
+      saved_at: null,
+    };
   };
 
   const handleGoArena = () => {
@@ -1332,6 +1387,7 @@ export default function CopilotPage() {
             console.log("[vela:whisper] transcript ready", data.transcript.slice(0, 100));
             const combined = [...whisperChunksRef.current, data.transcript].filter(Boolean).join("\n");
             setWhisperRawTranscript(combined);
+            timelineSnapshotRef.current.whisper_raw_ready_at = new Date().toISOString();
             setWhisperTranscript(combined);
             if (data.cleaning) {
               try {
@@ -1344,6 +1400,7 @@ export default function CopilotPage() {
                 if (cleanData.transcript) {
                   console.log("[vela:whisper] clean transcript ready", cleanData.transcript.slice(0, 100));
                   setWhisperTranscript(cleanData.transcript);
+                  timelineSnapshotRef.current.whisper_clean_ready_at = new Date().toISOString();
                   setWhisperCleanDone(true);
                   if (savedSessionIdRef.current) {
                     void fetch(`/api/copilot/sessions/${savedSessionIdRef.current}`, {
@@ -1369,6 +1426,7 @@ export default function CopilotPage() {
       handleActuallyClearSession();
       return;
     }
+    timelineSnapshotRef.current.session_ended_at = new Date().toISOString();
     setEndStep("outcome");
   };
 
@@ -1667,39 +1725,7 @@ export default function CopilotPage() {
       setIsSummarizing(false);
     }
 
-    // Guardar sesión en DB en background
-    const saveSession = async () => {
-      try {
-        const r = await fetch("/api/copilot/save-session", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            brainId: sessionBrainIdRef.current ?? null,
-            sessionContext: sessionContext ?? null,
-            outcome: outcome ?? null,
-            score: freshSummary?.score ?? null,
-            durationSeconds: null,
-            clientName: (() => {
-              const ctx = sessionContext ?? "";
-              const match = ctx.match(/[Cc]liente\s*[=:]\s*([^\n,.]+)/);
-              return match ? match[1].trim() : null;
-            })(),
-            rawInput: sessionContext ?? null,
-            callSummary: freshSummary ?? null,
-            brutalAudit: brutalAudit ?? null,
-            whisperTranscript: whisperTranscript || null,
-            webSpeechTurns: turnLog ?? null,
-            totalCostUsd: null,
-            prebriefId: sessionPrebriefIdRef.current ?? null,
-          }),
-        });
-        const d = await r.json();
-        if (d.id) savedSessionIdRef.current = d.id;
-      } catch (e) {
-        console.error("[vela:db] save-session failed", e);
-      }
-    };
-    void saveSession();
+    timelineSnapshotRef.current.summary_ready_at = new Date().toISOString();
   };
 
   const handleGenerateReport = async () => {
@@ -1778,12 +1804,13 @@ export default function CopilotPage() {
       if (!res.ok) throw new Error("audit failed");
       const data = await res.json() as BrutalAudit;
       setBrutalAudit(data);
+      timelineSnapshotRef.current.brutal_audit_ready_at = new Date().toISOString();
       if (savedSessionIdRef.current) {
         void fetch(`/api/copilot/sessions/${savedSessionIdRef.current}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ brutalAudit: data }),
-        }).catch(e => console.error("[vela:db] patch-session failed", e));
+          body: JSON.stringify({ brutalAudit: data, timelineSnapshot: { ...timelineSnapshotRef.current } }),
+        }).catch(e => console.error("[vela:db] patch-brutalAudit failed", e));
       }
     } catch {
       setBrutalAuditError(true);
@@ -1841,6 +1868,14 @@ export default function CopilotPage() {
       if (!res.ok) throw new Error("vela audit failed");
       const data = await res.json() as VelaAudit;
       setVelaAudit(data);
+      timelineSnapshotRef.current.vela_audit_ready_at = new Date().toISOString();
+      if (savedSessionIdRef.current) {
+        void fetch(`/api/copilot/sessions/${savedSessionIdRef.current}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ velaAudit: data, timelineSnapshot: { ...timelineSnapshotRef.current } }),
+        }).catch(e => console.error("[vela:db] patch-velaAudit failed", e));
+      }
     } catch {
       setVelaAuditError(true);
     } finally {
@@ -2064,40 +2099,164 @@ export default function CopilotPage() {
     return header + callSummary.fullReport;
   };
 
+  // Builds CopilotCanonicalSessionInput from current component state.
+  // Always pass a freshly-computed finalLog/finalMemory/speakerSessionMetrics for accuracy.
+  const makeCanonicalInput = (
+    finalLog: Parameters<typeof buildCopilotCanonicalLog>[0]["turnLog"],
+    finalMemory: string[],
+    speakerSessionMetrics: SpeakerSessionMetricsForLog | undefined,
+    sessionIsSaved: boolean,
+    savedAtTs: string | null,
+  ): CopilotCanonicalSessionInput => {
+    const transcriptSrc: CanonicalTranscriptSource = whisperCleanDone
+      ? "whisper_clean"
+      : importedTranscript.trim() ? "imported" : "fallback_web_speech";
+    return {
+      sessionId: savedSessionIdRef.current,
+      sourceSessionId: sourceSessionIdRef.current || null,
+      prebriefId: sessionPrebriefIdRef.current,
+      brainId: sessionBrainIdRef.current ?? null,
+      lang,
+      sessionContext: sessionContext ?? null,
+      contextLabel: contextLabel || null,
+      speakerMode,
+      callOutcome,
+      isSessionSaved: sessionIsSaved,
+      savedAt: savedAtTs,
+      webSpeechLines: finalLog.map(t => `[${t.inferred_speaker}]: ${t.normalized_fragment}`),
+      whisperRawTranscript: whisperRawTranscript || null,
+      whisperCleanTranscript: whisperTranscript || null,
+      whisperCleanDone,
+      importedTranscript: importedTranscript.trim() || null,
+      transcriptUsedForSummary: transcriptSrc,
+      transcriptUsedForBrutalAudit: transcriptSrc,
+      transcriptUsedForVelaAudit: transcriptSrc,
+      callSummary: callSummary ? {
+        score: callSummary.score ?? 0,
+        globalState: callSummary.globalState ?? "",
+        resultLabel: callSummary.resultLabel ?? "",
+        strengths: callSummary.strengths ?? [],
+        improvements: callSummary.improvements ?? [],
+        fullReport: callSummary.fullReport,
+        debriefReliable: callSummary.debriefReliable,
+        speakerLowConf: callSummary.speakerLowConf,
+      } : null,
+      brutalAudit: brutalAudit as Record<string, unknown> | null,
+      velaAudit: velaAudit as Record<string, unknown> | null,
+      turnLog: finalLog,
+      finalMemory,
+      structuredContext,
+      speakerSessionMetrics,
+      aiRetropassReclassifiedCount: aiRetropassReclassifiedRef.current,
+      maxSayNowLoop: maxSayNowLoopRef.current,
+      analyzeErrorCount,
+      prebriefBundle: prebriefBundleRef.current,
+      costSnapshot: null,
+      timelineSnapshot: { ...timelineSnapshotRef.current },
+    };
+  };
+
   const handleDownloadAuditLog = async () => {
-    // Fix C: heuristic retropass → AI semantic retropass before building the .md
     const heuristicLog = applyRetroRepairs();
     const finalLog = await aiSpeakerRetropass(heuristicLog);
     const finalMemory = finalLog.length > 0
       ? finalLog[finalLog.length - 1].memory_after
       : tacticalState.callMemory;
-    // Use the session-accumulated ref — not a recount from finalLog — so the
-    // count reflects ALL retropass calls this session, not just this download call.
     const aiReclassifiedCount = aiRetropassReclassifiedRef.current;
     const baseMetrics = speakerMode === "auto" ? speakerSessionRef.current.getMetrics() : undefined;
-    const speakerSessionMetrics = baseMetrics
+    const speakerSessionMetrics: SpeakerSessionMetricsForLog | undefined = baseMetrics
       ? { ...baseMetrics, ai_retropass_reclassified_count: aiReclassifiedCount }
       : undefined;
-    const log = buildCopilotAuditLog({
-      sessionId: sessionId || null,
-      lang,
-      sessionContext,
-      contextLabel: contextLabel || null,
-      speakerMode,
-      inputModeUsed: "auto",
-      callOutcome,
-      callSummary: callSummary ?? null,
-      turnLog: finalLog,
-      finalMemory,
-      structuredContext,
-      speakerSessionMetrics,
-    });
-    triggerAuditLogDownload(log, sessionId || null, {
-      whisper_received: !!whisperTranscript,
-      whisper_clean_done: whisperCleanDone,
-      whisper_chars: whisperTranscript.length,
-      whisper_preview: whisperTranscript.slice(0, 400),
-    });
+
+    const canonicalInput = makeCanonicalInput(
+      finalLog, finalMemory, speakerSessionMetrics,
+      isSessionSaved, timelineSnapshotRef.current.saved_at,
+    );
+    const md = buildCopilotCanonicalLog(canonicalInput);
+    triggerCanonicalLogDownload(md, savedSessionIdRef.current);
+
+    // If session already saved → PATCH with updated canonical log
+    if (savedSessionIdRef.current) {
+      void fetch(`/api/copilot/sessions/${savedSessionIdRef.current}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ canonicalLogMd: md, timelineSnapshot: { ...timelineSnapshotRef.current } }),
+      }).catch(e => console.error("[vela:db] patch-canonicalLog failed", e));
+    }
+  };
+
+  const handleSaveSession = async () => {
+    if (isSessionSaved || isSavingSession) return;
+    setIsSavingSession(true);
+    try {
+      const heuristicLog = applyRetroRepairs();
+      const finalLog = await aiSpeakerRetropass(heuristicLog);
+      const finalMemory = finalLog.length > 0
+        ? finalLog[finalLog.length - 1].memory_after
+        : tacticalState.callMemory;
+      const aiReclassifiedCount = aiRetropassReclassifiedRef.current;
+      const baseMetrics = speakerMode === "auto" ? speakerSessionRef.current.getMetrics() : undefined;
+      const speakerSessionMetrics: SpeakerSessionMetricsForLog | undefined = baseMetrics
+        ? { ...baseMetrics, ai_retropass_reclassified_count: aiReclassifiedCount }
+        : undefined;
+
+      const savedAtTs = new Date().toISOString();
+      timelineSnapshotRef.current.saved_at = savedAtTs;
+      if (!timelineSnapshotRef.current.session_ended_at) {
+        timelineSnapshotRef.current.session_ended_at = savedAtTs;
+      }
+
+      const canonicalInput = makeCanonicalInput(
+        finalLog, finalMemory, speakerSessionMetrics, true, savedAtTs,
+      );
+      const canonicalLogMd = buildCopilotCanonicalLog(canonicalInput);
+
+      const sessionSnapshot = {
+        turnCount: finalLog.length,
+        finalMemory,
+        speakerMode,
+        analyzeErrorCount,
+        maxSayNowLoop: maxSayNowLoopRef.current,
+      };
+
+      const r = await fetch("/api/copilot/save-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          brainId: sessionBrainIdRef.current ?? null,
+          sessionContext: sessionContext ?? null,
+          outcome: callOutcome ?? null,
+          score: callSummary?.score ?? null,
+          durationSeconds: null,
+          rawInput: prebriefBundleRef.current?.rawInput ?? sessionContext ?? null,
+          callSummary: callSummary ?? null,
+          brutalAudit: brutalAudit ?? null,
+          whisperTranscript: whisperTranscript || null,
+          webSpeechTurns: finalLog.length > 0 ? finalLog : null,
+          totalCostUsd: null,
+          prebriefId: sessionPrebriefIdRef.current ?? null,
+          sourceSessionId: sourceSessionIdRef.current || null,
+          canonicalLogMd,
+          sessionSnapshot,
+          whisperRawTranscript: whisperRawTranscript || null,
+          whisperCleanTranscript: whisperTranscript || null,
+          webSpeechTranscript: finalLog.map(t => `[${t.inferred_speaker}]: ${t.normalized_fragment}`).join("\n"),
+          velaAudit: velaAudit ?? null,
+          costSnapshot: null,
+          timelineSnapshot: { ...timelineSnapshotRef.current },
+          savedExplicitly: true,
+        }),
+      });
+      const d = await r.json() as { id?: string };
+      if (d.id) {
+        savedSessionIdRef.current = d.id;
+        setIsSessionSaved(true);
+      }
+    } catch (e) {
+      console.error("[vela:db] save-session failed", e);
+    } finally {
+      setIsSavingSession(false);
+    }
   };
 
   const OUTCOME_OPTS: { key: CallOutcome; label: string }[] = [
@@ -2677,34 +2836,50 @@ export default function CopilotPage() {
           {(endStep === "summary" || endStep === "report") && callSummary && !isSummarizing && (
             <div className="shrink-0 border-t border-white/8 bg-black px-5 pt-3 pb-4">
               <div className="w-full max-w-sm mx-auto flex flex-col gap-1.5">
+                {/* Primary CTAs */}
                 <div className="flex gap-2">
                   <button
-                    onClick={() => handleCopyText(endStep === "report" ? buildFullReportText() : buildSummaryText())}
-                    className="flex-1 flex items-center justify-center gap-1.5 bg-white text-black text-[11px] font-mono font-bold py-2.5 rounded-xl hover:bg-zinc-100 active:scale-[0.98] transition-all"
+                    onClick={() => void handleSaveSession()}
+                    disabled={isSessionSaved || isSavingSession}
+                    className={cn(
+                      "flex-1 flex items-center justify-center gap-1.5 text-[11px] font-mono font-bold py-2.5 rounded-xl transition-all active:scale-[0.98]",
+                      isSessionSaved
+                        ? "bg-zinc-800 text-zinc-500 cursor-default"
+                        : isSavingSession
+                          ? "bg-zinc-900 text-zinc-500 cursor-wait animate-pulse"
+                          : "bg-white text-black hover:bg-zinc-100"
+                    )}
                   >
-                    {copied ? T[lang].COPIED : (endStep === "report" ? T[lang].COPY_REPORT : T[lang].COPY_SUMMARY)}
+                    {isSessionSaved
+                      ? (lang === "en" ? "✓ Saved" : "✓ Guardada")
+                      : isSavingSession
+                        ? (lang === "en" ? "Saving..." : "Guardando...")
+                        : (lang === "en" ? "Save session" : "Guardar sesión")}
                   </button>
                   <button
                     onClick={handleActuallyClearSession}
                     className="flex-1 flex items-center justify-center bg-zinc-900 border border-zinc-700 text-white text-[11px] font-mono font-semibold py-2.5 rounded-xl hover:bg-zinc-800 hover:border-zinc-500 active:scale-[0.98] transition-all"
                   >
-                    {T[lang].CLOSE_SESSION}
+                    {lang === "en" ? "Close" : "Cerrar"}
                   </button>
                 </div>
-                <button
-                  onClick={handleDownloadAuditLog}
-                  disabled={!whisperReady}
-                  className={cn(
-                    "w-full text-center text-[10px] font-mono py-0.5 transition-colors",
-                    whisperReady
-                      ? "text-zinc-600 hover:text-zinc-300 cursor-pointer"
-                      : "text-zinc-700 cursor-wait animate-pulse"
-                  )}
-                >
-                  {whisperReady
-                    ? T[lang].DOWNLOAD_AUDIT
-                    : (lang === "en" ? "Generating transcript..." : "Generando transcript...")}
-                </button>
+                {/* Secondary actions */}
+                <div className="flex items-center justify-between px-1">
+                  <button
+                    onClick={() => void handleDownloadAuditLog()}
+                    className="text-[10px] font-mono text-zinc-600 hover:text-zinc-300 transition-colors"
+                  >
+                    {lang === "en" ? "↓ Download log" : "↓ Descargar log"}
+                  </button>
+                  <button
+                    onClick={() => handleCopyText(endStep === "report" ? buildFullReportText() : buildSummaryText())}
+                    className="text-[10px] font-mono text-zinc-600 hover:text-zinc-300 transition-colors"
+                  >
+                    {copied
+                      ? (lang === "en" ? "Copied!" : "¡Copiado!")
+                      : (endStep === "report" ? T[lang].COPY_REPORT : T[lang].COPY_SUMMARY)}
+                  </button>
+                </div>
               </div>
             </div>
           )}

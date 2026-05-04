@@ -1112,3 +1112,505 @@ export function triggerAuditLogDownload(log: AuditLog, sessionId: string | null,
   a.click();
   URL.revokeObjectURL(url);
 }
+
+// ── Canonical Copilot Session Log ─────────────────────────────────────────────
+// Single source of truth for the downloadable forensic log.
+// BOTH the live download and the history download must call buildCopilotCanonicalLog.
+// The resulting markdown is stored in DB as canonicalLogMd.
+
+export interface PrebriefBundle {
+  rawInput: string | null;
+  interpretedContext: unknown | null;
+  briefing: unknown | null;
+  brainId: string | null;
+  prebriefId: string | null;
+  userEdited: boolean;
+  confirmedAt?: string | null;
+  briefingReadyAt?: string | null;
+}
+
+export interface CanonicalTimelineSnapshot {
+  session_started_at: string | null;
+  session_ended_at: string | null;
+  prebrief_created_at: string | null;
+  prebrief_briefing_ready_at: string | null;
+  whisper_raw_ready_at: string | null;
+  whisper_clean_ready_at: string | null;
+  summary_ready_at: string | null;
+  brutal_audit_ready_at: string | null;
+  vela_audit_ready_at: string | null;
+  saved_at: string | null;
+}
+
+export type CanonicalTranscriptSource = "whisper_clean" | "fallback_web_speech" | "imported" | "none";
+
+export interface CopilotCanonicalSessionInput {
+  sessionId: string | null;
+  sourceSessionId: string | null;
+  prebriefId: string | null;
+  brainId: string | null;
+  lang: AuditLang;
+  sessionContext: string | null;
+  contextLabel: string | null;
+  speakerMode: string;
+  callOutcome: string | null;
+  isSessionSaved: boolean;
+  savedAt: string | null;
+  webSpeechLines: string[];
+  whisperRawTranscript: string | null;
+  whisperCleanTranscript: string | null;
+  whisperCleanDone: boolean;
+  importedTranscript?: string | null;
+  transcriptUsedForSummary: CanonicalTranscriptSource;
+  transcriptUsedForBrutalAudit: CanonicalTranscriptSource;
+  transcriptUsedForVelaAudit: CanonicalTranscriptSource;
+  callSummary: {
+    score: number;
+    globalState: string;
+    resultLabel: string;
+    strengths: string[];
+    improvements: string[];
+    fullReport?: string;
+    debriefReliable?: boolean;
+    speakerLowConf?: boolean;
+  } | null;
+  brutalAudit: Record<string, unknown> | null;
+  velaAudit: Record<string, unknown> | null;
+  turnLog: CopilotTurnEntry[];
+  finalMemory: string[];
+  structuredContext?: CopilotStructuredContext;
+  speakerSessionMetrics?: SpeakerSessionMetricsForLog;
+  aiRetropassReclassifiedCount: number;
+  maxSayNowLoop: number;
+  analyzeErrorCount: number;
+  prebriefBundle: PrebriefBundle | null;
+  costSnapshot: unknown | null;
+  timelineSnapshot: CanonicalTimelineSnapshot | null;
+}
+
+// Internal helper — extract client name using same heuristics as backend
+function extractClientNameFromRaw(raw: string): string | null {
+  const m1 = raw.match(/[Cc]liente\s*[=:]\s*([^\n,.]+)/);
+  if (m1) return m1[1].trim();
+  const m2 = raw.match(/^([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){0,2})\s*[,.\n]/u);
+  if (m2) return m2[1].trim();
+  const m3 = raw.match(/(?:con|para)\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)?)/u);
+  if (m3) return m3[1].trim();
+  return null;
+}
+
+export function buildCopilotCanonicalLog(input: CopilotCanonicalSessionInput): string {
+  const s: string[] = [];
+  const now = new Date().toISOString();
+  const N = (v: string | null | undefined): string => (v != null && v !== "") ? v : "no disponible";
+  const J = (v: unknown): string => {
+    if (v == null) return "no disponible";
+    try { return JSON.stringify(v, null, 2); } catch { return String(v); }
+  };
+  const lineCount = (t: string | null | undefined): number => t ? t.split("\n").filter(Boolean).length : 0;
+
+  const clientName = input.prebriefBundle?.rawInput
+    ? (extractClientNameFromRaw(input.prebriefBundle.rawInput) ?? "sin nombre")
+    : (input.sessionContext ? (extractClientNameFromRaw(input.sessionContext) ?? "sin nombre") : "sin nombre");
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 1. CABECERA
+  // ───────────────────────────────────────────────────────────────────────────
+  s.push("# VELA — LOG FORENSE CANÓNICO DE SESIÓN COPILOTO");
+  s.push("");
+  s.push("```");
+  s.push(`CLIENTE:         ${clientName}`);
+  s.push(`BRAIN:           ${N(input.brainId)}`);
+  s.push(`OUTCOME:         ${N(input.callOutcome)}`);
+  s.push(`SCORE:           ${input.callSummary?.score != null ? input.callSummary.score.toFixed(1) + " / 10" : "no disponible"}`);
+  s.push(`FECHA:           ${new Date(now).toLocaleString("es-ES")}`);
+  s.push(`EXPORTADO:       ${now}`);
+  s.push(`GUARDADO EN DB:  ${input.isSessionSaved ? "sí" : "no"}`);
+  if (input.isSessionSaved && input.savedAt) s.push(`SAVED AT:        ${input.savedAt}`);
+  s.push(`SOURCE SESSION:  ${N(input.sourceSessionId)}`);
+  s.push(`DB SESSION ID:   ${N(input.sessionId)}`);
+  s.push(`PREBRIEF ID:     ${N(input.prebriefId)}`);
+  s.push("```");
+  s.push("");
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 2. RESUMEN EJECUTIVO
+  // ───────────────────────────────────────────────────────────────────────────
+  s.push("## 2. RESUMEN EJECUTIVO");
+  s.push("");
+  const degradedMode = !input.whisperCleanDone;
+  s.push(`modo_degradado:      ${degradedMode ? "SÍ — Whisper limpio no disponible al auditar" : "no"}`);
+  s.push(`fuente_principal:    ${input.transcriptUsedForSummary}`);
+  s.push(`turns_analizados:    ${input.turnLog.length}`);
+  s.push(`errores_análisis:    ${input.analyzeErrorCount}`);
+  if (input.callSummary?.fullReport) {
+    s.push("");
+    s.push("informe_completo: |");
+    s.push(`  ${input.callSummary.fullReport.replace(/\n/g, "\n  ")}`);
+  }
+  s.push("");
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 3. CONTEXTO ORIGINAL
+  // ───────────────────────────────────────────────────────────────────────────
+  s.push("## 3. CONTEXTO ORIGINAL");
+  s.push("");
+  s.push("### Raw Input (pegado por el usuario)");
+  s.push("```");
+  s.push(N(input.prebriefBundle?.rawInput ?? input.sessionContext));
+  s.push("```");
+  s.push("");
+  s.push("### Session Context (usado en live)");
+  s.push("```");
+  s.push(N(input.sessionContext));
+  s.push("```");
+  s.push("");
+  if (input.structuredContext && Object.keys(input.structuredContext).length > 0) {
+    s.push("### Structured Context");
+    s.push("```json");
+    s.push(J(input.structuredContext));
+    s.push("```");
+    s.push("");
+  }
+  s.push(`context_label: ${N(input.contextLabel)}`);
+  s.push("");
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 4. PREBRIEF COMPLETO
+  // ───────────────────────────────────────────────────────────────────────────
+  s.push("## 4. PREBRIEF COMPLETO");
+  s.push("");
+  const pb = input.prebriefBundle;
+  if (!pb) {
+    s.push("No se usó prebrief en esta sesión.");
+  } else {
+    s.push(`prebrief_id:    ${N(pb.prebriefId)}`);
+    s.push(`brain_usado:    ${N(pb.brainId)}`);
+    s.push(`user_edited:    ${pb.userEdited ? "sí" : "no"}`);
+    s.push("");
+    s.push("### Interpreted Context");
+    s.push("```json");
+    s.push(J(pb.interpretedContext));
+    s.push("```");
+    s.push("");
+    s.push("### Briefing (preparación de llamada)");
+    s.push("```json");
+    s.push(J(pb.briefing));
+    s.push("```");
+  }
+  s.push("");
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 5. RASTRO DEL SISTEMA EN VIVO
+  // ───────────────────────────────────────────────────────────────────────────
+  s.push("## 5. RASTRO DEL SISTEMA EN VIVO");
+  s.push("");
+  const inputMode = input.turnLog.length > 0
+    ? [...new Set(input.turnLog.map(t => t.source_mode))].join("+")
+    : "none";
+  s.push(`input_mode:                  ${inputMode}`);
+  s.push(`speaker_mode:                ${input.speakerMode}`);
+  s.push(`source_session_id:           ${N(input.sourceSessionId)}`);
+  s.push(`db_session_id:               ${N(input.sessionId)}`);
+  s.push(`prebrief_id:                 ${N(input.prebriefId)}`);
+  s.push(`brain_activo:                ${N(input.brainId)}`);
+  s.push(`total_turns:                 ${input.turnLog.length}`);
+  s.push(`analyze_errors:              ${input.analyzeErrorCount}`);
+  s.push(`ai_retropass_reclassified:   ${input.aiRetropassReclassifiedCount}`);
+  s.push(`max_say_now_loop:             ${input.maxSayNowLoop}`);
+  s.push(`loops_detectados:            ${input.maxSayNowLoop >= 3 ? "sí (" + input.maxSayNowLoop + " repeticiones)" : "no"}`);
+  const sm = input.speakerSessionMetrics;
+  if (sm) {
+    s.push(`speaker_unknown_rate:        ${(sm.unknown_rate * 100).toFixed(0)}%`);
+    s.push(`speaker_avg_confidence:      ${sm.avg_confidence.toFixed(2)}`);
+    s.push(`speaker_high_conf_rate:      ${(sm.high_conf_rate * 100).toFixed(0)}%`);
+    s.push(`speaker_auto_reassigned:     ${sm.auto_reassigned_count}`);
+    if (sm.ai_retropass_reclassified_count !== undefined) {
+      s.push(`ai_retropass_reclassified:   ${sm.ai_retropass_reclassified_count}`);
+    }
+  }
+  s.push(`whisper_clean_disponible:    ${input.whisperCleanDone ? "sí" : "no"}`);
+  s.push(`transcript_fuente_summary:   ${input.transcriptUsedForSummary}`);
+  s.push(`transcript_fuente_brutal:    ${input.transcriptUsedForBrutalAudit}`);
+  s.push(`transcript_fuente_vela:      ${input.transcriptUsedForVelaAudit}`);
+  s.push("");
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 6. TRANSCRIPTOS
+  // ───────────────────────────────────────────────────────────────────────────
+  s.push("## 6. TRANSCRIPTOS");
+  s.push("");
+  s.push("### 6.1 Web Speech (turnos del copiloto)");
+  if (input.webSpeechLines.length > 0) {
+    input.webSpeechLines.forEach((line, i) => s.push(`${i + 1}. ${line}`));
+  } else {
+    s.push("(no disponible)");
+  }
+  s.push("");
+
+  s.push("### 6.2 Whisper Bruto");
+  if (input.whisperRawTranscript) {
+    s.push("```");
+    s.push(input.whisperRawTranscript);
+    s.push("```");
+  } else {
+    s.push("(no disponible)");
+  }
+  s.push("");
+
+  s.push("### 6.3 Whisper Limpio con Hablantes");
+  s.push(`fuente_de_verdad: ${input.transcriptUsedForSummary === "whisper_clean" ? "SÍ — usado para todos los análisis" : "NO — fallback activo"}`);
+  if (input.whisperCleanTranscript) {
+    s.push("```");
+    s.push(input.whisperCleanTranscript);
+    s.push("```");
+  } else {
+    s.push("(no disponible)");
+  }
+  s.push("");
+
+  if (input.importedTranscript) {
+    s.push("### 6.4 Transcript Importado");
+    s.push("```");
+    s.push(input.importedTranscript);
+    s.push("```");
+    s.push("");
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 7. COMPARATIVA DE TRANSCRIPTOS
+  // ───────────────────────────────────────────────────────────────────────────
+  s.push("## 7. COMPARATIVA DE TRANSCRIPTOS");
+  s.push("");
+  const wsChars = input.webSpeechLines.join(" ").length;
+  const rawLines = lineCount(input.whisperRawTranscript);
+  const rawChars = input.whisperRawTranscript?.length ?? 0;
+  const cleanLines = lineCount(input.whisperCleanTranscript);
+  const cleanChars = input.whisperCleanTranscript?.length ?? 0;
+  s.push(`Web Speech:     ${input.webSpeechLines.length} turnos, ~${wsChars} chars`);
+  s.push(`Whisper Bruto:  ${rawLines} líneas, ~${rawChars} chars`);
+  s.push(`Whisper Limpio: ${cleanLines} líneas, ~${cleanChars} chars`);
+  if (rawChars > 0 && wsChars > 0) {
+    s.push(`Ratio whisper/webSpeech: ${(rawChars / wsChars).toFixed(1)}x`);
+  }
+  if (!input.whisperCleanTranscript && !input.whisperRawTranscript) {
+    s.push("⚠ Sin datos de Whisper — análisis basado en Web Speech o memoria de VELA");
+  }
+  s.push("");
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 8. GUÍA TÁCTICA TURNO A TURNO
+  // ───────────────────────────────────────────────────────────────────────────
+  s.push("## 8. GUÍA TÁCTICA TURNO A TURNO");
+  s.push("");
+  if (input.turnLog.length === 0) {
+    s.push("(sin turnos registrados)");
+  } else {
+    for (const t of input.turnLog) {
+      const o = t.system_output;
+      s.push(`### Turno ${t.turn_index + 1}`);
+      s.push(`turn_index:   ${t.turn_index}`);
+      s.push(`timestamp:    ${t.timestamp}`);
+      s.push(`speaker:      ${t.inferred_speaker}`);
+      s.push(`raw_input:    ${t.raw_fragment}`);
+      s.push(`normalized:   ${t.normalized_fragment}`);
+      if (o) {
+        s.push(`signal:       ${o.signal}`);
+        s.push(`say_now:      ${o.say_now}`);
+        s.push(`avoid:        ${o.avoid ?? "null"}`);
+        s.push(`reading:      ${o.detail?.reading ?? "null"}`);
+        s.push(`mission:      ${o.detail?.mission ?? "null"}`);
+        s.push(`next_move:    ${o.detail?.next_move ?? "null"}`);
+        s.push(`support:      ${o.detail?.support ?? "null"}`);
+        s.push(`journey:      ${o.journey?.past ?? "null"} → ${o.journey?.now ?? "null"} → ${o.journey?.next ?? "null"}`);
+        s.push(`momentum:     ${o.momentum}`);
+        const memBefore = t.memory_before.length > 0 ? t.memory_before.map(m => `  · ${m}`).join("\n") : "  (vacía)";
+        const memAfter = t.memory_after.length > 0 ? t.memory_after.map(m => `  · ${m}`).join("\n") : "  (vacía)";
+        s.push(`memory_before:\n${memBefore}`);
+        s.push(`memory_after:\n${memAfter}`);
+        const fragmentClip = t.raw_fragment.slice(0, 80);
+        const memContext = t.memory_before.length > 0 ? `+ ${t.memory_before.length} mem items` : null;
+        const ctxNote = input.sessionContext ? "+ session context" : null;
+        const sourceBasis = [fragmentClip, memContext, ctxNote].filter(Boolean).join("; ");
+        s.push(`source_basis: ${sourceBasis}`);
+      } else {
+        s.push(`(sin output — status: ${t.response_status})`);
+      }
+      s.push("");
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 9. SUMMARY POST-LLAMADA
+  // ───────────────────────────────────────────────────────────────────────────
+  s.push("## 9. SUMMARY POST-LLAMADA");
+  s.push("");
+  const cs = input.callSummary;
+  if (!cs) {
+    s.push("no disponible");
+  } else {
+    s.push(`score:            ${cs.score.toFixed(1)}`);
+    s.push(`global_state:     ${cs.globalState}`);
+    s.push(`result_label:     ${cs.resultLabel}`);
+    s.push(`debrief_reliable: ${cs.debriefReliable !== false ? "sí" : "no"}`);
+    s.push(`speaker_low_conf: ${cs.speakerLowConf ? "sí" : "no"}`);
+    s.push(`analysis_source:  ${input.transcriptUsedForSummary}`);
+    s.push("");
+    if (cs.strengths.length > 0) {
+      s.push("strengths:");
+      cs.strengths.forEach(x => s.push(`  - ${x}`));
+    }
+    if (cs.improvements.length > 0) {
+      s.push("improvements:");
+      cs.improvements.forEach(x => s.push(`  - ${x}`));
+    }
+  }
+  s.push("");
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 10. AUDITORÍA BRUTAL
+  // ───────────────────────────────────────────────────────────────────────────
+  s.push("## 10. AUDITORÍA BRUTAL");
+  s.push("");
+  const ba = input.brutalAudit;
+  if (!ba) {
+    s.push("no disponible");
+  } else {
+    if (ba["verdict"]) { s.push(`VEREDICTO: ${String(ba["verdict"])}`); s.push(""); }
+    const listField = (label: string, key: string) => {
+      const arr = ba[key];
+      if (Array.isArray(arr) && arr.length > 0) {
+        s.push(`${label}:`);
+        (arr as string[]).forEach(x => s.push(`  - ${x}`));
+        s.push("");
+      }
+    };
+    listField("FUNCIONÓ", "what_worked");
+    listField("FALLÓ", "what_failed");
+    listField("DUEÑO DEL FALLO", "failure_owner");
+    listField("CIERRES PERDIDOS", "missed_closes");
+    listField("REGLAS VIOLADAS", "rules_violated");
+    listField("CAMBIOS PRIORITARIOS", "priority_changes");
+    if (ba["what_i_would_have_done"]) {
+      s.push("LO QUE YO HABRÍA HECHO:");
+      s.push(String(ba["what_i_would_have_done"]));
+      s.push("");
+    }
+    if (ba["perfect_conversation"]) {
+      s.push("CONVERSACIÓN PERFECTA:");
+      s.push(String(ba["perfect_conversation"]));
+      s.push("");
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 11. AUDITORÍA VELA
+  // ───────────────────────────────────────────────────────────────────────────
+  s.push("## 11. AUDITORÍA VELA");
+  s.push("");
+  if (!input.velaAudit) {
+    s.push("no disponible");
+  } else {
+    s.push("```json");
+    s.push(J(input.velaAudit));
+    s.push("```");
+  }
+  s.push("");
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 12. COSTE
+  // ───────────────────────────────────────────────────────────────────────────
+  s.push("## 12. COSTE");
+  s.push("");
+  const costSnap = input.costSnapshot as Record<string, unknown> | null;
+  if (costSnap && costSnap["totalCostUsd"] != null) {
+    const usd = Number(costSnap["totalCostUsd"]);
+    s.push(`total_cost_usd:  $${usd.toFixed(6)}`);
+    s.push(`total_cost_eur:  ~€${(usd * 0.93).toFixed(4)} (estimado)`);
+    s.push("");
+    s.push("costSnapshot (detalle):");
+    s.push("```json");
+    s.push(J(input.costSnapshot));
+    s.push("```");
+  } else {
+    s.push("no disponible — getSessionStats no devolvió datos para este sourceSessionId");
+  }
+  s.push("");
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 13. TIMELINE
+  // ───────────────────────────────────────────────────────────────────────────
+  s.push("## 13. TIMELINE");
+  s.push("");
+  const tl = input.timelineSnapshot;
+  if (tl) {
+    s.push(`session_started_at:          ${N(tl.session_started_at)}`);
+    s.push(`session_ended_at:            ${N(tl.session_ended_at)}`);
+    s.push(`prebrief_created_at:         ${N(tl.prebrief_created_at)}`);
+    s.push(`prebrief_briefing_ready_at:  ${N(tl.prebrief_briefing_ready_at)}`);
+    s.push(`whisper_raw_ready_at:        ${N(tl.whisper_raw_ready_at)}`);
+    s.push(`whisper_clean_ready_at:      ${N(tl.whisper_clean_ready_at)}`);
+    s.push(`summary_ready_at:            ${N(tl.summary_ready_at)}`);
+    s.push(`brutal_audit_ready_at:       ${N(tl.brutal_audit_ready_at)}`);
+    s.push(`vela_audit_ready_at:         ${N(tl.vela_audit_ready_at)}`);
+    s.push(`saved_at:                    ${N(tl.saved_at)}`);
+  } else {
+    s.push("no disponible");
+  }
+  s.push("");
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 14. SNAPSHOT CRUDO
+  // ───────────────────────────────────────────────────────────────────────────
+  s.push("## 14. SNAPSHOT CRUDO");
+  s.push("");
+  const snapshotData = {
+    session_id: input.sessionId,
+    source_session_id: input.sourceSessionId,
+    brain_id: input.brainId,
+    outcome: input.callOutcome,
+    lang: input.lang,
+    speaker_mode: input.speakerMode,
+    total_turns: input.turnLog.length,
+    analyze_errors: input.analyzeErrorCount,
+    retropass_reclassified: input.aiRetropassReclassifiedCount,
+    max_say_now_loop: input.maxSayNowLoop,
+    final_memory: input.finalMemory,
+    call_summary: input.callSummary,
+    speaker_metrics: input.speakerSessionMetrics ?? null,
+  };
+  s.push("```json");
+  s.push(J(snapshotData));
+  s.push("```");
+  s.push("");
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 15. PREGUNTAS QUE ESTE LOG PERMITE RESPONDER
+  // ───────────────────────────────────────────────────────────────────────────
+  s.push("## 15. PREGUNTAS QUE ESTE LOG PERMITE RESPONDER");
+  s.push("");
+  s.push("- ¿Qué se dijo y cuándo? → Sección 6 (Transcriptos) + Sección 8 (Guía táctica turno a turno)");
+  s.push("- ¿Por qué VELA sugirió lo que sugirió? → Sección 8, campo `source_basis` de cada turno");
+  s.push("- ¿Qué fuente se usó para auditar? → Sección 5 (transcript_fuente_*) + Sección 7 (Comparativa)");
+  s.push("- ¿Si la lectura comercial fue coherente? → Sección 8 (signal, reading, mission por turno) + Sección 10");
+  s.push("- ¿Si la atribución de hablantes fue fiable? → Sección 5 (speaker_unknown_rate) + Sección 6.3");
+  s.push("- ¿Si la auditoría brutal coincide con el transcript limpio? → Sección 6.3 vs Sección 10");
+  s.push("- ¿Si hubo fallos del sistema o de fuente? → Sección 5 (analyze_errors, loops) + Sección 11 (VELA audit)");
+  s.push("");
+  s.push("---");
+  s.push(`_Generado por VELA · ${now}_`);
+
+  return s.join("\n");
+}
+
+export function triggerCanonicalLogDownload(markdown: string, sessionId: string | null): void {
+  const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  const sid = sessionId || "session";
+  const ts = new Date().toISOString().replace(/[:.]/g, "-").substring(0, 19);
+  a.download = `vela-canonical-${sid}-${ts}.md`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
