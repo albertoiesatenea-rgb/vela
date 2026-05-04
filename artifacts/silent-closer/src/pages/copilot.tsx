@@ -1647,7 +1647,7 @@ export default function CopilotPage() {
           body: JSON.stringify({
             brainId: sessionBrainIdRef.current ?? null,
             sessionContext: sessionContext ?? null,
-            outcome: callOutcome ?? null,
+            outcome: outcome ?? null,
             score: freshSummary?.score ?? null,
             durationSeconds: null,
             callSummary: freshSummary ?? null,
