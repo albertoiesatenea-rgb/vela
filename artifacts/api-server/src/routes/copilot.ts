@@ -2290,6 +2290,9 @@ router.get("/copilot/sessions", async (req, res) => {
         durationSeconds: callSessions.durationSeconds,
         brainId: callSessions.brainId,
         sessionContext: callSessions.sessionContext,
+        clientName: callSessions.clientName,
+        whisperTranscript: callSessions.whisperTranscript,
+        brutalAudit: callSessions.brutalAudit,
       })
       .from(callSessions)
       .orderBy(callSessions.createdAt)
