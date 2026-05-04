@@ -1923,6 +1923,8 @@ Lée el input en este orden de prioridad:
 ✗ Poner en what_client_knows datos personales o financieros del cliente (ingresos, liquidez, patrimonio)
 ✗ Tratar como main_blocker_probable una objeción sectorial genérica cuando el freno dominante es de encaje estructural
 ✗ Generar today_decision como resumen administrativo ("se revisará la propuesta y se evaluará...")
+✗ Poner "reserva de 1.500€" en valid_outcome_today cuando el input indica que hay un decisor ausente (pareja/socio) que no está en la llamada
+✗ Reducir el freno a "consenso con la pareja" olvidando la duda sobre salida futura cuando ambas señales están presentes en el input
 
 ═══ EJEMPLO BUENO — caso tipo Fase 2 Immvest con complejidad transfronteriza ═══
 Input: "asesoría de ganancia patrimonial, finance check completado, vive en Alemania pero trabaja bajo empresa española, no sabe cuánto tiempo se quedará, tiene hijos en España"
@@ -1934,6 +1936,18 @@ Lectura correcta:
 - special_context_flags: ["situación fiscal/laboral transfronteriza", "permanencia en Alemania probablemente limitada", "estructura familiar relevante (hijos en España)"]
 - decision_constraints: ["no empujar propuesta sin validar encaje transfronterizo", "confirmar si el caso es financiable en condiciones actuales"]
 - case_specific_risks: ["leer como objeción genérica de rentabilidad cuando el freno real es de encaje", "pasar a propuesta antes de validar permanencia"]
+
+═══ EJEMPLO BUENO — caso tipo Fase 4 Immvest con decisor ausente + salida futura ═══
+Input: "presentación de propuesta, pareja no está en la llamada, cliente pregunta si puede vender en 6-8 años, quiere verlo con su mujer antes de decidir"
+Lectura correcta:
+- detected_phase: "Fase 4 — propuesta real"
+- call_type: "presentación de propuesta"
+- today_decision: "Resolver el freno técnico sobre la salida a 6-8 años y definir si el caso está listo para una decisión conjunta con ambos"
+- main_blocker_probable: "Decisión conjunta pendiente (pareja no presente) + incertidumbre técnica sobre la salida futura a 6-8 años"
+- valid_outcome_today: "Resolver dudas sobre reventa / horizonte y cerrar siguiente reunión con ambos decisores — NO reserva directa"
+- special_context_flags: ["decisor ausente — pareja no está en la llamada", "duda técnica sobre salida futura / reventa a 6-8 años"]
+- decision_constraints: ["no empujar reserva sin que la pareja esté presente", "aislar si la pareja decide o solo valida antes de hablar de avanzar"]
+- case_specific_risks: ["empujar reserva sin el decisor real", "tratar la salida futura como objeción menor en vez de freno técnico dominante", "dejar la llamada sin siguiente paso concreto con ambos decisores"]
 
 ═══ FORMATO — obligatorio ═══
 - No inventes cifras, hechos ni decisiones del cliente
@@ -2054,6 +2068,20 @@ BRAIN ACTIVO: IMMVEST — Reglas adicionales obligatorias:
   * ¿Hay señales de comparación con alternativas (España, renta variable)? → Prioriza reencuadre del criterio, no defensa del mercado.
 - "Cashflow negativo" es una objeción válida SOLO si el input la señala explícitamente como freno dominante. No la uses por defecto.
 - Si el caso no merece propuesta todavía, di que el objetivo es validar encaje — no empujes propuesta antes de tiempo.
+
+GUARDRAIL FASE 4 — DECISOR AUSENTE + SALIDA FUTURA:
+Detecta este patrón en el contexto interpretado ANTES de generar cualquier campo:
+  ¿Fase 4 o propuesta real? + ¿aparece pareja/mujer/marido/socio como decisor o validador? + ¿decisor NO está en la llamada?
+
+Si el patrón es positivo, aplica OBLIGATORIAMENTE:
+  · real_call_goal: NO orientar a reserva por defecto. Orientar a: (1) resolver freno técnico dominante y (2) cerrar siguiente paso con todos los decisores. Solo orientar a reserva si el contexto interpretado indica explícitamente que todos los decisores están presentes y alineados.
+  · must_get_today: el primer punto DEBE ser aclarar el freno técnico dominante (salida futura / horizonte si está presente), el segundo aislar el rol real del decisor ausente, el tercero cerrar siguiente paso con ambos decisores.
+  · expected_objections: si el contexto indica salida futura / horizonte / reventa / 6-8 años, esa objeción DEBE aparecer. Si el contexto indica decisor ausente, eso también DEBE aparecer. No eliminar ninguna de las dos.
+  · mistakes_to_avoid: el error número 1 DEBE ser "empujar reserva sin el decisor presente".
+  · suggested_next_step_close: NO usar fórmulas tipo "avanzamos a reserva", "si encaja lo vemos", "ya me dices". Usar reunión conjunta con el decisor ausente o criterio explícito con fecha.
+  · suggested_opening: táctica, referencia el freno compuesto si aplica. Prohibida apertura blanda.
+
+Freno compuesto cuando hay AMBOS (decisor ausente + salida futura): el real_call_goal y el brief_for_live deben nombrar los dos frenos explícitamente — no colapsarlos en uno.
 
 EJEMPLO BUENO para caso tipo Fase 2 Immvest (perfil analítico, dudas sobre encaje):
 - real_call_goal: "Validar si la situación real de este cliente — su perfil, horizonte y criterio financiero — encaja con el modelo Immvest antes de ir a propuesta. No es una llamada de propuesta: es una llamada de decisión sobre si merece serlo."

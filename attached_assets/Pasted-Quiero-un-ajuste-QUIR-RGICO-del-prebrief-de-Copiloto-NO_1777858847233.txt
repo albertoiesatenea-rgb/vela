@@ -1,0 +1,176 @@
+Quiero un ajuste QUIRÚRGICO del prebrief de Copiloto. NO toques UI, NO cambies schemas JSON, NO cambies nombres de campos, NO toques Arena. Solo mejora la lógica/prompt del prebrief-context y prebrief-script para que lean mejor casos tipo Immvest propuesta real con decisor ausente.
+
+OBJETIVO DEL CAMBIO
+Ahora VELA ya detecta bastante bien la fase, pero sigue fallando en una cosa clave:
+- en Fase 4 / propuesta real, si aparece pareja/socio/tercero que debe validar y NO está presente, el sistema sigue empujando demasiado a “reserva” como outcome por defecto
+- además, cuando hay decisor ausente + duda concreta sobre salida futura / horizonte / reventa, el freno real se simplifica demasiado y no compone ambos elementos
+
+Quiero corregir eso sin romper nada de lo que ya funciona.
+
+ARCHIVOS A TOCAR
+1) lib/sales-brain/src/index.ts
+2) artifacts/api-server/src/routes/copilot.ts
+
+NO tocar ningún otro archivo salvo que sea estrictamente necesario por tipos/imports.
+
+CAMBIOS DE LÓGICA QUE QUIERO
+
+A) EN PREBRIEF-CONTEXT
+Refuerza las reglas del brain Immvest y del prompt local para que se cumpla esto:
+
+1. CASO PROPUESTA REAL + DECISOR AUSENTE
+Si el input indica:
+- Fase 4 / propuesta real / presentación de propuesta / propuesta concreta
+Y además aparece:
+- pareja / mujer / marido / socio / tercero que debe revisar / decidir / validar
+Y ese decisor NO está presente en la llamada,
+ENTONCES:
+- valid_outcome_today NO debe subir por defecto a “reserva”
+- today_decision NO debe formularse como “decidir si se avanza a la reserva” salvo que el input deje claro que todos los decisores están presentes y alineados
+- el outcome válido debe priorizar:
+  1) aislar si el tercero es decisor real o validación final
+  2) resolver el freno técnico dominante
+  3) cerrar siguiente paso concreto con todos los decisores o con criterio explícito de decisión
+
+2. FRENO COMPUESTO
+Si aparece:
+- un decisor secundario explícito (pareja/socio)
+Y además:
+- una duda concreta sobre salida futura / horizonte de 6-8 años / reventa / liquidez / plazo de permanencia / estrategia de salida,
+ENTONCES:
+- main_blocker_probable NO debe quedarse solo en “necesidad de consenso”
+- debe formular el freno como combinación táctica de ambos elementos
+Ejemplos válidos:
+- “alineación con la pareja + claridad sobre la salida futura”
+- “consenso con decisor ausente + necesidad de entender la reventa a 6-8 años”
+- “decisión conjunta pendiente + incertidumbre sobre el horizonte de salida”
+No quiero frases barrocas, pero sí que lea ambas piezas.
+
+3. JERARQUÍA DE RIESGOS
+Cuando haya ese caso compuesto, case_specific_risks debe priorizar cosas como:
+- empujar reserva sin decisor presente
+- tratar la salida futura como objeción menor
+- responder en abstracto sin aislar si la pareja decide o valida
+No meter riesgos secundarios irrelevantes tipo preferencias geográficas salvo que sean claramente el freno dominante.
+
+4. QUÉ SABE EL CLIENTE
+Mantén la regla actual: no mezclar aquí datos financieros personales.
+Pero si el input dice explícitamente:
+- ya vio la presentación
+- entiende el modelo general
+- quiere propuesta concreta
+eso debe seguir apareciendo como conocimiento del cliente.
+
+5. OUTCOME HONESTO
+En Fase 4 con decisor ausente, outcome válido típico:
+- resolver dudas principales + dejar siguiente reunión conjunta cerrada
+- o dejar criterio de decisión y fecha concreta
+No “reserva” por inercia.
+
+B) EN PREBRIEF-SCRIPT
+Quiero que el briefing arrastre esa nueva lectura de contexto y que el guion sea más táctico.
+
+1. real_call_goal
+Si hay decisor ausente + duda de salida futura:
+- no escribir “confirmar si avanzan a reserva” como default
+- escribir un objetivo más honesto tipo:
+  “resolver las dudas finales relevantes y definir si el caso queda listo para una decisión conjunta”
+  o
+  “aislar si el caso está listo para siguiente paso con ambos decisores”
+Solo permitir objetivo orientado a reserva si el input realmente lo soporta.
+
+2. must_get_today
+Prioridad:
+- aclarar el freno técnico dominante
+- confirmar rol real del decisor ausente
+- cerrar siguiente paso concreto
+No listas genéricas.
+
+3. expected_objections
+Si en el input aparece explícitamente salida futura / vender en 6-8 años / horizonte / reventa, debe salir como objeción esperada de máximo nivel.
+Si aparece pareja o decisión conjunta, también.
+No quiero que desaparezca una por la otra.
+
+4. mistakes_to_avoid
+En estos casos, priorizar:
+- empujar reserva sin decisor presente
+- no aislar si la pareja valida o decide
+- contestar la salida futura con humo o generalidades
+No meter “ignorar preferencias geográficas” salvo que eso sea literalmente el freno.
+
+5. suggested_opening
+Quiero aperturas menos blandas y más tácticas.
+Reglas:
+- una sola frase
+- debe referenciar al menos UN elemento concreto del caso
+- si hay dos frenos fuertes (pareja + salida futura), mejor si menciona ambos
+Buenos ejemplos:
+- “Javier, antes de entrar en la propuesta, quiero aislar dos cosas: cómo lo vais a decidir tú y tu mujer y qué necesitarías ver claro sobre la salida en 6-8 años.”
+- “Antes de hablar de avanzar, quiero entender si el punto clave es la decisión conjunta o la salida futura, porque ahí está la llamada de hoy.”
+Malos ejemplos:
+- “Quiero asegurarme de que todo encaja”
+- “Veamos la propuesta y resolvemos dudas”
+- “Si encaja avanzamos”
+
+6. suggested_next_step_close
+Reglas:
+- no empujar reserva por defecto si falta decisor
+- debe cerrar con siguiente paso concreto
+- si hay pareja/socio ausente, preferencia por reunión conjunta o criterio explícito de decisión con fecha
+Buenos ejemplos:
+- “Si hoy resolvemos la parte de salida y veis sentido al caso, cerremos ya una reunión con tu mujer para decidirlo con todos.”
+- “Si el único punto vivo es revisarlo con ella, pongamos fecha ahora y dejamos claro qué tendríais que ver para decidir.”
+Malos ejemplos:
+- “Si encaja, avanzamos”
+- “Podemos ver la reserva”
+- “Ya me dices”
+
+7. brief_for_live
+Tiene que resumir el caso con esta jerarquía:
+- fase real
+- qué se decide hoy de verdad
+- freno dominante compuesto si aplica
+- qué NO hacer
+- siguiente paso válido hoy
+Compacto, táctico, sin humo.
+
+IMPLEMENTACIÓN
+1. Revisa dónde viven hoy las prebriefRules y prebriefScriptRules del brain Immvest en lib/sales-brain/src/index.ts y refuérzalas con estas reglas.
+2. Refuerza también el prompt local en artifacts/api-server/src/routes/copilot.ts con estas instrucciones, porque quiero doble anclaje:
+   - brain rules
+   - guardrails del endpoint
+3. Mantén el shape JSON EXACTO actual en ambos endpoints.
+4. No cambies nombres de campos.
+5. No añadas UI.
+6. No cambies el flujo de confirmación ni el botón de preparar llamada.
+7. No empeores los casos anteriores tipo Antonio; solo añade esta lectura más fina para propuesta real con decisor ausente y salida futura.
+
+ANTI-REGRESIÓN
+Quiero que después del cambio sigan cumpliéndose estas reglas ya buenas:
+- “Asesoría de ganancia patrimonial” no se convierte en “seguimiento”
+- si hay señal estructural fuerte, no meter objeción sectorial por defecto
+- what_client_knows no mezcla finanzas personales
+- en propuesta real sí puede hablar de reserva, pero solo si el caso lo soporta
+
+TEST MENTAL OBLIGATORIO
+Valida con un caso como este:
+- Presentación de propuesta real
+- cliente ya vio presentación inicial
+- entiende el modelo
+- quiere propuesta concreta
+- mujer no está en contra pero quiere entender bien el plan
+- le preocupa vender en 6-8 años
+- stage dice follow up
+El output correcto NO debe empujar a reserva como outcome por defecto.
+Debe leer algo más cercano a:
+- fase 4 propuesta real
+- today_decision = resolver dudas clave + determinar si queda listo para decisión conjunta
+- blocker = consenso con pareja + claridad sobre salida futura
+- valid_outcome = resolver frenos y cerrar siguiente paso con decisora ausente
+- opening y close referenciando pareja + salida, no frases genéricas
+
+ENTREGA
+Haz los cambios y luego devuélveme:
+1) archivos tocados
+2) resumen corto de lógica cambiada
+3) ejemplo de output ANTES vs DESPUÉS para un caso tipo Javier

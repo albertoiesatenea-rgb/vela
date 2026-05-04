@@ -1257,7 +1257,26 @@ OUTCOME VÁLIDO HOY por fase:
 - Fase 1: filtrar o agendar asesoría
 - Fase 2: confirmar encaje real del caso o pasar a propuesta — pero NO pasar a propuesta sin validar restricciones estructurales
 - Fase 3: aislar freno vivo y confirmar intención real de continuar
-- Fase 4: reserva de 1.500€ o siguiente paso concreto con fecha
+- Fase 4: reserva de 1.500€ o siguiente paso concreto con fecha — PERO ver excepción de decisor ausente abajo
+
+REGLA FASE 4 — PROPUESTA REAL CON DECISOR AUSENTE:
+Si el input indica Fase 4 / propuesta real / presentación de propuesta Y aparece pareja / mujer / marido / socio / tercero que debe decidir, revisar o validar, Y ese decisor NO está presente en la llamada:
+- valid_outcome_today NO debe ser "reserva" por defecto
+- today_decision NO debe formularse como "decidir si avanzan a la reserva" salvo que todos los decisores estén presentes y el input lo soporte
+- Outcome válido típico: resolver los frenos técnicos dominantes + cerrar siguiente reunión con todos los decisores, o dejar criterio explícito de decisión con fecha concreta
+- Pasos: (1) aislar si el tercero decide o solo valida, (2) resolver freno técnico dominante, (3) cerrar siguiente paso con todos los decisores
+
+FRENO COMPUESTO — DECISOR AUSENTE + SALIDA FUTURA:
+Si aparece un decisor secundario explícito (pareja/socio) Y una duda concreta sobre salida futura / vender en 6-8 años / horizonte de inversión / reventa / liquidez / plazo de permanencia:
+- main_blocker_probable NO debe quedarse solo en "consenso con la pareja" o "necesidad de alineación"
+- Formular el freno como combinación táctica de ambos elementos:
+  · "alineación con la pareja + claridad sobre la salida a 6-8 años"
+  · "consenso con decisor ausente + necesidad de entender la reventa a 6-8 años"
+  · "decisión conjunta pendiente + incertidumbre sobre el horizonte de salida"
+- case_specific_risks en este patrón debe priorizar:
+  1. Empujar reserva sin que el decisor real esté presente en la llamada
+  2. Tratar la salida futura o el horizonte como objeción menor o secundaria cuando es el freno técnico dominante
+  3. Responder sobre la decisión sin aislar si la pareja decide o solo valida
 
 CONTEXTO PARA VELA: Resumen compacto (3-5 frases). Debe arrastrar explícitamente las restricciones y riesgos estructurales del caso si existen. No tritures el CRM. Táctico, directo, sin humo ni teoría.`,
 
@@ -1308,6 +1327,38 @@ APERTURA SUGERIDA: Frase de apertura natural que conecte con el motivo real de e
 CIERRE DE SIGUIENTE PASO: Frase orientada al siguiente paso propio de esta fase Immvest. No vaga — concreta y con fecha implícita o explícita.
 
 BRIEF PARA LIVE: 4-7 frases compactas que integren: fase del proceso Immvest, objetivo real de hoy, freno dominante, qué conseguir hoy y siguiente paso esperado. Listo para alimentar a VELA en live sin reescritura. Táctico, sin humo.
+
+REGLA ESPECÍFICA — FASE 4 CON DECISOR AUSENTE Y SALIDA FUTURA:
+Cuando el contexto indica Fase 4 Y hay un decisor ausente (pareja/socio/mujer) Y aparece preocupación por salida futura / horizonte de 6-8 años / reventa / liquidez:
+
+real_call_goal: NO escribir "confirmar si avanzan a reserva" como objetivo por defecto. Objetivo correcto:
+  · "Resolver las dudas técnicas principales y definir si el caso queda listo para una decisión conjunta"
+  · "Aislar el freno técnico dominante (salida futura) y establecer si el caso está listo para decidir con ambos decisores"
+  Solo permitir objetivo orientado a reserva si el input deja claro que todos los decisores están presentes y alineados.
+
+must_get_today — prioridad en este patrón:
+  1. Aclarar el freno técnico dominante (salida a X años: ¿qué escenario es viable? ¿cuánto tiempo tienen real intención de mantener?)
+  2. Confirmar el rol real del decisor ausente (¿decide o solo valida?)
+  3. Cerrar siguiente paso concreto con todos los decisores o criterio explícito de decisión con fecha
+
+expected_objections: Cuando aparece salida futura / horizonte en el input, DEBE salir como objeción esperada de nivel alto. Cuando aparece pareja / decisor ausente, también DEBE salir. No puede desaparecer una por la otra — ambas deben estar presentes.
+
+mistakes_to_avoid — prioridad para este caso:
+  1. Empujar reserva sin el decisor presente en la llamada
+  2. No aislar si la pareja decide o solo valida
+  3. Responder la salida futura / reventa con generalidades o humo sin cuantificar el escenario real
+
+suggested_opening: Una frase táctica. Debe referenciar al menos un elemento concreto del caso. Si hay dos frenos fuertes (pareja + salida futura), mejor si menciona ambos.
+  · BUENA: "[Nombre], antes de entrar en la propuesta, quiero aislar dos cosas: cómo lo vais a decidir tú y tu mujer, y qué necesitarías ver claro sobre la salida en 6-8 años."
+  · BUENA: "Antes de hablar de avanzar, quiero entender si el punto clave es la decisión conjunta o la salida futura — porque ahí está la llamada de hoy."
+  · MALA: "Quiero asegurarme de que todo encaja" / "Veamos la propuesta y resolvemos dudas" / "Si encaja avanzamos"
+
+suggested_next_step_close: NO empujar reserva por defecto si falta decisor. Preferencia por reunión conjunta con el decisor ausente o criterio explícito con fecha.
+  · BUENO: "Si hoy resolvemos la parte de salida y veis sentido al caso, cerremos ya una reunión con tu mujer para decidirlo entre los dos."
+  · BUENO: "Si el único punto vivo es revisarlo con ella, pongamos fecha ahora y dejamos claro qué tendríais que ver para decidir."
+  · MALO: "Si encaja, avanzamos" / "Podemos ver la reserva" / "Ya me dices"
+
+brief_for_live en este patrón: jerarquía — fase real + qué se decide de verdad (no "reserva" si no hay todos los decisores) + freno dominante compuesto si aplica + qué NO hacer + siguiente paso válido hoy.
 
 REGLAS ABSOLUTAS:
 - Pensar como Immvest, no como vendedor genérico
