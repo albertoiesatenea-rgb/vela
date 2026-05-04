@@ -2354,6 +2354,7 @@ router.get("/copilot/sessions", async (req, res) => {
         callSummary: callSessions.callSummary,
         brutalAudit: callSessions.brutalAudit,
         whisperTranscript: callSessions.whisperTranscript,
+        totalCostUsd: callSessions.totalCostUsd,
         // canonical fields
         sourceSessionId: callSessions.sourceSessionId,
         savedAt: callSessions.savedAt,

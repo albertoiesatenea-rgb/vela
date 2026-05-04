@@ -33,6 +33,7 @@ interface SavedSession {
   prebriefId: string | null;
   callSummary: unknown | null;
   brutalAudit: BrutalAudit | null;
+  totalCostUsd: number | null;
   // canonical
   whisperTranscript: string | null;
   canonicalLogMd: string | null;
@@ -177,6 +178,8 @@ function SessionCard({
   deleting: boolean;
 }) {
   const [tab, setTab] = useState<Tab>("contexto");
+  const [auditSubtab, setAuditSubtab] = useState<"comercial" | "vela">("comercial");
+  const [ctxExpanded, setCtxExpanded] = useState(false);
   const hasBrief    = !!s.prebriefId;
   const hasBrutal   = !!s.brutalAudit;
   const hasVela     = !!s.velaAudit;
@@ -187,6 +190,23 @@ function SessionCard({
   const summary    = s.callSummary as Record<string, unknown> | null;
   const tl         = s.timelineSnapshot as Record<string, unknown> | null;
   const cost       = s.costSnapshot as Record<string, unknown> | null;
+
+  // Extract prebrief bundle data stored in sessionSnapshot
+  const snap      = s.sessionSnapshot as Record<string, unknown> | null;
+  const pbSnap    = snap?.["prebriefBundle"] as Record<string, unknown> | null;
+  const briefing  = pbSnap?.["briefing"] as Record<string, unknown> | null;
+  const icSnap    = pbSnap?.["interpretedContext"] as Record<string, unknown> | null;
+
+  // Cost
+  const costUsd = s.totalCostUsd ?? (cost?.["totalCostUsd"] != null ? Number(cost["totalCostUsd"]) : null);
+  const costNoDataReason = !s.sourceSessionId ? "sin source_session_id" : "tracker sin datos";
+
+  // Duration from timeline
+  const tlStart = tl?.["session_started_at"] as string | null | undefined;
+  const tlEnd   = tl?.["session_ended_at"] as string | null | undefined;
+  const durationMin = (tlStart && tlEnd)
+    ? ((new Date(tlEnd).getTime() - new Date(tlStart).getTime()) / 60000).toFixed(1)
+    : null;
 
   return (
     <div className="border border-zinc-800 rounded-xl overflow-hidden mb-2">
@@ -286,16 +306,61 @@ function SessionCard({
             {/* CONTEXTO */}
             {tab === "contexto" && (
               <>
-                {(s.rawInput ?? s.sessionContext) ? (
+                {s.sessionContext ? (
                   <div>
-                    <p className="text-[9px] font-mono text-zinc-500 mb-1 tracking-widest uppercase">Contexto original</p>
-                    <pre className="text-xs font-mono text-zinc-300 whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto">
-                      {s.rawInput ?? s.sessionContext}
+                    <p className="text-[9px] font-mono text-zinc-500 mb-1 tracking-widest uppercase">Contexto confirmado (usado en vivo)</p>
+                    <pre className="text-xs font-mono text-zinc-300 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
+                      {s.sessionContext}
                     </pre>
                   </div>
                 ) : (
                   <p className="text-xs font-mono text-zinc-600">Sin contexto registrado.</p>
                 )}
+
+                {/* Interpreted context detail from prebrief — expandable */}
+                {icSnap && (
+                  <div className="border-t border-zinc-800/50 pt-2">
+                    <button
+                      onClick={() => setCtxExpanded(v => !v)}
+                      className="text-[9px] font-mono text-zinc-500 hover:text-zinc-300 tracking-widest uppercase transition-colors"
+                    >
+                      {ctxExpanded ? "▾" : "▸"} Contexto interpretado
+                    </button>
+                    {ctxExpanded && (
+                      <div className="mt-2 flex flex-col gap-1">
+                        {!!icSnap["detected_phase"]     && <Row label="Fase detectada"     value={String(icSnap["detected_phase"])} />}
+                        {!!icSnap["call_type"]           && <Row label="Tipo de llamada"    value={String(icSnap["call_type"])} />}
+                        {!!icSnap["today_decision"]      && <Row label="Decisión hoy"       value={String(icSnap["today_decision"])} />}
+                        {!!icSnap["valid_outcome_today"] && <Row label="Outcome válido hoy" value={String(icSnap["valid_outcome_today"])} />}
+                        {Array.isArray(icSnap["special_context_flags"]) && (icSnap["special_context_flags"] as string[]).length > 0 && (
+                          <div>
+                            <p className="text-[9px] font-mono text-zinc-600 mb-0.5">Flags</p>
+                            {(icSnap["special_context_flags"] as string[]).map((f, i) => (
+                              <p key={i} className="text-[11px] font-mono text-zinc-500">· {f}</p>
+                            ))}
+                          </div>
+                        )}
+                        {Array.isArray(icSnap["decision_constraints"]) && (icSnap["decision_constraints"] as string[]).length > 0 && (
+                          <div>
+                            <p className="text-[9px] font-mono text-zinc-600 mb-0.5">Constraints</p>
+                            {(icSnap["decision_constraints"] as string[]).map((c, i) => (
+                              <p key={i} className="text-[11px] font-mono text-zinc-500">· {c}</p>
+                            ))}
+                          </div>
+                        )}
+                        {Array.isArray(icSnap["case_specific_risks"]) && (icSnap["case_specific_risks"] as string[]).length > 0 && (
+                          <div>
+                            <p className="text-[9px] font-mono text-zinc-600 mb-0.5">Riesgos</p>
+                            {(icSnap["case_specific_risks"] as string[]).map((r, i) => (
+                              <p key={i} className="text-[11px] font-mono text-zinc-500">· {r}</p>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {summary && (
                   <div className="border-t border-zinc-800/50 pt-3">
                     <p className="text-[9px] font-mono text-zinc-500 mb-1.5 tracking-widest uppercase">Summary</p>
@@ -308,25 +373,25 @@ function SessionCard({
                       </div>
                       <div>
                         <p className="text-zinc-600 text-[9px]">Estado</p>
-                        <p className="text-zinc-300">{String((summary as Record<string,unknown>)["globalState"] ?? "—")}</p>
+                        <p className="text-zinc-300">{String(summary["globalState"] ?? "—")}</p>
                       </div>
                       <div>
                         <p className="text-zinc-600 text-[9px]">Resultado</p>
-                        <p className="text-zinc-300 truncate">{String((summary as Record<string,unknown>)["resultLabel"] ?? "—")}</p>
+                        <p className="text-zinc-300 truncate">{String(summary["resultLabel"] ?? "—")}</p>
                       </div>
                     </div>
-                    {Array.isArray((summary as Record<string,unknown>)["strengths"]) && ((summary as Record<string,unknown>)["strengths"] as string[]).length > 0 && (
+                    {Array.isArray(summary["strengths"]) && (summary["strengths"] as string[]).length > 0 && (
                       <div className="mt-2">
                         <p className="text-[9px] font-mono text-teal-600 mb-1">FUNCIONÓ</p>
-                        {((summary as Record<string,unknown>)["strengths"] as string[]).map((x, i) => (
+                        {(summary["strengths"] as string[]).map((x, i) => (
                           <p key={i} className="text-[11px] font-mono text-zinc-400">→ {x}</p>
                         ))}
                       </div>
                     )}
-                    {Array.isArray((summary as Record<string,unknown>)["improvements"]) && ((summary as Record<string,unknown>)["improvements"] as string[]).length > 0 && (
+                    {Array.isArray(summary["improvements"]) && (summary["improvements"] as string[]).length > 0 && (
                       <div className="mt-2">
                         <p className="text-[9px] font-mono text-amber-600 mb-1">MEJORAR</p>
-                        {((summary as Record<string,unknown>)["improvements"] as string[]).map((x, i) => (
+                        {(summary["improvements"] as string[]).map((x, i) => (
                           <p key={i} className="text-[11px] font-mono text-zinc-400">△ {x}</p>
                         ))}
                       </div>
@@ -341,25 +406,61 @@ function SessionCard({
               <>
                 {!hasBrief ? (
                   <p className="text-xs font-mono text-zinc-600">No se usó prebrief en esta sesión.</p>
-                ) : (
-                  <>
-                    <div>
-                      <p className="text-[9px] font-mono text-zinc-500 mb-1 tracking-widest uppercase">Prebrief ID</p>
-                      <p className="text-[11px] font-mono text-zinc-400">{s.prebriefId}</p>
-                    </div>
-                    {/* Note: prebrief detail is in the DB's prebrief_logs table.
-                        The interpretedContext and briefing fields are stored there.
-                        The canonicalLogMd (section 4) has the full prebrief snapshot. */}
-                    {hasCanonical ? (
-                      <p className="text-[11px] font-mono text-zinc-500">
-                        El log canónico (↓ Descargar) contiene el prebrief completo en la Sección 4.
-                      </p>
-                    ) : (
-                      <p className="text-[11px] font-mono text-zinc-600">
-                        Descargue el log para ver el prebrief completo.
-                      </p>
+                ) : briefing ? (
+                  <div className="flex flex-col gap-2.5">
+                    {!!briefing["real_call_goal"] && (
+                      <div>
+                        <p className="text-[9px] font-mono text-zinc-500 mb-0.5 tracking-widest uppercase">Objetivo real</p>
+                        <p className="text-xs font-mono text-zinc-200 leading-relaxed">{String(briefing["real_call_goal"])}</p>
+                      </div>
                     )}
-                  </>
+                    {!!briefing["must_get_today"] && (
+                      <div>
+                        <p className="text-[9px] font-mono text-zinc-500 mb-0.5 tracking-widest uppercase">Conseguir hoy</p>
+                        <p className="text-xs font-mono text-zinc-200 leading-relaxed">{String(briefing["must_get_today"])}</p>
+                      </div>
+                    )}
+                    {Array.isArray(briefing["expected_objections"]) && (briefing["expected_objections"] as string[]).length > 0 && (
+                      <div>
+                        <p className="text-[9px] font-mono text-zinc-500 mb-0.5 tracking-widest uppercase">Objeciones esperadas</p>
+                        {(briefing["expected_objections"] as string[]).map((o, i) => (
+                          <p key={i} className="text-[11px] font-mono text-zinc-400 leading-snug">— {o}</p>
+                        ))}
+                      </div>
+                    )}
+                    {!!briefing["suggested_opening"] && (
+                      <div>
+                        <p className="text-[9px] font-mono text-zinc-500 mb-0.5 tracking-widest uppercase">Apertura sugerida</p>
+                        <p className="text-xs font-mono text-zinc-300 italic leading-relaxed">{String(briefing["suggested_opening"])}</p>
+                      </div>
+                    )}
+                    {!!briefing["suggested_next_step_close"] && (
+                      <div>
+                        <p className="text-[9px] font-mono text-zinc-500 mb-0.5 tracking-widest uppercase">Cierre / siguiente paso</p>
+                        <p className="text-xs font-mono text-zinc-300 italic leading-relaxed">{String(briefing["suggested_next_step_close"])}</p>
+                      </div>
+                    )}
+                    {!!briefing["brief_for_live"] && (
+                      <div>
+                        <p className="text-[9px] font-mono text-zinc-500 mb-0.5 tracking-widest uppercase">Brief en vivo</p>
+                        <pre className="text-xs font-mono text-zinc-400 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto border border-zinc-800/50 rounded p-2">
+                          {String(briefing["brief_for_live"])}
+                        </pre>
+                      </div>
+                    )}
+                    <div className="border-t border-zinc-800/50 pt-1">
+                      <Row label="Prebrief ID" value={s.prebriefId} />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-1">
+                    <Row label="Prebrief ID" value={s.prebriefId} />
+                    <p className="text-[11px] font-mono text-zinc-600 mt-1">
+                      {hasCanonical
+                        ? "El log canónico (↓ Descargar) contiene el prebrief completo en la Sección 4."
+                        : "Detalle no disponible — guardado antes de v2 del snapshot."}
+                    </p>
+                  </div>
                 )}
               </>
             )}
@@ -367,10 +468,18 @@ function SessionCard({
             {/* TRANSCRIPTOS */}
             {tab === "transcriptos" && (
               <>
+                {/* Comparison stats */}
+                {(transcript || s.whisperRawTranscript || s.webSpeechTranscript) && (
+                  <div className="flex gap-3 text-[9px] font-mono text-zinc-600 border-b border-zinc-800/50 pb-2 mb-1">
+                    <span>Whisper limpio: {transcript ? `${transcript.length} chars` : "—"}</span>
+                    <span>Whisper bruto: {s.whisperRawTranscript ? `${s.whisperRawTranscript.length} chars` : "—"}</span>
+                    <span>Web Speech: {s.webSpeechTranscript ? `${s.webSpeechTranscript.length} chars` : "—"}</span>
+                  </div>
+                )}
                 {transcript && (
                   <div>
                     <p className="text-[9px] font-mono text-teal-600 mb-1 tracking-widest uppercase">
-                      Whisper limpio {hasCanonical ? "· fuente de verdad" : ""}
+                      Whisper limpio{hasCanonical ? " · fuente de verdad" : ""}
                     </p>
                     <pre className="text-xs font-mono text-zinc-300 whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto border border-zinc-800/50 rounded p-2">
                       {transcript}
@@ -402,49 +511,75 @@ function SessionCard({
             {/* AUDITORÍAS */}
             {tab === "auditorias" && (
               <>
-                {s.brutalAudit ? (
-                  <div className="flex flex-col gap-2">
-                    <p className="text-[9px] font-mono text-zinc-500 tracking-widest uppercase">Auditoría brutal</p>
-                    {s.brutalAudit.verdict && (
-                      <div>
-                        <p className="text-[9px] font-mono text-zinc-600 mb-0.5">Veredicto</p>
-                        <p className="text-xs font-mono text-zinc-200 leading-relaxed">{s.brutalAudit.verdict}</p>
-                      </div>
-                    )}
-                    {AuditList("Funcionó", "text-teal-400", s.brutalAudit.what_worked)}
-                    {AuditList("Falló", "text-red-400", s.brutalAudit.what_failed)}
-                    {AuditList("Cierres perdidos", "text-sky-400", s.brutalAudit.missed_closes)}
-                    {AuditList("Cambios prioritarios", "text-white", s.brutalAudit.priority_changes)}
-                    {s.brutalAudit.what_i_would_have_done && (
-                      <div>
-                        <p className="text-[9px] font-mono text-zinc-600 mb-0.5">Lo que yo habría hecho</p>
-                        <p className="text-xs font-mono text-zinc-300 italic leading-relaxed">{s.brutalAudit.what_i_would_have_done}</p>
-                      </div>
-                    )}
-                    {s.brutalAudit.perfect_conversation && (
-                      <div>
-                        <p className="text-[9px] font-mono text-amber-500 mb-0.5">Conversación perfecta</p>
-                        <p className="text-xs font-mono text-zinc-300 whitespace-pre-wrap leading-relaxed">{s.brutalAudit.perfect_conversation}</p>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-xs font-mono text-zinc-600">Sin auditoría brutal.</p>
+                {/* Subtabs */}
+                <div className="flex gap-0 border-b border-zinc-800/50 -mx-4 px-4 mb-3">
+                  {(["comercial", "vela"] as const).map(st => (
+                    <button
+                      key={st}
+                      onClick={() => setAuditSubtab(st)}
+                      className={cn(
+                        "px-3 py-1.5 text-[9px] font-mono tracking-widest uppercase border-b-2 transition-colors",
+                        auditSubtab === st
+                          ? "border-zinc-300 text-zinc-200"
+                          : "border-transparent text-zinc-600 hover:text-zinc-400"
+                      )}
+                    >
+                      {st === "comercial" ? "Comercial" : "VELA"}
+                      {st === "comercial" && hasBrutal && <span className="ml-1 w-1.5 h-1.5 rounded-full bg-red-500 inline-block align-middle" />}
+                      {st === "vela"      && hasVela   && <span className="ml-1 w-1.5 h-1.5 rounded-full bg-sky-500 inline-block align-middle" />}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Comercial subtab */}
+                {auditSubtab === "comercial" && (
+                  s.brutalAudit ? (
+                    <div className="flex flex-col gap-2">
+                      {s.brutalAudit.verdict && (
+                        <div>
+                          <p className="text-[9px] font-mono text-zinc-600 mb-0.5">Veredicto</p>
+                          <p className="text-xs font-mono text-zinc-200 leading-relaxed">{s.brutalAudit.verdict}</p>
+                        </div>
+                      )}
+                      {AuditList("Funcionó", "text-teal-400", s.brutalAudit.what_worked)}
+                      {AuditList("Falló", "text-red-400", s.brutalAudit.what_failed)}
+                      {AuditList("Cierres perdidos", "text-sky-400", s.brutalAudit.missed_closes)}
+                      {AuditList("Cambios prioritarios", "text-white", s.brutalAudit.priority_changes)}
+                      {s.brutalAudit.what_i_would_have_done && (
+                        <div>
+                          <p className="text-[9px] font-mono text-zinc-600 mb-0.5">Lo que yo habría hecho</p>
+                          <p className="text-xs font-mono text-zinc-300 italic leading-relaxed">{s.brutalAudit.what_i_would_have_done}</p>
+                        </div>
+                      )}
+                      {s.brutalAudit.perfect_conversation && (
+                        <div>
+                          <p className="text-[9px] font-mono text-amber-500 mb-0.5">Conversación perfecta</p>
+                          <p className="text-xs font-mono text-zinc-300 whitespace-pre-wrap leading-relaxed">{s.brutalAudit.perfect_conversation}</p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs font-mono text-zinc-600">Sin auditoría comercial.</p>
+                  )
                 )}
 
-                {s.velaAudit && (
-                  <div className="flex flex-col gap-1 border-t border-zinc-800/50 pt-3">
-                    <p className="text-[9px] font-mono text-zinc-500 tracking-widest uppercase">Auditoría VELA</p>
-                    {s.velaAudit.verdict && (
-                      <p className="text-xs font-mono text-zinc-300 leading-relaxed">{s.velaAudit.verdict}</p>
-                    )}
-                    <pre className="text-[10px] font-mono text-zinc-600 whitespace-pre-wrap max-h-48 overflow-y-auto border border-zinc-800/50 rounded p-2 mt-1">
-                      {JSON.stringify(s.velaAudit, null, 2)}
-                    </pre>
-                  </div>
-                )}
-                {!s.brutalAudit && !s.velaAudit && (
-                  <p className="text-xs font-mono text-zinc-600">Sin auditorías disponibles.</p>
+                {/* VELA subtab */}
+                {auditSubtab === "vela" && (
+                  s.velaAudit ? (
+                    <div className="flex flex-col gap-2">
+                      {s.velaAudit.verdict && (
+                        <div>
+                          <p className="text-[9px] font-mono text-zinc-600 mb-0.5">Veredicto</p>
+                          <p className="text-xs font-mono text-zinc-300 leading-relaxed">{s.velaAudit.verdict}</p>
+                        </div>
+                      )}
+                      <pre className="text-[10px] font-mono text-zinc-600 whitespace-pre-wrap max-h-56 overflow-y-auto border border-zinc-800/50 rounded p-2">
+                        {JSON.stringify(s.velaAudit, null, 2)}
+                      </pre>
+                    </div>
+                  ) : (
+                    <p className="text-xs font-mono text-zinc-600">Sin auditoría VELA.</p>
+                  )
                 )}
               </>
             )}
@@ -452,39 +587,37 @@ function SessionCard({
             {/* SISTEMA */}
             {tab === "sistema" && (
               <div className="flex flex-col gap-1.5">
-                <Row label="DB id"              value={s.id} />
-                <Row label="Source session"     value={s.sourceSessionId} />
-                <Row label="Guardado"            value={s.savedAt ? fmtDate(s.savedAt) : "—"} />
-                <Row label="Guardado explícit."  value={s.savedExplicitly ? "sí" : "no"} />
-                <Row label="Log canónico"        value={s.canonicalLogMd ? `${(s.canonicalLogMd.length / 1024).toFixed(1)} KB` : "no"} />
-                <Row label="Brain"               value={s.brainId} />
+                {/* Cost — always first, visible */}
+                <div className="flex flex-col gap-1 border border-zinc-800/50 rounded p-2 mb-1">
+                  <p className="text-[9px] font-mono text-zinc-500 tracking-widest uppercase mb-0.5">Coste sesión</p>
+                  <Row label="Total USD"  value={costUsd != null ? `$${costUsd.toFixed(6)}` : `no disponible — ${costNoDataReason}`} />
+                  <Row label="Total EUR"  value={costUsd != null ? `~€${(costUsd * 0.93).toFixed(4)} (estimado)` : "—"} />
+                  {cost?.["calls"]       != null && <Row label="Llamadas API"   value={String(cost["calls"])} />}
+                  {cost?.["totalTokens"] != null && <Row label="Tokens totales" value={String(cost["totalTokens"])} />}
+                </div>
+
+                <Row label="DB id"             value={s.id} />
+                <Row label="Source session"    value={s.sourceSessionId} />
+                <Row label="Prebrief ID"       value={s.prebriefId} />
+                {durationMin && <Row label="Duración (min)"  value={durationMin} />}
+                <Row label="Guardado"           value={s.savedAt ? fmtDate(s.savedAt) : "—"} />
+                <Row label="Guardado explícit." value={s.savedExplicitly ? "sí" : "no"} />
+                <Row label="Log canónico"       value={s.canonicalLogMd ? `${(s.canonicalLogMd.length / 1024).toFixed(1)} KB` : "no"} />
+                <Row label="Brain"              value={s.brainId} />
+
                 {tl && (
                   <div className="border-t border-zinc-800/50 pt-2 mt-1 flex flex-col gap-1">
                     <p className="text-[9px] font-mono text-zinc-600 tracking-widest uppercase">Timeline</p>
-                    <Row label="Sesión iniciada"     value={fmtTime((tl as Record<string,string>)["session_started_at"])} />
-                    <Row label="Sesión terminada"    value={fmtTime((tl as Record<string,string>)["session_ended_at"])} />
-                    <Row label="Prebrief creado"     value={fmtTime((tl as Record<string,string>)["prebrief_created_at"])} />
-                    <Row label="Briefing listo"      value={fmtTime((tl as Record<string,string>)["prebrief_briefing_ready_at"])} />
-                    <Row label="Whisper bruto"       value={fmtTime((tl as Record<string,string>)["whisper_raw_ready_at"])} />
-                    <Row label="Whisper limpio"      value={fmtTime((tl as Record<string,string>)["whisper_clean_ready_at"])} />
-                    <Row label="Summary listo"       value={fmtTime((tl as Record<string,string>)["summary_ready_at"])} />
-                    <Row label="Brutal audit"        value={fmtTime((tl as Record<string,string>)["brutal_audit_ready_at"])} />
-                    <Row label="VELA audit"          value={fmtTime((tl as Record<string,string>)["vela_audit_ready_at"])} />
-                    <Row label="Guardado en DB"      value={fmtTime((tl as Record<string,string>)["saved_at"])} />
-                  </div>
-                )}
-                {cost && (
-                  <div className="border-t border-zinc-800/50 pt-2 mt-1 flex flex-col gap-1">
-                    <p className="text-[9px] font-mono text-zinc-600 tracking-widest uppercase">Coste</p>
-                    {(cost as Record<string,unknown>)["totalCostUsd"] != null && (
-                      <Row label="Total USD" value={`$${Number((cost as Record<string,unknown>)["totalCostUsd"]).toFixed(6)}`} />
-                    )}
-                    {(cost as Record<string,unknown>)["calls"] != null && (
-                      <Row label="Llamadas API" value={String((cost as Record<string,unknown>)["calls"])} />
-                    )}
-                    {(cost as Record<string,unknown>)["totalTokens"] != null && (
-                      <Row label="Tokens totales" value={String((cost as Record<string,unknown>)["totalTokens"])} />
-                    )}
+                    <Row label="Sesión iniciada"    value={fmtTime((tl as Record<string,string>)["session_started_at"])} />
+                    <Row label="Sesión terminada"   value={fmtTime((tl as Record<string,string>)["session_ended_at"])} />
+                    <Row label="Prebrief creado"    value={fmtTime((tl as Record<string,string>)["prebrief_created_at"])} />
+                    <Row label="Briefing listo"     value={fmtTime((tl as Record<string,string>)["prebrief_briefing_ready_at"])} />
+                    <Row label="Whisper bruto"      value={fmtTime((tl as Record<string,string>)["whisper_raw_ready_at"])} />
+                    <Row label="Whisper limpio"     value={fmtTime((tl as Record<string,string>)["whisper_clean_ready_at"])} />
+                    <Row label="Summary listo"      value={fmtTime((tl as Record<string,string>)["summary_ready_at"])} />
+                    <Row label="Brutal audit"       value={fmtTime((tl as Record<string,string>)["brutal_audit_ready_at"])} />
+                    <Row label="VELA audit"         value={fmtTime((tl as Record<string,string>)["vela_audit_ready_at"])} />
+                    <Row label="Guardado en DB"     value={fmtTime((tl as Record<string,string>)["saved_at"])} />
                   </div>
                 )}
               </div>

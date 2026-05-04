@@ -1,0 +1,298 @@
+Quiero cerrar de una vez el sistema de sesión guardada + bitácora + log canónico. Haz SOLO estos cambios, sin tocar nada más fuera de los archivos necesarios.
+
+OBJETIVO
+La sesión guardada debe servir como documento forense completo para auditar:
+1) la llamada comercial,
+2) lo que hizo VELA,
+3) por qué lo hizo,
+4) cómo se generaron los outputs,
+5) cuánto costó.
+
+REGLA CRÍTICA
+El botón “Descargar log” en live y el botón “Descargar log” en Bitácora deben descargar EXACTAMENTE el mismo markdown canónico.
+No quiero dos builders distintos. Una sola fuente de verdad:
+buildCopilotCanonicalLog(...)
+y el markdown persistido en DB como canonicalLogMd.
+
+========================
+1) UX DE CIERRE DE SESIÓN
+========================
+
+En artifacts/silent-closer/src/pages/copilot.tsx:
+
+- NO autosave.
+- Mantener dos acciones claras al final:
+  - “Guardar sesión” → guarda en DB
+  - “Cerrar sin guardar” → sale sin escribir en DB
+- “Guardar sesión” debe:
+  - construir el canonical log completo
+  - guardar saved_explicitly = true
+  - guardar saved_at
+  - guardar canonicalLogMd
+  - guardar sourceSessionId
+  - guardar totalCostUsd y costSnapshot
+  - guardar timelineSnapshot
+- Si después de guardar se genera o actualiza:
+  - whisper limpio
+  - auditoría brutal
+  - auditoría VELA
+  entonces hacer PATCH de la sesión y regenerar canonicalLogMd también, para que DB quede siempre sincronizada.
+
+========================
+2) CONTRATO DE DATOS DE BITÁCORA
+========================
+
+En la UI de history/bitácora, NO quiero mostrar el raw input por defecto.
+
+Quiero estas pestañas:
+
+A) CONTEXTO
+- Mostrar el resumen confirmado por el usuario / contexto interpretado final
+- Diseño compacto y limpio
+- Botón “Ver detalle” para expandir:
+  - special_context_flags
+  - decision_constraints
+  - case_specific_risks
+  - detected_phase
+  - call_type
+  - today_decision
+  - valid_outcome_today
+- NO enseñar el raw CRM de entrada aquí por defecto
+
+B) PREBRIEF
+- Mostrar la preparación de llamada resumida:
+  - real_call_goal
+  - must_get_today
+  - expected_objections resumidas
+  - suggested_opening
+  - suggested_next_step_close
+  - brief_for_live
+- Botón “Ver detalle” para abrir el bundle completo
+- Si no hubo prebrief: empty state explícito “No se usó prebrief en esta sesión”
+
+C) TRANSCRITOS
+- Por defecto mostrar Whisper limpio
+- Debajo o en secciones plegables:
+  - Whisper raw
+  - Web Speech
+- Añadir comparación básica:
+  - chars / líneas de cada uno
+  - si ambos existen, mostrar diferencia de tamaño
+- No hace falta diff complejo palabra a palabra todavía
+- Si uno no existe, decirlo explícitamente
+
+D) AUDITORÍAS
+- Crear dos subtabs internas:
+  - Comercial
+  - VELA
+- Comercial = brutalAudit
+- VELA = velaAudit
+- Si una no existe, empty state explícito “No generada en esta sesión”
+- No mezclar ambas en el mismo bloque corrido
+
+E) SISTEMA
+- Mostrar:
+  - DB id
+  - source_session_id
+  - saved_at
+  - saved_explicitly
+  - brain
+  - prebrief_id
+  - canonical log size
+  - totalCostUsd
+  - coste en EUR
+  - duración
+  - timelineSnapshot completo pero legible
+  - costSnapshot resumido
+- Añadir aquí también un mini monitor técnico:
+  - si hay sourceSessionId, renderizar DebugPanel o un mini resumen técnico usando esa sesión
+  - si no es viable montar DebugPanel completo, mostrar al menos el costSnapshot persistido de forma clara
+- Quiero ver por fin cuánto costó la sesión en la propia Bitácora
+
+========================
+3) LOG CANÓNICO — CONTENIDO OBLIGATORIO
+========================
+
+En artifacts/silent-closer/src/lib/audit-log.ts:
+
+Revisa buildCopilotCanonicalLog(...) y asegúrate de que el markdown final incluya, en este orden:
+
+1. SESSION META
+- db session id
+- source session id
+- client name
+- brain
+- outcome
+- score
+- saved_at
+- saved_explicitly
+- language
+- timestamps principales
+
+2. CONTEXTO CONFIRMADO
+- resumen final confirmado
+- fase
+- tipo de llamada
+- decisión de hoy
+- outcome válido
+- flags / constraints / risks si existen
+
+3. PREBRIEF
+- interpreted context
+- briefing táctico
+- bundle completo si existe
+
+4. TRANSCRIPT STACK
+- Whisper limpio
+- Whisper raw
+- Web Speech
+- nota clara de cuál es la fuente prioritaria para auditoría
+- comparación básica entre transcripts
+
+5. COPILOT TRACE
+- turnLog con:
+  - raw fragment
+  - normalized fragment
+  - inferred speaker
+  - signal
+  - say_now
+  - avoid
+  - reading
+  - mission
+  - next_move
+  - support
+  - journey
+  - momentum
+  - why_this_turn_exists
+- Esto es clave: quiero entender qué hizo VELA y por qué
+
+6. POST-CALL SUMMARY
+- score
+- strengths
+- improvements
+- full report si existe
+
+7. AUDITORÍA BRUTAL
+- todo el bloque comercial
+
+8. AUDITORÍA VELA
+- todo el bloque de auto-auditoría de sistema
+
+9. COSTE Y SISTEMA
+- totalCostUsd
+- EUR
+- costSnapshot
+- timelineSnapshot
+- sessionSnapshot técnico
+
+10. ESTADO DE GENERACIÓN
+- si brutal audit no existe: escribir explícitamente “No generada”
+- si vela audit no existe: escribir explícitamente “No generada”
+- si prebrief no existe: escribir explícitamente “No usado”
+- si whisper raw no existe: escribirlo
+- si web speech no existe: escribirlo
+
+No quiero un log corto. Lo quiero útil para auditar el sistema entero.
+
+========================
+4) PERSISTENCIA COMPLETA
+========================
+
+En artifacts/api-server/src/routes/copilot.ts:
+
+Revisa POST /copilot/save-session, PATCH /copilot/sessions/:id y GET /copilot/sessions para asegurar:
+
+- POST guarda todos los campos canónicos:
+  - sourceSessionId
+  - canonicalLogMd
+  - sessionSnapshot
+  - whisperRawTranscript
+  - whisperCleanTranscript
+  - webSpeechTranscript
+  - brutalAudit
+  - velaAudit
+  - costSnapshot
+  - timelineSnapshot
+  - savedExplicitly
+  - totalCostUsd
+  - prebriefId
+  - clientName
+  - rawInput/prebrief raw solo como fuente interna, no para UI por defecto
+
+- PATCH actualiza también canonicalLogMd cuando entren:
+  - brutalAudit
+  - velaAudit
+  - whisper clean/raw
+  - timelineSnapshot
+  - costSnapshot
+
+- GET /copilot/sessions devuelve todo lo necesario para la Bitácora nueva, sin que el frontend tenga que inventar nada
+
+========================
+5) COSTE REAL DE SESIÓN
+========================
+
+Ahora mismo el gran agujero es que no veo claro el coste.
+
+Quiero que en el save flow:
+- si existe sourceSessionId, resolver getSessionStats(sourceSessionId)
+- persistir:
+  - totalCostUsd
+  - costSnapshot = { totalCostUsd, calls, totalTokens, avgLatencyMs, source: "ai_tracker" }
+- en frontend mostrar USD y EUR
+- si el coste no está disponible, mostrar la razón:
+  - “sin source session id”
+  - “tracker sin datos”
+  - etc.
+
+========================
+6) HISTORY UI
+========================
+
+En artifacts/silent-closer/src/components/session-history.tsx:
+
+- Mantén Bitácora como nombre
+- Header de la card:
+  - client name
+  - score
+  - outcome badge
+  - fecha
+  - brain
+  - iconos/bolitas de disponibilidad:
+    - prebrief
+    - brutal
+    - vela
+    - whisper
+- Añade coste visible en pequeño en header o system tab
+- La descarga desde aquí debe usar canonicalLogMd si existe; si no existe, construirlo solo como fallback
+- Quiero que el estado visual refleje bien qué existe y qué no
+
+========================
+7) PREBRIEF BUNDLE
+========================
+
+En el flujo de prebrief:
+- asegurar que la sesión guardada conserva referencia al prebrief usado
+- y que la Bitácora puede enseñar tanto resumen como detalle del prebrief
+- si el prebrief se guardó en dos pasos (contexto y luego briefing), la fila final debe quedar unificada, no duplicada
+
+========================
+8) RESTRICCIÓN
+========================
+
+No hagas rediseños creativos fuera de esto.
+No cambies naming comercial ya asentado salvo lo necesario.
+No metas nuevas pantallas.
+Solo cerrar:
+- fidelidad de datos
+- visibilidad de coste
+- bitácora útil
+- log canónico completo
+- consistencia live/history
+
+Cuando termines:
+1. dime archivos tocados
+2. dime exactamente qué campos nuevos quedan garantizados en una sesión guardada
+3. dime qué ve el usuario en cada pestaña de Bitácora
+4. dime qué contiene ya el log canónico final
+5. confirma si live download e history download salen del mismo markdown

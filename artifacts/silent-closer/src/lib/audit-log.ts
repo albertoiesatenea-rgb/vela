@@ -1297,6 +1297,44 @@ export function buildCopilotCanonicalLog(input: CopilotCanonicalSessionInput): s
     s.push("```json");
     s.push(J(pb.briefing));
     s.push("```");
+    // Extract structured briefing fields for quick reading
+    const briefObj = pb.briefing && typeof pb.briefing === "object" ? pb.briefing as Record<string, unknown> : null;
+    if (briefObj) {
+      s.push("");
+      s.push("### Resumen operativo (campos clave)");
+      if (briefObj["real_call_goal"]) s.push(`objetivo_real:        ${String(briefObj["real_call_goal"])}`);
+      if (briefObj["must_get_today"]) s.push(`conseguir_hoy:        ${String(briefObj["must_get_today"])}`);
+      const expectedObj = Array.isArray(briefObj["expected_objections"]) ? briefObj["expected_objections"] as string[] : null;
+      if (expectedObj?.length) {
+        s.push("objeciones_esperadas:");
+        expectedObj.forEach(o => s.push(`  - ${o}`));
+      }
+      if (briefObj["suggested_opening"]) { s.push(""); s.push(`apertura_sugerida:    ${String(briefObj["suggested_opening"])}`); }
+      if (briefObj["suggested_next_step_close"]) s.push(`cierre_siguiente:     ${String(briefObj["suggested_next_step_close"])}`);
+      if (briefObj["brief_for_live"]) {
+        s.push("");
+        s.push("brief_for_live: |");
+        s.push(`  ${String(briefObj["brief_for_live"]).replace(/\n/g, "\n  ")}`);
+      }
+    }
+    // Extract structured interpreted context fields
+    const icObj = pb.interpretedContext && typeof pb.interpretedContext === "object" ? pb.interpretedContext as Record<string, unknown> : null;
+    if (icObj) {
+      s.push("");
+      s.push("### Contexto interpretado (campos clave)");
+      if (icObj["detected_phase"])     s.push(`fase_detectada:       ${String(icObj["detected_phase"])}`);
+      if (icObj["call_type"])          s.push(`tipo_llamada:         ${String(icObj["call_type"])}`);
+      if (icObj["today_decision"])     s.push(`decisión_hoy:         ${String(icObj["today_decision"])}`);
+      if (icObj["valid_outcome_today"]) s.push(`outcome_válido_hoy:   ${String(icObj["valid_outcome_today"])}`);
+      const flags = Array.isArray(icObj["special_context_flags"]) ? icObj["special_context_flags"] as string[] : null;
+      if (flags?.length) { s.push("flags_contexto:"); flags.forEach(f => s.push(`  - ${f}`)); }
+      const constraints = Array.isArray(icObj["decision_constraints"]) ? icObj["decision_constraints"] as string[] : null;
+      if (constraints?.length) { s.push("decision_constraints:"); constraints.forEach(c => s.push(`  - ${c}`)); }
+      const risks = Array.isArray(icObj["case_specific_risks"]) ? icObj["case_specific_risks"] as string[] : null;
+      if (risks?.length) { s.push("riesgos_específicos:"); risks.forEach(r => s.push(`  - ${r}`)); }
+    }
+    if (pb.confirmedAt) s.push(`\nconfirmed_at:         ${pb.confirmedAt}`);
+    if (pb.briefingReadyAt) s.push(`briefing_ready_at:    ${pb.briefingReadyAt}`);
   }
   s.push("");
 
@@ -1585,9 +1623,26 @@ export function buildCopilotCanonicalLog(input: CopilotCanonicalSessionInput): s
   s.push("");
 
   // ───────────────────────────────────────────────────────────────────────────
-  // 15. PREGUNTAS QUE ESTE LOG PERMITE RESPONDER
+  // 15. ESTADO DE GENERACIÓN
   // ───────────────────────────────────────────────────────────────────────────
-  s.push("## 15. PREGUNTAS QUE ESTE LOG PERMITE RESPONDER");
+  s.push("## 15. ESTADO DE GENERACIÓN");
+  s.push("");
+  s.push(`prebrief_usado:            ${input.prebriefBundle ? "sí" : "no — no se usó prebrief en esta sesión"}`);
+  s.push(`brutal_audit_generada:     ${input.brutalAudit ? "sí" : "no — auditoría brutal no ejecutada o no disponible"}`);
+  s.push(`vela_audit_generada:       ${input.velaAudit ? "sí" : "no — auditoría VELA no ejecutada o no disponible"}`);
+  s.push(`whisper_raw:               ${input.whisperRawTranscript ? `disponible (${input.whisperRawTranscript.length} chars)` : "no disponible"}`);
+  s.push(`whisper_limpio:            ${input.whisperCleanTranscript ? `disponible (${input.whisperCleanTranscript.length} chars)` : "no disponible"}`);
+  s.push(`web_speech_turns:          ${input.webSpeechLines.length > 0 ? `${input.webSpeechLines.length} turnos` : "no disponible"}`);
+  s.push(`summary_generado:          ${input.callSummary ? "sí" : "no"}`);
+  s.push(`session_guardada_en_db:    ${input.isSessionSaved ? "sí" : "no — sesión no guardada"}`);
+  const costAvail = (input.costSnapshot as Record<string, unknown> | null)?.["totalCostUsd"] != null;
+  s.push(`coste_disponible:          ${costAvail ? "sí" : !input.sourceSessionId ? "no — sin source_session_id" : "no — tracker sin datos para este source_session_id"}`);
+  s.push("");
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 16. PREGUNTAS QUE ESTE LOG PERMITE RESPONDER
+  // ───────────────────────────────────────────────────────────────────────────
+  s.push("## 16. PREGUNTAS QUE ESTE LOG PERMITE RESPONDER");
   s.push("");
   s.push("- ¿Qué se dijo y cuándo? → Sección 6 (Transcriptos) + Sección 8 (Guía táctica turno a turno)");
   s.push("- ¿Por qué VELA sugirió lo que sugirió? → Sección 8, campo `source_basis` de cada turno");

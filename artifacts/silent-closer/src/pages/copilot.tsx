@@ -1806,10 +1806,15 @@ export default function CopilotPage() {
       setBrutalAudit(data);
       timelineSnapshotRef.current.brutal_audit_ready_at = new Date().toISOString();
       if (savedSessionIdRef.current) {
+        const _bestMem = turnLog.length > 0 ? turnLog[turnLog.length - 1].memory_after : tacticalState.callMemory;
+        const _bm = speakerMode === "auto" ? speakerSessionRef.current.getMetrics() : undefined;
+        const _sm: SpeakerSessionMetricsForLog | undefined = _bm ? { ..._bm, ai_retropass_reclassified_count: aiRetropassReclassifiedRef.current } : undefined;
+        const _ci = makeCanonicalInput(turnLog, _bestMem, _sm, isSessionSaved, timelineSnapshotRef.current.saved_at ?? null);
+        const _updatedMd = buildCopilotCanonicalLog({ ..._ci, brutalAudit: data as unknown as Record<string, unknown> });
         void fetch(`/api/copilot/sessions/${savedSessionIdRef.current}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ brutalAudit: data, timelineSnapshot: { ...timelineSnapshotRef.current } }),
+          body: JSON.stringify({ brutalAudit: data, timelineSnapshot: { ...timelineSnapshotRef.current }, canonicalLogMd: _updatedMd }),
         }).catch(e => console.error("[vela:db] patch-brutalAudit failed", e));
       }
     } catch {
@@ -1870,10 +1875,15 @@ export default function CopilotPage() {
       setVelaAudit(data);
       timelineSnapshotRef.current.vela_audit_ready_at = new Date().toISOString();
       if (savedSessionIdRef.current) {
+        const _bestMem = turnLog.length > 0 ? turnLog[turnLog.length - 1].memory_after : tacticalState.callMemory;
+        const _bm = speakerMode === "auto" ? speakerSessionRef.current.getMetrics() : undefined;
+        const _sm: SpeakerSessionMetricsForLog | undefined = _bm ? { ..._bm, ai_retropass_reclassified_count: aiRetropassReclassifiedRef.current } : undefined;
+        const _ci = makeCanonicalInput(turnLog, _bestMem, _sm, isSessionSaved, timelineSnapshotRef.current.saved_at ?? null);
+        const _updatedMd = buildCopilotCanonicalLog({ ..._ci, velaAudit: data as unknown as Record<string, unknown> });
         void fetch(`/api/copilot/sessions/${savedSessionIdRef.current}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ velaAudit: data, timelineSnapshot: { ...timelineSnapshotRef.current } }),
+          body: JSON.stringify({ velaAudit: data, timelineSnapshot: { ...timelineSnapshotRef.current }, canonicalLogMd: _updatedMd }),
         }).catch(e => console.error("[vela:db] patch-velaAudit failed", e));
       }
     } catch {
@@ -2217,6 +2227,7 @@ export default function CopilotPage() {
         speakerMode,
         analyzeErrorCount,
         maxSayNowLoop: maxSayNowLoopRef.current,
+        prebriefBundle: prebriefBundleRef.current ?? null,
       };
 
       const r = await fetch("/api/copilot/save-session", {
