@@ -723,6 +723,7 @@ export default function CopilotPage() {
   const [analyzeErrorCount, setAnalyzeErrorCount] = useState(0);
   const analyzeErrorCountRef = useRef(0);
   const sessionBrainIdRef = useRef<string | undefined>(undefined);
+  const sessionPrebriefIdRef = useRef<string | null>(null);
   // Persists the total number of turns reclassified by the AI retropass across all
   // trigger points in this session (handleSelectOutcome, handleLoadVelaAudit,
   // handleDownloadAuditLog). Used so the audit log shows the correct count even
@@ -1162,10 +1163,11 @@ export default function CopilotPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [sessionActive]);
 
-  const handleContextReady = (context: string, sc?: StructuredContext, brainId?: string) => {
+  const handleContextReady = (context: string, sc?: StructuredContext, brainId?: string, prebriefId?: string) => {
     setSessionContext(context);
     setStructuredContext(sc);
     sessionBrainIdRef.current = brainId;
+    sessionPrebriefIdRef.current = prebriefId ?? null;
     setTacticalState(EMPTY_STATE);
     setContextLabel("");
     saveLabel("");
@@ -1663,7 +1665,7 @@ export default function CopilotPage() {
             whisperTranscript: whisperTranscript || null,
             webSpeechTurns: turnLog ?? null,
             totalCostUsd: null,
-            prebriefId: null,
+            prebriefId: sessionPrebriefIdRef.current ?? null,
           }),
         });
       } catch (e) {

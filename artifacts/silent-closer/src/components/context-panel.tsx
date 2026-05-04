@@ -888,7 +888,7 @@ export function ContextSetup({
   initialRole,
   onShowHistory,
 }: {
-  onContextReady: (ctx: string, structuredCtx?: StructuredContext, brainId?: string) => void;
+  onContextReady: (ctx: string, structuredCtx?: StructuredContext, brainId?: string, prebriefId?: string) => void;
   onArenaReady: (ctx: string, role: ArenaRole, config: ArenaConfig) => void;
   lang: Lang;
   onLangChange: (l: Lang) => void;
@@ -935,6 +935,7 @@ export function ContextSetup({
   const [prebriefUserEdited, setPrebriefUserEdited] = useState(false);
   const prebriefResultAtInterpret = useRef<typeof prebriefResult>(null);
   const briefingResultRef = useRef<PrebriefScript | null>(null);
+  const savedPrebriefIdRef = useRef<string | null>(null);
   const [briefingLoading,   setBriefingLoading]   = useState(false);
   const [showBrainDropdown, setShowBrainDropdown] = useState(false);
   const [showBrainInspector, setShowBrainInspector] = useState(false);
@@ -1015,7 +1016,7 @@ export function ContextSetup({
           ? `\n\n[Perfil estimado del cliente: ${profileLabel}. Usa esto como referencia inicial en tus sugerencias, con flexibilidad si la conversación revela señales distintas.]`
           : `\n\n[Estimated client profile: ${profileLabel}. Use this as an initial reference in your suggestions, staying flexible if the conversation reveals different signals.]`;
       }
-      onContextReady(finalCtx, copilotSc, prebriefBrainId ?? activeBrainId);
+      onContextReady(finalCtx, copilotSc, prebriefBrainId ?? activeBrainId, savedPrebriefIdRef.current ?? undefined);
     }
   };
 
@@ -1114,9 +1115,12 @@ export function ContextSetup({
         brainId: prebriefBrainId ?? activeBrainId,
         rawInput: quickText,
         interpretedContext: prebriefEdit ?? prebriefResult,
-        briefing: briefingResultRef.current ?? null,
+        briefing: null,
       }),
-    }).catch(e => console.error("[vela:db] save-prebrief failed", e));
+    })
+      .then(r => r.json())
+      .then((d: { id?: string }) => { if (d.id) savedPrebriefIdRef.current = d.id; })
+      .catch(e => console.error("[vela:db] save-prebrief failed", e));
   };
 
   const handlePrepareCall = async () => {
