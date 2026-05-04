@@ -2221,10 +2221,22 @@ router.post("/copilot/save-session", async (req, res) => {
       totalCostUsd, prebriefId,
     } = req.body as Record<string, unknown>;
 
-    let resolvedClientName = clientName as string ?? null;
+    let prebriefRawInput: string | null = rawInput as string ?? null;
 
-    if (!resolvedClientName && rawInput) {
-      const raw = rawInput as string;
+    if (prebriefId && !prebriefRawInput) {
+      try {
+        const [prebrief] = await db
+          .select({ rawInput: prebriefLogs.rawInput })
+          .from(prebriefLogs)
+          .where(eq(prebriefLogs.id, prebriefId as string))
+          .limit(1);
+        if (prebrief?.rawInput) prebriefRawInput = prebrief.rawInput;
+      } catch {}
+    }
+
+    let resolvedClientName = clientName as string ?? null;
+    if (!resolvedClientName && prebriefRawInput) {
+      const raw = prebriefRawInput;
       const m1 = raw.match(/[Cc]liente\s*[=:]\s*([^\n,.]+)/);
       if (m1) resolvedClientName = m1[1].trim();
       if (!resolvedClientName) {
@@ -2244,7 +2256,7 @@ router.post("/copilot/save-session", async (req, res) => {
       score:             score as number ?? null,
       durationSeconds:   durationSeconds as number ?? null,
       clientName:        resolvedClientName,
-      rawInput:          rawInput as string ?? null,
+      rawInput:          prebriefRawInput,
       callSummary:       callSummary ?? null,
       brutalAudit:       brutalAudit ?? null,
       whisperTranscript: whisperTranscript as string ?? null,
