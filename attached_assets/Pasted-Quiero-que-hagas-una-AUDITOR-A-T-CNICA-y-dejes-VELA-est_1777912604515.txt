@@ -1,0 +1,74 @@
+Quiero que hagas una AUDITORÍA TÉCNICA y dejes VELA estable. No hagas features nuevas ni refactors amplios: primero diagnostica y corrige el runtime real.
+
+SÍNTOMAS ACTUALES
+- A veces el frontend responde pero el backend no está vivo en localhost:8080.
+- /api/copilot/prebrief-context a veces no responde o el botón “Interpretar contexto” no hace nada.
+- /api/copilot/sessions llegó a devolver sesiones que NO deberían salir, lo que sugiere que había un proceso viejo o un dist desactualizado corriendo.
+- Se detectó que el source TS tenía el filtro saved_explicitly=true, pero el dist/ o el proceso activo no siempre coincidía.
+- También hubo un fallo al arrancar el backend por PORT no definido.
+
+OBJETIVO
+Dejar el backend arrancando SIEMPRE de forma correcta, con el código actual realmente servido, y verificar extremo a extremo:
+1) /api/debug/usage
+2) /api/copilot/prebrief-context
+3) /api/copilot/sessions
+4) filtro de sesiones explícitamente guardadas
+5) que el frontend pueda volver a interpretar contexto sin quedarse colgado
+
+QUÉ QUIERO QUE HAGAS
+1. Audita el estado real del runtime:
+   - qué proceso escucha 8080
+   - qué comando exacto lo arranca
+   - si el proceso vivo corresponde al dist actual o a uno viejo
+   - si hay varios procesos node compitiendo
+   - si el script dev/start de api-server depende de PORT y se está lanzando mal
+
+2. Revisa estos ficheros:
+   - artifacts/api-server/src/routes/copilot.ts
+   - artifacts/api-server/src/index.ts
+   - artifacts/api-server/package.json
+   - cualquier config/script que afecte al arranque del backend en Replit
+
+3. Corrige lo mínimo necesario para que:
+   - el backend arranque de forma estable con PORT=8080
+   - no haya procesos huérfanos ni servidores viejos
+   - el build servido corresponda al source actual
+   - /copilot/sessions use el filtro:
+     where(eq(callSessions.savedExplicitly, true))
+     y ordene por savedAt DESC NULLS LAST, createdAt DESC
+   - /copilot/prebrief-context responda correctamente
+
+4. Después de arreglarlo, ejecuta validación real:
+   - build del api-server
+   - levantar backend correctamente
+   - curl a /api/debug/usage
+   - curl a /api/copilot/prebrief-context con un payload real de Javier Moreno
+   - curl a /api/copilot/sessions
+   - confirmar que no aparecen sesiones con savedExplicitly=false
+   - si hace falta, revisar logs de /tmp/vela-api.log
+
+5. Si detectas que el problema es de proceso/arranque en vez de código, arréglalo igualmente.
+   No te limites a decir “el source está bien”; quiero el sistema funcionando de verdad.
+
+PAYLOAD DE PRUEBA PARA PREBRIEF
+Usa este exactamente:
+{
+  "raw_input": "Javier Moreno, consultor financiero, 52 años, Madrid. Tiene 300K€ entre fondos y liquidez. Ya invirtió en inmobiliario en España hace 10 años y quiere diversificar fuera. Ha visto propiedades en Portugal pero no le convencen las rentabilidades. Finance check completado, financeable hasta 280K€. Segunda llamada con Immvest.",
+  "brainId": "immvest"
+}
+
+REGLAS
+- No metas features nuevas.
+- No cambies UX.
+- No toques nada no relacionado con este bug salvo que sea imprescindible para dejarlo estable.
+- Si cambias scripts de arranque, explica exactamente por qué.
+- Si encuentras más de una causa raíz, sepáralas.
+
+ENTREGA FINAL
+Quiero una entrega limpia con este formato:
+1. Causa raíz exacta
+2. Archivos tocados
+3. Qué cambiaste en cada archivo
+4. Qué proceso/comando deja el backend vivo correctamente
+5. Resultado de las pruebas reales (con status code / respuesta resumida)
+6. Confirmación explícita de que el backend vivo corresponde al código actual y no a un proceso viejo
