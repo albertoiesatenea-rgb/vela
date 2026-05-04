@@ -887,7 +887,7 @@ export function ContextSetup({
   initialMode,
   initialRole,
 }: {
-  onContextReady: (ctx: string, structuredCtx?: StructuredContext) => void;
+  onContextReady: (ctx: string, structuredCtx?: StructuredContext, brainId?: string) => void;
   onArenaReady: (ctx: string, role: ArenaRole, config: ArenaConfig) => void;
   lang: Lang;
   onLangChange: (l: Lang) => void;
@@ -1013,7 +1013,7 @@ export function ContextSetup({
           ? `\n\n[Perfil estimado del cliente: ${profileLabel}. Usa esto como referencia inicial en tus sugerencias, con flexibilidad si la conversación revela señales distintas.]`
           : `\n\n[Estimated client profile: ${profileLabel}. Use this as an initial reference in your suggestions, staying flexible if the conversation reveals different signals.]`;
       }
-      onContextReady(finalCtx, copilotSc);
+      onContextReady(finalCtx, copilotSc, prebriefBrainId ?? activeBrainId);
     }
   };
 

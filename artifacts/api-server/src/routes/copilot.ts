@@ -13,6 +13,7 @@ import {
   getCopilotBrain,
   buildPrebriefContextBrainBlock,
   buildPrebriefScriptBrainBlock,
+  buildCopilotLiveBrainBlock,
 } from "@workspace/sales-brain";
 
 const router: IRouter = Router();
@@ -400,6 +401,7 @@ function buildSystemPrompt(
   speakerConfidence?: number,
   listenReliability?: "high" | "medium" | "low",
   sayNowLoopCount?: number,
+  brainId?: string,
 ): string {
   const isEn = lang === "en";
 
@@ -441,7 +443,9 @@ function buildSystemPrompt(
       : `\nANULACIÓN ANTI-LOOP (CRÍTICO): El mismo say_now se ha repetido aproximadamente ${sayNowLoopCount} turnos consecutivos. Esto es un fallo de coaching. DEBES generar un say_now COMPLETAMENTE DIFERENTE — no una paráfrasis del anterior. Cambia el eje táctico por completo: si el consejo anterior hacía una pregunta, ahora recomienda una declaración o acción concreta. Si exploraba un tema, ahora recomienda avanzar a la siguiente etapa. El say_now de este turno debe ser detectablemente diferente de cualquier patrón reciente.`)
     : "";
 
-  return `${BASE_SYSTEM_PROMPT}${contextBlock}${structuredBlock}${langRule}${speakerGuardrail}${reliabilityBlock}${loopBreakerBlock}`;
+  const liveBrainBlock = buildCopilotLiveBrainBlock(brainId, isEn ? "en" : "es");
+
+  return `${BASE_SYSTEM_PROMPT}${liveBrainBlock ? `\n${liveBrainBlock}` : ""}${contextBlock}${structuredBlock}${langRule}${speakerGuardrail}${reliabilityBlock}${loopBreakerBlock}`;
 }
 
 // ── POST /api/copilot/analyze ─────────────────────────────────────────────────
@@ -453,6 +457,7 @@ router.post("/copilot/analyze", async (req, res) => {
   }
 
   const { text, context, call_memory, lang, structured_context, speaker_confidence, conversation_history, say_now_loop_count, listen_reliability } = parseResult.data;
+  const brainId = (req.body as Record<string, unknown>)?.brainId as string | undefined;
   const sessionId = (req.headers["x-session-id"] as string | undefined) ?? undefined;
 
   // Build user message: prefer real conversation history over compressed call_memory
@@ -519,7 +524,7 @@ router.post("/copilot/analyze", async (req, res) => {
           model: ANALYZE_MODEL,
           max_tokens: 1400,
           messages: [
-            { role: "system", content: buildSystemPrompt(context, lang, structured_context, speaker_confidence, listen_reliability, say_now_loop_count) },
+            { role: "system", content: buildSystemPrompt(context, lang, structured_context, speaker_confidence, listen_reliability, say_now_loop_count, brainId) },
             { role: "user", content: userMessage },
           ],
         },

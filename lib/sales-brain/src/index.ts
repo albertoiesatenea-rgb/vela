@@ -1106,6 +1106,7 @@ export interface CopilotBrainContext {
   inspectorBullets: string[];
   prebriefContextBrainBlock: Record<Lang, string>;
   prebriefScriptBrainBlock: Record<Lang, string>;
+  liveRules: Record<Lang, string>;
 }
 
 export const COPILOT_BRAINS: Record<string, CopilotBrainContext> = {
@@ -1205,6 +1206,7 @@ Brief for live: 4-7 sentences integrating phase, real goal, main blocker, must-g
     ],
     prebriefContextBrainBlock: { es: "", en: "" },
     prebriefScriptBrainBlock: { es: "", en: "" },
+    liveRules: { es: "", en: "" },
   },
 
   immvest: {
@@ -1970,6 +1972,33 @@ EJEMPLO BUENO para caso tipo Fase 2 Immvest (perfil analítico, dudas sobre enca
 - siguiente paso válido: "avanzar a propuesta con fecha concreta" o "dejar claro por qué no es el momento todavía"`,
       en: "",
     },
+    liveRules: {
+      es: `
+BRAIN ACTIVO: IMMVEST — Comportamiento live obligatorio:
+
+LEE LA FASE REAL ANTES DE CUALQUIER CONSEJO:
+- Fase 2 (asesoría / encaje): el objetivo es validar si el caso merece propuesta — no cerrar, no empujar modelo
+- Fase 3 (seguimiento / criterio): el objetivo es resolver el criterio dominante y ordenar el siguiente paso concreto
+- Fase 4 (propuesta / cierre): el objetivo es resolver el freno técnico o de decisión dominante — no sobreexplicar modelo
+
+CRITERIO DOMINANTE MANDA SOBRE ESTRUCTURA:
+- Si el cliente compara alternativas (ETFs, España, liquidez, capital, esfuerzo mensual) → el eje es criterio vivo, no encaje estructural
+- Si hay señal de primera operación + seguridad → el eje es diseño de la primera operación, no el tercero presente
+- Si hay intención real alta (FC, entrada disponible, largo plazo) + restricción estructural → checkpoint estructural antes de propuesta, no exploración blanda
+
+TERCERO / DECISOR AUSENTE:
+- Si aparece un tercero: aisla si decide, valida o solo influye antes de usarlo tácticamente
+- Si el decisor no está en la llamada: SAY_NOW NO puede orientar a cierre o reserva — debe orientar a cerrar siguiente paso con todos los decisores presentes
+
+SAY_NOW — REGLAS DE GENERACIÓN:
+- Fase 2: orienta a ordenar criterio dominante o confirmar checkpoint estructural
+- Fase 4: orienta a resolver freno técnico dominante o cerrar próxima reunión con decisores
+- PROHIBIDO: "si encaja te llamo", "ya me dices", "vemos cómo seguir", "te mando algo"
+- PROHIBIDO orientar a propuesta en Fase 2 si el criterio aún no está ordenado
+- PROHIBIDO usar "cashflow negativo" como diagnóstico por defecto si el input no lo señala
+- PROHIBIDO sobreexplicar el modelo Immvest antes de aislar el freno dominante del caso`,
+      en: "",
+    },
   },
 
 };
@@ -1999,4 +2028,9 @@ export function buildPrebriefContextBrainBlock(brainId?: string, lang: Lang = "e
 export function buildPrebriefScriptBrainBlock(brainId?: string, lang: Lang = "es"): string {
   const brain = getCopilotBrain(brainId);
   return brain.prebriefScriptBrainBlock[lang] ?? "";
+}
+
+export function buildCopilotLiveBrainBlock(brainId?: string, lang: Lang = "es"): string {
+  const brain = getCopilotBrain(brainId);
+  return brain.liveRules[lang] ?? "";
 }

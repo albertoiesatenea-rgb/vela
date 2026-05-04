@@ -720,6 +720,7 @@ export default function CopilotPage() {
   const maxSayNowLoopRef = useRef(0);
   const [analyzeErrorCount, setAnalyzeErrorCount] = useState(0);
   const analyzeErrorCountRef = useRef(0);
+  const sessionBrainIdRef = useRef<string | undefined>(undefined);
   // Persists the total number of turns reclassified by the AI retropass across all
   // trigger points in this session (handleSelectOutcome, handleLoadVelaAudit,
   // handleDownloadAuditLog). Used so the audit log shows the correct count even
@@ -999,6 +1000,7 @@ export default function CopilotPage() {
           : {}),
         ...(sayNowLoopCount >= 3 ? { say_now_loop_count: sayNowLoopCount } : {}),
         ...(listenReliability !== "high" ? { listen_reliability: listenReliability } : {}),
+        ...(sessionBrainIdRef.current ? { brainId: sessionBrainIdRef.current } : {}),
       } as any)
         .then((res: any) => {
           // ── Runtime error path ──────────────────────────────────────────────
@@ -1158,9 +1160,10 @@ export default function CopilotPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [sessionActive]);
 
-  const handleContextReady = (context: string, sc?: StructuredContext) => {
+  const handleContextReady = (context: string, sc?: StructuredContext, brainId?: string) => {
     setSessionContext(context);
     setStructuredContext(sc);
+    sessionBrainIdRef.current = brainId;
     setTacticalState(EMPTY_STATE);
     setContextLabel("");
     saveLabel("");

@@ -1,0 +1,165 @@
+Partimos del estado ACTUAL del proyecto. Quiero ejecutar SOLO la FASE 3 del refactor de brains.
+
+OBJETIVO DE ESTA FASE
+Hacer que el `brainId` seleccionado en Copilot NO gobierne solo el prebrief, sino también el Copilot live durante la sesión.
+
+Ahora mismo:
+- el selector de brain afecta al prebrief (`/copilot/prebrief-context` y `/copilot/prebrief-script`)
+- pero el live Copilot sigue apoyándose en doctrina general (`MASTER_SELLER_BRAIN`) y no queda claro que el brain activo gobierne también las sugerencias/análisis en tiempo real
+
+Quiero corregir eso.
+
+RESULTADO ESPERADO
+Después de este cambio:
+1. el brain seleccionado en setup (`immvest` o `generic`) viaja end-to-end hasta la sesión live de Copilot
+2. las llamadas live de Copilot incluyen ese `brainId`
+3. el backend live de Copilot usa `getCopilotBrain(brainId)` y añade un bloque doctrinal live desde `sales-brain`
+4. `MASTER_SELLER_BRAIN` puede seguir existiendo como base común, pero el brain activo debe modular/completar el comportamiento live
+5. NO tocar Arena
+6. NO romper prebrief
+7. NO cambiar visualmente el flujo salvo lo imprescindible
+
+ALCANCE ESTRICTO
+Toca solo lo necesario entre estos archivos:
+- `lib/sales-brain/src/index.ts`
+- `artifacts/api-server/src/routes/copilot.ts`
+- `artifacts/silent-closer/src/components/context-panel.tsx`
+- `artifacts/silent-closer/src/pages/copilot.tsx`
+
+Si hace falta tocar algún tipo compartido o prop intermedia dentro de esos mismos archivos, bien.
+NO tocar otros archivos salvo que sea absolutamente imprescindible para compilar.
+
+NO TOCAR
+- `artifacts/api-server/src/routes/arena.ts`
+- frontend de Arena
+- prompts de Arena
+- JSON del prebrief
+- lógica del prebrief
+- logs salvo que quieras añadir brainId en copilot live y sea muy trivial
+- UI del selector de brain
+- inspector del brain
+- estilos
+- MASTER_SELLER_BRAIN como concepto base
+
+PROBLEMA ACTUAL
+El brain ya está bien montado para prebrief, pero no para live.
+Quiero que haya continuidad:
+- interpretas el caso con un brain
+- preparas llamada con ese mismo brain
+- entras a live con ese mismo brain
+
+No quiero que al iniciar Copilot live se “olvide” el brain activo y vuelva a doctrina genérica.
+
+QUÉ QUIERO HACER
+
+A) EN `lib/sales-brain/src/index.ts`
+Amplía `CopilotBrainContext` con una capa live, por ejemplo uno de estos enfoques:
+
+OPCIÓN 1:
+- `liveRules: Record<Lang, string>`
+
+OPCIÓN 2:
+- `copilotAnalyzeRules: Record<Lang, string>`
+
+No me importa el naming exacto, pero debe representar doctrina del brain para la sesión live de Copilot.
+
+Requisitos:
+- `generic`: puede ser simple / casi vacío / mínimo
+- `immvest`: debe contener reglas útiles para live, derivadas de la doctrina ya existente, sin reescribir el mundo ni inventar una segunda biblia rara
+
+Qué espero en `immvest` liveRules:
+- leer la fase real y no forzar cierre prematuro
+- respetar criterio dominante del caso
+- distinguir restricción estructural vs criterio vivo
+- empujar siguiente paso concreto según fase
+- no sobreexplicar modelo antes de aislar freno
+- no sonar a vendedor genérico
+- si el caso es Fase 2, ayudar a decidir si merece propuesta
+- si es Fase 4, ayudar a cerrar objeción dominante o siguiente paso concreto
+- tono táctico y operativo, no teoría
+
+IMPORTANTE:
+No metas aquí ejemplos eternos si no hacen falta.
+Quiero una capa live clara y reusable, no otro monstruo inline.
+
+Añade también un helper exportado limpio, por ejemplo:
+- `buildCopilotLiveBrainBlock(brainId?, lang?)`
+o
+- `getCopilotBrainLiveRules(brainId?, lang?)`
+
+B) EN `artifacts/api-server/src/routes/copilot.ts`
+Localiza el endpoint o endpoints que construyen el system prompt del Copilot live/analyze.
+Quiero que:
+1. sigan usando `MASTER_SELLER_BRAIN` como base común si hace falta
+2. PERO además inyecten el bloque live del brain activo:
+   - `buildCopilotLiveBrainBlock(brainId, lang)` o equivalente
+
+El orden ideal del system prompt live sería:
+- base general compartida (`MASTER_SELLER_BRAIN`)
+- bloque live del brain activo
+- formato / instrucciones del endpoint
+- contexto de sesión
+
+No quiero reescribir la lógica del live.
+Quiero brain injection limpia.
+
+IMPORTANTE:
+No cambies rutas ni response shape salvo que haga falta añadir `brainId?: string` al body del endpoint live.
+Si hay que añadir `brainId` al body del endpoint live, hazlo como campo opcional y mantén backward compatibility.
+
+C) EN `artifacts/silent-closer/src/components/context-panel.tsx`
+Cuando el usuario pulse “Iniciar copiloto”, asegúrate de que el `brainId` que ha usado en prebrief viaja con el arranque de la sesión.
+
+Regla:
+- si existe `prebriefBrainId`, usar ese
+- si no, usar `activeBrainId`
+
+No quiero inconsistencias entre:
+- brain con el que se generó el prebrief
+- brain con el que arranca el live
+
+D) EN `artifacts/silent-closer/src/pages/copilot.tsx`
+Haz el threading de `brainId` por la sesión live.
+Necesito que el estado/session de Copilot recuerde el brain activo y lo mande en las llamadas live al backend.
+
+No quiero cambiar visualmente la UI.
+Solo quiero continuidad de estado.
+
+Si hace falta:
+- añade `brainId` al estado de sesión/contexto ready
+- propágalo a los fetch live de analyze/suggestions
+- mantenlo opcional para no romper sesiones legacy
+
+E) COMPORTAMIENTO ESPERADO
+Después del cambio:
+- selecciono `Immvest`
+- interpreto contexto
+- preparo llamada
+- entro a Copilot live
+- el live responde condicionado también por Immvest, no solo por MASTER_SELLER_BRAIN genérico
+
+Y lo mismo con `Generic`.
+
+F) COSAS QUE NO QUIERO
+- No tocar Arena
+- No rehacer el flujo de sesión
+- No cambiar 20 archivos
+- No mezclar prebrief con live
+- No duplicar doctrina live dentro de `pages/copilot.tsx`
+- No poner ifs gigantes `brainId === "immvest"` en frontend si se puede evitar
+- No meter otro brain hardcodeado fuera de `sales-brain`
+
+G) CRITERIO DE ÉXITO
+1. `brainId` llega desde setup hasta live backend
+2. el live Copilot inyecta reglas del brain activo desde `sales-brain`
+3. `copilot.ts` no se ensucia con otro monstruo doctrinal inline
+4. prebrief sigue intacto
+5. Arena sigue intacto
+6. no se rompe typecheck más allá de errores preexistentes
+
+H) ENTREGA
+Cuando termines, devuélveme solo:
+1) archivos tocados
+2) export/helper nuevo añadido en `sales-brain`
+3) por qué ruta exacta viaja ahora el `brainId` desde setup hasta live
+4) confirmación explícita de que NO tocaste Arena ni el JSON del prebrief
