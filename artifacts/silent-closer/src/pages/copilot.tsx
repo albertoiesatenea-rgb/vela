@@ -1587,6 +1587,7 @@ export default function CopilotPage() {
       ? heuristicLog.filter(t => t.inferred_speaker === "UNKNOWN").length / Math.max(heuristicLog.length, 1)
       : 0;
     const speakerLowConf = speakerMode === "auto" && postRepairUnknownRate > 0.35;
+    let freshSummary: typeof callSummary | null = null;
     try {
       const res = await fetch("/api/copilot/summarize", {
         method: "POST",
@@ -1606,7 +1607,7 @@ export default function CopilotPage() {
         strengths: string[]; improvements: string[]; full_report?: string;
         debrief_reliable?: boolean;
       };
-      setCallSummary({
+      freshSummary = {
         score: data.score,
         globalState: data.global_state,
         resultLabel: data.result_label,
@@ -1614,9 +1615,10 @@ export default function CopilotPage() {
         improvements: data.improvements ?? [],
         debriefReliable: data.debrief_reliable,
         speakerLowConf,
-      });
+      };
+      setCallSummary(freshSummary);
     } catch {
-      setCallSummary({
+      freshSummary = {
         score: analyzeErrorCountRef.current > 0 ? 3 : 5,
         globalState: analyzeErrorCountRef.current > 0
           ? (langRef.current === "en" ? "unreliable" : "no fiable")
@@ -1630,7 +1632,8 @@ export default function CopilotPage() {
           : [],
         debriefReliable: analyzeErrorCountRef.current === 0,
         speakerLowConf,
-      });
+      };
+      setCallSummary(freshSummary);
     } finally {
       setIsSummarizing(false);
     }
@@ -1645,9 +1648,9 @@ export default function CopilotPage() {
             brainId: sessionBrainIdRef.current ?? null,
             sessionContext: sessionContext ?? null,
             outcome: callOutcome ?? null,
-            score: callSummary?.score ?? null,
+            score: freshSummary?.score ?? null,
             durationSeconds: null,
-            callSummary: callSummary ?? null,
+            callSummary: freshSummary ?? null,
             brutalAudit: brutalAudit ?? null,
             whisperTranscript: whisperTranscript || null,
             webSpeechTurns: turnLog ?? null,
