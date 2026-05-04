@@ -1103,6 +1103,7 @@ export interface CopilotBrainContext {
   brainLabel: string;
   prebriefRules: Record<Lang, string>;
   prebriefScriptRules: Record<Lang, string>;
+  inspectorBullets: string[];
 }
 
 export const COPILOT_BRAINS: Record<string, CopilotBrainContext> = {
@@ -1192,6 +1193,14 @@ Suggested opening: natural, useful, not robotic.
 Next step close: one phrase aimed at the realistic next step for this phase.
 Brief for live: 4-7 sentences integrating phase, real goal, main blocker, must-get-today, expected next step. Ready for VELA live.`,
     },
+    inspectorBullets: [
+      "Lee la fase comercial real sin asumir que todo es cierre ni todo es discovery.",
+      "Usa el label de llamada más preciso disponible en el input — 'seguimiento' solo si no hay información más específica.",
+      "Detecta la decisión comercial concreta de hoy, no produce resúmenes administrativos.",
+      "Interpreta lo que el cliente ya conoce del proceso, del producto o del motivo de la llamada — sin incluir sus datos personales.",
+      "Identifica el bloqueo dominante probable en esta fase — un único freno, no una lista.",
+      "Genera un resumen táctico compacto (3-5 frases) utilizable como base inmediata para VELA.",
+    ],
   },
 
   immvest: {
@@ -1716,10 +1725,31 @@ Suggested opening: natural, connects to real call reason.
 Next step close: specific to this Immvest phase, implies date.
 Brief for live: 4-7 compact sentences integrating Immvest phase, real goal, dominant blocker, must-get-today, expected next step. Ready for VELA live.`,
     },
+    inspectorBullets: [
+      "Distingue las fases del proceso comercial Immvest: cualificación, asesoría de inversión, follow-up intermedio y propuesta real.",
+      "Prioriza las señales explícitas del evento — 'Asesoría de ganancia patrimonial' o 'Asesoría de inversión' mandan sobre el label de CRM 'seguimiento'.",
+      "Detecta qué se decide hoy de verdad en función de la fase real, no produce resúmenes administrativos.",
+      "Separa lo que el cliente ya conoce del proceso o del modelo Immvest de sus datos personales o financieros.",
+      "Identifica el bloqueo dominante más probable en esta fase — un único freno, no una lista de objeciones.",
+      "Compacta el caso en 3-5 frases tácticas directas, útiles para que VELA arranque con contexto real.",
+    ],
   },
 
 };
 
 export function getCopilotBrain(brainId?: string): CopilotBrainContext {
   return COPILOT_BRAINS[brainId ?? "immvest"] ?? COPILOT_BRAINS["immvest"]!;
+}
+
+export function getCopilotBrainInspector(brainId?: string): {
+  label: string;
+  bullets: string[];
+  fullRules: string;
+} {
+  const brain = getCopilotBrain(brainId);
+  return {
+    label: brain.brainLabel,
+    bullets: brain.inspectorBullets,
+    fullRules: brain.prebriefRules.es,
+  };
 }

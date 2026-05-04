@@ -1,0 +1,109 @@
+Partimos del estado ACTUAL del proyecto. Quiero ejecutar SOLO la FASE 1 del refactor de brains.
+
+OBJETIVO DE ESTA FASE
+Eliminar duplicidad entre:
+- el contenido real del brain de prebrief en `lib/sales-brain/src/index.ts`
+- y la copia hardcodeada que hoy existe en `artifacts/silent-closer/src/components/context-panel.tsx` (`BRAIN_DISPLAY`)
+
+Quiero que, después de este cambio:
+1. `sales-brain` sea la única fuente de verdad del contenido de inspector/display de brain
+2. `context-panel.tsx` NO tenga texto doctrinal Immvest o Generic copiado a mano
+3. el comportamiento visual actual quede igual o casi igual
+4. NO se toque la lógica del prebrief, ni endpoints, ni prompts, ni JSON, ni Arena
+
+ALCANCE ESTRICTO
+Tocar solo estos archivos:
+1) `lib/sales-brain/src/index.ts`
+2) `artifacts/silent-closer/src/components/context-panel.tsx`
+
+Si hace falta un import/export adicional en el package shared, hazlo dentro de `lib/sales-brain/src/index.ts`, pero NO toques backend ni rutas.
+
+NO TOCAR
+- `artifacts/api-server/src/routes/copilot.ts`
+- `artifacts/api-server/src/routes/arena.ts`
+- prompts
+- lógica del brain
+- shapes JSON
+- logs
+- endpoints
+- UI flow
+- estilos salvo lo imprescindible para compilar
+
+PROBLEMA ACTUAL
+En `context-panel.tsx` existe `BRAIN_DISPLAY` con:
+- label
+- bullets
+- fullRules
+
+Eso duplica doctrina que ya vive en `COPILOT_BRAINS` dentro de `sales-brain`.
+Quiero quitar esa duplicidad.
+
+QUÉ QUIERO HACER
+
+A) EN `lib/sales-brain/src/index.ts`
+Añade una capa de metadatos de display/inspector para cada copilot brain.
+
+Quiero que cada brain tenga, además de:
+- `brainId`
+- `brainLabel`
+- `prebriefRules`
+- `prebriefScriptRules`
+
+también algo tipo:
+- `inspectorSummary` o `inspectorScopeText`
+- `inspectorBullets`
+- opcional: `inspectorFullRules`
+
+No me importa el nombre exacto, pero debe quedar claro que es metadata de UI/inspector, no lógica del prompt.
+
+Requisito:
+- para `immvest`, reutiliza el contenido real ya existente; no inventes doctrina nueva
+- para `generic`, igual
+- evita duplicar texto dentro del propio `index.ts` si puedes derivarlo de contenido ya existente, pero no fuerces una ingeniería rara
+- prioriza claridad y mantenibilidad
+
+B) EN `context-panel.tsx`
+Elimina el objeto local `BRAIN_DISPLAY` hardcodeado.
+
+Sustitúyelo por import desde `@workspace/sales-brain` o desde donde corresponda en este monorepo.
+
+El componente debe seguir pudiendo mostrar:
+- label del brain
+- bullets
+- texto/resumen del ámbito actual
+- fullRules en el inspector
+
+Pero todo eso debe venir del shared lib, no definido localmente.
+
+C) COMPORTAMIENTO
+No cambies:
+- selector de brain
+- dropdown
+- drawer/inspector
+- texto “Brain activo”
+- fetch de `brainId`
+- flujo de interpretar / preparar llamada
+
+Solo cambia la fuente del contenido del inspector.
+
+D) NOMBRE DE EXPORT
+Usa un nombre limpio y explícito, por ejemplo una de estas dos opciones:
+- `COPILOT_BRAIN_DISPLAY`
+- `COPILOT_BRAIN_INSPECTOR`
+o una función:
+- `getCopilotBrainInspector(brainId)`
+
+Prefiero una estructura simple, exportable y fácil de consumir desde frontend.
+
+E) CRITERIO DE ÉXITO
+Después del cambio:
+- si modifico el contenido doctrinal/inspector del brain en `sales-brain`, el inspector del frontend refleja ese cambio sin copiar/pegar
+- `context-panel.tsx` deja de contener el bloque enorme `BRAIN_DISPLAY`
+- no se rompe typecheck del frontend por este cambio
+
+ENTREGA
+Cuando termines, devuélveme solo:
+1) archivos tocados
+2) qué export nuevo añadiste en `sales-brain`
+3) confirmación de que `BRAIN_DISPLAY` local desapareció
+4) confirmación de que NO tocaste backend ni lógica de prompts

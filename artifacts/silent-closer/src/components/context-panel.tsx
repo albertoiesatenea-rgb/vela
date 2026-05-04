@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, type ReactNode } from "react";
+import { getCopilotBrainInspector } from "@workspace/sales-brain";
 import { triggerPrebriefLogDownload } from "@/lib/prebrief-log";
 import { ChevronDown, ChevronUp, Zap, SlidersHorizontal, User, Users, Target, Briefcase, ShieldOff, FileText, Swords, Navigation, Headphones, Shuffle, X, Package, Building, Lightbulb, MessageSquare, Sun, Moon, Brain } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -874,101 +875,8 @@ function CopilotClientPicker({
   );
 }
 
-// ── Brain display data (read-only, for Brain Inspector UI) ───────────────────
-const BRAIN_DISPLAY: Record<"generic" | "immvest", {
-  label: string;
-  bullets: string[];
-  fullRules: string;
-}> = {
-  immvest: {
-    label: "Immvest",
-    bullets: [
-      "Distingue las fases del proceso comercial Immvest: cualificación, asesoría de inversión, follow-up intermedio y propuesta real.",
-      "Prioriza las señales explícitas del evento — 'Asesoría de ganancia patrimonial' o 'Asesoría de inversión' mandan sobre el label de CRM 'seguimiento'.",
-      "Detecta qué se decide hoy de verdad en función de la fase real, no produce resúmenes administrativos.",
-      "Separa lo que el cliente ya conoce del proceso o del modelo Immvest de sus datos personales o financieros.",
-      "Identifica el bloqueo dominante más probable en esta fase — un único freno, no una lista de objeciones.",
-      "Compacta el caso en 3-5 frases tácticas directas, útiles para que VELA arranque con contexto real.",
-    ],
-    fullRules: `LECTURA DE FASE COMERCIAL — IMMVEST (inversión inmobiliaria en Alemania)
-
-FASES DEL PROCESO IMMVEST:
-- Fase 1 — Llamada informativa / cualificación: primer contacto, filtrar intención, medir capacidad real, agendar asesoría
-- Fase 2 — Asesoría de inversión / asesoría de ganancia patrimonial: descubrir motivación, posicionar Immvest, decidir si merece seguir
-- Fase 3 — Follow-up intermedio: recuperar contexto de asesoría anterior, aislar freno vivo, confirmar intención de continuar
-- Fase 4 — Propuesta real: presentar activo concreto, resolver objeciones, ir hacia reserva
-- Fase 5+ — Reserva (1.500€), financiación, visita, notaría
-
-PRIORIDAD DE LABEL — los eventos explícitos mandan sobre el label del CRM:
-- "Asesoría de ganancia patrimonial" → Fase 2 — asesoría. NUNCA "seguimiento"
-- "Asesoría de inversión" → Fase 2 — asesoría. NUNCA "seguimiento"
-- "Presentación del plan" o "Presentación de propuesta" → Fase 4
-- "Seguimiento" del CRM: úsalo SOLO si no hay ningún evento más específico en el input
-
-TIPO DE LLAMADA: Describe el evento real del input, no el label del CRM.
-- Ejemplos válidos: "asesoría de inversión", "asesoría de ganancia patrimonial", "presentación de propuesta", "cualificación inicial", "reserva"
-- PROHIBIDO: usar "seguimiento" si el input menciona un evento explícito
-
-QUÉ SE DECIDE HOY: La decisión comercial real de esta fase:
-- Fase 2: ¿el cliente encaja para seguir? ¿pasa a propuesta?
-- Fase 3: ¿se aísla el freno? ¿se confirma intención?
-- Fase 4: ¿reserva de 1.500€? ¿siguiente paso con fecha concreta?
-
-QUÉ SABE EL CLIENTE: Lo que ya conoce del proceso Immvest, del modelo financiero o del motivo de la llamada.
-- Sí incluye: si conoce el proceso, si ya vio propuesta, si entiende el cashflow alemán, qué motivó la llamada
-- NO incluyas datos financieros personales del cliente (liquidez, ingresos, etc.)
-
-BLOQUEO PRINCIPAL: El freno más relevante en esta fase. Un único bloqueo, no una lista de objeciones.
-- Objeciones Immvest habituales: cashflow negativo, desconocer Alemania, tipos de interés, confianza en empresa española, comparación con España
-
-OUTCOME VÁLIDO HOY por fase:
-- Fase 1: filtrar o agendar asesoría
-- Fase 2: confirmar encaje o pasar a propuesta real
-- Fase 3: aislar freno y confirmar intención de continuar
-- Fase 4: reserva de 1.500€ o siguiente paso concreto con fecha
-
-CONTEXTO PARA VELA: Resumen compacto (3-5 frases). No tritures el CRM. Táctico, directo, sin humo ni teoría.`,
-  },
-
-  generic: {
-    label: "Genérico",
-    bullets: [
-      "Lee la fase comercial real sin asumir que todo es cierre ni todo es discovery.",
-      "Usa el label de llamada más preciso disponible en el input — 'seguimiento' solo si no hay información más específica.",
-      "Detecta la decisión comercial concreta de hoy, no produce resúmenes administrativos.",
-      "Interpreta lo que el cliente ya conoce del proceso, del producto o del motivo de la llamada — sin incluir sus datos personales.",
-      "Identifica el bloqueo dominante probable en esta fase — un único freno, no una lista.",
-      "Genera un resumen táctico compacto (3-5 frases) utilizable como base inmediata para VELA.",
-    ],
-    fullRules: `LECTURA DE FASE COMERCIAL — GENERIC BRAIN
-
-FASE: Detecta la fase real del proceso sin asumir que todo es cierre ni discovery:
-- Informativa / cualificación: primer contacto, filtrar intención, medir interés real
-- Discovery: explorar motivación, necesidad y criterio de decisión
-- Follow-up intermedio: recuperar contexto, aislar freno vivo, confirmar intención
-- Propuesta: presentación de solución o producto concreto
-- Negociación / cierre: ajuste final y decisión
-
-TIPO DE LLAMADA: Usa el label que describe el evento real del input, no el label de CRM:
-- Ejemplos válidos: "llamada informativa", "asesoría de inversión", "presentación de propuesta", "cierre", "resolución de objeción"
-- Usa "seguimiento" SOLO si no hay ningún evento más específico en el input
-
-QUÉ SE DECIDE HOY: Detecta la decisión comercial concreta de esta llamada, no un resumen administrativo.
-- Ejemplo correcto: "Decidir si el cliente pasa a propuesta o se descarta"
-- Ejemplo incorrecto: "Se revisará la propuesta y se evaluará si ajustar el precio"
-
-QUÉ SABE EL CLIENTE: Lo que ya conoce del proceso, del modelo o del motivo de la llamada.
-- NO incluyas datos financieros o personales del cliente
-- Sí incluye: si ya vio propuesta, si conoce el proceso, qué motivó la llamada
-
-BLOQUEO PRINCIPAL: El freno más relevante ahora mismo. Un único bloqueo, no una lista.
-
-OUTCOME VÁLIDO HOY: El resultado más ambicioso alcanzable en esta llamada sin forzar.
-- Por fase: cualificación → filtrar o agendar | discovery → confirmar encaje | propuesta → decisión o fecha | cierre → firma o microcompromiso
-
-CONTEXTO PARA VELA: 3-5 frases compactas y directas. Sin humo, sin teoría. Útil como base táctica inmediata.`,
-  },
-};
+// ── Brain inspector data sourced from @workspace/sales-brain ─────────────────
+// Use getCopilotBrainInspector(brainId) to get { label, bullets, fullRules }.
 
 // ── ContextSetup — full-screen setup view ────────────────────────────────────
 export function ContextSetup({
@@ -2079,7 +1987,7 @@ export function ContextSetup({
                 <div className="flex items-center gap-2">
                   <Brain className="w-4 h-4 text-foreground shrink-0" />
                   <span className="text-sm font-mono font-bold tracking-[0.15em] uppercase text-foreground">
-                    {BRAIN_DISPLAY[activeBrainId].label}
+                    {getCopilotBrainInspector(activeBrainId).label}
                   </span>
                 </div>
                 <span className="text-[10px] font-mono text-muted-foreground tracking-wide">
@@ -2107,7 +2015,7 @@ export function ContextSetup({
                   Qué hace este brain
                 </span>
                 <ul className="flex flex-col gap-2.5">
-                  {BRAIN_DISPLAY[activeBrainId].bullets.map((bullet, i) => (
+                  {getCopilotBrainInspector(activeBrainId).bullets.map((bullet, i) => (
                     <li key={i} className="flex items-start gap-2.5">
                       <span className="w-1 h-1 rounded-full bg-foreground/40 mt-[6px] shrink-0" />
                       <span className="text-[12px] text-foreground/80 leading-relaxed">{bullet}</span>
@@ -2128,7 +2036,7 @@ export function ContextSetup({
                 </button>
                 {fullRulesOpen && (
                   <pre className="mt-1 text-[10px] font-mono text-muted-foreground leading-relaxed whitespace-pre-wrap bg-muted rounded-xl px-4 py-3 border border-border overflow-x-auto">
-                    {BRAIN_DISPLAY[activeBrainId].fullRules}
+                    {getCopilotBrainInspector(activeBrainId).fullRules}
                   </pre>
                 )}
               </section>
