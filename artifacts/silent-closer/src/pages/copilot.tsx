@@ -769,7 +769,8 @@ export default function CopilotPage() {
   // Stable listening-session flag — true from "Iniciar escucha" to "Pausar".
   // Unlike isListening from the hook (which flickers during segment restarts),
   // this only changes when the user explicitly toggles the mic.
-  const [isSessionListening, setIsSessionListening] = useState(false);
+  const [isSessionListening,  setIsSessionListening]  = useState(false);
+  const [showAudioSourceModal, setShowAudioSourceModal] = useState(false);
 
   // AUTO inference state
   const [inferredAutoLabel, setInferredAutoLabel] = useState<string>("");
@@ -1944,8 +1945,20 @@ export default function CopilotPage() {
   };
 
   const handleMicToggle = () => {
-    if (isSessionListening) { stopListening(); setIsSessionListening(false); }
-    else { startListening(); setIsSessionListening(true); startRecording(); }
+    if (isSessionListening) {
+      stopListening();
+      setIsSessionListening(false);
+    } else {
+      // Show audio source picker before starting — user chooses mic-only or system audio
+      setShowAudioSourceModal(true);
+    }
+  };
+
+  const handleAudioSourceConfirm = (captureSystemAudio: boolean) => {
+    setShowAudioSourceModal(false);
+    startListening();
+    setIsSessionListening(true);
+    void startRecording(captureSystemAudio);
   };
 
   const handleSimulateSubmit = (e: React.FormEvent) => {
@@ -2907,6 +2920,59 @@ export default function CopilotPage() {
 
       {/* Compact session bar */}
       <SessionBar sessionContext={sessionContext} contextLabel={contextLabel} onClearSession={handleClearSession} lang={lang} momentum={tacticalState.momentum} endLabel={!hasRealConversation ? T[lang].EXIT : undefined} />
+
+      {/* Audio source modal — shown before activating listen mode */}
+      {showAudioSourceModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm px-6">
+          <div className="w-full max-w-xs bg-black border border-zinc-800 rounded-2xl p-6 flex flex-col gap-5 shadow-2xl">
+            <div className="flex flex-col gap-1">
+              <p className="text-[9px] font-mono tracking-[0.25em] uppercase text-zinc-500 mb-1">Configurar escucha</p>
+              <p className="text-sm font-mono text-white leading-snug">
+                {lang === "es" ? "¿Dónde se escucha al cliente?" : "Where does the client's audio come from?"}
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              {/* Option A — system audio */}
+              <button
+                onClick={() => handleAudioSourceConfirm(true)}
+                className="w-full text-left flex flex-col gap-0.5 border border-zinc-700 hover:border-zinc-400 rounded-xl px-4 py-3 transition-colors group"
+              >
+                <span className="text-[11px] font-mono text-white group-hover:text-white">
+                  {lang === "es" ? "En este navegador" : "In this browser"}
+                </span>
+                <span className="text-[9px] font-mono text-zinc-500">
+                  {lang === "es"
+                    ? "Teams web, Zoom web, ChatGPT — Chrome pedirá compartir audio del sistema. Marca la casilla «Compartir audio»."
+                    : "Teams web, Zoom web, ChatGPT — Chrome will ask to share system audio. Check «Share audio»."}
+                </span>
+              </button>
+
+              {/* Option B — mic only */}
+              <button
+                onClick={() => handleAudioSourceConfirm(false)}
+                className="w-full text-left border border-zinc-800 hover:border-zinc-600 rounded-xl px-4 py-3 transition-colors group"
+              >
+                <span className="text-[11px] font-mono text-white group-hover:text-white">
+                  {lang === "es" ? "En otro sitio" : "Somewhere else"}
+                </span>
+                <span className="block text-[9px] font-mono text-zinc-500 mt-0.5">
+                  {lang === "es"
+                    ? "App externa, teléfono, presencial — solo se grabará tu micrófono."
+                    : "External app, phone, in-person — only your microphone will be recorded."}
+                </span>
+              </button>
+            </div>
+
+            <button
+              onClick={() => setShowAudioSourceModal(false)}
+              className="text-[9px] font-mono text-zinc-600 hover:text-zinc-400 transition-colors text-center"
+            >
+              {lang === "es" ? "Cancelar" : "Cancel"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Status pill — top right */}
       <div className="absolute top-10 right-5 flex items-center gap-3 z-10">
