@@ -10,6 +10,7 @@ export function useAudioRecorder({ onChunkReady }: UseAudioRecorderOptions = {})
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const chunkIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const startTimeRef = useRef<number>(0);
   const [isRecording, setIsRecording] = useState(false);
 
   const flushChunks = useCallback(() => {
@@ -25,7 +26,7 @@ export function useAudioRecorder({ onChunkReady }: UseAudioRecorderOptions = {})
 
   const startRecording = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
       const mimeType = MediaRecorder.isTypeSupported("audio/ogg;codecs=opus")
         ? "audio/ogg;codecs=opus"
         : MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
@@ -34,6 +35,7 @@ export function useAudioRecorder({ onChunkReady }: UseAudioRecorderOptions = {})
 
       const recorder = new MediaRecorder(stream, { mimeType });
       chunksRef.current = [];
+      startTimeRef.current = Date.now();
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
@@ -68,6 +70,7 @@ export function useAudioRecorder({ onChunkReady }: UseAudioRecorderOptions = {})
       }
       recorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType });
+        console.log("[vela:recorder] blob size:", blob.size, "duration ms:", Date.now() - startTimeRef.current, "type:", blob.type);
         chunksRef.current = [];
         mediaRecorderRef.current = null;
         setIsRecording(false);

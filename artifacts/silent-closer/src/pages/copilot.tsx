@@ -1380,8 +1380,11 @@ export default function CopilotPage() {
         const ext = audioBlob.type.includes("ogg") ? "ogg" : "webm";
         formData.append("audio", audioBlob, `session.${ext}`);
         formData.append("context", _ctx);
+        formData.append("lang", lang);
+        console.log("[vela:whisper] blob size:", audioBlob.size, "type:", audioBlob.type);
         try {
           const res = await fetch("/api/copilot/transcribe", { method: "POST", body: formData });
+          if (!res.ok) { console.error("[vela:whisper] transcribe failed", res.status, await res.text()); return; }
           const data = await res.json();
           if (data.transcript) {
             console.log("[vela:whisper] transcript ready", data.transcript.slice(0, 100));
@@ -1416,7 +1419,8 @@ export default function CopilotPage() {
             }
           }
         } catch (e) {
-          console.error("[vela:whisper] transcription failed", e);
+          console.error("[vela:whisper] fatal error:", e);
+          setWhisperStatus("error");
         }
       })();
     }

@@ -1761,9 +1761,11 @@ router.post("/copilot/transcribe", async (req, res) => {
     const chunks: Buffer[] = [];
     let filename = "audio.webm";
     let contextPrompt = "";
+    let lang = "es";
 
     bb.on("field", (name, value) => {
       if (name === "context") contextPrompt = value;
+      if (name === "lang") lang = value;
     });
 
     bb.on("file", (_field, file, info) => {
@@ -1784,7 +1786,7 @@ router.post("/copilot/transcribe", async (req, res) => {
         const transcription = await openai.audio.transcriptions.create({
           file: audioFile,
           model: "whisper-1",
-          language: "es",
+          language: lang === "en" ? "en" : "es",
           response_format: "verbose_json",
           prompt: contextPrompt || undefined,
         });

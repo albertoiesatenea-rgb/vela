@@ -18,7 +18,7 @@ const MIN_FLUSH_CHARS = 12;
 
 type FlushReason = "interval" | "stop" | "interim_fallback";
 
-export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 5000, lang = "es" }: UseSpeechProps) {
+export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 15000, lang = "es" }: UseSpeechProps) {
   const [isListening, setIsListening] = useState(false);
   const [isSupported, setIsSupported] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +52,7 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 5000, lang = "e
   // ── Analysis interval ──────────────────────────────────────────────────
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const watchdogRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const hardResetRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── Flush — picks up isFinal buffer, falls back to interim if empty ───
   const flushBufferRef = useRef<(reason: FlushReason) => void>(() => {});
@@ -175,6 +176,25 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 5000, lang = "e
     if (watchdogRef.current) { clearInterval(watchdogRef.current); watchdogRef.current = null; }
   }, []);
 
+  // ── Hard reset — every 10 min, fully tear down and rebuild recognition ─
+  // Prevents Chrome degradation after hundreds of micro-restarts.
+  const startHardReset = useCallback(() => {
+    if (hardResetRef.current) return;
+    hardResetRef.current = setInterval(() => {
+      if (!shouldListenRef.current || !recognitionRef.current) return;
+      flushBufferRef.current("interval");
+      isActiveRef.current = false;
+      try { recognitionRef.current.stop(); } catch { /* ignore */ }
+      setTimeout(() => {
+        if (shouldListenRef.current) tryStartRef.current();
+      }, 500);
+    }, 10 * 60 * 1000);
+  }, []);
+
+  const stopHardReset = useCallback(() => {
+    if (hardResetRef.current) { clearInterval(hardResetRef.current); hardResetRef.current = null; }
+  }, []);
+
   // ── Build recognition once on mount ───────────────────────────────────
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -270,6 +290,7 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 5000, lang = "e
     shouldListenRef.current = true;
     startInterval();
     startWatchdog();
+    startHardReset();
     tryStartRef.current();
   }, [startInterval, startWatchdog]);
 
@@ -278,6 +299,7 @@ export function useSpeech({ onAnalyzeReady, analysisIntervalMs = 5000, lang = "e
     isActiveRef.current = false;
     stopInterval();
     stopWatchdog();
+    stopHardReset();
     setIsListening(false);
     setInterimText("");
     // Flush any remaining content — isFinal buffer first, interim fallback second
