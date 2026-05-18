@@ -10,12 +10,12 @@ export function useAudioRecorder({ onChunkReady }: UseAudioRecorderOptions = {})
   const mediaRecorderRef   = useRef<MediaRecorder | null>(null);
   const chunksRef          = useRef<Blob[]>([]);
   const chunkIntervalRef   = useRef<ReturnType<typeof setInterval> | null>(null);
-  const audioContextRef    = useRef<AudioContext | null>(null);
+  // const audioContextRef    = useRef<AudioContext | null>(null);   // [DISPLAY-MEDIA DISABLED]
   const micStreamRef       = useRef<MediaStream | null>(null);
-  const sysStreamRef       = useRef<MediaStream | null>(null);
+  // const sysStreamRef       = useRef<MediaStream | null>(null);   // [DISPLAY-MEDIA DISABLED]
 
-  const [isRecording,      setIsRecording]      = useState(false);
-  const [systemAudioActive, setSystemAudioActive] = useState(false);
+  const [isRecording,       setIsRecording]       = useState(false);
+  const [systemAudioActive, setSystemAudioActive] = useState(false); // always false while disabled
 
   const flushChunks = useCallback(() => {
     const recorder = mediaRecorderRef.current;
@@ -30,42 +30,28 @@ export function useAudioRecorder({ onChunkReady }: UseAudioRecorderOptions = {})
 
   const startRecording = useCallback(async () => {
     try {
-      // ── Step 1: getDisplayMedia for system audio (OPTIONAL — silent fallback) ──
-      let sysStream: MediaStream | null = null;
-      try {
-        console.log("[vela:recorder] requesting getDisplayMedia for system audio");
-        sysStream = await navigator.mediaDevices.getDisplayMedia({
-          // Minimal video required — Chrome ignores audio-only getDisplayMedia
-          video: { width: 1, height: 1 },
-          audio: {
-            echoCancellation: false,
-            noiseSuppression: false,
-            autoGainControl: false,
-          },
-        } as MediaStreamConstraints);
+      // ── [DISPLAY-MEDIA DISABLED — MIC ONLY TEST] ────────────────────────────
+      // To re-enable: uncomment the getDisplayMedia block + AudioContext mixing below
+      //
+      // let sysStream: MediaStream | null = null;
+      // try {
+      //   console.log("[vela:recorder] requesting getDisplayMedia for system audio");
+      //   sysStream = await navigator.mediaDevices.getDisplayMedia({
+      //     video: { width: 1, height: 1 },
+      //     audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+      //   } as MediaStreamConstraints);
+      //   sysStream.getVideoTracks().forEach((t) => { t.stop(); });
+      //   const sysAudioTracks = sysStream.getAudioTracks();
+      //   if (sysAudioTracks.length === 0) { sysStream = null; }
+      //   else { console.log("[vela:recorder] system audio track:", sysAudioTracks[0].label); }
+      // } catch (sysErr) {
+      //   console.warn("[vela:recorder] getDisplayMedia skipped:", (sysErr as Error)?.message ?? sysErr);
+      //   sysStream = null;
+      // }
+      // ── END DISPLAY-MEDIA BLOCK ─────────────────────────────────────────────
 
-        // Stop video tracks immediately — only audio matters
-        sysStream.getVideoTracks().forEach((t) => {
-          t.stop();
-          console.log("[vela:recorder] stopped unused video track");
-        });
-
-        const sysAudioTracks = sysStream.getAudioTracks();
-        if (sysAudioTracks.length === 0) {
-          // User shared screen but did NOT tick "Share audio"
-          console.warn("[vela:recorder] getDisplayMedia: no audio tracks — user did not enable audio sharing");
-          sysStream = null;
-        } else {
-          console.log("[vela:recorder] system audio track:", sysAudioTracks[0].label);
-        }
-      } catch (sysErr) {
-        // User cancelled picker or permission denied — perfectly normal, continue mic-only
-        console.warn("[vela:recorder] getDisplayMedia skipped (cancelled or denied):", (sysErr as Error)?.message ?? sysErr);
-        sysStream = null;
-      }
-
-      // ── Step 2: getUserMedia for microphone ──
-      console.log("[vela:recorder] requesting getUserMedia (mic)");
+      // ── Step 1: getUserMedia for microphone ──
+      console.log("[vela:recorder] requesting getUserMedia (mic-only mode)");
       const micStream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
@@ -75,32 +61,26 @@ export function useAudioRecorder({ onChunkReady }: UseAudioRecorderOptions = {})
       });
       console.log("[vela:recorder] mic track:", micStream.getAudioTracks()[0]?.label);
 
-      // ── Step 3: mix both sources in AudioContext ──
-      const ctx  = new AudioContext();
-      const dest = ctx.createMediaStreamDestination();
+      // ── [DISPLAY-MEDIA DISABLED] AudioContext mixing skipped ─────────────────
+      // const ctx  = new AudioContext();
+      // const dest = ctx.createMediaStreamDestination();
+      // ctx.createMediaStreamSource(micStream).connect(dest);
+      // if (sysStream) { ctx.createMediaStreamSource(sysStream).connect(dest); }
+      // audioContextRef.current = ctx;
+      // sysStreamRef.current    = sysStream;
+      // Record dest.stream instead of micStream when mixing is active
+      // ── END AUDIOCTX BLOCK ──────────────────────────────────────────────────
 
-      ctx.createMediaStreamSource(micStream).connect(dest);
+      micStreamRef.current = micStream;
 
-      if (sysStream) {
-        ctx.createMediaStreamSource(sysStream).connect(dest);
-        console.log("[vela:recorder] mixing mic + system audio → MediaRecorder");
-      } else {
-        console.log("[vela:recorder] mic-only → MediaRecorder (no system audio)");
-      }
-
-      // Save for cleanup on stop
-      audioContextRef.current = ctx;
-      micStreamRef.current    = micStream;
-      sysStreamRef.current    = sysStream;
-
-      // ── Step 4: record the mixed destination stream ──
+      // ── Step 2: record mic stream directly ──
       const mimeType = MediaRecorder.isTypeSupported("audio/ogg;codecs=opus")
         ? "audio/ogg;codecs=opus"
         : MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
         ? "audio/webm;codecs=opus"
         : "audio/webm";
 
-      const recorder = new MediaRecorder(dest.stream, { mimeType });
+      const recorder = new MediaRecorder(micStream, { mimeType }); // micStream (not dest.stream)
       chunksRef.current = [];
 
       recorder.ondataavailable = (e) => {
@@ -110,12 +90,11 @@ export function useAudioRecorder({ onChunkReady }: UseAudioRecorderOptions = {})
       recorder.start(5000);
       mediaRecorderRef.current = recorder;
       setIsRecording(true);
-      setSystemAudioActive(!!sysStream);
+      setSystemAudioActive(false); // always false while display-media is disabled
 
       console.log(
         "[vela:recorder] recording started — mimeType:", mimeType,
-        "| systemAudio:", !!sysStream,
-        "| sampleRate:", ctx.sampleRate
+        "| systemAudio: false (display-media disabled)"
       );
 
       // Auto-flush every 10 minutes
@@ -123,7 +102,7 @@ export function useAudioRecorder({ onChunkReady }: UseAudioRecorderOptions = {})
       chunkIntervalRef.current = setInterval(() => {
         const rec = mediaRecorderRef.current;
         if (rec && rec.state === "recording") {
-          rec.requestData(); // force latest audio into ondataavailable
+          rec.requestData();
         }
         setTimeout(flushChunks, 300);
       }, CHUNK_INTERVAL_MS);
@@ -151,13 +130,12 @@ export function useAudioRecorder({ onChunkReady }: UseAudioRecorderOptions = {})
         chunksRef.current    = [];
         mediaRecorderRef.current = null;
 
-        // Tear down all sources and context
         micStreamRef.current?.getTracks().forEach((t) => t.stop());
-        sysStreamRef.current?.getTracks().forEach((t) => t.stop());
-        audioContextRef.current?.close().catch(() => {});
+        // sysStreamRef.current?.getTracks().forEach((t) => t.stop());   // [DISPLAY-MEDIA DISABLED]
+        // audioContextRef.current?.close().catch(() => {});              // [DISPLAY-MEDIA DISABLED]
         micStreamRef.current    = null;
-        sysStreamRef.current    = null;
-        audioContextRef.current = null;
+        // sysStreamRef.current    = null;                                // [DISPLAY-MEDIA DISABLED]
+        // audioContextRef.current = null;                                // [DISPLAY-MEDIA DISABLED]
 
         setIsRecording(false);
         setSystemAudioActive(false);
