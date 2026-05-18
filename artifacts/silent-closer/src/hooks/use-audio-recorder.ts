@@ -1,3 +1,4 @@
+// @refresh reset
 import { useRef, useCallback, useState } from "react";
 
 const CHUNK_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
@@ -7,15 +8,16 @@ interface UseAudioRecorderOptions {
 }
 
 export function useAudioRecorder({ onChunkReady }: UseAudioRecorderOptions = {}) {
-  const mediaRecorderRef   = useRef<MediaRecorder | null>(null);
-  const chunksRef          = useRef<Blob[]>([]);
-  const chunkIntervalRef   = useRef<ReturnType<typeof setInterval> | null>(null);
-  // const audioContextRef    = useRef<AudioContext | null>(null);   // [DISPLAY-MEDIA DISABLED]
-  const micStreamRef       = useRef<MediaStream | null>(null);
-  // const sysStreamRef       = useRef<MediaStream | null>(null);   // [DISPLAY-MEDIA DISABLED]
+  // All refs kept as real declarations regardless of mode — changing the count causes HMR hook-order crashes
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef        = useRef<Blob[]>([]);
+  const chunkIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const audioContextRef  = useRef<AudioContext | null>(null);   // used when display-media is enabled
+  const micStreamRef     = useRef<MediaStream | null>(null);
+  const sysStreamRef     = useRef<MediaStream | null>(null);    // used when display-media is enabled
 
   const [isRecording,       setIsRecording]       = useState(false);
-  const [systemAudioActive, setSystemAudioActive] = useState(false); // always false while disabled
+  const [systemAudioActive, setSystemAudioActive] = useState(false);
 
   const flushChunks = useCallback(() => {
     const recorder = mediaRecorderRef.current;
@@ -31,7 +33,11 @@ export function useAudioRecorder({ onChunkReady }: UseAudioRecorderOptions = {})
   const startRecording = useCallback(async () => {
     try {
       // ── [DISPLAY-MEDIA DISABLED — MIC ONLY TEST] ────────────────────────────
-      // To re-enable: uncomment the getDisplayMedia block + AudioContext mixing below
+      // To re-enable:
+      //   1. Uncomment the getDisplayMedia block below
+      //   2. Uncomment the AudioContext mixing block below
+      //   3. Change new MediaRecorder(micStream, ...) → new MediaRecorder(dest.stream, ...)
+      //   4. Uncomment sysStreamRef/audioContextRef usage in stopRecording
       //
       // let sysStream: MediaStream | null = null;
       // try {
@@ -50,7 +56,6 @@ export function useAudioRecorder({ onChunkReady }: UseAudioRecorderOptions = {})
       // }
       // ── END DISPLAY-MEDIA BLOCK ─────────────────────────────────────────────
 
-      // ── Step 1: getUserMedia for microphone ──
       console.log("[vela:recorder] requesting getUserMedia (mic-only mode)");
       const micStream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -68,19 +73,20 @@ export function useAudioRecorder({ onChunkReady }: UseAudioRecorderOptions = {})
       // if (sysStream) { ctx.createMediaStreamSource(sysStream).connect(dest); }
       // audioContextRef.current = ctx;
       // sysStreamRef.current    = sysStream;
-      // Record dest.stream instead of micStream when mixing is active
       // ── END AUDIOCTX BLOCK ──────────────────────────────────────────────────
 
-      micStreamRef.current = micStream;
+      micStreamRef.current   = micStream;
+      audioContextRef.current = null;  // explicitly null while disabled
+      sysStreamRef.current   = null;   // explicitly null while disabled
 
-      // ── Step 2: record mic stream directly ──
       const mimeType = MediaRecorder.isTypeSupported("audio/ogg;codecs=opus")
         ? "audio/ogg;codecs=opus"
         : MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
         ? "audio/webm;codecs=opus"
         : "audio/webm";
 
-      const recorder = new MediaRecorder(micStream, { mimeType }); // micStream (not dest.stream)
+      // Recording micStream directly (change to dest.stream when re-enabling mixing)
+      const recorder = new MediaRecorder(micStream, { mimeType });
       chunksRef.current = [];
 
       recorder.ondataavailable = (e) => {
@@ -97,7 +103,6 @@ export function useAudioRecorder({ onChunkReady }: UseAudioRecorderOptions = {})
         "| systemAudio: false (display-media disabled)"
       );
 
-      // Auto-flush every 10 minutes
       if (chunkIntervalRef.current) clearInterval(chunkIntervalRef.current);
       chunkIntervalRef.current = setInterval(() => {
         const rec = mediaRecorderRef.current;
@@ -131,11 +136,11 @@ export function useAudioRecorder({ onChunkReady }: UseAudioRecorderOptions = {})
         mediaRecorderRef.current = null;
 
         micStreamRef.current?.getTracks().forEach((t) => t.stop());
-        // sysStreamRef.current?.getTracks().forEach((t) => t.stop());   // [DISPLAY-MEDIA DISABLED]
-        // audioContextRef.current?.close().catch(() => {});              // [DISPLAY-MEDIA DISABLED]
+        sysStreamRef.current?.getTracks().forEach((t) => t.stop());   // no-op while null
+        audioContextRef.current?.close().catch(() => {});              // no-op while null
         micStreamRef.current    = null;
-        // sysStreamRef.current    = null;                                // [DISPLAY-MEDIA DISABLED]
-        // audioContextRef.current = null;                                // [DISPLAY-MEDIA DISABLED]
+        sysStreamRef.current    = null;
+        audioContextRef.current = null;
 
         setIsRecording(false);
         setSystemAudioActive(false);
